@@ -1,0 +1,25 @@
+name: kiko
+description: TUI library for building terminal user interfaces.
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.8.1
+
+# Add regular dependencies here.
+dependencies:
+  cassowary: ^0.4.3
+  characters: ^1.3.0
+  collection: ^1.19.1
+  coverage: ^1.11.0
+  logging: ^1.2.0
+  logging_appenders: ^1.3.1
+  meta: ^1.16.0
+  termlib: ^0.4.0
+  termparser: ^0.3.0
+  termunicode: ^0.1.0
+  very_good_analysis: ^9.0.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.24.0

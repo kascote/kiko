@@ -1,17 +1,12 @@
-import 'dart:collection';
-
 /// Record returned by the cache stats.
 typedef CacheStats = ({int hits, int misses, double ratio});
 
 /// Implements a simple cache with a fixed capacity and LRU access.
-/// The cache is indexed by a [K] and stores a value of type [V].
-/// The cache is implemented as a map with a queue to track the order of access.
+/// Uses insertion-order map for O(1) access and eviction.
 class LruCache<K, V> {
   /// The maximum number of items that can be stored in the cache.
   final int capacity;
-  final Map<K, V> _cache = {};
-  final Queue<K> _eviction = Queue<K>();
-  // Performance tracking
+  final _cache = <K, V>{};
   int _hits = 0;
   int _misses = 0;
 
@@ -25,52 +20,44 @@ class LruCache<K, V> {
   /// Removes all items from the cache.
   void clear() {
     _cache.clear();
-    _eviction.clear();
     _hits = 0;
     _misses = 0;
   }
 
   /// Returns the number of items currently stored in the cache.
-  int get length => _eviction.length;
+  int get length => _cache.length;
 
-  /// Returns the value associated with the given [key] or `null` if the value
-  /// is not in the cache.
+  /// Returns whether [key] exists in the cache (does not affect LRU order).
+  bool containsKey(K key) => _cache.containsKey(key);
+
+  /// Returns the value associated with [key] or `null` if not present.
   V? get(K key) {
-    final cachedValue = _cache[key];
-    if (cachedValue == null) {
+    if (!_cache.containsKey(key)) {
       _misses++;
       return null;
     }
-
     _hits++;
-    _eviction
-      ..remove(key)
-      ..addFirst(key);
-    return cachedValue;
-  }
-
-  /// Sets the given [value] in the cache with the given [key].
-  /// If the cache is full, the least recently used item is removed.
-  V set(K key, V value) {
-    if (_cache.containsKey(key)) {
-      _eviction.remove(key);
-    }
-
-    if (_eviction.length >= capacity) {
-      final last = _eviction.removeLast();
-      _cache.remove(last);
-    }
-
-    _eviction.addFirst(key);
-    _cache[key] = value;
-
+    final value = _cache.remove(key) as V;
+    _cache[key] = value; // Move to end (most recent)
     return value;
   }
 
-  /// Returns a record containing cache hit and miss statistics.
+  /// Sets [value] for [key]. Evicts LRU item if at capacity.
+  V set(K key, V value) {
+    _cache.remove(key); // Remove if exists to update position
+    if (_cache.length >= capacity) {
+      _cache.remove(_cache.keys.first); // Evict oldest
+    }
+    _cache[key] = value;
+    return value;
+  }
+
+  /// Removes [key] from cache. Returns the removed value or `null`.
+  V? remove(K key) => _cache.remove(key);
+
+  /// Returns cache hit/miss statistics.
   CacheStats get stats {
     final total = _hits + _misses;
-    final ratio = total > 0 ? _hits / total : 0.0;
-    return (hits: _hits, misses: _misses, ratio: ratio);
+    return (hits: _hits, misses: _misses, ratio: total > 0 ? _hits / total : 0.0);
   }
 }

@@ -715,7 +715,7 @@ class Layout {
     return elements.map((element) {
       final start = (element.start.value.round() / _floatPrecisionMultiplier).round();
       final end = (element.end.value.round() / _floatPrecisionMultiplier).round();
-      final size = end.saturatingSub(start);
+      final size = end.saturatingSubU16(start);
       return switch (direction) {
         Direction.horizontal => Rect.create(
           x: start,

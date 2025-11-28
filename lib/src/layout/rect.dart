@@ -78,17 +78,17 @@ class Rect {
   /// If the margin is larger than the [Rect], the returned [Rect] will have
   /// no area
   Rect inner(Margin margin) {
-    final doubleHorizontal = margin.horizontal.saturatingMul(2);
-    final doubleVertical = margin.vertical.saturatingMul(2);
+    final doubleHorizontal = margin.horizontal.saturatingMulU16(2);
+    final doubleVertical = margin.vertical.saturatingMulU16(2);
 
     if (width < doubleHorizontal || height < doubleVertical) {
       return Rect.zero;
     }
     return Rect._(
-      x.saturatingAdd(margin.horizontal),
-      y.saturatingAdd(margin.vertical),
-      width.saturatingSub(doubleHorizontal),
-      height.saturatingSub(doubleVertical),
+      x.saturatingAddU16(margin.horizontal),
+      y.saturatingAddU16(margin.vertical),
+      width.saturatingSubU16(doubleHorizontal),
+      height.saturatingSubU16(doubleVertical),
     );
   }
 
@@ -98,8 +98,8 @@ class Rect {
   /// or [height]
   Rect offset(Offset offset) {
     return copyWith(
-      x: x.saturatingAdd(offset.x).clamp(0, u16Max - width),
-      y: y.saturatingAdd(offset.y).clamp(0, u16Max - height),
+      x: (x + offset.x).clamp(0, u16Max - width),
+      y: (y + offset.y).clamp(0, u16Max - height),
     );
   }
 
@@ -112,8 +112,8 @@ class Rect {
     return Rect._(
       x,
       y,
-      width.saturatingSub(x),
-      height.saturatingSub(y),
+      width.saturatingSubU16(x),
+      height.saturatingSubU16(y),
     );
   }
 
@@ -129,8 +129,8 @@ class Rect {
     return Rect._(
       x,
       y,
-      width.saturatingSub(x),
-      height.saturatingSub(y),
+      width.saturatingSubU16(x),
+      height.saturatingSubU16(y),
     );
   }
 
@@ -171,8 +171,8 @@ class Rect {
   Rect clamp(Rect other) {
     final width = math.min(this.width, other.width);
     final height = math.min(this.height, other.height);
-    final x = this.x.clamp(other.x, other.right.saturatingSub(width));
-    final y = this.y.clamp(other.y, other.bottom.saturatingSub(height));
+    final x = this.x.clamp(other.x, other.right.saturatingSubU16(width));
+    final y = this.y.clamp(other.y, other.bottom.saturatingSubU16(height));
     return Rect._(x, y, width, height);
   }
 
@@ -195,8 +195,8 @@ class Rect {
 
   /// indents the x value of the [Rect] by a given offset
   Rect indentX(int offset) => copyWith(
-    x: x.saturatingAdd(offset),
-    width: width.saturatingSub(offset),
+    x: x.saturatingAddU16(offset),
+    width: width.saturatingSubU16(offset),
   );
 
   /// Creates a new [Rect] with the base values of this [Rect] and the given

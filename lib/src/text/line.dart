@@ -119,8 +119,8 @@ class Line implements Widget {
     if (canRenderCompleteLine) {
       final indentWidth = switch (renderAlignment) {
         Alignment.left || null => 0,
-        Alignment.center => areaWidth.saturatingSub(lineWidth) ~/ 2,
-        Alignment.right => areaWidth.saturatingSub(lineWidth),
+        Alignment.center => areaWidth.saturatingSubU16(lineWidth) ~/ 2,
+        Alignment.right => areaWidth.saturatingSubU16(lineWidth),
       };
 
       final areaA = renderArea.indentX(indentWidth);
@@ -128,8 +128,8 @@ class Line implements Widget {
     } else {
       final skipWidth = switch (renderAlignment) {
         Alignment.left || null => 0,
-        Alignment.center => lineWidth.saturatingSub(areaWidth) ~/ 2,
-        Alignment.right => lineWidth.saturatingSub(areaWidth),
+        Alignment.center => lineWidth.saturatingSubU16(areaWidth) ~/ 2,
+        Alignment.right => lineWidth.saturatingSubU16(areaWidth),
       };
       _renderSpans(renderArea, buf, skipWidth);
     }
@@ -159,13 +159,13 @@ class Line implements Widget {
       // Ignore spans that are completely before the offset. Decrement `spanSkipWidth` by
       // the span width until we find a span that is partially or completely visible.
       if (toSkip >= spanWidth) {
-        toSkip = toSkip.saturatingSub(spanWidth);
+        toSkip = toSkip.saturatingSubU16(spanWidth);
         return acc;
       }
 
       // Apply the skip from the start of the span, not the end as the end will be trimmed
       // when rendering the span to the buffer
-      final availableWidth = spanWidth.saturatingSub(toSkip);
+      final availableWidth = spanWidth.saturatingSubU16(toSkip);
       toSkip = 0; // ensure the next span is rendered in full
 
       if (spanWidth <= availableWidth) {
@@ -180,7 +180,7 @@ class Line implements Widget {
         availableWidth,
       );
       final actualWidth = widthString(contentTruncated);
-      final firstOffset = availableWidth.saturatingSub(actualWidth);
+      final firstOffset = availableWidth.saturatingSubU16(actualWidth);
       acc.add((
         Span(content: contentTruncated, style: span.style),
         actualWidth,

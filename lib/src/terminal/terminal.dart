@@ -287,7 +287,7 @@ class Terminal {
       _frameCount,
     );
 
-    _frameCount = _frameCount.wrappingAdd(1);
+    _frameCount = _frameCount.wrappingAddU32(1);
     return completedFrame;
   }
 
@@ -409,7 +409,7 @@ class Terminal {
   void scrollUp(int linesToScroll) {
     if (linesToScroll < 0) return;
 
-    setCursorPosition(Position(0, _lastKnowArea.height.saturatingSub(1)));
+    setCursorPosition(Position(0, _lastKnowArea.height.saturatingSubU16(1)));
     backend.insertNewLines(linesToScroll);
   }
 
@@ -430,7 +430,7 @@ class Terminal {
 }
 
 Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
-  final offsetInPreviousViewport = t._lastKnowCursorPosition.y.saturatingSub(t._lastKnowArea.top);
+  final offsetInPreviousViewport = t._lastKnowCursorPosition.y.saturatingSubU16(t._lastKnowArea.top);
   return (await _computeInlineSize(
     t.backend,
     height,
@@ -450,14 +450,14 @@ Future<(Rect, Position)> _computeInlineSize(
   final pos = await backend.getCursorPosition() ?? Position.origin;
   var row = pos.y;
   final maxHeight = math.min(size.height, height);
-  final linesAfterCursor = height.saturatingSub(offsetInPreviousViewport).saturatingSub(1);
+  final linesAfterCursor = height.saturatingSubU16(offsetInPreviousViewport).saturatingSubU16(1);
 
   backend.insertNewLines(linesAfterCursor);
 
-  final availableLines = size.height.saturatingSub(row).saturatingSub(1);
-  final missingLines = linesAfterCursor.saturatingSub(availableLines);
-  if (missingLines > 0) row = row.saturatingSub(missingLines);
-  row = row.saturatingSub(offsetInPreviousViewport);
+  final availableLines = size.height.saturatingSubU16(row).saturatingSubU16(1);
+  final missingLines = linesAfterCursor.saturatingSubU16(availableLines);
+  if (missingLines > 0) row = row.saturatingSubU16(missingLines);
+  row = row.saturatingSubU16(offsetInPreviousViewport);
 
   return (Rect.create(x: 0, y: row, width: size.width, height: maxHeight), pos);
 }

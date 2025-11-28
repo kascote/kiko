@@ -10,76 +10,140 @@ const i16Max = 32767;
 /// Min value for a 16-bit signed integer.
 const i16Min = -32768;
 
-/// Extension methods for integers.
-extension IntegerUtils on int {
-  /// Subtracts the given integer [other] from this integer, but ensures that
-  /// the result does not go below zero. If the subtraction would result in a
-  /// negative value, the result is clamped to zero.
+/// Extension methods for unsigned 16-bit saturating arithmetic.
+extension SaturatingU16 on int {
+  /// Saturating u16 subtraction. Computes `this - other`, clamping at 0 if
+  /// underflow would occur.
+  ///
+  /// Note: Only clamps underflow (to 0), not overflow at u16Max. Unlike Rust's
+  /// u16 type which cannot hold values > 65535, Dart's int can. Clamping the
+  /// output at u16Max would break calculations for values > u16Max (e.g., text
+  /// line skip-width calculations where line width exceeds u16Max).
   ///
   /// Example:
   /// ```dart
-  /// int result = 5.saturatingSub(10); // result will be 0
-  /// int result = 10.saturatingSub(3); // result will be 7
+  /// 10.saturatingSubU16(3);  // 7
+  /// 5.saturatingSubU16(10);  // 0 (clamped)
+  /// 65659.saturatingSubU16(32);  // 65627 (not clamped to u16Max)
   /// ```
-  ///
-  /// Returns the result of the subtraction, clamped to zero if necessary.
-  int saturatingSub(int other) {
-    if (this < 0 || other < 0) throw ArgumentError('Values must be positive');
+  int saturatingSubU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
     final result = this - other;
     return result < 0 ? 0 : result;
   }
 
-  /// Adds the given integer to the current integer, but if the result exceeds
-  /// the maximum value an integer can hold, it will return the maximum value.
-  /// If the result is less than the minimum value an integer can hold, it will
-  /// return the minimum value.
-  ///
-  /// This is useful to prevent overflow and underflow when performing arithmetic
-  /// operations.
+  /// Saturating u16 addition. Computes `this + other`, clamping at [u16Max] if
+  /// overflow would occur.
   ///
   /// Example:
   /// ```dart
-  /// int a = 2147483647; // Max value for a 32-bit signed integer
-  /// int b = 1;
-  /// int result = a.saturatingAdd(b); // result will be 2147483647
+  /// 100.saturatingAddU16(50);      // 150
+  /// u16Max.saturatingAddU16(100);  // 65535 (clamped)
   /// ```
-  int saturatingAdd(int other) {
-    final result = this + other;
-    return result > u16Max ? u16Max : result;
+  int saturatingAddU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this + other).clamp(0, u16Max);
   }
 
-  /// Multiplies this integer by [other] and returns the result. If the result
-  /// overflows, it will saturate at the maximum or minimum value of an integer.
+  /// Saturating u16 multiplication. Computes `this * other`, clamping at
+  /// [u16Max] if overflow would occur.
   ///
   /// Example:
   /// ```dart
-  /// int result = 1000000000.saturatingMul(1000000000);
-  /// print(result); // Prints the maximum value of an integer.
+  /// 10.saturatingMulU16(12);      // 120
+  /// u16Max.saturatingMulU16(2);   // 65535 (clamped)
   /// ```
-  int saturatingMul(int other) {
-    final result = this * other;
-    return result > u16Max ? u16Max : result;
+  int saturatingMulU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this * other).clamp(0, u16Max);
   }
 
-  /// Performs a saturating division of this integer by [other].
+  /// Saturating u16 division. Computes `this ~/ other`.
   ///
-  /// If [other] is zero, returns the maximum value of an integer to avoid
-  /// division by zero errors.
-  int saturatingDiv(int other) {
-    if (this < 0 || other < 0) throw ArgumentError('Values must be positive');
-    final result = this ~/ other;
-    return result > u16Max ? u16Max : result;
+  /// For unsigned types overflow is not possible, so this is equivalent to
+  /// integer division. Throws on division by zero.
+  ///
+  /// Example:
+  /// ```dart
+  /// 100.saturatingDivU16(10);  // 10
+  /// ```
+  int saturatingDivU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this ~/ other).clamp(0, u16Max);
+  }
+}
+
+/// Extension methods for unsigned 16-bit wrapping arithmetic.
+extension WrappingU16 on int {
+  /// Wrapping u16 addition. Computes `this + other`, wrapping around at
+  /// [u16Max] using modular arithmetic.
+  ///
+  /// Example:
+  /// ```dart
+  /// 200.wrappingAddU16(100);    // 300
+  /// u16Max.wrappingAddU16(1);   // 0 (wrapped)
+  /// u16Max.wrappingAddU16(10);  // 9 (wrapped)
+  /// ```
+  int wrappingAddU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this + other) % (u16Max + 1);
   }
 
-  /// Adds the given integer to this integer, wrapping around at the maximum
-  /// value of an integer if necessary.
+  /// Wrapping u16 subtraction. Computes `this - other`, wrapping around at
+  /// 0 using modular arithmetic.
   ///
-  /// This method performs an addition that wraps around at the maximum value
-  /// of an integer, which means that if the result exceeds the maximum value
-  /// of an integer, it will wrap around to the minimum value and continue
-  /// from there.
-  int wrappingAdd(int other) {
-    final result = this + other;
-    return (result > u32Max) ? 0 : result;
+  /// Example:
+  /// ```dart
+  /// 100.wrappingSubU16(50);  // 50
+  /// 0.wrappingSubU16(1);     // 65535 (wrapped)
+  /// 5.wrappingSubU16(10);    // 65531 (wrapped)
+  /// ```
+  int wrappingSubU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    final result = this - other;
+    return result < 0 ? (u16Max + 1 + result) % (u16Max + 1) : result;
+  }
+
+  /// Wrapping u16 multiplication. Computes `this * other`, wrapping around at
+  /// [u16Max] using modular arithmetic.
+  ///
+  /// Example:
+  /// ```dart
+  /// 10.wrappingMulU16(12);      // 120
+  /// 1000.wrappingMulU16(1000);  // 16960 (wrapped: 1000000 % 65536)
+  /// ```
+  int wrappingMulU16(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this * other) % (u16Max + 1);
+  }
+}
+
+/// Extension methods for unsigned 32-bit wrapping arithmetic.
+extension WrappingU32 on int {
+  /// Wrapping u32 addition. Computes `this + other`, wrapping around at
+  /// [u32Max] using modular arithmetic.
+  ///
+  /// Example:
+  /// ```dart
+  /// 100.wrappingAddU32(50);   // 150
+  /// u32Max.wrappingAddU32(1); // 0 (wrapped)
+  /// ```
+  int wrappingAddU32(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    return (this + other) % (u32Max + 1);
+  }
+
+  /// Wrapping u32 subtraction. Computes `this - other`, wrapping around at
+  /// 0 using modular arithmetic.
+  ///
+  /// Example:
+  /// ```dart
+  /// 100.wrappingSubU32(50);  // 50
+  /// 0.wrappingSubU32(1);     // 4294967295 (wrapped)
+  /// ```
+  int wrappingSubU32(int other) {
+    assert(this >= 0 && other >= 0, 'Values must be non-negative');
+    final result = this - other;
+    return result < 0 ? (u32Max + 1 + result) % (u32Max + 1) : result;
   }
 }

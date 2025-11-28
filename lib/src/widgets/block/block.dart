@@ -197,28 +197,28 @@ class Block implements Widget {
     var inner = area;
     if (borders.has(Borders.left)) {
       inner = inner.copyWith(
-        x: math.min(inner.x.saturatingAdd(1), inner.right),
-        width: inner.width.saturatingSub(1),
+        x: math.min(inner.x.saturatingAddU16(1), inner.right),
+        width: inner.width.saturatingSubU16(1),
       );
     }
     if (borders.has(Borders.top) || _topTitles.isNotEmpty) {
       inner = inner.copyWith(
-        y: math.min(inner.y.saturatingAdd(1), inner.bottom),
-        height: inner.height.saturatingSub(1),
+        y: math.min(inner.y.saturatingAddU16(1), inner.bottom),
+        height: inner.height.saturatingSubU16(1),
       );
     }
     if (borders.has(Borders.right)) {
-      inner = inner.copyWith(width: inner.width.saturatingSub(1));
+      inner = inner.copyWith(width: inner.width.saturatingSubU16(1));
     }
     if (borders.has(Borders.bottom) || _bottomTitles.isNotEmpty) {
-      inner = inner.copyWith(height: inner.height.saturatingSub(1));
+      inner = inner.copyWith(height: inner.height.saturatingSubU16(1));
     }
 
     return inner.copyWith(
-      x: inner.x.saturatingAdd(padding.left),
-      y: inner.y.saturatingAdd(padding.top),
-      width: inner.width.saturatingSub(padding.left + padding.right),
-      height: inner.height.saturatingSub(padding.top + padding.bottom),
+      x: inner.x.saturatingAddU16(padding.left),
+      y: inner.y.saturatingAddU16(padding.top),
+      width: inner.width.saturatingSubU16(padding.left + padding.right),
+      height: inner.height.saturatingSubU16(padding.top + padding.bottom),
     );
   }
 
@@ -271,8 +271,8 @@ class Block implements Widget {
   ///
   /// The result takes the [Block]'s, [Borders], and [Padding] into account.
   (int, int) horizontalSpace() {
-    final left = padding.left.saturatingAdd(borders.has(Borders.left) ? 1 : 0);
-    final right = padding.right.saturatingAdd(
+    final left = padding.left.saturatingAddU16(borders.has(Borders.left) ? 1 : 0);
+    final right = padding.right.saturatingAddU16(
       borders.has(Borders.right) ? 1 : 0,
     );
     return (left, right);
@@ -393,7 +393,7 @@ class Block implements Widget {
       final titleWidth = title.width;
       titlesArea = titlesArea.copyWith(
         x: math.max(
-          titlesArea.right.saturatingSub(titleWidth),
+          titlesArea.right.saturatingSubU16(titleWidth),
           titlesArea.left,
         ),
         width: math.min(titleWidth, titlesArea.width),
@@ -402,7 +402,7 @@ class Block implements Widget {
       buffer.setStyle(titlesArea, titlesStyle);
       title.render(titlesArea, buffer);
       titlesArea = titlesArea.copyWith(
-        width: titlesArea.width.saturatingSub(titleWidth + 1),
+        width: titlesArea.width.saturatingSubU16(titleWidth + 1),
       );
     }
   }
@@ -410,10 +410,10 @@ class Block implements Widget {
   void _renderCenterTitles(TitlePosition position, Rect area, Buffer buffer) {
     final titles = _getTitlesAtPos(position, Alignment.center);
     // +1 spaces between each title, -1 remove last one
-    final totalWidth = titles.fold(0, (acc, title) => acc + title.width + 1).saturatingSub(1);
+    final totalWidth = titles.fold(0, (acc, title) => acc + title.width + 1).saturatingSubU16(1);
     var titlesArea = _getTitlesAreas(area, position);
     titlesArea = titlesArea.copyWith(
-      x: titlesArea.left + (titlesArea.width.saturatingSub(totalWidth) ~/ 2),
+      x: titlesArea.left + (titlesArea.width.saturatingSubU16(totalWidth) ~/ 2),
     );
 
     for (final title in titles) {
@@ -427,8 +427,8 @@ class Block implements Widget {
       title.render(titleArea, buffer);
 
       titlesArea = titlesArea.copyWith(
-        x: titlesArea.x.saturatingAdd(titleWidth + 1),
-        width: titlesArea.width.saturatingSub(titleWidth + 1),
+        x: titlesArea.x.saturatingAddU16(titleWidth + 1),
+        width: titlesArea.width.saturatingSubU16(titleWidth + 1),
       );
     }
   }
@@ -448,8 +448,8 @@ class Block implements Widget {
       buffer.setStyle(titleArea, titlesStyle);
       title.render(titleArea, buffer);
       titlesArea = titlesArea.copyWith(
-        x: titlesArea.x.saturatingAdd(titleWidth + 1),
-        width: titlesArea.width.saturatingSub(titleWidth + 1),
+        x: titlesArea.x.saturatingAddU16(titleWidth + 1),
+        width: titlesArea.width.saturatingSubU16(titleWidth + 1),
       );
     }
   }
@@ -469,7 +469,7 @@ class Block implements Widget {
     return Rect.create(
       x: area.left + leftBorder,
       y: position == TitlePosition.top ? area.top : area.bottom - 1,
-      width: area.width.saturatingSub(leftBorder).saturatingSub(rightBorder),
+      width: area.width.saturatingSubU16(leftBorder).saturatingSubU16(rightBorder),
       height: 1,
     );
   }

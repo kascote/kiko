@@ -83,7 +83,7 @@ class Span implements Widget {
     var n = 0;
     for (final styledChar in styledChars(const Style())) {
       final symbolWidth = widthChars(styledChar.char);
-      final nextX = x.saturatingAdd(symbolWidth);
+      final nextX = x.saturatingAddU16(symbolWidth);
       if (nextX > spanArea.right) break;
 
       if (n == 0) {

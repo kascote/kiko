@@ -46,7 +46,10 @@ void main() {
 
     test('width', () {
       final line = Line.fromSpans(const [
-        Span(content: 'My', style: Style(fg: Color.red)),
+        Span(
+          content: 'My',
+          style: Style(fg: Color.red),
+        ),
         Span(content: ' text'),
       ]);
       expect(line.width, 7);
@@ -56,7 +59,10 @@ void main() {
     });
 
     test('patch style', () {
-      final line = Line(content: 'foobar', style: const Style(fg: Color.yellow));
+      final line = Line(
+        content: 'foobar',
+        style: const Style(fg: Color.yellow),
+      );
       final line2 = Line(
         content: 'foobar',
         style: const Style(
@@ -91,13 +97,30 @@ void main() {
 
       const s2 = 'Hello\nWorld!';
       final line2 = Line(content: s2);
-      expect(line2.spans, [const Span(content: 'Hello'), const Span(content: 'World!')]);
+      expect(line2.spans, [
+        const Span(content: 'Hello'),
+        const Span(content: 'World!'),
+      ]);
     });
 
     test('add span', () {
-      final line = Line(content: 'Hello', style: const Style(fg: Color.red))
-          .add(const Span(content: ' World!', style: Style(fg: Color.blue)));
-      expect(line.spans, [const Span(content: 'Hello'), const Span(content: ' World!', style: Style(fg: Color.blue))]);
+      final line =
+          Line(
+            content: 'Hello',
+            style: const Style(fg: Color.red),
+          ).add(
+            const Span(
+              content: ' World!',
+              style: Style(fg: Color.blue),
+            ),
+          );
+      expect(line.spans, [
+        const Span(content: 'Hello'),
+        const Span(
+          content: ' World!',
+          style: Style(fg: Color.blue),
+        ),
+      ]);
       expect(line.style, const Style(fg: Color.red));
       expect(line.alignment, isNull);
     });
@@ -128,9 +151,15 @@ void main() {
     });
 
     test('push span', () {
-      final line = Line(content: 'A').add(const Span(content: 'B')).add(const Span(content: 'C'));
+      final line = Line(
+        content: 'A',
+      ).add(const Span(content: 'B')).add(const Span(content: 'C'));
 
-      expect(line.spans, [const Span(content: 'A'), const Span(content: 'B'), const Span(content: 'C')]);
+      expect(line.spans, [
+        const Span(content: 'A'),
+        const Span(content: 'B'),
+        const Span(content: 'C'),
+      ]);
     });
 
     test('copyWith', () {
@@ -138,7 +167,13 @@ void main() {
       final copy = line.copyWith(alignment: Alignment.center);
       expect(copy, Line(content: 'foo', alignment: Alignment.center));
       final copy2 = line.copyWith(style: const Style(fg: Color.red));
-      expect(copy2, Line(content: 'foo', style: const Style(fg: Color.red)));
+      expect(
+        copy2,
+        Line(
+          content: 'foo',
+          style: const Style(fg: Color.red),
+        ),
+      );
     });
 
     test('toString', () {
@@ -171,20 +206,23 @@ Line(
         style: italic,
       );
 
-      final smallBuffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
+      final smallBuffer = Buffer.empty(
+        Rect.create(x: 0, y: 0, width: 10, height: 1),
+      );
 
       test('render', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
         helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
-        final expected = Buffer.fromLines([
-          Line.fromSpans(const [
-            Span(content: 'Hello '),
-            Span(content: 'World!   '),
-          ]),
-        ])
-          ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
-          ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
-          ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
+        final expected =
+            Buffer.fromLines([
+                Line.fromSpans(const [
+                  Span(content: 'Hello '),
+                  Span(content: 'World!   '),
+                ]),
+              ])
+              ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
+              ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
+              ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
 
         expect(buf.eq(expected), isTrue);
       });
@@ -200,15 +238,16 @@ Line(
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 1));
         helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
 
-        final expected = Buffer.fromLines([
-          Line.fromSpans(const [
-            Span(content: 'Hello '),
-            Span(content: 'World!        '),
-          ]),
-        ])
-          ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
-          ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
-          ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
+        final expected =
+            Buffer.fromLines([
+                Line.fromSpans(const [
+                  Span(content: 'Hello '),
+                  Span(content: 'World!        '),
+                ]),
+              ])
+              ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
+              ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
+              ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
 
         expect(buf.eq(expected), isTrue);
       });
@@ -216,22 +255,25 @@ Line(
       test('render only styles first line', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
         helloWorld.render(buf.area, buf);
-        final expected = Buffer.fromLines(
-          [
-            Line(content: 'Hello World!        '),
-            Line(content: '                    '),
-          ],
-        )
-          ..setStyle(Rect.create(x: 0, y: 0, width: 20, height: 1), italic)
-          ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
-          ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
+        final expected =
+            Buffer.fromLines(
+                [
+                  Line(content: 'Hello World!        '),
+                  Line(content: '                    '),
+                ],
+              )
+              ..setStyle(Rect.create(x: 0, y: 0, width: 20, height: 1), italic)
+              ..setStyle(Rect.create(x: 0, y: 0, width: 6, height: 1), blue)
+              ..setStyle(Rect.create(x: 6, y: 0, width: 6, height: 1), green);
 
         expect(buf.eq(expected), isTrue);
       });
 
       test('render truncate', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
-        Line(content: 'Hello World').render(Rect.create(x: 0, y: 0, width: 5, height: 1), buf);
+        Line(
+          content: 'Hello World',
+        ).render(Rect.create(x: 0, y: 0, width: 5, height: 1), buf);
         expect(buf.eq(Buffer.fromLines([Line(content: 'Hello     ')])), isTrue);
       });
 
@@ -263,7 +305,10 @@ Line(
 
       test('truncate left', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
-        Line(content: 'Hello World', alignment: Alignment.left).render(buf.area, buf);
+        Line(
+          content: 'Hello World',
+          alignment: Alignment.left,
+        ).render(buf.area, buf);
 
         final expected = Buffer.fromLines([Line(content: 'Hello')]);
         expect(buf.eq(expected), isTrue);
@@ -271,7 +316,10 @@ Line(
 
       test('truncate right', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
-        Line(content: 'Hello World', alignment: Alignment.right).render(buf.area, buf);
+        Line(
+          content: 'Hello World',
+          alignment: Alignment.right,
+        ).render(buf.area, buf);
 
         final expected = Buffer.fromLines([Line(content: 'World')]);
         expect(buf.eq(expected), isTrue);
@@ -279,20 +327,29 @@ Line(
 
       test('truncate center', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
-        Line(content: 'Hello World', alignment: Alignment.center).render(buf.area, buf);
+        Line(
+          content: 'Hello World',
+          alignment: Alignment.center,
+        ).render(buf.area, buf);
 
         final expected = Buffer.fromLines([Line(content: 'lo Wo')]);
         expect(buf.eq(expected), isTrue);
       });
 
       test('truncate multibyte', () {
-        final line = Line(content: '"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得する');
+        final line = Line(
+          content: '"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得する',
+        );
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 83, height: 1));
         line.render(buf.area, buf);
         expect(
           buf.eq(
             Buffer.fromLines(
-              [Line(content: '"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得')],
+              [
+                Line(
+                  content: '"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得',
+                ),
+              ],
             ),
           ),
           isTrue,
@@ -313,7 +370,9 @@ Line(
 
         for (final (alignment, width, expected) in cases) {
           final line = Line(content: '1234🦀7890', alignment: alignment);
-          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: 1));
+          final buf = Buffer.empty(
+            Rect.create(x: 0, y: 0, width: width, height: 1),
+          );
           line.render(buf.area, buf);
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
         }
@@ -359,7 +418,9 @@ Line(
             _ => throw ArgumentError('Invalid width: $lineWidth'),
           };
           final line = Line(content: value, alignment: Alignment.center);
-          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: bufWidth, height: 1));
+          final buf = Buffer.empty(
+            Rect.create(x: 0, y: 0, width: bufWidth, height: 1),
+          );
           line.render(buf.area, buf);
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
         }
@@ -380,7 +441,10 @@ Line(
             ],
             alignment: alignment,
           );
-          final buf = Buffer.filled(Rect.create(x: 0, y: 0, width: 10, height: 1), const Cell(char: 'X'));
+          final buf = Buffer.filled(
+            Rect.create(x: 0, y: 0, width: 10, height: 1),
+            const Cell(char: 'X'),
+          );
           final area = Rect.create(x: 2, y: 0, width: 6, height: 1);
           line.render(area, buf);
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
@@ -408,7 +472,11 @@ Line(
           final buf = Buffer.filled(area, const Cell(char: 'X'));
           line.render(buf.area, buf);
 
-          expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue, reason: 'case: $width - $expected');
+          expect(
+            buf.eq(Buffer.fromLines([Line(content: expected)])),
+            isTrue,
+            reason: 'case: $width - $expected',
+          );
         }
       });
 
@@ -422,13 +490,17 @@ Line(
             'This is some content with a somewhat long width to be repeated over and over again to create horribly long Line over u16::MAX';
         const minWidth = 65535;
         final factor = (minWidth / part.length).ceil();
-        var line = Line.fromSpans(List.filled(factor, const Span(content: part)));
+        var line = Line.fromSpans(
+          List.filled(factor, const Span(content: part)),
+        );
 
         for (final (alignment, expected) in cases) {
           line = line.copyWith(alignment: alignment);
 
           expect(line.width, greaterThanOrEqualTo(minWidth));
-          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 32, height: 1));
+          final buf = Buffer.empty(
+            Rect.create(x: 0, y: 0, width: 32, height: 1),
+          );
           line.render(buf.area, buf);
           expect(buf.eq(Buffer.fromStringLines([expected])), isTrue);
         }
@@ -450,7 +522,9 @@ Line(
           line = line.copyWith(alignment: alignment);
 
           expect(line.width, greaterThanOrEqualTo(minWidth));
-          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 32, height: 1));
+          final buf = Buffer.empty(
+            Rect.create(x: 0, y: 0, width: 32, height: 1),
+          );
           line.render(buf.area, buf);
           expect(buf.eq(Buffer.fromStringLines([expected])), isTrue);
         }
@@ -458,7 +532,9 @@ Line(
 
       test('render with new lines', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 1));
-        Line.fromSpan(const Span(content: 'Hello\nWorld!')).render(Rect.create(x: 0, y: 0, width: 11, height: 1), buf);
+        Line.fromSpan(
+          const Span(content: 'Hello\nWorld!'),
+        ).render(Rect.create(x: 0, y: 0, width: 11, height: 1), buf);
         expect(buf.eq(Buffer.fromStringLines(['HelloWorld!'])), isTrue);
       });
 
@@ -475,7 +551,9 @@ Line(
 
         for (final kase in cases) {
           final line = Line(content: '🇺🇸1234');
-          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: kase.width, height: 1));
+          final buf = Buffer.empty(
+            Rect.create(x: 0, y: 0, width: kase.width, height: 1),
+          );
           line.render(buf.area, buf);
           final expected = Buffer.fromStringLines([kase.expected]);
           expect(buf.eq(expected), isTrue, reason: 'fail case $kase');

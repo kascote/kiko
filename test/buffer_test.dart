@@ -5,7 +5,10 @@ void main() {
   group('Buffer', () {
     test('emptyBuffer', () {
       final buf = Buffer.empty(Rect.zero);
-      expect(buf.debug(), 'Buffer {\n    area: Rect(0x0+0+0)\n},\n    content: [\n    ],\n    styles: [\n    ]\n}');
+      expect(
+        buf.debug(),
+        'Buffer {\n    area: Rect(0x0+0+0)\n},\n    content: [\n    ],\n    styles: [\n    ]\n}',
+      );
     });
 
     test('overrides', () {
@@ -25,10 +28,15 @@ Buffer {
     test('style', () {
       final buf = Buffer.fromLines([
         Line.fromSpan(const Span(content: 'Hello World!', style: Style())),
-        Line.fromSpan(Span(
-          content: "G'day World!",
-          style: const Style(fg: Color.green, bg: Color.yellow).incModifier(Modifier.bold),
-        )),
+        Line.fromSpan(
+          Span(
+            content: "G'day World!",
+            style: const Style(
+              fg: Color.green,
+              bg: Color.yellow,
+            ).incModifier(Modifier.bold),
+          ),
+        ),
       ]);
       expect(buf.debug(), '''
 Buffer {
@@ -63,7 +71,9 @@ Buffer {
     });
 
     test('index error on out of bounds', () {
-      final buf = Buffer.empty(Rect.create(x: 10, y: 10, width: 10, height: 10));
+      final buf = Buffer.empty(
+        Rect.create(x: 10, y: 10, width: 10, height: 10),
+      );
       // left
       expect(() => buf.indexOf(9, 10), throwsA(isA<RangeError>()));
       // top
@@ -93,7 +103,9 @@ Buffer {
     });
 
     test('index error', () {
-      final buf = Buffer.empty(Rect.create(x: 10, y: 10, width: 10, height: 10));
+      final buf = Buffer.empty(
+        Rect.create(x: 10, y: 10, width: 10, height: 10),
+      );
       // left
       expect(() => buf[(x: 9, y: 10)], throwsA(isA<RangeError>()));
       // top
@@ -113,10 +125,16 @@ Buffer {
 
     test('set style', () {
       final buf = Buffer.fromStringLines(['aaaaa', 'bbbbb', 'ccccc'])
-        ..setStyle(Rect.create(x: 0, y: 1, width: 5, height: 1), const Style(fg: Color.red));
+        ..setStyle(
+          Rect.create(x: 0, y: 1, width: 5, height: 1),
+          const Style(fg: Color.red),
+        );
       final expected = Buffer.fromLines([
         Line(content: 'aaaaa'),
-        Line(content: 'bbbbb', style: const Style(fg: Color.red)),
+        Line(
+          content: 'bbbbb',
+          style: const Style(fg: Color.red),
+        ),
         Line(content: 'ccccc'),
       ]);
       expect(buf.eq(expected), isTrue);
@@ -231,22 +249,43 @@ Buffer {
     });
 
     test('merge', () {
-      final a1 = Buffer.filled(Rect.create(x: 0, y: 0, width: 2, height: 2), const Cell(char: '1'));
-      final a2 = Buffer.filled(Rect.create(x: 0, y: 2, width: 2, height: 2), const Cell(char: '2'));
+      final a1 = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 2, height: 2),
+        const Cell(char: '1'),
+      );
+      final a2 = Buffer.filled(
+        Rect.create(x: 0, y: 2, width: 2, height: 2),
+        const Cell(char: '2'),
+      );
       a1.merge(a2);
 
       expect(a1.eq(Buffer.fromStringLines(['11', '11', '22', '22'])), isTrue);
 
-      final a3 = Buffer.filled(Rect.create(x: 2, y: 2, width: 2, height: 2), const Cell(char: '1'));
-      final a4 = Buffer.filled(Rect.create(x: 0, y: 0, width: 2, height: 2), const Cell(char: '2'));
+      final a3 = Buffer.filled(
+        Rect.create(x: 2, y: 2, width: 2, height: 2),
+        const Cell(char: '1'),
+      );
+      final a4 = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 2, height: 2),
+        const Cell(char: '2'),
+      );
       a3.merge(a4);
 
-      expect(a3.eq(Buffer.fromStringLines(['22  ', '22  ', '  11', '  11'])), isTrue);
+      expect(
+        a3.eq(Buffer.fromStringLines(['22  ', '22  ', '  11', '  11'])),
+        isTrue,
+      );
     });
 
     test('merge with offset', () {
-      final a1 = Buffer.filled(Rect.create(x: 3, y: 3, width: 2, height: 2), const Cell(char: '1'));
-      final a2 = Buffer.filled(Rect.create(x: 1, y: 1, width: 3, height: 4), const Cell(char: '2'));
+      final a1 = Buffer.filled(
+        Rect.create(x: 3, y: 3, width: 2, height: 2),
+        const Cell(char: '1'),
+      );
+      final a2 = Buffer.filled(
+        Rect.create(x: 1, y: 1, width: 3, height: 4),
+        const Cell(char: '2'),
+      );
       a1.merge(a2);
 
       final expected = Buffer.fromStringLines([
@@ -254,21 +293,32 @@ Buffer {
         '222 ',
         '2221',
         '2221',
-      ])
-        ..area = Rect.create(x: 1, y: 1, width: 4, height: 4);
+      ])..area = Rect.create(x: 1, y: 1, width: 4, height: 4);
       expect(a1.eq(expected), isTrue);
     });
 
     test('merge skip', () {
-      final a1 = Buffer.filled(Rect.create(x: 0, y: 0, width: 2, height: 2), const Cell(char: '1'));
-      final a2 = Buffer.filled(Rect.create(x: 0, y: 1, width: 2, height: 2), const Cell(char: '2', skip: true));
+      final a1 = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 2, height: 2),
+        const Cell(char: '1'),
+      );
+      final a2 = Buffer.filled(
+        Rect.create(x: 0, y: 1, width: 2, height: 2),
+        const Cell(char: '2', skip: true),
+      );
       a1.merge(a2);
 
       var skipped = a1.buf.map((b) => b.skip).toList();
       expect(skipped, [false, false, true, true, true, true]);
 
-      final a3 = Buffer.filled(Rect.create(x: 0, y: 0, width: 2, height: 2), const Cell(char: '1', skip: true));
-      final a4 = Buffer.filled(Rect.create(x: 0, y: 1, width: 2, height: 2), const Cell(char: '2'));
+      final a3 = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 2, height: 2),
+        const Cell(char: '1', skip: true),
+      );
+      final a4 = Buffer.filled(
+        Rect.create(x: 0, y: 1, width: 2, height: 2),
+        const Cell(char: '2'),
+      );
       a3.merge(a4);
       skipped = a3.buf.map((b) => b.skip).toList();
       expect(skipped, [true, true, false, false, false, false]);
@@ -340,7 +390,9 @@ Buffer {
   });
 
   test('index_pos_of_u16_max', () {
-    final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 256, height: 256 + 1));
+    final buffer = Buffer.empty(
+      Rect.create(x: 0, y: 0, width: 256, height: 256 + 1),
+    );
     expect(buffer.indexOf(255, 255), 65535);
     expect(buffer.posOf(65535), (x: 255, y: 255));
 

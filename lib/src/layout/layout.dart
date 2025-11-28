@@ -207,6 +207,7 @@ class Element {
   int get hashCode {
     return Object.hash(Element, start, end);
   }
+
   // coverage:ignore-end
 }
 
@@ -280,13 +281,17 @@ class Layout {
     Margin? margin,
     Flex? flex,
     Spacing? spacing,
-  })  : _constraints = List.from(constraints),
-        margin = margin ?? Margin.zero,
-        flex = flex ?? Flex.start,
-        spacing = spacing ?? Space(0);
+  }) : _constraints = List.from(constraints),
+       margin = margin ?? Margin.zero,
+       flex = flex ?? Flex.start,
+       spacing = spacing ?? Space(0);
 
   /// Creates a new vertical layout with the given constraints.
-  factory Layout.vertical(List<Constraint> constraints, {Flex? flex, Spacing? spacing}) {
+  factory Layout.vertical(
+    List<Constraint> constraints, {
+    Flex? flex,
+    Spacing? spacing,
+  }) {
     return Layout(
       direction: Direction.vertical,
       constraints: constraints,
@@ -296,7 +301,11 @@ class Layout {
   }
 
   /// Creates a new horizontal layout with the given constraints.
-  factory Layout.horizontal(List<Constraint> constraints, {Flex? flex, Spacing? spacing}) {
+  factory Layout.horizontal(
+    List<Constraint> constraints, {
+    Flex? flex,
+    Spacing? spacing,
+  }) {
     return Layout(
       direction: Direction.horizontal,
       constraints: constraints,
@@ -401,13 +410,13 @@ class Layout {
     final innerArea = area.inner(margin);
     final (areaStart, areaEnd) = switch (direction) {
       Direction.horizontal => (
-          innerArea.x * _floatPrecisionMultiplier,
-          innerArea.right * _floatPrecisionMultiplier,
-        ),
+        innerArea.x * _floatPrecisionMultiplier,
+        innerArea.right * _floatPrecisionMultiplier,
+      ),
       Direction.vertical => (
-          innerArea.y * _floatPrecisionMultiplier,
-          innerArea.bottom * _floatPrecisionMultiplier,
-        ),
+        innerArea.y * _floatPrecisionMultiplier,
+        innerArea.bottom * _floatPrecisionMultiplier,
+      ),
     };
     // ```plain
     // <───────────────────────────────────area_size──────────────────────────────────>
@@ -446,27 +455,51 @@ class Layout {
 
     if (flex != Flex.legacy) {
       for (final (left, right) in segments.tupleWindow()) {
-        solver.addConstraint(left.hasSize(right.size, Strengths.allSegmentGrow.value));
+        solver.addConstraint(
+          left.hasSize(right.size, Strengths.allSegmentGrow.value),
+        );
       }
     }
     solver.flushUpdates();
-    final segmentRects = _changesToRects(solver, segments, innerArea, direction);
+    final segmentRects = _changesToRects(
+      solver,
+      segments,
+      innerArea,
+      direction,
+    );
     final spacerRects = _changesToRects(solver, spacers, innerArea, direction);
 
     return (segmentRects, spacerRects);
   }
 
-  void _configureArea(cos.Solver solver, Element area, double areaStart, double areaEnd) {
+  void _configureArea(
+    cos.Solver solver,
+    Element area,
+    double areaStart,
+    double areaEnd,
+  ) {
     solver
-      ..addConstraint(area.start.equals(cos.cm(areaStart))..priority = Strengths.required.value)
-      ..addConstraint(area.end.equals(cos.cm(areaEnd))..priority = Strengths.required.value);
+      ..addConstraint(
+        area.start.equals(cos.cm(areaStart))..priority = Strengths.required.value,
+      )
+      ..addConstraint(
+        area.end.equals(cos.cm(areaEnd))..priority = Strengths.required.value,
+      );
   }
 
-  void _configureVariableConstraints(cos.Solver solver, List<cos.Param> variables, Element area) {
+  void _configureVariableConstraints(
+    cos.Solver solver,
+    List<cos.Param> variables,
+    Element area,
+  ) {
     for (final variable in variables) {
       solver
-        ..addConstraint((variable >= area.start)..priority = Strengths.required.value)
-        ..addConstraint((variable <= area.end)..priority = Strengths.required.value);
+        ..addConstraint(
+          (variable >= area.start)..priority = Strengths.required.value,
+        )
+        ..addConstraint(
+          (variable <= area.end)..priority = Strengths.required.value,
+        );
     }
 
     // ┌────┬───────────────────┬────┬─────variables─────┬────┬───────────────────┬────┐
@@ -478,7 +511,9 @@ class Layout {
     // ^    ^                   ^    ^                   ^    ^                   ^    ^
     // └v0  └v1                 └v2  └v3                 └v4  └v5                 └v6  └v7
     for (final (left, right) in variables.skip(1).tuples()) {
-      solver.addConstraint((left <= right)..priority = Strengths.required.value);
+      solver.addConstraint(
+        (left <= right)..priority = Strengths.required.value,
+      );
     }
   }
 
@@ -492,25 +527,43 @@ class Layout {
     for (final (constraint, segment) in constraints.zip(segments)) {
       switch (constraint) {
         case ConstraintMax(:final value):
-          solver.addConstraint(segment.hasMaxSize(value, Strengths.maxSizeLe.value));
-          solver.addConstraint(segment.hasIntSize(value, Strengths.maxSizeEq.value));
+          solver.addConstraint(
+            segment.hasMaxSize(value, Strengths.maxSizeLe.value),
+          );
+          solver.addConstraint(
+            segment.hasIntSize(value, Strengths.maxSizeEq.value),
+          );
         case ConstraintMin(:final value):
-          solver.addConstraint(segment.hasMinSize(value, Strengths.minSizeGe.value));
+          solver.addConstraint(
+            segment.hasMinSize(value, Strengths.minSizeGe.value),
+          );
           if (flex == Flex.legacy) {
-            solver.addConstraint(segment.hasIntSize(value, Strengths.minSizeEq.value));
+            solver.addConstraint(
+              segment.hasIntSize(value, Strengths.minSizeEq.value),
+            );
           } else {
-            solver.addConstraint(segment.hasSize(area.size, Strengths.fillGrow.value));
+            solver.addConstraint(
+              segment.hasSize(area.size, Strengths.fillGrow.value),
+            );
           }
         case ConstraintLength(:final value):
-          solver.addConstraint(segment.hasIntSize(value, Strengths.lengthSizeEq.value));
+          solver.addConstraint(
+            segment.hasIntSize(value, Strengths.lengthSizeEq.value),
+          );
         case ConstraintPercentage(:final value):
           final size = area.size * cos.cm(value.toDouble()) / cos.cm(100);
-          solver.addConstraint(segment.hasSize(size, Strengths.percentageSizeEq.value));
+          solver.addConstraint(
+            segment.hasSize(size, Strengths.percentageSizeEq.value),
+          );
         case ConstraintRatio(:final numerator, :final denominator):
           final size = area.size * cos.cm(numerator.toDouble()) / cos.cm(math.max(denominator, 1).toDouble());
-          solver.addConstraint(segment.hasSize(size, Strengths.ratioSizeEq.value));
+          solver.addConstraint(
+            segment.hasSize(size, Strengths.ratioSizeEq.value),
+          );
         case ConstraintFill():
-          solver.addConstraint(segment.hasSize(area.size, Strengths.fillGrow.value));
+          solver.addConstraint(
+            segment.hasSize(area.size, Strengths.fillGrow.value),
+          );
       }
     }
   }
@@ -527,54 +580,97 @@ class Layout {
     switch (flex) {
       case Flex.legacy:
         for (final spacer in spacersExceptFirstLast) {
-          solver.addConstraint(spacer.hasSize(cos.cm(spacingF).asExpression(), Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            spacer.hasSize(
+              cos.cm(spacingF).asExpression(),
+              Strengths.spacerSizeEq.value,
+            ),
+          );
         }
         solver
           ..addConstraint(spacers.first.isEmpty())
           ..addConstraint(spacers.last.isEmpty());
       case Flex.spaceAround:
         for (final (left, right) in spacers.tupleCombinations()) {
-          solver.addConstraint(left.hasSize(right.size, Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            left.hasSize(right.size, Strengths.spacerSizeEq.value),
+          );
         }
         for (final spacer in spacers) {
           solver
-            ..addConstraint(spacer.hasMinSize(spacing, Strengths.spacerSizeEq.value))
-            ..addConstraint(spacer.hasSize(area.size, Strengths.spaceGrow.value));
+            ..addConstraint(
+              spacer.hasMinSize(spacing, Strengths.spacerSizeEq.value),
+            )
+            ..addConstraint(
+              spacer.hasSize(area.size, Strengths.spaceGrow.value),
+            );
         }
       case Flex.spaceBetween:
         for (final (left, right) in spacersExceptFirstLast.tupleCombinations()) {
-          solver.addConstraint(left.hasSize(right.size, Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            left.hasSize(right.size, Strengths.spacerSizeEq.value),
+          );
         }
         for (final spacer in spacersExceptFirstLast) {
           solver
-            ..addConstraint(spacer.hasMinSize(spacing, Strengths.spacerSizeEq.value))
-            ..addConstraint(spacer.hasSize(area.size, Strengths.spaceGrow.value));
+            ..addConstraint(
+              spacer.hasMinSize(spacing, Strengths.spacerSizeEq.value),
+            )
+            ..addConstraint(
+              spacer.hasSize(area.size, Strengths.spaceGrow.value),
+            );
         }
         solver
           ..addConstraint(spacers.first.isEmpty())
           ..addConstraint(spacers.last.isEmpty());
       case Flex.start:
         for (final spacer in spacersExceptFirstLast) {
-          solver.addConstraint(spacer.hasSize(cos.cm(spacingF).asExpression(), Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            spacer.hasSize(
+              cos.cm(spacingF).asExpression(),
+              Strengths.spacerSizeEq.value,
+            ),
+          );
         }
         solver
           ..addConstraint(spacers.first.isEmpty())
-          ..addConstraint(spacers.last.hasSize(area.size, Strengths.grow.value));
+          ..addConstraint(
+            spacers.last.hasSize(area.size, Strengths.grow.value),
+          );
       case Flex.center:
         for (final spacer in spacersExceptFirstLast) {
-          solver.addConstraint(spacer.hasSize(cos.cm(spacingF).asExpression(), Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            spacer.hasSize(
+              cos.cm(spacingF).asExpression(),
+              Strengths.spacerSizeEq.value,
+            ),
+          );
         }
         solver
-          ..addConstraint(spacers.first.hasSize(area.size, Strengths.grow.value))
+          ..addConstraint(
+            spacers.first.hasSize(area.size, Strengths.grow.value),
+          )
           ..addConstraint(spacers.last.hasSize(area.size, Strengths.grow.value))
-          ..addConstraint(spacers.first.hasSize(spacers.last.size, Strengths.spacerSizeEq.value));
+          ..addConstraint(
+            spacers.first.hasSize(
+              spacers.last.size,
+              Strengths.spacerSizeEq.value,
+            ),
+          );
       case Flex.end:
         for (final spacer in spacersExceptFirstLast) {
-          solver.addConstraint(spacer.hasSize(cos.cm(spacingF).asExpression(), Strengths.spacerSizeEq.value));
+          solver.addConstraint(
+            spacer.hasSize(
+              cos.cm(spacingF).asExpression(),
+              Strengths.spacerSizeEq.value,
+            ),
+          );
         }
         solver
           ..addConstraint(spacers.last.isEmpty())
-          ..addConstraint(spacers.first.hasSize(area.size, Strengths.grow.value));
+          ..addConstraint(
+            spacers.first.hasSize(area.size, Strengths.grow.value),
+          );
     }
   }
 
@@ -592,12 +688,16 @@ class Layout {
       final leftScalingFactor = switch (leftConstraint) {
         ConstraintFill(:final value) => math.max(value.toDouble(), 1e-6),
         ConstraintMin() => 1.0,
-        _ => throw UnimplementedError('constraint not implemented: $leftConstraint'),
+        _ => throw UnimplementedError(
+          'constraint not implemented: $leftConstraint',
+        ),
       };
       final rightScalingFactor = switch (rightConstraint) {
         ConstraintFill(:final value) => math.max(value.toDouble(), 1e-6),
         ConstraintMin() => 1.0,
-        _ => throw UnimplementedError('constraint not implemented: $rightConstraint'),
+        _ => throw UnimplementedError(
+          'constraint not implemented: $rightConstraint',
+        ),
       };
       final rhs = cos.cm(rightScalingFactor) * leftSegment.size;
       final lhs = cos.cm(leftScalingFactor) * rightSegment.size;
@@ -617,8 +717,18 @@ class Layout {
       final end = (element.end.value.round() / _floatPrecisionMultiplier).round();
       final size = end.saturatingSub(start);
       return switch (direction) {
-        Direction.horizontal => Rect.create(x: start, y: area.y, width: size, height: area.height),
-        Direction.vertical => Rect.create(x: area.x, y: start, width: area.width, height: size),
+        Direction.horizontal => Rect.create(
+          x: start,
+          y: area.y,
+          width: size,
+          height: area.height,
+        ),
+        Direction.vertical => Rect.create(
+          x: area.x,
+          y: start,
+          width: area.width,
+          height: size,
+        ),
       };
     }).toList();
   }
@@ -658,5 +768,12 @@ class Layout {
   }
 
   @override
-  int get hashCode => Object.hash(Layout, direction, Object.hashAll(_constraints), margin, flex, spacing);
+  int get hashCode => Object.hash(
+    Layout,
+    direction,
+    Object.hashAll(_constraints),
+    margin,
+    flex,
+    spacing,
+  );
 }

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 Future<void> main() async {
   final app = await Application.create(viewport: const ViewPortFullScreen());
@@ -24,7 +23,7 @@ Future<void> main() async {
   return app.terminal.flushThenExit(exitValue);
 }
 
-final colors = [
+final List<Color> colors = [
   Color.black,
   Color.red,
   Color.green,
@@ -83,14 +82,23 @@ void renderNamedColorFg(Frame frame, String nameCol, Color bg, Rect area) {
   final inner = block.inner(area);
   frame.renderWidget(block, area);
 
-  final layout = Layout.vertical(List.generate(2, (_) => const ConstraintLength(1))).split(inner);
+  final layout = Layout.vertical(
+    List.generate(2, (_) => const ConstraintLength(1)),
+  ).split(inner);
   final areas = layout
-      .map((area) => Layout.horizontal(List.generate(8, (_) => const ConstraintRatio(1, 8))).split(area))
+      .map(
+        (area) => Layout.horizontal(
+          List.generate(8, (_) => const ConstraintRatio(1, 8)),
+        ).split(area),
+      )
       .expand((x) => x);
 
   for (final (index, fg, area) in colors.zipIndex(areas)) {
     final colorName = colorNames[index];
-    final text = Text.raw(colorName, style: Style(fg: fg, bg: bg));
+    final text = Text.raw(
+      colorName,
+      style: Style(fg: fg, bg: bg),
+    );
     frame.renderWidget(text, area);
   }
 }
@@ -100,14 +108,23 @@ void renderNamedColorBg(Frame frame, String nameCol, Color fg, Rect area) {
   final inner = block.inner(area);
   frame.renderWidget(block, area);
 
-  final layout = Layout.vertical(List.generate(2, (_) => const ConstraintLength(1))).split(inner);
+  final layout = Layout.vertical(
+    List.generate(2, (_) => const ConstraintLength(1)),
+  ).split(inner);
   final areas = layout
-      .map((area) => Layout.horizontal(List.generate(8, (_) => const ConstraintRatio(1, 8))).split(area))
+      .map(
+        (area) => Layout.horizontal(
+          List.generate(8, (_) => const ConstraintRatio(1, 8)),
+        ).split(area),
+      )
       .expand((x) => x);
 
   for (final (index, bg, area) in colors.zipIndex(areas)) {
     final colorName = colorNames[index];
-    final text = Text.raw(colorName, style: Style(fg: fg, bg: bg));
+    final text = Text.raw(
+      colorName,
+      style: Style(fg: fg, bg: bg),
+    );
     frame.renderWidget(text, area);
   }
 }
@@ -126,32 +143,58 @@ void renderIndexedColors(Frame frame, Rect area) {
     ConstraintLength(1),
   ]).split(inner);
 
-  final colorLayout = Layout.horizontal(List.generate(16, (_) => const ConstraintLength(5))).split(layout[0]);
+  final colorLayout = Layout.horizontal(
+    List.generate(16, (_) => const ConstraintLength(5)),
+  ).split(layout[0]);
   for (var i = 0; i < 16; i++) {
     final color = Color.indexed(i);
     final colorIndex = i.toString().padLeft(2, '0');
     final bg = i < 1 ? Color.darkGray : Color.black;
     final text = Line.fromSpans([
-      Span(content: colorIndex, style: Style(fg: color, bg: bg)),
-      Span(content: '  ', style: Style(fg: color, bg: color)),
+      Span(
+        content: colorIndex,
+        style: Style(fg: color, bg: bg),
+      ),
+      Span(
+        content: '  ',
+        style: Style(fg: color, bg: color),
+      ),
     ]);
     frame.renderWidget(text, colorLayout[i]);
   }
 
   final indexLayout = [layout[2], layout[4]]
-      .map((a) => Layout.horizontal(List.generate(3, (_) => const ConstraintLength(27))).split(a))
+      .map(
+        (a) => Layout.horizontal(
+          List.generate(3, (_) => const ConstraintLength(27)),
+        ).split(a),
+      )
       .expand((x) => x)
-      .map((a) => Layout.vertical(List.generate(6, (_) => const ConstraintLength(1))).split(a))
+      .map(
+        (a) => Layout.vertical(
+          List.generate(6, (_) => const ConstraintLength(1)),
+        ).split(a),
+      )
       .expand((x) => x)
-      .map((a) => Layout.horizontal(List.generate(6, (_) => const ConstraintMin(4))).split(a))
+      .map(
+        (a) => Layout.horizontal(
+          List.generate(6, (_) => const ConstraintMin(4)),
+        ).split(a),
+      )
       .expand((x) => x);
 
   for (var i = 16; i <= 231; i++) {
     final color = Color.indexed(i);
     final colorIndex = i.toString().padLeft(3, '0');
     final text = Line.fromSpans([
-      Span(content: colorIndex, style: Style(fg: color, bg: Color.reset)),
-      Span(content: '.', style: Style(fg: color, bg: color)),
+      Span(
+        content: colorIndex,
+        style: Style(fg: color, bg: Color.reset),
+      ),
+      Span(
+        content: '.',
+        style: Style(fg: color, bg: color),
+      ),
       const Span(content: '   '),
       //const Span(content: '███'),
     ]);
@@ -160,26 +203,33 @@ void renderIndexedColors(Frame frame, Rect area) {
 }
 
 void renderIndexedGrayScale(Frame frame, Rect area) {
-  final layout = Layout.vertical(const [
-    ConstraintLength(1), // 232-243
-    ConstraintLength(1), // 244-255
-  ])
-      .split(area)
-      .map(
-        (a) => Layout.horizontal(
-          List.generate(12, (_) => const ConstraintLength(6)),
-        ).split(a),
-      )
-      .expand((x) => x)
-      .toList();
+  final layout =
+      Layout.vertical(const [
+            ConstraintLength(1), // 232-243
+            ConstraintLength(1), // 244-255
+          ])
+          .split(area)
+          .map(
+            (a) => Layout.horizontal(
+              List.generate(12, (_) => const ConstraintLength(6)),
+            ).split(a),
+          )
+          .expand((x) => x)
+          .toList();
 
   for (var i = 232; i <= 255; i++) {
     final color = Color.indexed(i);
     final colorIndex = i.toString().padLeft(3, '0');
     final bg = i < 244 ? Color.gray : Color.black;
     final text = Line.fromSpans([
-      Span(content: colorIndex, style: Style(fg: color, bg: bg)),
-      Span(content: '  ', style: Style(fg: color, bg: color)),
+      Span(
+        content: colorIndex,
+        style: Style(fg: color, bg: bg),
+      ),
+      Span(
+        content: '  ',
+        style: Style(fg: color, bg: color),
+      ),
       const Span(content: '       '),
     ]);
     frame.renderWidget(text, layout[i - 232]);

@@ -5,7 +5,7 @@ const _top = 1;
 const _right = 2;
 const _bottom = 4;
 const _left = 8;
-const _all = _top | _right | _bottom | _left;
+const int _all = _top | _right | _bottom | _left;
 
 /// Defines the type of borders for the Block.
 @immutable
@@ -33,12 +33,10 @@ class Borders {
   static const left = Borders._(_left);
 
   @pragma('vm:prefer-inline')
-
   /// Returns true if the border is present.
   bool has(Borders border) => _value & border._value == border._value;
 
   @pragma('vm:prefer-inline')
-
   /// Add a border to the current one.
   Borders operator |(Borders other) => Borders._(_value | other._value);
 

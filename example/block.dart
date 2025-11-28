@@ -5,7 +5,9 @@ import 'package:termparser/termparser_events.dart' as evt;
 
 Future<void> main() async {
   final term = await init();
-  term.hideCursor();
+  term
+    ..enableRawMode()
+    ..hideCursor();
   await runLoop(term);
   stderr.writeln('layoutCache ${layoutCacheStats()}');
   term.showCursor();
@@ -15,7 +17,7 @@ Future<void> main() async {
 Future<void> runLoop(Terminal term) async {
   while (true) {
     term.draw(draw);
-    final key = await term.readEvent<evt.KeyEvent>(timeout: 1 ~/ 60);
+    final key = await term.readEvent<evt.KeyEvent>();
     if (key is evt.KeyEvent) {
       if (key.code.char == 'q') break;
     }
@@ -170,21 +172,22 @@ void renderStyledTitleContent(Text text, Frame frame, Rect area) {
 }
 
 void renderMultipleTitles(Text text, Frame frame, Rect area) {
-  final block = Block(
-    borders: Borders.all,
-  )
-    ..titleTop(
-      Line(
-        content: 'Multiple',
-        style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
-      ),
-    )
-    ..titleTop(
-      Line(
-        content: 'Titles',
-        style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
-      ),
-    );
+  final block =
+      Block(
+          borders: Borders.all,
+        )
+        ..titleTop(
+          Line(
+            content: 'Multiple',
+            style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
+          ),
+        )
+        ..titleTop(
+          Line(
+            content: 'Titles',
+            style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
+          ),
+        );
 
   final inner = block.inner(area);
 
@@ -194,15 +197,20 @@ void renderMultipleTitles(Text text, Frame frame, Rect area) {
 }
 
 void renderMultipleTitlePositions(Text text, Frame frame, Rect area) {
-  final block = Block(
-    borders: Borders.all,
-  )
-    ..titleTop(Line(content: 'top left', alignment: Alignment.left))
-    ..titleTop(Line(content: 'top center', alignment: Alignment.center))
-    ..titleTop(Line(content: 'top right', alignment: Alignment.right))
-    ..titleBottom(Line(content: 'bottom left', alignment: Alignment.left))
-    ..titleBottom(Line(content: 'bottom center', alignment: Alignment.center))
-    ..titleBottom(Line(content: 'bottom right', alignment: Alignment.right));
+  final block =
+      Block(
+          borders: Borders.all,
+        )
+        ..titleTop(Line(content: 'top left', alignment: Alignment.left))
+        ..titleTop(Line(content: 'top center', alignment: Alignment.center))
+        ..titleTop(Line(content: 'top right', alignment: Alignment.right))
+        ..titleBottom(Line(content: 'bottom left', alignment: Alignment.left))
+        ..titleBottom(
+          Line(content: 'bottom center', alignment: Alignment.center),
+        )
+        ..titleBottom(
+          Line(content: 'bottom right', alignment: Alignment.right),
+        );
 
   final inner = block.inner(area);
 

@@ -11,6 +11,7 @@ void main() {
     });
 
     test('zero', () {
+      //
       // ignore: use_named_constants
       expect(Margin.zero, const Margin(0, 0));
     });

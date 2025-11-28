@@ -1,3 +1,4 @@
+//
 // ignore_for_file: public_member_api_docs
 
 import '../backend/termlib_backend.dart';
@@ -18,5 +19,6 @@ Future<void> dispose() async {
   if (_term == null) return;
   _term!.disableRawMode();
   _term!.disableAlternateScreen();
+  await _term!.backend.dispose();
   await _term!.flushThenExit(0);
 }

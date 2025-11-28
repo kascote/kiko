@@ -31,7 +31,10 @@ void main() {
     });
 
     test('fromPosition', () {
-      expect(Position.fromPosition(const Position(10, 10)), const Position(10, 10));
+      expect(
+        Position.fromPosition(const Position(10, 10)),
+        const Position(10, 10),
+      );
     });
 
     test('hashcode', () {

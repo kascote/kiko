@@ -107,7 +107,7 @@ enum TitlePosition {
   top,
 
   /// Defines bottom position
-  bottom
+  bottom,
 }
 
 /// Base widget to be used to display a box border around all upper level one
@@ -161,8 +161,8 @@ class Block implements Widget {
     this.titlesStyle = const Style(),
     this.padding = const Padding.zero(),
     this.borderSet,
-  })  : _topTitles = [],
-        _bottomTitles = [];
+  }) : _topTitles = [],
+       _bottomTitles = [];
 
   /// Compute the inner area of a block based on its border visibility rules.
   ///
@@ -269,7 +269,9 @@ class Block implements Widget {
   /// The result takes the [Block]'s, [Borders], and [Padding] into account.
   (int, int) horizontalSpace() {
     final left = padding.left.saturatingAdd(borders.has(Borders.left) ? 1 : 0);
-    final right = padding.right.saturatingAdd(borders.has(Borders.right) ? 1 : 0);
+    final right = padding.right.saturatingAdd(
+      borders.has(Borders.right) ? 1 : 0,
+    );
     return (left, right);
   }
 
@@ -303,14 +305,17 @@ class Block implements Widget {
 
   void _renderBorders(Rect area, Buffer buffer) {
     if (borderType == BorderType.custom && borderSet == null) {
-      throw ArgumentError('BorderType set to "custom" but no BorderSet provided');
+      throw ArgumentError(
+        'BorderType set to "custom" but no BorderSet provided',
+      );
     }
     final borderLines = borderType == BorderType.custom ? borderSet! : borderType.symbols(borderType);
 
     if (borders.has(Borders.left)) {
       for (var y = area.top; y < area.bottom; y++) {
-        buffer[(x: area.left, y: y)] =
-            buffer[(x: area.left, y: y)].copyWith(char: borderLines.left).setStyle(borderStyle);
+        buffer[(x: area.left, y: y)] = buffer[(x: area.left, y: y)]
+            .copyWith(char: borderLines.left)
+            .setStyle(borderStyle);
       }
     }
     if (borders.has(Borders.top)) {
@@ -331,20 +336,33 @@ class Block implements Widget {
       }
     }
     if (borders.has(Borders.right) && borders.has(Borders.bottom)) {
-      buffer[(x: area.right - 1, y: area.bottom - 1)] =
-          buffer[(x: area.right - 1, y: area.bottom - 1)].copyWith(char: borderLines.bottomRight).setStyle(borderStyle);
+      buffer[(
+        x: area.right - 1,
+        y: area.bottom - 1,
+      )] = buffer[(x: area.right - 1, y: area.bottom - 1)]
+          .copyWith(char: borderLines.bottomRight)
+          .setStyle(borderStyle);
     }
     if (borders.has(Borders.right) && borders.has(Borders.top)) {
-      buffer[(x: area.right - 1, y: area.top)] =
-          buffer[(x: area.right - 1, y: area.top)].copyWith(char: borderLines.topRight).setStyle(borderStyle);
+      buffer[(
+        x: area.right - 1,
+        y: area.top,
+      )] = buffer[(x: area.right - 1, y: area.top)]
+          .copyWith(char: borderLines.topRight)
+          .setStyle(borderStyle);
     }
     if (borders.has(Borders.left) && borders.has(Borders.bottom)) {
-      buffer[(x: area.left, y: area.bottom - 1)] =
-          buffer[(x: area.left, y: area.bottom - 1)].copyWith(char: borderLines.bottomLeft).setStyle(borderStyle);
+      buffer[(
+        x: area.left,
+        y: area.bottom - 1,
+      )] = buffer[(x: area.left, y: area.bottom - 1)]
+          .copyWith(char: borderLines.bottomLeft)
+          .setStyle(borderStyle);
     }
     if (borders.has(Borders.left) && borders.has(Borders.top)) {
-      buffer[(x: area.left, y: area.top)] =
-          buffer[(x: area.left, y: area.top)].copyWith(char: borderLines.topLeft).setStyle(borderStyle);
+      buffer[(x: area.left, y: area.top)] = buffer[(x: area.left, y: area.top)]
+          .copyWith(char: borderLines.topLeft)
+          .setStyle(borderStyle);
     }
   }
 
@@ -371,13 +389,18 @@ class Block implements Widget {
 
       final titleWidth = title.width;
       titlesArea = titlesArea.copyWith(
-        x: math.max(titlesArea.right.saturatingSub(titleWidth), titlesArea.left),
+        x: math.max(
+          titlesArea.right.saturatingSub(titleWidth),
+          titlesArea.left,
+        ),
         width: math.min(titleWidth, titlesArea.width),
       );
 
       buffer.setStyle(titlesArea, titlesStyle);
       title.render(titlesArea, buffer);
-      titlesArea = titlesArea.copyWith(width: titlesArea.width.saturatingSub(titleWidth + 1));
+      titlesArea = titlesArea.copyWith(
+        width: titlesArea.width.saturatingSub(titleWidth + 1),
+      );
     }
   }
 
@@ -431,8 +454,9 @@ class Block implements Widget {
   Iterable<Line> _getTitlesAtPos(TitlePosition position, Alignment alignment) {
     final titles = position == TitlePosition.top ? _topTitles : _bottomTitles;
     // if the Line.alignment is null by default is left
-    return titles.reversed
-        .where((title) => title.alignment == alignment || (alignment == Alignment.left && title.alignment == null));
+    return titles.reversed.where(
+      (title) => title.alignment == alignment || (alignment == Alignment.left && title.alignment == null),
+    );
   }
 
   Rect _getTitlesAreas(Rect area, TitlePosition position) {
@@ -465,76 +489,76 @@ const _quadrantTopRightBottomLeftBottomRight = '▟';
 extension BorderTypeUtils on BorderType {
   /// Returns the symbols to use for the given [BorderType].
   BorderSet symbols(BorderType type) => switch (type) {
-        BorderType.none => (
-            top: ' ',
-            bottom: ' ',
-            left: ' ',
-            right: ' ',
-            topLeft: ' ',
-            topRight: ' ',
-            bottomLeft: ' ',
-            bottomRight: ' ',
-          ),
-        BorderType.plain => (
-            top: '─',
-            bottom: '─',
-            left: '│',
-            right: '│',
-            topLeft: '┌',
-            topRight: '┐',
-            bottomLeft: '└',
-            bottomRight: '┘',
-          ),
-        BorderType.rounded => (
-            top: '─',
-            bottom: '─',
-            left: '│',
-            right: '│',
-            topLeft: '╭',
-            topRight: '╮',
-            bottomLeft: '╰',
-            bottomRight: '╯',
-          ),
-        BorderType.double => (
-            top: '═',
-            bottom: '═',
-            left: '║',
-            right: '║',
-            topLeft: '╔',
-            topRight: '╗',
-            bottomLeft: '╚',
-            bottomRight: '╝',
-          ),
-        BorderType.thick => (
-            top: '━',
-            bottom: '━',
-            left: '┃',
-            right: '┃',
-            topLeft: '┏',
-            topRight: '┓',
-            bottomLeft: '┗',
-            bottomRight: '┛',
-          ),
-        BorderType.quadrantInside => (
-            topRight: _quadrantBottomLeft,
-            topLeft: _quadrantBottomRight,
-            bottomRight: _quadrantTopLeft,
-            bottomLeft: _quadrantTopRight,
-            left: _quadrantRightHalf,
-            right: _quadrantLeftHalf,
-            top: _quadrantBottomHalf,
-            bottom: _quadrantTopHalf,
-          ),
-        BorderType.quadrantOutside => (
-            topLeft: _quadrantTopLeftTopRightBottomLeft,
-            topRight: _quadrantTopLeftTopRightBottomRight,
-            bottomLeft: _quadrantTopLeftBottomLeftBottomRight,
-            bottomRight: _quadrantTopRightBottomLeftBottomRight,
-            left: _quadrantLeftHalf,
-            right: _quadrantRightHalf,
-            top: _quadrantTopHalf,
-            bottom: _quadrantBottomHalf,
-          ),
-        _ => throw ArgumentError('Invalid border type: $type'),
-      };
+    BorderType.none => (
+      top: ' ',
+      bottom: ' ',
+      left: ' ',
+      right: ' ',
+      topLeft: ' ',
+      topRight: ' ',
+      bottomLeft: ' ',
+      bottomRight: ' ',
+    ),
+    BorderType.plain => (
+      top: '─',
+      bottom: '─',
+      left: '│',
+      right: '│',
+      topLeft: '┌',
+      topRight: '┐',
+      bottomLeft: '└',
+      bottomRight: '┘',
+    ),
+    BorderType.rounded => (
+      top: '─',
+      bottom: '─',
+      left: '│',
+      right: '│',
+      topLeft: '╭',
+      topRight: '╮',
+      bottomLeft: '╰',
+      bottomRight: '╯',
+    ),
+    BorderType.double => (
+      top: '═',
+      bottom: '═',
+      left: '║',
+      right: '║',
+      topLeft: '╔',
+      topRight: '╗',
+      bottomLeft: '╚',
+      bottomRight: '╝',
+    ),
+    BorderType.thick => (
+      top: '━',
+      bottom: '━',
+      left: '┃',
+      right: '┃',
+      topLeft: '┏',
+      topRight: '┓',
+      bottomLeft: '┗',
+      bottomRight: '┛',
+    ),
+    BorderType.quadrantInside => (
+      topRight: _quadrantBottomLeft,
+      topLeft: _quadrantBottomRight,
+      bottomRight: _quadrantTopLeft,
+      bottomLeft: _quadrantTopRight,
+      left: _quadrantRightHalf,
+      right: _quadrantLeftHalf,
+      top: _quadrantBottomHalf,
+      bottom: _quadrantTopHalf,
+    ),
+    BorderType.quadrantOutside => (
+      topLeft: _quadrantTopLeftTopRightBottomLeft,
+      topRight: _quadrantTopLeftTopRightBottomRight,
+      bottomLeft: _quadrantTopLeftBottomLeftBottomRight,
+      bottomRight: _quadrantTopRightBottomLeftBottomRight,
+      left: _quadrantLeftHalf,
+      right: _quadrantRightHalf,
+      top: _quadrantTopHalf,
+      bottom: _quadrantBottomHalf,
+    ),
+    _ => throw ArgumentError('Invalid border type: $type'),
+  };
 }

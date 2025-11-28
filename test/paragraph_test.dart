@@ -79,13 +79,28 @@ void main() {
 
     test('render a wrapping line width spans spanning multiple lines', () {
       final line1 = Line.fromSpans(const [
-        Span(content: 'The brow fox ', style: Style(fg: Color.red)),
-        Span(content: 'jumps over the lazy dog ', style: Style(fg: Color.green)),
-        Span(content: 'and the funny snake ', style: Style(fg: Color.magenta)),
+        Span(
+          content: 'The brow fox ',
+          style: Style(fg: Color.red),
+        ),
+        Span(
+          content: 'jumps over the lazy dog ',
+          style: Style(fg: Color.green),
+        ),
+        Span(
+          content: 'and the funny snake ',
+          style: Style(fg: Color.magenta),
+        ),
       ]);
       final line2 = Line.fromSpans(const [
-        Span(content: 'from down the hill ', style: Style(fg: Color.blue)),
-        Span(content: 'but the dog is too lazy to care', style: Style(fg: Color.yellow)),
+        Span(
+          content: 'from down the hill ',
+          style: Style(fg: Color.blue),
+        ),
+        Span(
+          content: 'but the dog is too lazy to care',
+          style: Style(fg: Color.yellow),
+        ),
       ]);
       final para = Paragraph.withText(Text.fromLines([line1, line2]));
       final rect = Rect.create(x: 0, y: 0, width: 21, height: 4);
@@ -95,10 +110,25 @@ void main() {
       final expected = Buffer.setCells(rect, [
         (x: 0, y: 0, char: 'The brow fox ', style: const Style(fg: Color.red)),
         (x: 13, y: 0, char: 'jumps ', style: const Style(fg: Color.green)),
-        (x: 0, y: 1, char: 'over the lazy dog ', style: const Style(fg: Color.green)),
+        (
+          x: 0,
+          y: 1,
+          char: 'over the lazy dog ',
+          style: const Style(fg: Color.green),
+        ),
         (x: 18, y: 1, char: 'and', style: const Style(fg: Color.magenta)),
-        (x: 0, y: 2, char: 'the funny snake ', style: const Style(fg: Color.magenta)),
-        (x: 0, y: 3, char: 'from down the hill ', style: const Style(fg: Color.blue)),
+        (
+          x: 0,
+          y: 2,
+          char: 'the funny snake ',
+          style: const Style(fg: Color.magenta),
+        ),
+        (
+          x: 0,
+          y: 3,
+          char: 'from down the hill ',
+          style: const Style(fg: Color.blue),
+        ),
       ]);
 
       expect(buf.eq(expected), isTrue);

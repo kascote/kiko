@@ -28,7 +28,9 @@ void main() {
     });
 
     test('patchStyle', () {
-      final span = const Span(content: 'hello').patchStyle(const Style(fg: Color.red));
+      final span = const Span(
+        content: 'hello',
+      ).patchStyle(const Style(fg: Color.red));
       expect(span.content, 'hello');
       expect(span.style, const Style(fg: Color.red));
     });
@@ -47,13 +49,19 @@ void main() {
     });
 
     test('reset style', () {
-      const span = Span(content: 'hello', style: Style(fg: Color.green));
+      const span = Span(
+        content: 'hello',
+        style: Style(fg: Color.green),
+      );
       final reset = span.resetStyle();
       expect(reset.style, const Style.reset());
     });
 
     test('styled span', () {
-      const span = Span(content: 'hello', style: Style(fg: Color.green));
+      const span = Span(
+        content: 'hello',
+        style: Style(fg: Color.green),
+      );
       expect(
         span.toString(),
         'Span(hello, Style(fg: Color(2, ansi), bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))',
@@ -61,19 +69,28 @@ void main() {
     });
 
     test('left alined', () {
-      const span = Span(content: 'hello', style: Style(fg: Color.green));
+      const span = Span(
+        content: 'hello',
+        style: Style(fg: Color.green),
+      );
       final line = span.leftAlignedLine();
       expect(line.alignment, Alignment.left);
     });
 
     test('center alined', () {
-      const span = Span(content: 'hello', style: Style(fg: Color.green));
+      const span = Span(
+        content: 'hello',
+        style: Style(fg: Color.green),
+      );
       final line = span.centerAlignedLine();
       expect(line.alignment, Alignment.center);
     });
 
     test('right alined', () {
-      const span = Span(content: 'hello', style: Style(fg: Color.green));
+      const span = Span(
+        content: 'hello',
+        style: Style(fg: Color.green),
+      );
       final line = span.rightAlignedLine();
       expect(line.alignment, Alignment.right);
     });
@@ -110,7 +127,10 @@ void main() {
               addModifier: Modifier.italic,
             ),
           ),
-          Span(content: '   ', style: Style(addModifier: Modifier.italic)),
+          Span(
+            content: '   ',
+            style: Style(addModifier: Modifier.italic),
+          ),
         ]),
       ]);
       expect(buf.eq(expected), isTrue);
@@ -163,7 +183,11 @@ void main() {
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
       span.render(buf.area, buf);
-      expect(buf.buf, const [Cell(char: '\u{200B}a'), Cell(char: 'b'), Cell(char: 'c')]);
+      expect(buf.buf, const [
+        Cell(char: '\u{200B}a'),
+        Cell(char: 'b'),
+        Cell(char: 'c'),
+      ]);
     });
 
     test('render second zero-width', () {
@@ -171,7 +195,11 @@ void main() {
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
       span.render(buf.area, buf);
-      expect(buf.buf, const [Cell(char: 'a\u{200B}'), Cell(char: 'b'), Cell(char: 'c')]);
+      expect(buf.buf, const [
+        Cell(char: 'a\u{200B}'),
+        Cell(char: 'b'),
+        Cell(char: 'c'),
+      ]);
     });
 
     test('render middle zero-width', () {
@@ -179,7 +207,11 @@ void main() {
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
       span.render(buf.area, buf);
-      expect(buf.buf, const [Cell(char: 'a'), Cell(char: 'b\u{200B}'), Cell(char: 'c')]);
+      expect(buf.buf, const [
+        Cell(char: 'a'),
+        Cell(char: 'b\u{200B}'),
+        Cell(char: 'c'),
+      ]);
     });
 
     test('render last zero-width', () {
@@ -187,7 +219,11 @@ void main() {
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
       span.render(buf.area, buf);
-      expect(buf.buf, const [Cell(char: 'a'), Cell(char: 'b'), Cell(char: 'c\u{200B}')]);
+      expect(buf.buf, const [
+        Cell(char: 'a'),
+        Cell(char: 'b'),
+        Cell(char: 'c\u{200B}'),
+      ]);
     });
 
     test('render with new line', () {

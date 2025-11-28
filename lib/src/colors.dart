@@ -9,7 +9,7 @@ enum ColorKind {
   indexed,
 
   /// RGB color
-  rgb
+  rgb,
 }
 
 /// Color class
@@ -81,13 +81,17 @@ class Color {
 
   /// Creates a color from an ANSI value (0-15)
   factory Color.ansi(int value) {
-    if (value < 0 || value > 15) throw ArgumentError.value(value, 'value', 'must be between 0 and 15');
+    if (value < 0 || value > 15) {
+      throw ArgumentError.value(value, 'value', 'must be between 0 and 15');
+    }
     return Color._(value & 0xf);
   }
 
   /// Creates a color from an indexed value (0-255)
   factory Color.indexed(int value) {
-    if (value < 0 || value > 255) throw ArgumentError.value(value, 'value', 'must be between 0 and 255');
+    if (value < 0 || value > 255) {
+      throw ArgumentError.value(value, 'value', 'must be between 0 and 255');
+    }
     return Color._(value & 0xff, kind: ColorKind.indexed);
   }
 
@@ -99,7 +103,9 @@ class Color {
   /// Creates a color from an RGB string (e.g. '#FF0000')
   factory Color.fromRGBString(String rgb) {
     final value = rgb.startsWith('#') ? rgb.substring(1) : rgb;
-    if (value.length != 6) throw ArgumentError.value(rgb, 'rgb', 'must be 6 characters long');
+    if (value.length != 6) {
+      throw ArgumentError.value(rgb, 'rgb', 'must be 6 characters long');
+    }
     return Color._(int.parse(value, radix: 16), kind: ColorKind.rgb);
   }
 

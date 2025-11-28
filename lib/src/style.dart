@@ -14,7 +14,7 @@ const _hidden = 128; // 0b0000_1000_0000,
 const _crossedOut = 256; // 0b0001_0000_0000,
 const _all = 0x1ff; // 0b0001_1111_1111
 
-const _listModifiers = {
+const Map<String, Modifier> _listModifiers = {
   'empty': Modifier.empty,
   'bold': Modifier.bold,
   'dim': Modifier.dim,
@@ -144,16 +144,16 @@ class Style {
     this.underline,
     Modifier addModifier = Modifier.empty,
     Modifier subModifier = Modifier.empty,
-  })  : _addModifier = addModifier,
-        _subModifier = subModifier;
+  }) : _addModifier = addModifier,
+       _subModifier = subModifier;
 
   /// Creates a new [Style] with the colors set to Reset
   const Style.reset()
-      : fg = Color.reset,
-        bg = Color.reset,
-        underline = Color.reset,
-        _addModifier = Modifier.empty,
-        _subModifier = Modifier.all;
+    : fg = Color.reset,
+      bg = Color.reset,
+      underline = Color.reset,
+      _addModifier = Modifier.empty,
+      _subModifier = Modifier.all;
 
   static const Object _useNull = Object();
 
@@ -202,8 +202,16 @@ class Style {
       fg: _getValueOrNull<Color>(fg, 'fg', this.fg),
       bg: _getValueOrNull<Color>(bg, 'bg', this.bg),
       underline: _getValueOrNull<Color>(underline, 'underline', this.underline),
-      addModifier: _getValue<Modifier>(addModifier, 'addModifier', _addModifier),
-      subModifier: _getValue<Modifier>(subModifier, 'subModifier', _subModifier),
+      addModifier: _getValue<Modifier>(
+        addModifier,
+        'addModifier',
+        _addModifier,
+      ),
+      subModifier: _getValue<Modifier>(
+        subModifier,
+        'subModifier',
+        _subModifier,
+      ),
     );
   }
 
@@ -212,14 +220,18 @@ class Style {
     if (value == _useNull) return current;
     if (value == null) return null;
     if (value is T) return value as T;
-    throw ArgumentError('Invalid value for $fieldName. Expected $T, got ${value.runtimeType}');
+    throw ArgumentError(
+      'Invalid value for $fieldName. Expected $T, got ${value.runtimeType}',
+    );
   }
 
   /// Helper method to get the value for non-nullable fields.
   T _getValue<T>(Object? value, String fieldName, T current) {
     if (value == _useNull) return current;
     if (value is T) return value;
-    throw ArgumentError('Invalid value for $fieldName. Expected $T, got ${value.runtimeType}');
+    throw ArgumentError(
+      'Invalid value for $fieldName. Expected $T, got ${value.runtimeType}',
+    );
   }
 
   @override
@@ -244,5 +256,6 @@ class Style {
   int get hashCode {
     return Object.hash(Style, fg, bg, underline, _addModifier, _subModifier);
   }
+
   // coverage:ignore-end
 }

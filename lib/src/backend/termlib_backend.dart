@@ -111,13 +111,22 @@ class TermlibBackend implements Backend {
   void disableRawMode() => _term.disableRawMode();
 
   @override
-  Future<tle.Event> readEvent<T extends tle.Event>({int timeout = 100}) async => _term.readEvent<T>(timeout: timeout);
+  Future<tle.Event> readEvent<T extends tle.Event>({int timeout = 100}) async => _term.pollTimeout<T>(timeout: timeout);
 
   @override
   Future<void> flushThenExit(int status) async => _term.flushThenExit(status);
-}
 
-void _mergeModifier(tl.Style style, Modifier fromModifier, Modifier toModifier) {
+  @override
+  Future<void> dispose() async {
+    return _term.dispose();
+  }
+} // End TermlibBackend
+
+void _mergeModifier(
+  tl.Style style,
+  Modifier fromModifier,
+  Modifier toModifier,
+) {
   final removed = fromModifier - toModifier;
 
   if (removed.has(Modifier.bold)) style.boldOff();
@@ -145,24 +154,24 @@ void _mergeModifier(tl.Style style, Modifier fromModifier, Modifier toModifier) 
 void _mergeColor(tl.Style style, Color fg, Color bg) {
   final _ = switch (fg.kind) {
     ColorKind.rgb => style.fg(
-        tl.Color.fromRGBComponent(
-          fg.value >> 16 & 0xff,
-          fg.value >> 8 & 0xff,
-          fg.value & 0xff,
-        ),
+      tl.Color.fromRGBComponent(
+        fg.value >> 16 & 0xff,
+        fg.value >> 8 & 0xff,
+        fg.value & 0xff,
       ),
+    ),
     ColorKind.ansi => fg.value < 0 ? style.fg(tl.Color.reset) : style.fg(tl.Color.ansi(fg.value)),
     ColorKind.indexed => style.fg(tl.Color.indexed(fg.value)),
   };
 
   return switch (bg.kind) {
     ColorKind.rgb => style.bg(
-        tl.Color.fromRGBComponent(
-          bg.value >> 16 & 0xff,
-          bg.value >> 8 & 0xff,
-          bg.value & 0xff,
-        ),
+      tl.Color.fromRGBComponent(
+        bg.value >> 16 & 0xff,
+        bg.value >> 8 & 0xff,
+        bg.value & 0xff,
       ),
+    ),
     ColorKind.ansi => bg.value < 0 ? style.bg(tl.Color.reset) : style.bg(tl.Color.ansi(bg.value)),
     ColorKind.indexed => style.bg(tl.Color.indexed(bg.value)),
   };
@@ -171,12 +180,12 @@ void _mergeColor(tl.Style style, Color fg, Color bg) {
 void _mergeUnderline(tl.Style style, Color under) {
   return switch (under.kind) {
     ColorKind.rgb => style.underline(
-        tl.Color.fromRGBComponent(
-          under.value >> 16 & 0xff,
-          under.value >> 8 & 0xff,
-          under.value & 0xff,
-        ),
+      tl.Color.fromRGBComponent(
+        under.value >> 16 & 0xff,
+        under.value >> 8 & 0xff,
+        under.value & 0xff,
       ),
+    ),
     ColorKind.ansi => under.value < 0 ? style.underlineOff() : style.underline(tl.Color.ansi(under.value)),
     ColorKind.indexed => style.underline(tl.Color.indexed(under.value)),
   };

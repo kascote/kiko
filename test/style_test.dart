@@ -40,7 +40,10 @@ void main() {
       final newStyle = style.incModifier(Modifier.italic);
 
       expect(newStyle, isNot(equals(style)));
-      expect(newStyle.toString(), contains('addModifier: Modifier(bold italic)'));
+      expect(
+        newStyle.toString(),
+        contains('addModifier: Modifier(bold italic)'),
+      );
     });
 
     test('removeModifier() removes modifier correctly', () {
@@ -58,7 +61,10 @@ void main() {
 
       expect(patchedStyle.fg, equals(Color.red));
       expect(patchedStyle.bg, equals(Color.blue));
-      expect(patchedStyle.toString(), contains('addModifier: Modifier(bold italic)'));
+      expect(
+        patchedStyle.toString(),
+        contains('addModifier: Modifier(bold italic)'),
+      );
 
       // do not modify original styles
       expect(style1.fg, equals(Color.red));
@@ -77,7 +83,10 @@ void main() {
 
       expect(patchedStyle.fg, Color.red);
       expect(patchedStyle.bg, isNull);
-      expect(patchedStyle.toString(), contains('addModifier: Modifier(bold italic)'));
+      expect(
+        patchedStyle.toString(),
+        contains('addModifier: Modifier(bold italic)'),
+      );
 
       // do not modify original styles
       expect(style1.fg, equals(Color.red));
@@ -168,11 +177,16 @@ void main() {
     });
 
     test('toString() returns a correct string representation', () {
-      final style = const Style(fg: Color.red, bg: Color.blue).incModifier(Modifier.bold);
+      final style = const Style(
+        fg: Color.red,
+        bg: Color.blue,
+      ).incModifier(Modifier.bold);
 
       expect(
         style.toString(),
-        contains('Style(fg: Color(1, ansi), bg: Color(4, ansi), underline: null'),
+        contains(
+          'Style(fg: Color(1, ansi), bg: Color(4, ansi), underline: null',
+        ),
       );
       expect(style.toString(), contains('addModifier: Modifier(bold)'));
       expect(style.toString(), contains('subModifier: Modifier(NONE)'));
@@ -181,13 +195,19 @@ void main() {
     test('_getValueOrNull() handles edge cases correctly', () {
       const style = Style();
 
-      expect(() => style.copyWith(fg: 'invalid'), throwsA(isA<ArgumentError>()));
+      expect(
+        () => style.copyWith(fg: 'invalid'),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('_getValue() handles edge cases correctly', () {
       const style = Style();
 
-      expect(() => style.copyWith(addModifier: 'invalid'), throwsA(isA<ArgumentError>()));
+      expect(
+        () => style.copyWith(addModifier: 'invalid'),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('check CopyWith on incModifier', () {

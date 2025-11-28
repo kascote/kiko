@@ -128,5 +128,6 @@ class Cell {
   int get hashCode {
     return Object.hash(Cell, _char, fg, bg, underline, modifier, skip);
   }
+
   // coverage:ignore-end
 }

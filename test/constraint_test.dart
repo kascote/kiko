@@ -3,28 +3,55 @@ import 'package:test/test.dart';
 
 void main() {
   List<ConstraintLength> constraintFromLengths(List<int> values) {
-    assert(values.every((v) => v > 0), 'All length elements must be greater than 0');
-    return List.generate(values.length, (i) => ConstraintLength(values[i]), growable: false);
+    assert(
+      values.every((v) => v > 0),
+      'All length elements must be greater than 0',
+    );
+    return List.generate(
+      values.length,
+      (i) => ConstraintLength(values[i]),
+      growable: false,
+    );
   }
 
   List<ConstraintRatio> constraintFromRatios(List<(int, int)> values) {
-    return List.generate(values.length, (i) => ConstraintRatio(values[i].$1, values[i].$2), growable: false);
+    return List.generate(
+      values.length,
+      (i) => ConstraintRatio(values[i].$1, values[i].$2),
+      growable: false,
+    );
   }
 
   List<ConstraintPercentage> constraintFromPercentages(List<int> values) {
-    return List.generate(values.length, (i) => ConstraintPercentage(values[i]), growable: false);
+    return List.generate(
+      values.length,
+      (i) => ConstraintPercentage(values[i]),
+      growable: false,
+    );
   }
 
   List<ConstraintMax> constraintFromMaxes(List<int> values) {
-    return List.generate(values.length, (i) => ConstraintMax(values[i]), growable: false);
+    return List.generate(
+      values.length,
+      (i) => ConstraintMax(values[i]),
+      growable: false,
+    );
   }
 
   List<ConstraintMin> constraintFromMins(List<int> values) {
-    return List.generate(values.length, (i) => ConstraintMin(values[i]), growable: false);
+    return List.generate(
+      values.length,
+      (i) => ConstraintMin(values[i]),
+      growable: false,
+    );
   }
 
   List<ConstraintFill> constraintFromFills(List<int> values) {
-    return List.generate(values.length, (i) => ConstraintFill(values[i]), growable: false);
+    return List.generate(
+      values.length,
+      (i) => ConstraintFill(values[i]),
+      growable: false,
+    );
   }
 
   group('Constraint >', () {

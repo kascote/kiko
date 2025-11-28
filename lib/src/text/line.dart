@@ -37,22 +37,22 @@ class Line implements Widget {
 
   /// Creates a new [Line] with the given content, style, and alignment.
   Line({String? content, Style? style, this.alignment})
-      : _spans = (content ?? '').lines().map<Span>((l) => Span(content: l)),
-        style = style ?? const Style();
+    : _spans = (content ?? '').lines().map<Span>((l) => Span(content: l)),
+      style = style ?? const Style();
 
   /// Creates a new [Line] from a list of [Span]s
   Line.fromSpans(List<Span> spans, {Style? style, this.alignment})
-      : _spans = List.from(spans),
-        style = style ?? const Style();
+    : _spans = List.from(spans),
+      style = style ?? const Style();
 
   const Line._(this._spans, this.style, this.alignment);
 
   /// Creates a new [Line] from a single [Span]
   factory Line.fromSpan(Span span, {Style? style, Alignment? alignment}) => Line.fromSpans(
-        [span],
-        style: style,
-        alignment: alignment,
-      );
+    [span],
+    style: style,
+    alignment: alignment,
+  );
 
   /// Creates an empty Line
   factory Line.empty({Style? style, Alignment? alignment}) => Line._(const [], style ?? const Style(), alignment);
@@ -99,7 +99,11 @@ class Line implements Widget {
 
   /// Renders the line to the buffer, respecting the width of the area and the
   /// alignment of the line.
-  void renderWidthAlignment(Rect area, Buffer buf, [Alignment? parentAlignment]) {
+  void renderWidthAlignment(
+    Rect area,
+    Buffer buf, [
+    Alignment? parentAlignment,
+  ]) {
     final intArea = area.intersection(buf.area);
     if (intArea.isEmpty) return;
 
@@ -133,7 +137,10 @@ class Line implements Widget {
 
   void _renderSpans(Rect area, Buffer buf, int spanSkipWidth) {
     var spanArea = area.copyWith();
-    for (final (span, spanWidth, offset) in _spanAfterWidth(_spans, spanSkipWidth)) {
+    for (final (span, spanWidth, offset) in _spanAfterWidth(
+      _spans,
+      spanSkipWidth,
+    )) {
       spanArea = spanArea.indentX(offset);
       if (spanArea.isEmpty) break;
 
@@ -169,10 +176,16 @@ class Line implements Widget {
 
       // Span is only partially visible. As the end is truncated by the area width, only
       // truncate the start of the span.
-      final contentTruncated = span.content.characters.truncateStart(availableWidth);
+      final contentTruncated = span.content.characters.truncateStart(
+        availableWidth,
+      );
       final actualWidth = widthString(contentTruncated);
       final firstOffset = availableWidth.saturatingSub(actualWidth);
-      acc.add((Span(content: contentTruncated, style: span.style), actualWidth, firstOffset));
+      acc.add((
+        Span(content: contentTruncated, style: span.style),
+        actualWidth,
+        firstOffset,
+      ));
       return acc;
     });
   }

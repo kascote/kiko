@@ -71,7 +71,7 @@ void draw(Frame frame) {
         ConstraintLength(6),
         ConstraintLength(10),
         ConstraintLength(15),
-      ]
+      ],
     ),
     (
       'Min',
@@ -82,7 +82,7 @@ void draw(Frame frame) {
         ConstraintMin(6),
         ConstraintMin(10),
         ConstraintMin(15),
-      ]
+      ],
     ),
     (
       'Max',
@@ -93,7 +93,7 @@ void draw(Frame frame) {
         ConstraintMax(6),
         ConstraintMax(10),
         ConstraintMax(15),
-      ]
+      ],
     ),
     (
       'Perc',
@@ -104,7 +104,7 @@ void draw(Frame frame) {
         ConstraintPercentage(75),
         ConstraintPercentage(100),
         ConstraintPercentage(150),
-      ]
+      ],
     ),
     (
       'Ratio',
@@ -115,7 +115,7 @@ void draw(Frame frame) {
         ConstraintRatio(3, 4),
         ConstraintRatio(4, 4),
         ConstraintRatio(6, 4),
-      ]
+      ],
     ),
   ];
 
@@ -129,22 +129,30 @@ void draw(Frame frame) {
   stderr.writeln('cache1 ${layoutCacheStats()}');
 }
 
-void renderExampleCombination(Frame frame, Rect area, String title, Iterable<(Constraint, Constraint)> constraints) {
-  final block = Block(
-    borders: Borders.all,
-    style: const Style.reset(),
-    borderStyle: const Style(fg: Color.darkGray),
-  )..titleTop(
-      Line(
-        content: title,
-        style: const Style(fg: Color.green),
-        alignment: Alignment.left,
-      ),
-    );
+void renderExampleCombination(
+  Frame frame,
+  Rect area,
+  String title,
+  Iterable<(Constraint, Constraint)> constraints,
+) {
+  final block =
+      Block(
+        borders: Borders.all,
+        style: const Style.reset(),
+        borderStyle: const Style(fg: Color.darkGray),
+      )..titleTop(
+        Line(
+          content: title,
+          style: const Style(fg: Color.green),
+          alignment: Alignment.left,
+        ),
+      );
   final inner = block.inner(area);
   frame.renderWidget(block, area);
 
-  final layout = Layout.vertical(List.generate(constraints.length + 1, (_) => const ConstraintLength(1))).split(inner);
+  final layout = Layout.vertical(
+    List.generate(constraints.length + 1, (_) => const ConstraintLength(1)),
+  ).split(inner);
   for (final ((a, b), area) in constraints.zip(layout)) {
     renderSingleExample(frame, area, [a, b, const ConstraintMin(0)]);
   }
@@ -153,8 +161,14 @@ void renderExampleCombination(Frame frame, Rect area, String title, Iterable<(Co
 }
 
 void renderSingleExample(Frame frame, Rect area, List<Constraint> constraints) {
-  final red = Text.raw(constraintLabel(constraints[0]), style: const Style(bg: Color.red));
-  final blue = Text.raw(constraintLabel(constraints[1]), style: const Style(bg: Color.blue));
+  final red = Text.raw(
+    constraintLabel(constraints[0]),
+    style: const Style(bg: Color.red),
+  );
+  final blue = Text.raw(
+    constraintLabel(constraints[1]),
+    style: const Style(bg: Color.blue),
+  );
   final green = Text.raw('.' * 12, style: const Style(bg: Color.green));
   final horizontal = Layout.horizontal(constraints);
   final [redArea, blueArea, greenArea] = horizontal.areas(area);
@@ -171,7 +185,6 @@ String constraintLabel(Constraint constraint) {
     ConstraintMin(:final value) ||
     ConstraintMax(:final value) ||
     ConstraintPercentage(:final value) ||
-    ConstraintFill(:final value) =>
-      value.toString(),
+    ConstraintFill(:final value) => value.toString(),
   };
 }

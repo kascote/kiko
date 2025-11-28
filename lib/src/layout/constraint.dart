@@ -239,7 +239,9 @@ class ConstraintRatio extends Constraint {
   // coverage:ignore-start
   @override
   bool operator ==(Object other) {
-    if (other is ConstraintRatio && numerator == other.numerator && denominator == other.denominator) return true;
+    if (other is ConstraintRatio && numerator == other.numerator && denominator == other.denominator) {
+      return true;
+    }
     return false;
   }
 

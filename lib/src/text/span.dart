@@ -25,9 +25,7 @@ class Span implements Widget {
   final Style _style;
 
   /// Creates a new Span with the given content and style.
-  const Span({String? content, Style? style})
-      : _content = content ?? '',
-        _style = style ?? const Style();
+  const Span({String? content, Style? style}) : _content = content ?? '', _style = style ?? const Style();
 
   /// Returns the style of the Span.
   Style get style => _style;
@@ -90,18 +88,29 @@ class Span implements Widget {
 
       if (n == 0) {
         // the first grapheme is always set on the cell
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(char: styledChar.char.string, style: styledChar.style);
+        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(
+          char: styledChar.char.string,
+          style: styledChar.style,
+        );
       } else if (x == area.x) {
         // there is one or more zero-width graphemes in the first cell, so the first cell
         // must be appended to.
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].appendSymbol(char: styledChar.char.string, style: styledChar.style);
+        buf[(x: x, y: y)] = buf[(x: x, y: y)].appendSymbol(
+          char: styledChar.char.string,
+          style: styledChar.style,
+        );
       } else if (symbolWidth == 0) {
         // append zero-width graphemes to the previous cell
-        buf[(x: x - 1, y: y)] =
-            buf[(x: x - 1, y: y)].appendSymbol(char: styledChar.char.string, style: styledChar.style);
+        buf[(x: x - 1, y: y)] = buf[(x: x - 1, y: y)].appendSymbol(
+          char: styledChar.char.string,
+          style: styledChar.style,
+        );
       } else {
         // just a normal grapheme (not first, not zero-width, not overflowing the area)
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(char: styledChar.char.string, style: styledChar.style);
+        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(
+          char: styledChar.char.string,
+          style: styledChar.style,
+        );
       }
 
       // multi-width graphemes must clear the cells of characters that are hidden by the

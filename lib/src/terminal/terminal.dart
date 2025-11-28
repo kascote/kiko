@@ -127,11 +127,11 @@ class Terminal<T extends Backend> {
     this.lastKnowCursorPosition = Position.origin,
     Rect viewportArea = Rect.zero,
     Logger? logger,
-  })  : current = 0,
-        _frameCount = 0,
-        _viewportArea = viewportArea,
-        _lastKnowArea = Rect.zero,
-        _logger = logger;
+  }) : current = 0,
+       _frameCount = 0,
+       _viewportArea = viewportArea,
+       _lastKnowArea = Rect.zero,
+       _logger = logger;
 
   /// Returns the current frame count.
   int get frameCount => _frameCount;
@@ -148,16 +148,21 @@ class Terminal<T extends Backend> {
     const origin = Position.origin;
     final area = switch (viewport) {
       ViewPortFullScreen() || ViewPortInline() => Rect.create(
-          x: origin.x,
-          y: origin.y,
-          width: backend.size().width,
-          height: backend.size().height,
-        ),
+        x: origin.x,
+        y: origin.y,
+        width: backend.size().width,
+        height: backend.size().height,
+      ),
       ViewPortFixed(:final area) => area,
     };
     final (viewportArea, cursorPosition) = switch (viewport) {
       ViewPortFullScreen() => (area, origin),
-      ViewPortInline(:final height) => await _computeInlineSize(backend, height, area.asSize, 0),
+      ViewPortInline(:final height) => await _computeInlineSize(
+        backend,
+        height,
+        area.asSize,
+        0,
+      ),
       ViewPortFixed(:final area) => (area, area.asPosition),
     };
 
@@ -202,10 +207,10 @@ class Terminal<T extends Backend> {
 
   /// Returns the current frame
   Frame getFrame() => Frame(
-        _viewportArea,
-        currentBuffer,
-        _frameCount,
-      );
+    _viewportArea,
+    currentBuffer,
+    _frameCount,
+  );
 
   /// Obtains a difference between the previous and the current buffer and
   /// passes it to the current backend for drawing.
@@ -345,7 +350,12 @@ class Terminal<T extends Backend> {
   void insertBefore(int height, RenderLineCallback drawFn) {
     if (viewport is! ViewPortInline) return;
 
-    final area = Rect.create(x: 0, y: 0, width: _viewportArea.width, height: height);
+    final area = Rect.create(
+      x: 0,
+      y: 0,
+      width: _viewportArea.width,
+      height: height,
+    );
     var buffer = Buffer.empty(area).buf;
     drawFn(buffer);
 
@@ -363,7 +373,10 @@ class Terminal<T extends Backend> {
       bufferHeight -= toDraw;
     }
 
-    final toScrollUp = math.max(0, drawHeight + bufferHeight + viewportHeight - screenHeight);
+    final toScrollUp = math.max(
+      0,
+      drawHeight + bufferHeight + viewportHeight - screenHeight,
+    );
     scrollUp(toScrollUp);
     drawLines(drawHeight - toScrollUp, bufferHeight, buffer);
     drawHeight += bufferHeight - toScrollUp;
@@ -418,8 +431,15 @@ class Terminal<T extends Backend> {
 }
 
 Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
-  final offsetInPreviousViewport = t.lastKnowCursorPosition.y.saturatingSub(t._lastKnowArea.top);
-  return (await _computeInlineSize(t.backend, height, area.asSize, offsetInPreviousViewport)).$1;
+  final offsetInPreviousViewport = t.lastKnowCursorPosition.y.saturatingSub(
+    t._lastKnowArea.top,
+  );
+  return (await _computeInlineSize(
+    t.backend,
+    height,
+    area.asSize,
+    offsetInPreviousViewport,
+  )).$1;
 }
 
 Future<(Rect, Position)> _computeInlineSize(

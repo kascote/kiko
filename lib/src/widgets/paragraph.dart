@@ -20,7 +20,7 @@ typedef Wrap = ({bool trim});
 /// It is used to display a block of text. The text can be styled and aligned.
 /// It can also be wrapped to the next line if it is too long to fit in the
 /// given area.
-//TODO(nelson):
+//TODO(nelson): check
 // - add cache support for the wrapped lines
 // - add scroll support to show part of the paragraph
 class Paragraph implements Widget {
@@ -44,8 +44,8 @@ class Paragraph implements Widget {
     this.wrap = (trim: false),
     Position scroll = Position.origin,
     this.alignment = Alignment.left,
-  })  : _scroll = scroll,
-        text = Text.raw(content);
+  }) : _scroll = scroll,
+       text = Text.raw(content);
 
   /// Creates a paragraph from a [Text] object.
   factory Paragraph.withText(Text text) {
@@ -131,7 +131,9 @@ class Paragraph implements Widget {
 
     void addCurrentSpan(Style style) {
       if (spanBuffer.isNotEmpty) {
-        currentLine = currentLine.add(Span(content: spanBuffer.toString(), style: style));
+        currentLine = currentLine.add(
+          Span(content: spanBuffer.toString(), style: style),
+        );
         spanBuffer.clear();
       }
     }

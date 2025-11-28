@@ -73,14 +73,24 @@ void main() {
 
     test('negative offset', () {
       expect(
-        Rect.create(x: 4, y: 3, width: 3, height: 4).offset(const Offset(-2, -1)),
+        Rect.create(
+          x: 4,
+          y: 3,
+          width: 3,
+          height: 4,
+        ).offset(const Offset(-2, -1)),
         Rect.create(x: 2, y: 2, width: 3, height: 4),
       );
     });
 
     test('negative offset saturate', () {
       expect(
-        Rect.create(x: 1, y: 2, width: 3, height: 4).offset(const Offset(-5, -6)),
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).offset(const Offset(-5, -6)),
         Rect.create(x: 0, y: 0, width: 3, height: 4),
       );
     });
@@ -104,57 +114,162 @@ void main() {
 
     test('union', () {
       expect(
-        Rect.create(x: 1, y: 2, width: 3, height: 4).union(Rect.create(x: 2, y: 3, width: 4, height: 5)),
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).union(Rect.create(x: 2, y: 3, width: 4, height: 5)),
         Rect.create(x: 1, y: 2, width: 5, height: 6),
       );
     });
 
     test('intersection', () {
       expect(
-        Rect.create(x: 1, y: 2, width: 3, height: 4).intersection(Rect.create(x: 2, y: 3, width: 4, height: 5)),
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).intersection(Rect.create(x: 2, y: 3, width: 4, height: 5)),
         Rect.create(x: 2, y: 3, width: 2, height: 3),
       );
     });
 
     test('intersection underflow', () {
       expect(
-        Rect.create(x: 1, y: 1, width: 2, height: 2).intersection(Rect.create(x: 4, y: 4, width: 2, height: 2)),
+        Rect.create(
+          x: 1,
+          y: 1,
+          width: 2,
+          height: 2,
+        ).intersection(Rect.create(x: 4, y: 4, width: 2, height: 2)),
         Rect.create(x: 4, y: 4, width: 0, height: 0),
       );
     });
 
     test('intersects', () {
       expect(
-        Rect.create(x: 1, y: 2, width: 3, height: 4).intersects(Rect.create(x: 2, y: 3, width: 4, height: 5)),
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).intersects(Rect.create(x: 2, y: 3, width: 4, height: 5)),
         true,
       );
       expect(
-        Rect.create(x: 1, y: 2, width: 3, height: 4).intersects(Rect.create(x: 5, y: 6, width: 7, height: 8)),
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).intersects(Rect.create(x: 5, y: 6, width: 7, height: 8)),
         false,
       );
     });
 
     test('contains', () {
       // top left
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(1, 2)), true);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(1, 2)),
+        true,
+      );
       // top right
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(3, 2)), true);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(3, 2)),
+        true,
+      );
       // bottom left
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(1, 5)), true);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(1, 5)),
+        true,
+      );
       // bottom right
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(3, 5)), true);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(3, 5)),
+        true,
+      );
       // outside left
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(0, 2)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(0, 2)),
+        false,
+      );
       // outside right
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(4, 2)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(4, 2)),
+        false,
+      );
       // outside top
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(1, 1)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(1, 1)),
+        false,
+      );
       // outside bottom
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(1, 6)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(1, 6)),
+        false,
+      );
       // outside top left
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(0, 1)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(0, 1)),
+        false,
+      );
       // outside bottom right
-      expect(Rect.create(x: 1, y: 2, width: 3, height: 4).contains(const Position(4, 6)), false);
+      expect(
+        Rect.create(
+          x: 1,
+          y: 2,
+          width: 3,
+          height: 4,
+        ).contains(const Position(4, 6)),
+        false,
+      );
     });
 
     test('size truncation', () {
@@ -181,18 +296,54 @@ void main() {
 
     test('clamp', () {
       final cases = [
-        [Rect.create(x: 20, y: 20, width: 10, height: 10), Rect.create(x: 20, y: 20, width: 10, height: 10)],
-        [Rect.create(x: 5, y: 5, width: 10, height: 10), Rect.create(x: 10, y: 10, width: 10, height: 10)],
-        [Rect.create(x: 20, y: 5, width: 10, height: 10), Rect.create(x: 20, y: 10, width: 10, height: 10)],
-        [Rect.create(x: 105, y: 5, width: 10, height: 10), Rect.create(x: 100, y: 10, width: 10, height: 10)],
-        [Rect.create(x: 5, y: 20, width: 10, height: 10), Rect.create(x: 10, y: 20, width: 10, height: 10)],
-        [Rect.create(x: 105, y: 20, width: 10, height: 10), Rect.create(x: 100, y: 20, width: 10, height: 10)],
-        [Rect.create(x: 5, y: 105, width: 10, height: 10), Rect.create(x: 10, y: 100, width: 10, height: 10)],
-        [Rect.create(x: 20, y: 105, width: 10, height: 10), Rect.create(x: 20, y: 100, width: 10, height: 10)],
-        [Rect.create(x: 105, y: 105, width: 10, height: 10), Rect.create(x: 100, y: 100, width: 10, height: 10)],
-        [Rect.create(x: 5, y: 20, width: 200, height: 10), Rect.create(x: 10, y: 20, width: 100, height: 10)],
-        [Rect.create(x: 20, y: 5, width: 10, height: 100), Rect.create(x: 20, y: 10, width: 10, height: 100)],
-        [Rect.create(x: 0, y: 0, width: 200, height: 200), Rect.create(x: 10, y: 10, width: 100, height: 100)],
+        [
+          Rect.create(x: 20, y: 20, width: 10, height: 10),
+          Rect.create(x: 20, y: 20, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 5, y: 5, width: 10, height: 10),
+          Rect.create(x: 10, y: 10, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 20, y: 5, width: 10, height: 10),
+          Rect.create(x: 20, y: 10, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 105, y: 5, width: 10, height: 10),
+          Rect.create(x: 100, y: 10, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 5, y: 20, width: 10, height: 10),
+          Rect.create(x: 10, y: 20, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 105, y: 20, width: 10, height: 10),
+          Rect.create(x: 100, y: 20, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 5, y: 105, width: 10, height: 10),
+          Rect.create(x: 10, y: 100, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 20, y: 105, width: 10, height: 10),
+          Rect.create(x: 20, y: 100, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 105, y: 105, width: 10, height: 10),
+          Rect.create(x: 100, y: 100, width: 10, height: 10),
+        ],
+        [
+          Rect.create(x: 5, y: 20, width: 200, height: 10),
+          Rect.create(x: 10, y: 20, width: 100, height: 10),
+        ],
+        [
+          Rect.create(x: 20, y: 5, width: 10, height: 100),
+          Rect.create(x: 20, y: 10, width: 10, height: 100),
+        ],
+        [
+          Rect.create(x: 0, y: 0, width: 200, height: 200),
+          Rect.create(x: 10, y: 10, width: 100, height: 100),
+        ],
       ];
 
       final other = Rect.create(x: 10, y: 10, width: 100, height: 100);

@@ -13,7 +13,10 @@ void main() {
       expect(justTop, Borders.top);
       expect(topBottom, Borders.top | Borders.bottom);
       expect(rightOpen, Borders.top | Borders.bottom | Borders.left);
-      expect(Borders.all, Borders.top | Borders.bottom | Borders.left | Borders.right);
+      expect(
+        Borders.all,
+        Borders.top | Borders.bottom | Borders.left | Borders.right,
+      );
       expect(Borders.top.hashCode, Borders.top.hashCode);
     });
   });

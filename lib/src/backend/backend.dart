@@ -78,4 +78,7 @@ abstract class Backend {
 
   /// Flush the buffer to the terminal and exit the application
   Future<void> flushThenExit(int status);
+
+  /// Dispose the backend
+  Future<void> dispose();
 }

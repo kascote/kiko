@@ -7,7 +7,6 @@ import '../backend/termlib_backend.dart';
 import 'terminal.dart';
 
 /// Application class handles the terminal initialization and cleanup.
-/// todo: more documentation
 class Application {
   /// The terminal instance to use
   late final Terminal terminal;
@@ -34,17 +33,20 @@ class Application {
   /// Runs the application main loop. The value that return, will be the exit
   /// code to use to end the application.
   Future<int> run(WidgetRenderCallback builder) async {
-    final exitValue = await runZonedGuarded(() async {
-      _initTerminal();
-      final rc = await _runLoop(builder);
-      await _deinitTerminal();
-      return rc;
-    }, (error, stackTrace) async {
-      await _deinitTerminal();
-      stderr
-        ..writeln('Error: $error')
-        ..writeln('Stack: $stackTrace');
-    });
+    final exitValue = await runZonedGuarded(
+      () async {
+        _initTerminal();
+        final rc = await _runLoop(builder);
+        await _deinitTerminal();
+        return rc;
+      },
+      (error, stackTrace) async {
+        await _deinitTerminal();
+        stderr
+          ..writeln('Error: $error')
+          ..writeln('Stack: $stackTrace');
+      },
+    );
 
     // TODO(nelson): handle exit value properly
     return exitValue ?? 128;

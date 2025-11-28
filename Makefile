@@ -1,16 +1,35 @@
-cover:
-	dart run coverage:test_with_coverage
-	genhtml coverage/lcov.info -o coverage/html
-	open coverage/html/index.html
+.DEFAULT_GOAL := help
 
-tst:
-	dart test
+.PHONY: help cover test lint testf lintf doc
 
-rgb:
-	dart run example/colors_rgb.dart
+help: ## Show this help message
+		@echo 'Usage: make [target]'
+		@echo ''
+		@echo 'Available targets:'
+		@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-layout:
-	dart run example/layout.dart
+cover: ## Run tests with coverage and open report
+		dart run coverage:test_with_coverage
+		genhtml coverage/lcov.info -o coverage/html
+		open coverage/html/index.html
 
-colors:
-	dart run example/colors.dart
+test: ## Run all tests
+		dart test
+
+testf: ## Run test on specific file (usage: make testf FILE=test/rss_cases.dart)
+		dart test $(FILE)
+
+lint: ## Run static analysis
+		dart analyze
+
+lintf: ## Run static analysis on specific file (usage: make lintf FILE=lib/src/universal/universal_feed.dart)
+		dart analyze $(FILE)
+
+format: ## Format all Dart files
+		dart format .
+
+formatf: ## Format specific Dart file (usage: make formatf FILE=lib/src/universal/universal_feed.dart)
+		dart format $(FILE)
+
+doc: ## Generate documentation
+		dart doc

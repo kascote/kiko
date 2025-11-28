@@ -41,12 +41,12 @@ class Rect {
   final int top;
 
   const Rect._(this.x, this.y, this.width, this.height)
-      : assert(width >= 0 && height >= 0, 'Width and height must be positive'),
-        area = width * height,
-        right = x + width,
-        bottom = y + height,
-        left = x,
-        top = y;
+    : assert(width >= 0 && height >= 0, 'Width and height must be positive'),
+      area = width * height,
+      right = x + width,
+      bottom = y + height,
+      left = x,
+      top = y;
 
   /// Created a new [Rect] with all values set to zero
   static const Rect zero = Rect._(0, 0, 0, 0);
@@ -195,14 +195,19 @@ class Rect {
 
   /// indents the x value of the [Rect] by a given offset
   Rect indentX(int offset) => copyWith(
-        x: x.saturatingAdd(offset),
-        width: width.saturatingSub(offset),
-      );
+    x: x.saturatingAdd(offset),
+    width: width.saturatingSub(offset),
+  );
 
   /// Creates a new [Rect] with the base values of this [Rect] and the given
   /// values.
   Rect copyWith({int? x, int? y, int? width, int? height}) {
-    return Rect._(x ?? this.x, y ?? this.y, width ?? this.width, height ?? this.height);
+    return Rect._(
+      x ?? this.x,
+      y ?? this.y,
+      width ?? this.width,
+      height ?? this.height,
+    );
   }
 
   @override
@@ -251,6 +256,7 @@ class Columns extends Iterable<Rect> {
 class _ColumnIterator implements Iterator<Rect> {
   final Rect rect;
   int index = -1;
+  //
   // ignore: use_late_for_private_fields_and_variables
   Rect? _current;
 
@@ -284,6 +290,7 @@ class Rows extends Iterable<Rect> {
 class _RowIterator implements Iterator<Rect> {
   final Rect rect;
   int index = -1;
+  //
   // ignore: use_late_for_private_fields_and_variables
   Rect? _current;
 
@@ -318,12 +325,11 @@ class _PositionIterator implements Iterator<Position> {
   final Rect rect;
   int indexX;
   int indexY;
+  //
   // ignore: use_late_for_private_fields_and_variables
   Position? _current;
 
-  _PositionIterator(this.rect)
-      : indexX = rect.x,
-        indexY = rect.y;
+  _PositionIterator(this.rect) : indexX = rect.x, indexY = rect.y;
 
   @override
   bool moveNext() {

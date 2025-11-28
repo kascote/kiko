@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
+import 'package:kiko/kiko.dart' show Buffer;
+import 'package:kiko/src/buffer.dart' show Buffer;
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
@@ -39,7 +41,10 @@ class Buffer implements Equality<Buffer> {
 
   Buffer._(Rect rect, [Cell? cell]) {
     area = rect;
-    buf = List<Cell>.generate(rect.area, (idx) => cell != null ? cell.copyWith() : Cell.empty());
+    buf = List<Cell>.generate(
+      rect.area,
+      (idx) => cell != null ? cell.copyWith() : Cell.empty(),
+    );
   }
 
   /// Returns a Buffer with all cells set to empty
@@ -69,7 +74,12 @@ class Buffer implements Equality<Buffer> {
       var xx = 0;
       for (final span in lines[y].spans) {
         for (final (i, char) in span.content.characters.indexed) {
-          b.setCellAtPos(x: xx + i + offset, y: y, char: char, style: lines[y].style.patch(span.style));
+          b.setCellAtPos(
+            x: xx + i + offset,
+            y: y,
+            char: char,
+            style: lines[y].style.patch(span.style),
+          );
           if (widthString(char) > 1) {
             offset++;
           }
@@ -88,7 +98,12 @@ class Buffer implements Equality<Buffer> {
 
     for (final cell in cells) {
       for (final (i, char) in cell.char.characters.indexed) {
-        buf.setCellAtPos(x: cell.x + i, y: cell.y, char: char, style: cell.style);
+        buf.setCellAtPos(
+          x: cell.x + i,
+          y: cell.y,
+          char: char,
+          style: cell.style,
+        );
       }
     }
     return buf;
@@ -255,7 +270,11 @@ class Buffer implements Equality<Buffer> {
   /// Resize the buffer so that the mapped area matches the given area and that
   /// the buffer length is equal to area.width * area.height
   void resize(Rect area) {
-    buf = List<Cell>.generate(area.area, (idx) => Cell.empty(), growable: false);
+    buf = List<Cell>.generate(
+      area.area,
+      (idx) => Cell.empty(),
+      growable: false,
+    );
     this.area = area;
   }
 
@@ -269,7 +288,9 @@ class Buffer implements Equality<Buffer> {
   /// Merge an other buffer into this on
   void merge(Buffer other) {
     final area = this.area.union(other.area);
-    buf.addAll(List<Cell>.generate(area.area - buf.length, (_) => Cell.empty()));
+    buf.addAll(
+      List<Cell>.generate(area.area - buf.length, (_) => Cell.empty()),
+    );
 
     var size = this.area.area;
     for (var i = size - 1; i >= 0; i--) {
@@ -331,7 +352,12 @@ class Buffer implements Equality<Buffer> {
       sb.write('\n}');
     }
     sb.write(',\n    content: [\n');
-    var lastStyle = (Color.fromRGB(123456), Color.reset, Color.reset, Modifier.empty);
+    var lastStyle = (
+      Color.fromRGB(123456),
+      Color.reset,
+      Color.reset,
+      Modifier.empty,
+    );
     final styles = <(int, int, Color, Color, Color, Modifier)>[];
 
     var y = 0;
@@ -364,7 +390,9 @@ class Buffer implements Equality<Buffer> {
     }
     sb.write('    ],\n    styles: [\n');
     for (final s in styles) {
-      sb.write('        x: ${s.$1}, y: ${s.$2}, fg: ${s.$3}, bg: ${s.$4}, underline: ${s.$5}, modifier: ${s.$6}\n');
+      sb.write(
+        '        x: ${s.$1}, y: ${s.$2}, fg: ${s.$3}, bg: ${s.$4}, underline: ${s.$5}, modifier: ${s.$6}\n',
+      );
     }
     sb.write('    ]\n}');
 
@@ -391,8 +419,16 @@ class Buffer implements Equality<Buffer> {
   /// Helper function to set the cell at a given position.
   /// Intented to be used as a helper for testing
   @visibleForTesting
-  void setCellAtPos({required int x, required int y, required String char, Style? style}) {
-    this[(x: x, y: y)] = this[(x: x, y: y)].setCell(char: char, style: style ?? const Style());
+  void setCellAtPos({
+    required int x,
+    required int y,
+    required String char,
+    Style? style,
+  }) {
+    this[(x: x, y: y)] = this[(x: x, y: y)].setCell(
+      char: char,
+      style: style ?? const Style(),
+    );
     final charWidth = widthString(char);
     if (charWidth > 1) {
       for (var i = 1; i < charWidth; i++) {

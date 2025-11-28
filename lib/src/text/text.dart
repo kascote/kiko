@@ -32,13 +32,13 @@ class Text implements Widget {
 
   /// Creates a new text widget.
   Text({required List<Line> lines, Style? style, this.alignment})
-      : _lines = List.from(lines),
-        style = style ?? const Style();
+    : _lines = List.from(lines),
+      style = style ?? const Style();
 
   /// Creates a new text widget from a raw string.
   Text.raw(String lines, {Style? style, this.alignment})
-      : _lines = lines.lines().map((line) => Line.fromSpan(Span(content: line))),
-        style = style != null ? const Style().patch(style) : const Style();
+    : _lines = lines.lines().map((line) => Line.fromSpan(Span(content: line))),
+      style = style != null ? const Style().patch(style) : const Style();
 
   // /// Creates a new text widget from a styled string.
   // factory Text.styled(String content, Style style) {
@@ -46,11 +46,15 @@ class Text implements Widget {
   // }
 
   /// Creates a new text widget from a list of lines.
-  factory Text.fromLines(List<Line> lines, {Style? style, Alignment? alignment}) => Text(
-        lines: List.from(lines),
-        style: style ?? const Style(),
-        alignment: alignment ?? Alignment.left,
-      );
+  factory Text.fromLines(
+    List<Line> lines, {
+    Style? style,
+    Alignment? alignment,
+  }) => Text(
+    lines: List.from(lines),
+    style: style ?? const Style(),
+    alignment: alignment ?? Alignment.left,
+  );
 
   /// Gets the lines of text.
   Lines get lines => Lines(this);
@@ -73,15 +77,15 @@ class Text implements Widget {
 
   /// Add a [Text] to this Text as a set of lines
   Text add(Text text) => copyWith(
-        lines: _lines.toList()..addAll(List.from(text.lines)),
-      );
+    lines: _lines.toList()..addAll(List.from(text.lines)),
+  );
 
   /// Add a [Line] to this text
   Text addLine(Line line) => Text(
-        lines: _lines.toList()..add(line),
-        style: style,
-        alignment: alignment,
-      );
+    lines: _lines.toList()..add(line),
+    style: style,
+    alignment: alignment,
+  );
 
   /// Add a [Span] to this text. If the text is empty, a new line is created.
   /// Otherwise, the span is added to the last line.

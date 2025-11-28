@@ -34,17 +34,18 @@ void draw(Frame frame) {
     textArea,
   );
 
-  final layout = Layout.vertical(
-    List.generate(50, (_) => const ConstraintLength(1)),
-  )
-      .split(mainArea)
-      .map(
-        (area) => Layout.horizontal(
-          List.generate(5, (_) => const ConstraintPercentage(20)),
-        ).split(area),
-      )
-      .expand((x) => x)
-      .toList();
+  final layout =
+      Layout.vertical(
+            List.generate(50, (_) => const ConstraintLength(1)),
+          )
+          .split(mainArea)
+          .map(
+            (area) => Layout.horizontal(
+              List.generate(5, (_) => const ConstraintPercentage(20)),
+            ).split(area),
+          )
+          .expand((x) => x)
+          .toList();
 
   final colors = [
     Color.black,

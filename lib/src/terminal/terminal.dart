@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:logging/logging.dart';
-import 'package:logging_appenders/logging_appenders.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../backend/termlib_backend.dart';
@@ -169,13 +168,6 @@ class Terminal {
       ),
       ViewPortFixed(:final area) => (area, area.asPosition),
     };
-
-    if (logger == null) {
-      logger = Logger('Terminal');
-      PrintAppender.setupLogging(stderrLevel: Level.ALL);
-    }
-
-    logger.finest('viewport $viewportArea');
 
     final terminal = Terminal._(
       backend,

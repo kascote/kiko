@@ -56,7 +56,7 @@ class Application {
   Future<int> _runLoop(WidgetRenderCallback builder) async {
     while (true) {
       terminal.draw(builder);
-      final key = await terminal.readEvent<KeyEvent>(timeout: 1 ~/ 60);
+      final key = await terminal.readEvent<KeyEvent>(timeout: 10); // (timeout: 1 ~/ 60);
       if (key is KeyEvent) {
         if (key.code.char == 'q') break;
       }

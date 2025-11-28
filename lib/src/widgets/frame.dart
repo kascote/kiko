@@ -51,14 +51,14 @@ class Frame {
 /// it is only valid until the next call to [Terminal.draw()].
 class CompletedFrame {
   /// The buffer that was used to draw the last frame
-  Buffer buffer;
+  final Buffer buffer;
 
   /// The size of the last frame
-  Rect area;
+  final Rect area;
 
   /// The frame count indicating the sequence number of this frame
-  int count;
+  final int count;
 
   /// Creates a new completed frame with the given area and buffer.
-  CompletedFrame(this.buffer, this.area, this.count);
+  const CompletedFrame(this.buffer, this.area, this.count);
 }

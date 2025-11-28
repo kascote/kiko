@@ -95,20 +95,20 @@ class Terminal {
 
   /// Holds the results of the current and previous draw calls. The two are compared at the end
   /// of each draw pass to output the necessary updates to the terminal
-  final buffers = <Buffer>[];
+  final _buffers = <Buffer>[];
 
   /// Index of the current buffer
-  int current;
+  int _currentBufferIndex;
 
   /// Whether the cursor is currently hidden
-  bool hiddenCursor;
+  bool _hiddenCursor;
 
   /// Terminal's viewport
-  ViewPort viewport = const ViewPortFullScreen();
+  late final ViewPort _viewPort;
 
   /// Last known position of the cursor. Used to find the new area when the viewport is inlined
   /// and the terminal resized.
-  Position lastKnowCursorPosition;
+  Position _lastKnowCursorPosition;
 
   /// Area of the viewport
   Rect _viewportArea;
@@ -123,13 +123,16 @@ class Terminal {
 
   Terminal._(
     this.backend, {
-    this.hiddenCursor = false,
-    this.viewport = const ViewPortFullScreen(),
-    this.lastKnowCursorPosition = Position.origin,
+    bool hiddenCursor = false,
+    ViewPort? viewport,
+    Position lastKnowCursorPosition = Position.origin,
     Rect viewportArea = Rect.zero,
     Logger? logger,
-  }) : current = 0,
+  }) : _lastKnowCursorPosition = lastKnowCursorPosition,
+       _currentBufferIndex = 0,
+       _hiddenCursor = hiddenCursor,
        _frameCount = 0,
+       _viewPort = viewport ?? const ViewPortFullScreen(),
        _viewportArea = viewportArea,
        _lastKnowArea = Rect.zero,
        _logger = logger;
@@ -182,7 +185,7 @@ class Terminal {
       viewportArea: viewportArea,
       logger: logger,
     );
-    terminal.buffers.addAll([
+    terminal._buffers.addAll([
       Buffer.empty(viewportArea),
       Buffer.empty(viewportArea),
     ]);
@@ -191,12 +194,15 @@ class Terminal {
   }
 
   /// Returns the current active buffer
-  Buffer get currentBuffer => buffers[current];
+  Buffer get currentBuffer => _buffers[_currentBufferIndex];
+
+  /// Returns whether the cursor is hidden
+  bool get hiddenCursor => _hiddenCursor;
 
   /// Sets the area of the viewport
   set viewportArea(Rect area) {
-    buffers[current].resize(area);
-    buffers[1 - current].resize(area);
+    _buffers[_currentBufferIndex].resize(area);
+    _buffers[1 - _currentBufferIndex].resize(area);
     _viewportArea = area;
   }
 
@@ -216,12 +222,12 @@ class Terminal {
   /// Obtains a difference between the previous and the current buffer and
   /// passes it to the current backend for drawing.
   void flush() {
-    final prevBuffer = buffers[1 - current];
-    final currentBuffer = buffers[current];
+    final prevBuffer = _buffers[1 - _currentBufferIndex];
+    final currentBuffer = _buffers[_currentBufferIndex];
     final diff = prevBuffer.diff(currentBuffer);
     if (diff.isNotEmpty) {
       final last = diff.last;
-      lastKnowCursorPosition = Position(last.x, last.y);
+      _lastKnowCursorPosition = Position(last.x, last.y);
     }
     backend.draw(diff);
   }
@@ -231,7 +237,7 @@ class Terminal {
   /// Requested area will be saved to remain consistent when rendering. This
   /// leads to a full clear of the screen.
   Future<void> resize(Rect area) async {
-    final nextArea = switch (viewport) {
+    final nextArea = switch (_viewPort) {
       ViewPortFullScreen() || ViewPortFixed() => area,
       ViewPortInline(:final height) => await _computeSize(this, area, height),
     };
@@ -244,7 +250,7 @@ class Terminal {
   /// Queries the backend for size and resizes if it doesn't match the
   /// previous size.
   void autoResize() {
-    switch (viewport) {
+    switch (_viewPort) {
       case ViewPortFullScreen() || ViewPortInline():
         const origin = Position.origin;
         final size = this.size;
@@ -284,7 +290,7 @@ class Terminal {
     backend.flush();
 
     final completedFrame = CompletedFrame(
-      buffers[1 - current],
+      _buffers[1 - _currentBufferIndex],
       _lastKnowArea,
       _frameCount,
     );
@@ -296,13 +302,13 @@ class Terminal {
   /// Hides the cursor
   void hideCursor() {
     backend.hideCursor();
-    hiddenCursor = true;
+    _hiddenCursor = true;
   }
 
   /// Shows the cursor
   void showCursor() {
     backend.showCursor();
-    hiddenCursor = false;
+    _hiddenCursor = false;
   }
 
   /// Reads an event from the Terminal
@@ -317,12 +323,12 @@ class Terminal {
   /// Sets the cursor position
   void setCursorPosition(Position position) {
     backend.setCursorPosition(position);
-    lastKnowCursorPosition = position;
+    _lastKnowCursorPosition = position;
   }
 
   /// Clears the terminal
   void clear() {
-    switch (viewport) {
+    switch (_viewPort) {
       case ViewPortFullScreen():
         backend.clearRegion(ClearType.all);
       case ViewPortInline():
@@ -338,18 +344,18 @@ class Terminal {
         }
     }
     // Reset the back buffer to make sure the next update will redraw everything
-    buffers[1 - current].reset();
+    _buffers[1 - _currentBufferIndex].reset();
   }
 
   /// Swaps the current and previous buffers
   void swapBuffers() {
-    buffers[1 - current].reset();
-    current = 1 - current;
+    _buffers[1 - _currentBufferIndex].reset();
+    _currentBufferIndex = 1 - _currentBufferIndex;
   }
 
   /// Inserts a new line at the current cursor position
   void insertBefore(int height, RenderLineCallback drawFn) {
-    if (viewport is! ViewPortInline) return;
+    if (_viewPort is! ViewPortInline) return;
 
     final area = Rect.create(
       x: 0,
@@ -432,7 +438,7 @@ class Terminal {
 }
 
 Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
-  final offsetInPreviousViewport = t.lastKnowCursorPosition.y.saturatingSub(t._lastKnowArea.top);
+  final offsetInPreviousViewport = t._lastKnowCursorPosition.y.saturatingSub(t._lastKnowArea.top);
   return (await _computeInlineSize(
     t.backend,
     height,
@@ -447,8 +453,10 @@ Future<(Rect, Position)> _computeInlineSize(
   Size size,
   int offsetInPreviousViewport,
 ) async {
-  final pos = await backend.getCursorPosition();
-  var row = pos!.y;
+  // TODO(nelson): we need to review this. If for some reason we can't get the cursor position,
+  // is there a way to get an educated guess ?
+  final pos = await backend.getCursorPosition() ?? Position.origin;
+  var row = pos.y;
   final maxHeight = math.min(size.height, height);
   final linesAfterCursor = height.saturatingSub(offsetInPreviousViewport).saturatingSub(1);
 

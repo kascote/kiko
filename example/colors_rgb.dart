@@ -20,7 +20,7 @@ Future<void> runLoop(Terminal term) async {
     if (running) {
       term.draw((frame) => frame.renderWidget(app, frame.area));
     }
-    final key = await term.readEvent<evt.KeyEvent>(timeout: 1 ~/ 60);
+    final key = await term.readEvent<evt.KeyEvent>(timeout: 10); //(timeout: 1 ~/ 60);
     if (key is evt.KeyEvent) {
       if (key.code.char == 'q') break;
       if (key.code.char == 'p') running = !running;

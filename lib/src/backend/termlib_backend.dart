@@ -6,19 +6,36 @@ import '../colors.dart';
 import '../layout/position.dart';
 import '../layout/size.dart';
 import '../style.dart';
-import 'backend.dart';
 
-/// A [Backend] implementation that uses the [termlib](https://pub.dev/packages/termlib) library.
-class TermlibBackend implements Backend {
+/// The [ClearType] enum defines the different ways to clear the terminal screen.
+enum ClearType {
+  /// Clears the entire screen
+  all,
+
+  /// Clears everything below the cursor
+  afterCursor,
+
+  /// Clears everything above the cursor
+  beforeCursor,
+
+  /// Clears the current line
+  currentLine,
+
+  /// Clears the line from the cursor position
+  untilNewLine,
+}
+
+/// A Backend implementation that uses the [termlib](https://pub.dev/packages/termlib) library.
+class TermlibBackend {
   final tl.TermLib _term;
 
   /// Creates a new [TermlibBackend] instance.
   TermlibBackend() : _term = tl.TermLib();
 
-  @override
+  /// Erase the entire screen.
   void clear() => _term.eraseScreen();
 
-  @override
+  /// Clears a region of the terminal based on the specified [ClearType].
   void clearRegion(ClearType type) {
     return switch (type) {
       ClearType.all => _term.eraseScreen(),
@@ -29,7 +46,7 @@ class TermlibBackend implements Backend {
     };
   }
 
-  @override
+  /// Draws the given [cellPos] iterable to the terminal.
   void draw(Iterable<CellPos> cellPos) {
     var fg = Color.reset;
     var bg = Color.reset;
@@ -66,12 +83,12 @@ class TermlibBackend implements Backend {
     _term.endSyncUpdate();
   }
 
-  @override
+  /// Flushes any buffered output to the terminal.
   void flush() {
     // noop
   }
 
-  @override
+  /// Gets the current cursor position in the terminal.
   Future<Position?> getCursorPosition() async {
     final pos = await _term.cursorPosition;
     if (pos == null) return null;
@@ -79,44 +96,44 @@ class TermlibBackend implements Backend {
     return Position(pos.col - 1, pos.row - 1);
   }
 
-  @override
+  /// Hides the terminal cursor.
   void hideCursor() => _term.cursorHide();
 
-  @override
+  /// Inserts [n] new lines at the current cursor position.
   void insertNewLines(int n) {
     for (var i = 0; i < n; i++) {
       _term.write('\n');
     }
   }
 
-  @override
+  /// Sets the cursor position to the specified [pos].
   void setCursorPosition(Position pos) => _term.moveTo(pos.y + 1, pos.x + 1);
 
-  @override
+  /// Shows the terminal cursor.
   void showCursor() => _term.cursorShow();
 
-  @override
+  /// Gets the current size of the terminal.
   Size size() => Size(_term.terminalColumns, _term.terminalLines);
 
-  @override
+  /// Enables the alternate screen buffer.
   void enableAlternateScreen() => _term.enableAlternateScreen();
 
-  @override
+  /// Disables the alternate screen buffer.
   void disableAlternateScreen() => _term.disableAlternateScreen();
 
-  @override
+  /// Enables raw mode for terminal input.
   void enableRawMode() => _term.enableRawMode();
 
-  @override
+  /// Disables raw mode for terminal input.
   void disableRawMode() => _term.disableRawMode();
 
-  @override
+  /// Reads a terminal event of type [T] with an optional [timeout] in milliseconds.
   Future<tle.Event> readEvent<T extends tle.Event>({int timeout = 100}) async => _term.pollTimeout<T>(timeout: timeout);
 
-  @override
+  /// Flushes any buffered output and then exits the application with the given [status] code.
   Future<void> flushThenExit(int status) async => _term.flushThenExit(status);
 
-  @override
+  /// Disposes of the terminal resources.
   Future<void> dispose() async {
     return _term.dispose();
   }

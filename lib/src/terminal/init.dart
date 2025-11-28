@@ -1,14 +1,13 @@
 //
 // ignore_for_file: public_member_api_docs
 
-import '../backend/termlib_backend.dart';
 import 'terminal.dart';
 
 Terminal? _term;
 
 Future<Terminal> init() async {
   if (_term != null) _term!;
-  _term = await Terminal.create(TermlibBackend());
+  _term = await Terminal.create();
   _term!.enableAlternateScreen();
   _term!.enableRawMode();
 

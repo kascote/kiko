@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:logging/logging.dart';
 import 'package:logging_appenders/logging_appenders.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
-import '../backend/backend.dart';
+import '../backend/termlib_backend.dart';
 import '../buffer.dart';
 import '../cell.dart';
 import '../extensions/integer.dart';
@@ -69,7 +70,7 @@ class ViewPortFixed extends ViewPort {
 /// This is the main entry point for Kiko. It is responsible for drawing and
 /// maintaining the state of the buffers, cursor and viewport.
 ///
-/// The [Terminal] is generic over a [Backend] implementation which is used to
+/// The [Terminal] is generic over a [TermlibBackend] implementation which is used to
 /// interface with the underlying terminal library.
 ///
 /// The [Terminal] maintains two buffers: the current and the previous.
@@ -88,9 +89,9 @@ class ViewPortFixed extends ViewPort {
 /// the internal buffers to match the new size for inline and full screen
 /// view ports. Fixed view ports are not resized automatically.
 ///
-class Terminal<T extends Backend> {
+class Terminal {
   /// The backend used to interface with the terminal
-  T backend;
+  late final TermlibBackend backend;
 
   /// Holds the results of the current and previous draw calls. The two are compared at the end
   /// of each draw pass to output the necessary updates to the terminal
@@ -136,22 +137,22 @@ class Terminal<T extends Backend> {
   /// Returns the current frame count.
   int get frameCount => _frameCount;
 
-  /// Creates a new [Terminal] with the given [Backend] with a full screen
-  /// viewport by default.
-  static Future<Terminal<T>> create<T extends Backend>(
-    T backend, {
+  /// Creates a new [Terminal] with a full screen viewport by default.
+  static Future<Terminal> create({
     bool hiddenCursor = false,
     ViewPort viewport = const ViewPortFullScreen(),
     Position lastKnowCursorPosition = Position.origin,
     Logger? logger,
   }) async {
+    final backend = TermlibBackend();
     const origin = Position.origin;
+    final screenSize = backend.size();
     final area = switch (viewport) {
       ViewPortFullScreen() || ViewPortInline() => Rect.create(
         x: origin.x,
         y: origin.y,
-        width: backend.size().width,
-        height: backend.size().height,
+        width: screenSize.width,
+        height: screenSize.height,
       ),
       ViewPortFixed(:final area) => area,
     };
@@ -253,7 +254,7 @@ class Terminal<T extends Backend> {
           width: size.width,
           height: size.height,
         );
-        if (_lastKnowArea != area) resize(area);
+        if (_lastKnowArea != area) unawaited(resize(area));
       default:
         return;
     }
@@ -431,9 +432,7 @@ class Terminal<T extends Backend> {
 }
 
 Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
-  final offsetInPreviousViewport = t.lastKnowCursorPosition.y.saturatingSub(
-    t._lastKnowArea.top,
-  );
+  final offsetInPreviousViewport = t.lastKnowCursorPosition.y.saturatingSub(t._lastKnowArea.top);
   return (await _computeInlineSize(
     t.backend,
     height,
@@ -443,7 +442,7 @@ Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
 }
 
 Future<(Rect, Position)> _computeInlineSize(
-  Backend backend,
+  TermlibBackend backend,
   int height,
   Size size,
   int offsetInPreviousViewport,

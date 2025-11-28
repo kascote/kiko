@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
-import 'package:kiko/kiko.dart' show Buffer;
-import 'package:kiko/src/buffer.dart' show Buffer;
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
@@ -14,7 +12,6 @@ import 'layout/position.dart';
 import 'layout/rect.dart';
 import 'style.dart';
 import 'text/line.dart';
-import 'text/span.dart';
 
 /// Helper record used by the diff method
 typedef CellPos = ({int x, int y, Cell cell});
@@ -91,7 +88,7 @@ class Buffer implements Equality<Buffer> {
   }
 
   /// Helper function to set the buffer cells at a given position.
-  /// Intented to be used as a helper for testing
+  /// Intended to be used as a helper for testing
   @visibleForTesting
   factory Buffer.setCells(Rect area, List<CharAtPos> cells) {
     final buf = Buffer._(area);
@@ -180,81 +177,6 @@ class Buffer implements Equality<Buffer> {
       y: area.y + (index ~/ area.width),
     );
   }
-
-  /// Print a string, starting at the position (x, y)
-  // void setString(int x, int y, String content, Style s) {
-  //   setStringLength(x, y, content, u16Max, s);
-  // }
-
-  /// Print at most the first n characters of a string if enough space is
-  /// available until the end of the line. Skips zero-width graphemes and
-  /// control characters.
-  ///
-  /// Use [Buffer.setStringLength] when the maximum amount of characters can be
-  /// printed
-  // TPoint setStringLength(int x, int y, String content, int maxWidth, Style s) {
-  //   var rightPos = x;
-  //   final remainingWidth = math.min(area.right.saturatingSub(rightPos), maxWidth);
-  //   final graphemes = _getGraphemes(content, remainingWidth);
-
-  //   for (final g in graphemes) {
-  //     this[(x: rightPos, y: y)] = this[(x: rightPos, y: y)].setCell(char: g.$1, style: s);
-
-  //     final nextSymbol = rightPos + g.$2;
-  //     rightPos++;
-
-  //     while (rightPos < nextSymbol) {
-  //       // sets the skip flag to true when the cell width is greater than 1
-  //       // this help on the buffer.diff method too. the same behavior is in span.render
-  //       this[(x: rightPos, y: y)] = const Cell(skip: true); //this[(x: rightPos, y: y)].reset();
-  //       rightPos++;
-  //     }
-  //   }
-
-  //   return (x: rightPos, y: y);
-  // }
-
-  // List<(String, int)> _getGraphemes(String content, int upToWidth) {
-  //   var remainingWidth = upToWidth;
-  //   return content.characters.fold(<(String, int)>[], (acc, char) {
-  //     if (isNonPrintableChar(char)) return acc;
-  //     final wChar = widthString(char);
-  //     if (wChar == 0) return acc;
-
-  //     remainingWidth -= wChar;
-  //     if (remainingWidth < 0) return acc;
-
-  //     acc.add((char, wChar));
-  //     return acc;
-  //   });
-  // }
-
-  /// Prints a [Line] at the given position
-  // TPoint setLine(int x, int y, Line line, int maxWidth) {
-  //   var remainingWidth = maxWidth;
-  //   var rightPos = x;
-
-  //   for (final span in line.spans) {
-  //     if (remainingWidth == 0) break;
-  //     final pos = setStringLength(
-  //       rightPos,
-  //       y,
-  //       span.content,
-  //       remainingWidth,
-  //       line.style.patch(span.style),
-  //     );
-  //     final w = pos.x.saturatingSub(rightPos);
-  //     rightPos = pos.x;
-  //     remainingWidth = remainingWidth.saturatingSub(w);
-  //   }
-
-  //   return (x: rightPos, y: y);
-  // }
-
-  /// Prints a [Span] at the given position
-  // TPoint setSpan({required int x, required int y, required Span span, required int maxWidth}) {
-  //   return setStringLength(x, y, span.content, maxWidth, span.style);
-  // }
 
   /// Set the style of all cells in the given area
   void setStyle(Rect area, Style style) {
@@ -407,9 +329,6 @@ class Buffer implements Equality<Buffer> {
 
     for (var i = 0; i < buf.length; i++) {
       if (e1.buf[i].skip) continue;
-      // print('$i - ${e1.buf[i]} - ${e1.buf[i].symbol.codeUnits}');
-      // print('$i - ${e2.buf[i]} - ${e2.buf[i].symbol.codeUnits}');
-      // print(e1.buf[i] != e2.buf[i]);
       if (e1.buf[i] != e2.buf[i]) return false;
     }
 
@@ -417,7 +336,7 @@ class Buffer implements Equality<Buffer> {
   }
 
   /// Helper function to set the cell at a given position.
-  /// Intented to be used as a helper for testing
+  /// Intended to be used as a helper for testing
   @visibleForTesting
   void setCellAtPos({
     required int x,

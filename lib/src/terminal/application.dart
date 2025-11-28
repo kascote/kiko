@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:termparser/termparser_events.dart';
 
-import '../backend/termlib_backend.dart';
 import 'terminal.dart';
 
 /// Application class handles the terminal initialization and cleanup.
@@ -25,7 +24,7 @@ class Application {
     ViewPort? viewport,
   }) async {
     final app = Application._()
-      ..terminal = terminal ?? await Terminal.create(TermlibBackend())
+      ..terminal = terminal ?? await Terminal.create()
       ..viewport = viewport ?? const ViewPortFullScreen();
     return app;
   }

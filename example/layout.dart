@@ -136,11 +136,11 @@ void renderExampleCombination(
   Iterable<(Constraint, Constraint)> constraints,
 ) {
   final block =
-      Block(
+      const Block(
         borders: Borders.all,
-        style: const Style.reset(),
-        borderStyle: const Style(fg: Color.darkGray),
-      )..titleTop(
+        style: Style.reset(),
+        borderStyle: Style(fg: Color.darkGray),
+      ).titleTop(
         Line(
           content: title,
           style: const Style(fg: Color.green),

@@ -1,5 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
+
 import '../../buffer.dart';
 import '../../extensions/integer.dart';
 import '../../layout/alignment.dart';
@@ -114,18 +117,18 @@ enum TitlePosition {
 /// widgets.
 ///
 /// The borders can be configured with [Block.borders] and others. A block can
-/// have multiple title using [Block.title]. It can also be styled and
-/// padded.
+/// have multiple title using [Block.titleTop] or [Block.titleBottom]. It can
+/// also be styled and padded.
 ///
-/// You can call the title methods multiple times to add multiple titles. Each
-/// title will be rendered with a single space separating titles that are in
-/// the same position or alignment. When both centered and non-centered titles
-/// are rendered, the centered space is calculated based on the full width of
-/// the block, rather than the leftover width.
+/// Each title will be rendered with a single space separating titles that are
+/// in the same position or alignment. When both centered and non-centered
+/// titles are rendered, the centered space is calculated based on the full
+/// width of the block, rather than the leftover width.
 ///
 /// Titles are not rendered in the corners of the block unless there is no
 /// border on that edge. If the block is too small and multiple titles overlap,
 /// the border may get cut off at a corner.
+@immutable
 class Block implements Widget {
   final List<Line> _topTitles;
   final List<Line> _bottomTitles;
@@ -134,26 +137,26 @@ class Block implements Widget {
   final Style titlesStyle;
 
   /// Border style to apply to the block.
-  Borders borders;
+  final Borders borders;
 
   /// Border [Style] to apply to the block's border.
-  Style borderStyle;
+  final Style borderStyle;
 
   /// Border type to use when rendering the block.
-  BorderType borderType;
+  final BorderType borderType;
 
   /// Style to apply to the block when rendered
-  Style style;
+  final Style style;
 
   /// Padding to apply to the block.
-  Padding padding;
+  final Padding padding;
 
   /// Border set to use when rendering the block. This will be used when
   /// [borderType] is set to [BorderType.custom].
-  BorderSet? borderSet;
+  final BorderSet? borderSet;
 
   /// Creates a new block widget.
-  Block({
+  const Block({
     this.borders = Borders.none,
     this.borderStyle = const Style(),
     this.borderType = BorderType.plain,
@@ -161,8 +164,10 @@ class Block implements Widget {
     this.titlesStyle = const Style(),
     this.padding = const Padding.zero(),
     this.borderSet,
-  }) : _topTitles = [],
-       _bottomTitles = [];
+    List<Line> topTitles = const [],
+    List<Line> bottomTitles = const [],
+  }) : _topTitles = topTitles,
+       _bottomTitles = bottomTitles;
 
   /// Compute the inner area of a block based on its border visibility rules.
   ///
@@ -217,22 +222,21 @@ class Block implements Widget {
     );
   }
 
-  /// Adds a title to the block in the specified position.
-  void title(Line content, TitlePosition position) {
+  /// Returns a new [Block] with the title added at the specified position.
+  Block title(Line content, TitlePosition position) {
     if (position == TitlePosition.top) {
-      _topTitles.add(content);
+      return copyWith(topTitles: [..._topTitles, content]);
     } else {
-      _bottomTitles.add(content);
+      return copyWith(bottomTitles: [..._bottomTitles, content]);
     }
   }
 
-  /// Adds a title to the top of the block.
+  /// Returns a new [Block] with a title added to the top.
   ///
   /// # Example
   ///
   /// ```dart
   /// Block()
-  ///   ..borders = Borders.all
   ///   .titleTop(Line(content: "Left1")) // By default in the top left corner
   ///   .titleTop(Line(content: "Left2", alignment: Alignment.left)
   ///   .titleTop(Line(content: "Right", alignment: Alignment.right)
@@ -243,15 +247,14 @@ class Block implements Widget {
   /// // │                                  │
   /// // └──────────────────────────────────┘
   /// ```
-  void titleTop(Line content) => _topTitles.add(content);
+  Block titleTop(Line content) => copyWith(topTitles: [..._topTitles, content]);
 
-  /// Adds a title to the bottom of the block.
+  /// Returns a new [Block] with a title added to the bottom.
   ///
   /// # Example
   ///
   /// ```dart
   /// Block()
-  ///   ..borders = Borders.all
   ///   .titleBottom(Line(content: "Left1")) // By default in the top left corner
   ///   .titleBottom(Line(content: "Left2", alignment: Alignment.left)
   ///   .titleBottom(Line(content: "Right", alignment: Alignment.right)
@@ -262,7 +265,7 @@ class Block implements Widget {
   /// // │                                  │
   /// // └Left1─Left2───Center─────────Right┘
   /// ```
-  void titleBottom(Line content) => _bottomTitles.add(content);
+  Block titleBottom(Line content) => copyWith(bottomTitles: [..._bottomTitles, content]);
 
   /// Calculate the left, and right space the [Block] will take up.
   ///
@@ -470,6 +473,63 @@ class Block implements Widget {
       height: 1,
     );
   }
+
+  /// Creates a copy of this [Block] with the given fields replaced.
+  Block copyWith({
+    Borders? borders,
+    Style? borderStyle,
+    BorderType? borderType,
+    Style? style,
+    Style? titlesStyle,
+    Padding? padding,
+    BorderSet? borderSet,
+    List<Line>? topTitles,
+    List<Line>? bottomTitles,
+  }) {
+    return Block(
+      borders: borders ?? this.borders,
+      borderStyle: borderStyle ?? this.borderStyle,
+      borderType: borderType ?? this.borderType,
+      style: style ?? this.style,
+      titlesStyle: titlesStyle ?? this.titlesStyle,
+      padding: padding ?? this.padding,
+      borderSet: borderSet ?? this.borderSet,
+      topTitles: topTitles ?? _topTitles,
+      bottomTitles: bottomTitles ?? _bottomTitles,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    if (other is Block) {
+      return borders == other.borders &&
+          borderStyle == other.borderStyle &&
+          borderType == other.borderType &&
+          style == other.style &&
+          titlesStyle == other.titlesStyle &&
+          padding == other.padding &&
+          borderSet == other.borderSet &&
+          const ListEquality<Line>().equals(_topTitles, other._topTitles) &&
+          const ListEquality<Line>().equals(_bottomTitles, other._bottomTitles);
+    }
+    return false;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    Block,
+    borders,
+    borderStyle,
+    borderType,
+    style,
+    titlesStyle,
+    padding,
+    borderSet,
+    Object.hashAll(_topTitles),
+    Object.hashAll(_bottomTitles),
+  );
 }
 
 const _quadrantTopLeft = '▘';

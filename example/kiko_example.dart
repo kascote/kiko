@@ -25,7 +25,7 @@ void main() async {
         Rect.create(x: 30, y: 10, width: 13, height: 4),
       )
       ..renderWidget(
-        Block(borders: Borders.all, borderType: BorderType.rounded)..titleTop(
+        const Block(borders: Borders.all, borderType: BorderType.rounded).titleTop(
           Line(
             content: 'Kiko',
             style: const Style(fg: Color.green),

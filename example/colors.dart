@@ -237,9 +237,9 @@ void renderIndexedGrayScale(Frame frame, Rect area) {
 }
 
 Block titleBlock(String title) {
-  return Block(
+  return const Block(
     borders: Borders.top,
-    borderStyle: const Style(fg: Color.darkGray),
-    titlesStyle: const Style(fg: Color.reset),
-  )..titleTop(Line(content: title, alignment: Alignment.center));
+    borderStyle: Style(fg: Color.darkGray),
+    titlesStyle: Style(fg: Color.reset),
+  ).titleTop(Line(content: title, alignment: Alignment.center));
 }

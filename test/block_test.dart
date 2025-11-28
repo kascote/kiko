@@ -104,7 +104,7 @@ void main() {
         final area = Rect.create(x: 0, y: 0, width: 0, height: 1);
         final expected = Rect.create(x: 0, y: 1, width: 0, height: 0);
 
-        final block = Block()..titleTop(Line(content: 'Test', alignment: align));
+        final block = const Block().titleTop(Line(content: 'Test', alignment: align));
         expect(block.inner(area), expected);
       }
     });
@@ -112,19 +112,19 @@ void main() {
     test('takes into account border an title', () {
       final cases = [
         (
-          block: Block(borders: Borders.top)..titleTop(Line(content: 'Test')),
+          block: const Block(borders: Borders.top).titleTop(Line(content: 'Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 1),
         ),
         (
-          block: Block(borders: Borders.bottom)..titleTop(Line(content: 'Test')),
+          block: const Block(borders: Borders.bottom).titleTop(Line(content: 'Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 0),
         ),
         (
-          block: Block(borders: Borders.top)..titleBottom(Line(content: 'Test')),
+          block: const Block(borders: Borders.top).titleBottom(Line(content: 'Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 0),
         ),
         (
-          block: Block(borders: Borders.bottom)..titleBottom(Line(content: 'Test')),
+          block: const Block(borders: Borders.bottom).titleBottom(Line(content: 'Test')),
           expected: Rect.create(x: 0, y: 0, width: 0, height: 1),
         ),
       ];
@@ -138,21 +138,19 @@ void main() {
     test(
       'has title at position takes into account all positioning declarations',
       () {
-        var block = Block();
+        var block = const Block();
         expect(block.hasTitleAtTop, false);
         expect(block.hasTitleAtBottom, false);
 
-        block = Block()..titleTop(Line(content: 'Test'));
+        block = const Block().titleTop(Line(content: 'Test'));
         expect(block.hasTitleAtTop, true);
         expect(block.hasTitleAtBottom, false);
 
-        block = Block()..titleBottom(Line(content: 'Test'));
+        block = const Block().titleBottom(Line(content: 'Test'));
         expect(block.hasTitleAtTop, false);
         expect(block.hasTitleAtBottom, true);
 
-        block = Block()
-          ..titleTop(Line(content: 'Test'))
-          ..titleBottom(Line(content: 'Test'));
+        block = const Block().titleTop(Line(content: 'Test')).titleBottom(Line(content: 'Test'));
         expect(block.hasTitleAtTop, true);
         expect(block.hasTitleAtBottom, true);
       },
@@ -209,97 +207,55 @@ void main() {
     });
 
     test('vertical space takes into account titles', () {
-      final block = Block()..titleTop(Line(content: 'Test'));
+      final block = const Block().titleTop(Line(content: 'Test'));
       expect(block.verticalSpace(), (1, 0));
 
-      final block2 = Block()..titleBottom(Line(content: 'Test'));
+      final block2 = const Block().titleBottom(Line(content: 'Test'));
       expect(block2.verticalSpace(), (0, 1));
     });
 
     test('vertical space takes into account borders and title', () {
       final cases = [
-        (
-          block: Block(),
-          borders: Borders.top,
-          pos: TitlePosition.top,
-          vs: (1, 0),
-        ),
-        (
-          block: Block(),
-          borders: Borders.right,
-          pos: TitlePosition.top,
-          vs: (1, 0),
-        ),
-        (
-          block: Block(),
-          borders: Borders.bottom,
-          pos: TitlePosition.top,
-          vs: (1, 1),
-        ),
-        (
-          block: Block(),
-          borders: Borders.left,
-          pos: TitlePosition.top,
-          vs: (1, 0),
-        ),
-        (
-          block: Block(),
-          borders: Borders.top,
-          pos: TitlePosition.bottom,
-          vs: (1, 1),
-        ),
-        (
-          block: Block(),
-          borders: Borders.right,
-          pos: TitlePosition.bottom,
-          vs: (0, 1),
-        ),
-        (
-          block: Block(),
-          borders: Borders.bottom,
-          pos: TitlePosition.bottom,
-          vs: (0, 1),
-        ),
-        (
-          block: Block(),
-          borders: Borders.left,
-          pos: TitlePosition.bottom,
-          vs: (0, 1),
-        ),
+        (borders: Borders.top, pos: TitlePosition.top, vs: (1, 0)),
+        (borders: Borders.right, pos: TitlePosition.top, vs: (1, 0)),
+        (borders: Borders.bottom, pos: TitlePosition.top, vs: (1, 1)),
+        (borders: Borders.left, pos: TitlePosition.top, vs: (1, 0)),
+        (borders: Borders.top, pos: TitlePosition.bottom, vs: (1, 1)),
+        (borders: Borders.right, pos: TitlePosition.bottom, vs: (0, 1)),
+        (borders: Borders.bottom, pos: TitlePosition.bottom, vs: (0, 1)),
+        (borders: Borders.left, pos: TitlePosition.bottom, vs: (0, 1)),
       ];
 
       for (final kase in cases) {
-        final block = kase.block
-          ..borders = kase.borders
-          ..title(Line(content: 'Test'), kase.pos);
+        final block = Block(borders: kase.borders).title(Line(content: 'Test'), kase.pos);
         expect(block.verticalSpace(), kase.vs);
       }
     });
 
     test('horizontal space takes into account border', () {
-      var block = Block(borders: Borders.all);
+      var block = const Block(borders: Borders.all);
       expect(block.horizontalSpace(), (1, 1));
 
-      block = Block(borders: Borders.left);
+      block = const Block(borders: Borders.left);
       expect(block.horizontalSpace(), (1, 0));
 
-      block = Block(borders: Borders.right);
+      block = const Block(borders: Borders.right);
       expect(block.horizontalSpace(), (0, 1));
     });
 
     test('horizontal space takes into_account padding', () {
-      var block = Block(
-        padding: const Padding(top: 100, left: 1, bottom: 100, right: 1),
+      var block = const Block(
+        padding: Padding(top: 100, left: 1, bottom: 100, right: 1),
       );
       expect(block.horizontalSpace(), (1, 1));
 
-      block = Block(padding: const Padding(left: 3, right: 5));
+      block = const Block(padding: Padding(left: 3, right: 5));
       expect(block.horizontalSpace(), (3, 5));
 
-      block = Block(padding: const Padding(top: 100, bottom: 100, right: 1));
+      block = const Block(padding: Padding(top: 100, bottom: 100, right: 1));
       expect(block.horizontalSpace(), (0, 1));
 
-      block = Block(padding: const Padding(top: 100, left: 1, bottom: 100));
+      block = const Block(padding: Padding(top: 100, left: 1, bottom: 100));
       expect(block.horizontalSpace(), (1, 0));
     });
   });
@@ -307,80 +263,36 @@ void main() {
   test('horizontal space takes into account borders and padding', () {
     final cases = [
       (
-        block: Block(borders: Borders.all),
+        borders: Borders.all,
         pad: const Padding(top: 1, left: 1, bottom: 1, right: 1),
         hs: (2, 2),
       ),
-      (
-        block: Block(borders: Borders.all),
-        pad: const Padding(left: 1),
-        hs: (2, 1),
-      ),
-      (
-        block: Block(borders: Borders.all),
-        pad: const Padding(right: 1),
-        hs: (1, 2),
-      ),
-      (
-        block: Block(borders: Borders.all),
-        pad: const Padding(top: 1),
-        hs: (1, 1),
-      ),
-      (
-        block: Block(borders: Borders.all),
-        pad: const Padding(bottom: 1),
-        hs: (1, 1),
-      ),
-      (
-        block: Block(borders: Borders.left),
-        pad: const Padding(left: 1),
-        hs: (2, 0),
-      ),
-      (
-        block: Block(borders: Borders.left),
-        pad: const Padding(right: 1),
-        hs: (1, 1),
-      ),
-      (
-        block: Block(borders: Borders.right),
-        pad: const Padding(right: 1),
-        hs: (0, 2),
-      ),
-      (
-        block: Block(borders: Borders.right),
-        pad: const Padding(left: 1),
-        hs: (1, 1),
-      ),
+      (borders: Borders.all, pad: const Padding(left: 1), hs: (2, 1)),
+      (borders: Borders.all, pad: const Padding(right: 1), hs: (1, 2)),
+      (borders: Borders.all, pad: const Padding(top: 1), hs: (1, 1)),
+      (borders: Borders.all, pad: const Padding(bottom: 1), hs: (1, 1)),
+      (borders: Borders.left, pad: const Padding(left: 1), hs: (2, 0)),
+      (borders: Borders.left, pad: const Padding(right: 1), hs: (1, 1)),
+      (borders: Borders.right, pad: const Padding(right: 1), hs: (0, 2)),
+      (borders: Borders.right, pad: const Padding(left: 1), hs: (1, 1)),
     ];
 
     for (final kase in cases) {
-      final block = kase.block..padding = kase.pad;
+      final block = Block(borders: kase.borders, padding: kase.pad);
       expect(block.horizontalSpace(), kase.hs);
     }
   });
 
   test('title', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 3));
-    Block(borders: Borders.all)
-      ..title(Line(content: 'A', alignment: Alignment.left), TitlePosition.top)
-      ..title(
-        Line(content: 'B', alignment: Alignment.center),
-        TitlePosition.top,
-      )
-      ..title(Line(content: 'C', alignment: Alignment.right), TitlePosition.top)
-      ..title(
-        Line(content: 'D', alignment: Alignment.left),
-        TitlePosition.bottom,
-      )
-      ..title(
-        Line(content: 'E', alignment: Alignment.center),
-        TitlePosition.bottom,
-      )
-      ..title(
-        Line(content: 'F', alignment: Alignment.right),
-        TitlePosition.bottom,
-      )
-      ..render(buffer.area, buffer);
+    const Block(borders: Borders.all)
+        .title(Line(content: 'A', alignment: Alignment.left), TitlePosition.top)
+        .title(Line(content: 'B', alignment: Alignment.center), TitlePosition.top)
+        .title(Line(content: 'C', alignment: Alignment.right), TitlePosition.top)
+        .title(Line(content: 'D', alignment: Alignment.left), TitlePosition.bottom)
+        .title(Line(content: 'E', alignment: Alignment.center), TitlePosition.bottom)
+        .title(Line(content: 'F', alignment: Alignment.right), TitlePosition.bottom)
+        .render(buffer.area, buffer);
 
     expect(
       buffer.eq(
@@ -396,14 +308,14 @@ void main() {
 
   test('title top bottom', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 3));
-    Block(borders: Borders.all)
-      ..titleTop(Line(content: 'A'))
-      ..titleTop(Line(content: 'B', alignment: Alignment.center))
-      ..titleTop(Line(content: 'C', alignment: Alignment.right))
-      ..titleBottom(Line(content: 'D', alignment: Alignment.left))
-      ..titleBottom(Line(content: 'E', alignment: Alignment.center))
-      ..titleBottom(Line(content: 'F', alignment: Alignment.right))
-      ..render(buffer.area, buffer);
+    const Block(borders: Borders.all)
+        .titleTop(Line(content: 'A'))
+        .titleTop(Line(content: 'B', alignment: Alignment.center))
+        .titleTop(Line(content: 'C', alignment: Alignment.right))
+        .titleBottom(Line(content: 'D', alignment: Alignment.left))
+        .titleBottom(Line(content: 'E', alignment: Alignment.center))
+        .titleBottom(Line(content: 'F', alignment: Alignment.right))
+        .render(buffer.area, buffer);
 
     expect(
       buffer.eq(
@@ -426,9 +338,7 @@ void main() {
 
     for (final kase in cases) {
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 8, height: 1));
-      Block()
-        ..titleTop(Line(content: 'test', alignment: kase.alg))
-        ..render(buffer.area, buffer);
+      const Block().titleTop(Line(content: 'test', alignment: kase.alg)).render(buffer.area, buffer);
       expect(buffer.eq(Buffer.fromStringLines([kase.test])), isTrue);
     }
   });
@@ -436,16 +346,16 @@ void main() {
   test('title content style', () {
     for (final align in Alignment.values) {
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
-      Block()
-        ..title(
-          Line(
-            content: 'test',
-            style: const Style(fg: Color.yellow),
-            alignment: align,
-          ),
-          TitlePosition.top,
-        )
-        ..render(buffer.area, buffer);
+      const Block()
+          .title(
+            Line(
+              content: 'test',
+              style: const Style(fg: Color.yellow),
+              alignment: align,
+            ),
+            TitlePosition.top,
+          )
+          .render(buffer.area, buffer);
       expect(
         buffer.eq(
           Buffer.fromLines([
@@ -462,12 +372,10 @@ void main() {
 
   test('border style', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
-        borders: Borders.all,
-        borderStyle: const Style(fg: Color.yellow),
-      )
-      ..titleTop(Line(content: 'test'))
-      ..render(buffer.area, buffer);
+    const Block(
+      borders: Borders.all,
+      borderStyle: Style(fg: Color.yellow),
+    ).titleTop(Line(content: 'test')).render(buffer.area, buffer);
 
     final expected =
         Buffer.fromStringLines([
@@ -488,7 +396,7 @@ void main() {
 
   test('render plain border', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(borders: Borders.all).render(buffer.area, buffer);
+    const Block(borders: Borders.all).render(buffer.area, buffer);
 
     final expected = Buffer.fromStringLines([
       '┌────────┐',
@@ -500,7 +408,7 @@ void main() {
 
   test('render rounded border', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
+    const Block(
       borders: Borders.all,
       borderType: BorderType.rounded,
     ).render(buffer.area, buffer);
@@ -515,7 +423,7 @@ void main() {
 
   test('render double border', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
+    const Block(
       borders: Borders.all,
       borderType: BorderType.double,
     ).render(buffer.area, buffer);
@@ -530,7 +438,7 @@ void main() {
 
   test('render quadrant inside ', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
+    const Block(
       borders: Borders.all,
       borderType: BorderType.quadrantInside,
     ).render(buffer.area, buffer);
@@ -545,7 +453,7 @@ void main() {
 
   test('render quadrant outside ', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
+    const Block(
       borders: Borders.all,
       borderType: BorderType.quadrantOutside,
     ).render(buffer.area, buffer);
@@ -560,7 +468,7 @@ void main() {
 
   test('render solid border', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    Block(
+    const Block(
       borders: Borders.all,
       borderType: BorderType.thick,
     ).render(buffer.area, buffer);
@@ -576,7 +484,7 @@ void main() {
   test('throw error if set type custom but provide no definition', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
     expect(
-      () => Block(
+      () => const Block(
         borders: Borders.all,
         borderType: BorderType.custom,
       ).render(buffer.area, buffer),
@@ -584,7 +492,7 @@ void main() {
     );
   });
 
-  test('throw error if try to acces a BorderType no defined', () {
+  test('throw error if try to access a BorderType no defined', () {
     expect(
       () => BorderType.custom.symbols(BorderType.custom),
       throwsArgumentError,

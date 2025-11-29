@@ -137,6 +137,21 @@ class TermlibBackend {
   Future<void> dispose() async {
     return _term.dispose();
   }
+
+  /// Enables mouse event tracking.
+  void enableMouseEvents() => _term.enableMouseEvents();
+
+  /// Disables mouse event tracking.
+  void disableMouseEvents() => _term.disableMouseEvents();
+
+  /// Enables Kitty keyboard enhancement protocol.
+  void enableKeyboardEnhancement() => _term.enableKeyboardEnhancement();
+
+  /// Disables Kitty keyboard enhancement protocol.
+  void disableKeyboardEnhancement() => _term.disableKeyboardEnhancement();
+
+  /// Sets the terminal title.
+  void setTitle(String title) => _term.setTerminalTitle(title);
 } // End TermlibBackend
 
 void _mergeModifier(

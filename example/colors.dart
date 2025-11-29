@@ -2,25 +2,31 @@ import 'dart:io';
 
 import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
+import 'package:termparser/termparser_events.dart';
 
 Future<void> main() async {
-  final app = await Application.create(viewport: const ViewPortFullScreen());
+  await Application(
+    title: 'Color Demo',
+    onCleanup: (terminal) async {
+      stdout.writeln('layoutCache ${layoutCacheStats()}');
+    },
+  ).run(
+    render: (frame) {
+      final layout = Layout.vertical(const [
+        ConstraintLength(30),
+        ConstraintLength(17),
+        ConstraintMin(2),
+      ]).split(frame.area);
 
-  final exitValue = await app.run((frame) {
-    final layout = Layout.vertical(const [
-      ConstraintLength(30),
-      ConstraintLength(17),
-      ConstraintMin(2),
-    ]).split(frame.area);
-
-    renderNamedColors(frame, layout[0]);
-    renderIndexedColors(frame, layout[1]);
-    renderIndexedGrayScale(frame, layout[2]);
-  });
-
-  stderr.writeln('layoutCache ${layoutCacheStats()}');
-
-  return app.terminal.flushThenExit(exitValue);
+      renderNamedColors(frame, layout[0]);
+      renderIndexedColors(frame, layout[1]);
+      renderIndexedGrayScale(frame, layout[2]);
+    },
+    onEvent: (event) {
+      if (event is KeyEvent && event.code.char == 'q') return 0;
+      return null;
+    },
+  );
 }
 
 final List<Color> colors = [

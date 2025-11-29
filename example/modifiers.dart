@@ -4,22 +4,18 @@ import 'package:kiko/kiko.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 Future<void> main() async {
-  final term = await init();
-  term.hideCursor();
-  await runLoop(term);
-  stderr.writeln('layoutCache ${layoutCacheStats()}');
-  term.showCursor();
-  await dispose();
-}
-
-Future<void> runLoop(Terminal term) async {
-  while (true) {
-    term.draw(draw);
-    final key = await term.readEvent<evt.KeyEvent>(timeout: 10); //;(timeout: 1 ~/ 60);
-    if (key is evt.KeyEvent) {
-      if (key.code.char == 'q') break;
-    }
-  }
+  await Application(
+    title: 'Text Modifiers Example',
+    onCleanup: (terminal) async {
+      stderr.writeln('layoutCache ${layoutCacheStats()}');
+    },
+  ).run(
+    render: draw,
+    onEvent: (event) {
+      if (event is evt.KeyEvent && event.code.char == 'q') return 0;
+      return null;
+    },
+  );
 }
 
 void draw(Frame frame) {

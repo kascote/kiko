@@ -1,31 +1,23 @@
 import 'dart:io';
 
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
+import 'package:termparser/termparser_events.dart';
 
 Future<void> main() async {
-  final term = await init();
-  term.hideCursor();
-  await runLoop(term);
-  stderr.writeln('layoutCache ${layoutCacheStats()}');
-  term.showCursor();
-  await dispose();
-}
-
-Future<void> runLoop(Terminal term) async {
   final app = App();
-  var running = true;
 
-  while (true) {
-    if (running) {
-      term.draw((frame) => frame.renderWidget(app, frame.area));
-    }
-    final key = await term.readEvent<evt.KeyEvent>(timeout: 10); //(timeout: 1 ~/ 60);
-    if (key is evt.KeyEvent) {
-      if (key.code.char == 'q') break;
-      if (key.code.char == 'p') running = !running;
-    }
-  }
+  await Application(
+    title: 'Colors RGB Example',
+    onCleanup: (terminal) async {
+      stderr.writeln('layoutCache ${layoutCacheStats()}');
+    },
+  ).run(
+    render: (frame) => frame.renderWidget(app, frame.area),
+    onEvent: (event) {
+      if (event is KeyEvent && event.code.char == 'q') return 0;
+      return null;
+    },
+  );
 }
 
 class App implements Widget {

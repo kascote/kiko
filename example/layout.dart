@@ -2,16 +2,21 @@ import 'dart:io';
 
 import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
+import 'package:termparser/termparser_events.dart';
 
 Future<void> main() async {
-  final term = await init();
-  runLoop(term);
-  await dispose();
-}
-
-void runLoop(Terminal term) {
-  term.draw(draw);
-  sleep(const Duration(seconds: 3));
+  await Application(
+    title: 'Layout proportions Example',
+    onCleanup: (terminal) async {
+      stderr.writeln('layoutCache ${layoutCacheStats()}');
+    },
+  ).run(
+    render: draw,
+    onEvent: (event) {
+      if (event is KeyEvent && event.code.char == 'q') return 0;
+      return null;
+    },
+  );
 }
 
 void draw(Frame frame) {
@@ -125,8 +130,6 @@ void draw(Frame frame) {
     final constraints = exampleA.zip(exampleB);
     renderExampleCombination(frame, area, '$nameA/$nameB', constraints);
   }
-
-  stderr.writeln('cache1 ${layoutCacheStats()}');
 }
 
 void renderExampleCombination(

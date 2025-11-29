@@ -427,6 +427,24 @@ class Terminal {
 
   /// Disables raw mode
   void disableRawMode() => backend.disableRawMode();
+
+  /// Enables mouse event tracking
+  void enableMouseEvents() => backend.enableMouseEvents();
+
+  /// Disables mouse event tracking
+  void disableMouseEvents() => backend.disableMouseEvents();
+
+  /// Enables Kitty keyboard enhancement protocol
+  void enableKeyboardEnhancement() => backend.enableKeyboardEnhancement();
+
+  /// Disables Kitty keyboard enhancement protocol
+  void disableKeyboardEnhancement() => backend.disableKeyboardEnhancement();
+
+  /// Sets the terminal title
+  void setTitle(String title) => backend.setTitle(title);
+
+  /// Disposes terminal resources
+  Future<void> dispose() => backend.dispose();
 }
 
 Future<Rect> _computeSize(Terminal t, Rect area, int height) async {

@@ -9,7 +9,7 @@ void main() {
     //   expect(buf.eq(expected), isTrue);
     // }
 
-    test('render one line with enougth space', () {
+    test('render one line with enough space', () {
       final line = Paragraph(content: 'Hello World');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
       line.render(buf.area, buf);
@@ -25,7 +25,7 @@ void main() {
       );
     });
 
-    test('render two line with enougth space', () {
+    test('render two line with enough space', () {
       final line = Paragraph(content: 'Hello World\nBuenos Dias!');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
       line.render(buf.area, buf);

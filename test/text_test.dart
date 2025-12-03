@@ -130,7 +130,7 @@ null
       final text = Text.raw('foo');
       final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
       final buf = Buffer.empty(area);
-      text.render(area, buf);
+      text.render(area, Frame(buf.area, buf, 0));
 
       expect(buf.eq(Buffer.fromStringLines(['foo  '])), isTrue);
     });
@@ -138,7 +138,7 @@ null
     test('render out ouf bounds', () {
       final oob = Rect.create(x: 20, y: 20, width: 10, height: 1);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
-      Text.raw('Hello, World!').render(oob, buf);
+      Text.raw('Hello, World!').render(oob, Frame(buf.area, buf, 0));
 
       expect(
         buf.eq(Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1))),
@@ -150,7 +150,7 @@ null
       final text = Text.raw('foo', alignment: Alignment.right);
       final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
       final buf = Buffer.empty(area);
-      text.render(area, buf);
+      text.render(area, Frame(buf.area, buf, 0));
       expect(buf.eq(Buffer.fromStringLines(['  foo'])), isTrue);
     });
 
@@ -158,7 +158,7 @@ null
       final text = Text.raw('foo', alignment: Alignment.center);
       final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
       final buf = Buffer.empty(area);
-      text.render(area, buf);
+      text.render(area, Frame(buf.area, buf, 0));
       expect(buf.eq(Buffer.fromStringLines([' foo '])), isTrue);
     });
 
@@ -166,7 +166,7 @@ null
       final text = Text.raw('foo', alignment: Alignment.center);
       final area = Rect.create(x: 0, y: 0, width: 6, height: 1);
       final buf = Buffer.empty(area);
-      text.render(area, buf);
+      text.render(area, Frame(buf.area, buf, 0));
       expect(buf.eq(Buffer.fromStringLines([' foo  '])), isTrue);
     });
 
@@ -181,7 +181,7 @@ null
 
       final area = Rect.create(x: 0, y: 0, width: 5, height: 2);
       final buf = Buffer.empty(area);
-      text.render(area, buf);
+      text.render(area, Frame(buf.area, buf, 0));
       expect(buf.eq(Buffer.fromStringLines(['  foo', ' bar '])), isTrue);
     });
 
@@ -194,7 +194,7 @@ null
           style: Style(bg: Color.blue),
         ),
       );
-      Text.fromLines([line]).render(area, buf);
+      Text.fromLines([line]).render(area, Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromStringLines(['foo  '])
         ..setStyle(
@@ -215,7 +215,7 @@ null
       );
       Text.fromLines([
         line,
-      ]).render(Rect.create(x: 0, y: 0, width: 3, height: 1), buf);
+      ]).render(Rect.create(x: 0, y: 0, width: 3, height: 1), Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromStringLines(['foo   '])
         ..setStyle(

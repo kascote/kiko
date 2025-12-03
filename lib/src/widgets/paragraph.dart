@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:termunicode/termunicode.dart';
 
-import '../buffer.dart';
 import '../extensions/iterator.dart';
 import '../layout/alignment.dart';
 import '../layout/position.dart';
@@ -78,33 +77,14 @@ class Paragraph implements Widget {
   // the buffer height could be less than the lines wrapped.
 
   @override
-  // void render(Rect area, Buffer buffer) {
-  //   if (area.isEmpty) return;
-  //
-  //   buffer.setStyle(area, style);
-  //   final wrappedLines = <Line>[];
-  //
-  //   for (final line in text.lines) {
-  //     if (line.width <= area.width) {
-  //       wrappedLines.add(line);
-  //     } else {
-  //       wrappedLines.addAll(_spanAtWidth(line.spans, area.width));
-  //     }
-  //   }
-  //
-  //   for (final (wl, row) in wrappedLines.zip(area.rows)) {
-  //     wl.render(row, buffer);
-  //   }
-  // }
-  //
-  void render(Rect area, Buffer buffer) {
+  void render(Rect area, Frame frame) {
     if (area.isEmpty) return;
 
-    buffer.setStyle(area, style);
+    frame.buffer.setStyle(area, style);
     final wrappedLines = _wrapLines(text.lines, area.width);
 
     for (final (wl, row) in wrappedLines.zip(area.rows)) {
-      wl.render(row, buffer);
+      wl.render(row, frame);
     }
   }
 

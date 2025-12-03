@@ -4,11 +4,11 @@ import '../buffer.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 
-/// A widget that can be rendered in a buffer.
+/// A widget that can be rendered in a frame.
 // ignore: one_member_abstracts
 abstract class Widget {
-  /// Renders the widget in the given area of the buffer.
-  void render(Rect area, Buffer buffer);
+  /// Renders the widget in the given area of the frame.
+  void render(Rect area, Frame frame);
 }
 
 /// A consistent view into the terminal state for rendering a single frame.
@@ -42,7 +42,7 @@ class Frame {
 
   /// Renders a widget in the given area of the frame.
   void renderWidget(Widget widget, Rect area) {
-    widget.render(area, buffer);
+    widget.render(area, this);
   }
 }
 

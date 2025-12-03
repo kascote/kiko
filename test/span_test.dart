@@ -100,7 +100,7 @@ void main() {
       const span = Span(content: 'test content', style: style);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       final expected = Buffer.fromLines([
         Line.fromSpans(const [
           Span(content: 'test content', style: style),
@@ -115,7 +115,7 @@ void main() {
       const span = Span(content: 'test content', style: style);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
       buf.setStyle(buf.area, const Style(addModifier: Modifier.italic));
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromLines([
         Line.fromSpans(const [
@@ -140,7 +140,7 @@ void main() {
       const style = Style(fg: Color.green, bg: Color.yellow);
       const span = Span(content: 'test 😀 content', style: style);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromLines([
         Line.fromSpans(const [Span(content: 'test 😀 content', style: style)]),
@@ -152,7 +152,7 @@ void main() {
       const style = Style(fg: Color.green, bg: Color.yellow);
       const span = Span(content: 'test 😀 content', style: style);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromLines([
         Line.fromSpans(const [
@@ -167,7 +167,7 @@ void main() {
       const style = Style(fg: Color.green, bg: Color.yellow);
       const span = Span(content: 'test content', style: style);
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
-      span.render(Rect.create(x: 10, y: 0, width: 20, height: 1), buf);
+      span.render(Rect.create(x: 10, y: 0, width: 20, height: 1), Frame(buf.area, buf, 0));
 
       final expected = Buffer.fromLines([
         Line.fromSpans(const [
@@ -182,7 +182,7 @@ void main() {
       const span = Span(content: '\u{200B}abc');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [
         Cell(char: '\u{200B}a'),
         Cell(char: 'b'),
@@ -194,7 +194,7 @@ void main() {
       const span = Span(content: 'a\u{200B}bc');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [
         Cell(char: 'a\u{200B}'),
         Cell(char: 'b'),
@@ -206,7 +206,7 @@ void main() {
       const span = Span(content: 'ab\u{200B}c');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [
         Cell(char: 'a'),
         Cell(char: 'b\u{200B}'),
@@ -218,7 +218,7 @@ void main() {
       const span = Span(content: 'abc\u{200B}');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [
         Cell(char: 'a'),
         Cell(char: 'b'),
@@ -230,7 +230,7 @@ void main() {
       const span = Span(content: 'a\nb');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 2, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [Cell(char: 'a'), Cell(char: 'b')]);
     });
 
@@ -238,7 +238,7 @@ void main() {
       const span = Span(content: 'Hello\u{200E}');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
 
-      span.render(buf.area, buf);
+      span.render(buf.area, Frame(buf.area, buf, 0));
       expect(buf.buf, const [
         Cell(char: 'H'),
         Cell(char: 'e'),

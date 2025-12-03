@@ -27,17 +27,17 @@ class App implements Widget {
   App();
 
   @override
-  void render(Rect area, Buffer buffer) {
+  void render(Rect area, Frame frame) {
     final [top, colors] = Layout.vertical(const [ConstraintLength(1), ConstraintMin(0)]).areas(area);
     final [title, fps] = Layout.horizontal(const [ConstraintMin(0), ConstraintLength(8)]).areas(top);
 
     Text.raw(
       'colors_rgb example, Press q to quit',
       alignment: Alignment.center,
-    ).render(title, buffer);
+    ).render(title, frame);
 
-    fpsWidget.render(fps, buffer);
-    colorsWidget.render(colors, buffer);
+    fpsWidget.render(fps, frame);
+    colorsWidget.render(colors, frame);
   }
 }
 
@@ -58,13 +58,13 @@ class FpsWidget implements Widget {
   }
 
   @override
-  void render(Rect area, Buffer buffer) {
+  void render(Rect area, Frame frame) {
     calculateFps();
     Text.raw(
       '${fps}fps',
       alignment: Alignment.right,
       style: const Style(fg: Color.white),
-    ).render(area, buffer);
+    ).render(area, frame);
   }
 }
 
@@ -90,8 +90,9 @@ class ColorsWidget implements Widget {
   }
 
   @override
-  void render(Rect area, Buffer buffer) {
+  void render(Rect area, Frame frame) {
     setupColors(area);
+    final buffer = frame.buffer;
 
     for (final (xi, x) in enumerate(area.left, area.right)) {
       final xii = (xi + frameCount) % area.width;

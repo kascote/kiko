@@ -297,13 +297,14 @@ class Block implements Widget {
   bool get hasTitleAtBottom => _bottomTitles.isNotEmpty;
 
   @override
-  void render(Rect area, Buffer buffer) {
+  void render(Rect area, Frame frame) {
+    final buffer = frame.buffer;
     final renderArea = area.intersection(buffer.area);
     if (renderArea.isEmpty) return;
 
     buffer.setStyle(renderArea, style);
     _renderBorders(renderArea, buffer);
-    _renderTitles(renderArea, buffer);
+    _renderTitles(renderArea, frame);
   }
 
   void _renderBorders(Rect area, Buffer buffer) {
@@ -369,21 +370,22 @@ class Block implements Widget {
     }
   }
 
-  void _renderTitles(Rect area, Buffer buffer) {
+  void _renderTitles(Rect area, Frame frame) {
     if (hasTitleAtTop) {
-      _renderRightTitles(TitlePosition.top, area, buffer);
-      _renderCenterTitles(TitlePosition.top, area, buffer);
-      _renderLeftTitles(TitlePosition.top, area, buffer);
+      _renderRightTitles(TitlePosition.top, area, frame);
+      _renderCenterTitles(TitlePosition.top, area, frame);
+      _renderLeftTitles(TitlePosition.top, area, frame);
     }
 
     if (hasTitleAtBottom) {
-      _renderRightTitles(TitlePosition.bottom, area, buffer);
-      _renderCenterTitles(TitlePosition.bottom, area, buffer);
-      _renderLeftTitles(TitlePosition.bottom, area, buffer);
+      _renderRightTitles(TitlePosition.bottom, area, frame);
+      _renderCenterTitles(TitlePosition.bottom, area, frame);
+      _renderLeftTitles(TitlePosition.bottom, area, frame);
     }
   }
 
-  void _renderRightTitles(TitlePosition position, Rect area, Buffer buffer) {
+  void _renderRightTitles(TitlePosition position, Rect area, Frame frame) {
+    final buffer = frame.buffer;
     final titles = _getTitlesAtPos(position, Alignment.right);
     var titlesArea = _getTitlesAreas(area, position);
 
@@ -400,14 +402,15 @@ class Block implements Widget {
       );
 
       buffer.setStyle(titlesArea, titlesStyle);
-      title.render(titlesArea, buffer);
+      title.render(titlesArea, frame);
       titlesArea = titlesArea.copyWith(
         width: titlesArea.width.saturatingSubU16(titleWidth + 1),
       );
     }
   }
 
-  void _renderCenterTitles(TitlePosition position, Rect area, Buffer buffer) {
+  void _renderCenterTitles(TitlePosition position, Rect area, Frame frame) {
+    final buffer = frame.buffer;
     final titles = _getTitlesAtPos(position, Alignment.center);
     // +1 spaces between each title, -1 remove last one
     final totalWidth = titles.fold(0, (acc, title) => acc + title.width + 1).saturatingSubU16(1);
@@ -424,7 +427,7 @@ class Block implements Widget {
         width: math.min(titleWidth, titlesArea.width),
       );
       buffer.setStyle(titleArea, titlesStyle);
-      title.render(titleArea, buffer);
+      title.render(titleArea, frame);
 
       titlesArea = titlesArea.copyWith(
         x: titlesArea.x.saturatingAddU16(titleWidth + 1),
@@ -433,7 +436,8 @@ class Block implements Widget {
     }
   }
 
-  void _renderLeftTitles(TitlePosition position, Rect area, Buffer buffer) {
+  void _renderLeftTitles(TitlePosition position, Rect area, Frame frame) {
+    final buffer = frame.buffer;
     final titles = _getTitlesAtPos(position, Alignment.left);
     var titlesArea = _getTitlesAreas(area, position);
 
@@ -446,7 +450,7 @@ class Block implements Widget {
       );
 
       buffer.setStyle(titleArea, titlesStyle);
-      title.render(titleArea, buffer);
+      title.render(titleArea, frame);
       titlesArea = titlesArea.copyWith(
         x: titlesArea.x.saturatingAddU16(titleWidth + 1),
         width: titlesArea.width.saturatingSubU16(titleWidth + 1),

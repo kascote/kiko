@@ -292,7 +292,7 @@ void main() {
         .title(Line(content: 'D', alignment: Alignment.left), TitlePosition.bottom)
         .title(Line(content: 'E', alignment: Alignment.center), TitlePosition.bottom)
         .title(Line(content: 'F', alignment: Alignment.right), TitlePosition.bottom)
-        .render(buffer.area, buffer);
+        .render(buffer.area, Frame(buffer.area, buffer, 0));
 
     expect(
       buffer.eq(
@@ -315,7 +315,7 @@ void main() {
         .titleBottom(Line(content: 'D', alignment: Alignment.left))
         .titleBottom(Line(content: 'E', alignment: Alignment.center))
         .titleBottom(Line(content: 'F', alignment: Alignment.right))
-        .render(buffer.area, buffer);
+        .render(buffer.area, Frame(buffer.area, buffer, 0));
 
     expect(
       buffer.eq(
@@ -338,7 +338,9 @@ void main() {
 
     for (final kase in cases) {
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 8, height: 1));
-      const Block().titleTop(Line(content: 'test', alignment: kase.alg)).render(buffer.area, buffer);
+      const Block()
+          .titleTop(Line(content: 'test', alignment: kase.alg))
+          .render(buffer.area, Frame(buffer.area, buffer, 0));
       expect(buffer.eq(Buffer.fromStringLines([kase.test])), isTrue);
     }
   });
@@ -355,7 +357,7 @@ void main() {
             ),
             TitlePosition.top,
           )
-          .render(buffer.area, buffer);
+          .render(buffer.area, Frame(buffer.area, buffer, 0));
       expect(
         buffer.eq(
           Buffer.fromLines([
@@ -375,7 +377,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderStyle: Style(fg: Color.yellow),
-    ).titleTop(Line(content: 'test')).render(buffer.area, buffer);
+    ).titleTop(Line(content: 'test')).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected =
         Buffer.fromStringLines([
@@ -396,7 +398,7 @@ void main() {
 
   test('render plain border', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
-    const Block(borders: Borders.all).render(buffer.area, buffer);
+    const Block(borders: Borders.all).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '┌────────┐',
@@ -411,7 +413,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderType: BorderType.rounded,
-    ).render(buffer.area, buffer);
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '╭────────╮',
@@ -426,7 +428,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderType: BorderType.double,
-    ).render(buffer.area, buffer);
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '╔════════╗',
@@ -441,7 +443,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderType: BorderType.quadrantInside,
-    ).render(buffer.area, buffer);
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '▗▄▄▄▄▄▄▄▄▖',
@@ -456,7 +458,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderType: BorderType.quadrantOutside,
-    ).render(buffer.area, buffer);
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '▛▀▀▀▀▀▀▀▀▜',
@@ -471,7 +473,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderType: BorderType.thick,
-    ).render(buffer.area, buffer);
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected = Buffer.fromStringLines([
       '┏━━━━━━━━┓',
@@ -487,7 +489,7 @@ void main() {
       () => const Block(
         borders: Borders.all,
         borderType: BorderType.custom,
-      ).render(buffer.area, buffer),
+      ).render(buffer.area, Frame(buffer.area, buffer, 0)),
       throwsArgumentError,
     );
   });

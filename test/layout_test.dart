@@ -150,7 +150,7 @@ void main() {
       final buffer = Buffer.empty(area);
       for (final (c, area) in abc.take(constraints.length).zip(layout)) {
         final s = c * area.width;
-        Line(content: s).render(area, buffer);
+        Line(content: s).render(area, Frame(buffer.area, buffer, 0));
       }
       expect(buffer.eq(Buffer.fromStringLines([expected])), isTrue);
     }

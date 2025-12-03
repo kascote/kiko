@@ -12,7 +12,7 @@ void main() {
     test('render one line with enough space', () {
       final line = Paragraph(content: 'Hello World');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
-      line.render(buf.area, buf);
+      line.render(buf.area, Frame(buf.area, buf, 0));
 
       expect(
         buf.eq(
@@ -28,7 +28,7 @@ void main() {
     test('render two line with enough space', () {
       final line = Paragraph(content: 'Hello World\nBuenos Dias!');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
-      line.render(buf.area, buf);
+      line.render(buf.area, Frame(buf.area, buf, 0));
 
       expect(
         buf.eq(
@@ -44,7 +44,7 @@ void main() {
     test('render a wrapping line', () {
       final para = Paragraph(content: 'Hello World Buenos Dias!');
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 21, height: 2));
-      para.render(buf.area, buf);
+      para.render(buf.area, Frame(buf.area, buf, 0));
 
       expect(
         buf.eq(
@@ -64,7 +64,7 @@ void main() {
       ]);
       final para = Paragraph.withText(Text.fromLines([line1]));
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 21, height: 2));
-      para.render(buf.area, buf);
+      para.render(buf.area, Frame(buf.area, buf, 0));
 
       expect(
         buf.eq(
@@ -105,7 +105,7 @@ void main() {
       final para = Paragraph.withText(Text.fromLines([line1, line2]));
       final rect = Rect.create(x: 0, y: 0, width: 21, height: 4);
       final buf = Buffer.empty(rect);
-      para.render(buf.area, buf);
+      para.render(buf.area, Frame(buf.area, buf, 0));
 
       final expected = Buffer.setCells(rect, [
         (x: 0, y: 0, char: 'The brow fox ', style: const Style(fg: Color.red)),

@@ -212,7 +212,7 @@ Line(
 
       test('render', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
-        helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
+        helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), Frame(buf.area, buf, 0));
         final expected =
             Buffer.fromLines([
                 Line.fromSpans(const [
@@ -229,14 +229,14 @@ Line(
 
       test('out of bounds', () {
         final oob = Rect.create(x: 20, y: 20, width: 10, height: 1);
-        helloWorld.render(oob, smallBuffer);
+        helloWorld.render(oob, Frame(smallBuffer.area, smallBuffer, 0));
 
         expect(smallBuffer.eq(Buffer.empty(smallBuffer.area)), isTrue);
       });
 
       test('render only style lines area', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 1));
-        helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
+        helloWorld.render(Rect.create(x: 0, y: 0, width: 15, height: 1), Frame(buf.area, buf, 0));
 
         final expected =
             Buffer.fromLines([
@@ -254,7 +254,7 @@ Line(
 
       test('render only styles first line', () {
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 20, height: 2));
-        helloWorld.render(buf.area, buf);
+        helloWorld.render(buf.area, Frame(buf.area, buf, 0));
         final expected =
             Buffer.fromLines(
                 [
@@ -273,14 +273,14 @@ Line(
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
         Line(
           content: 'Hello World',
-        ).render(Rect.create(x: 0, y: 0, width: 5, height: 1), buf);
+        ).render(Rect.create(x: 0, y: 0, width: 5, height: 1), Frame(buf.area, buf, 0));
         expect(buf.eq(Buffer.fromLines([Line(content: 'Hello     ')])), isTrue);
       });
 
       test('render centered', () {
         final line = helloWorld.copyWith(alignment: Alignment.center);
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
-        line.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
+        line.render(Rect.create(x: 0, y: 0, width: 15, height: 1), Frame(buf.area, buf, 0));
 
         final expected = Buffer.fromLines([Line(content: ' Hello World!  ')])
           ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
@@ -293,7 +293,7 @@ Line(
       test('render right aligned', () {
         final line = helloWorld.copyWith(alignment: Alignment.right);
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 15, height: 1));
-        line.render(Rect.create(x: 0, y: 0, width: 15, height: 1), buf);
+        line.render(Rect.create(x: 0, y: 0, width: 15, height: 1), Frame(buf.area, buf, 0));
 
         final expected = Buffer.fromLines([Line(content: '   Hello World!')])
           ..setStyle(Rect.create(x: 0, y: 0, width: 15, height: 1), italic)
@@ -308,7 +308,7 @@ Line(
         Line(
           content: 'Hello World',
           alignment: Alignment.left,
-        ).render(buf.area, buf);
+        ).render(buf.area, Frame(buf.area, buf, 0));
 
         final expected = Buffer.fromLines([Line(content: 'Hello')]);
         expect(buf.eq(expected), isTrue);
@@ -319,7 +319,7 @@ Line(
         Line(
           content: 'Hello World',
           alignment: Alignment.right,
-        ).render(buf.area, buf);
+        ).render(buf.area, Frame(buf.area, buf, 0));
 
         final expected = Buffer.fromLines([Line(content: 'World')]);
         expect(buf.eq(expected), isTrue);
@@ -330,7 +330,7 @@ Line(
         Line(
           content: 'Hello World',
           alignment: Alignment.center,
-        ).render(buf.area, buf);
+        ).render(buf.area, Frame(buf.area, buf, 0));
 
         final expected = Buffer.fromLines([Line(content: 'lo Wo')]);
         expect(buf.eq(expected), isTrue);
@@ -341,7 +341,7 @@ Line(
           content: '"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得する',
         );
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 83, height: 1));
-        line.render(buf.area, buf);
+        line.render(buf.area, Frame(buf.area, buf, 0));
         expect(
           buf.eq(
             Buffer.fromLines(
@@ -373,7 +373,7 @@ Line(
           final buf = Buffer.empty(
             Rect.create(x: 0, y: 0, width: width, height: 1),
           );
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
         }
       });
@@ -421,7 +421,7 @@ Line(
           final buf = Buffer.empty(
             Rect.create(x: 0, y: 0, width: bufWidth, height: 1),
           );
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
         }
       });
@@ -446,7 +446,7 @@ Line(
             const Cell(char: 'X'),
           );
           final area = Rect.create(x: 2, y: 0, width: 6, height: 1);
-          line.render(area, buf);
+          line.render(area, Frame(buf.area, buf, 0));
           expect(buf.eq(Buffer.fromLines([Line(content: expected)])), isTrue);
         }
       });
@@ -470,7 +470,7 @@ Line(
           );
           final area = Rect.create(x: 0, y: 0, width: width, height: 1);
           final buf = Buffer.filled(area, const Cell(char: 'X'));
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
 
           expect(
             buf.eq(Buffer.fromLines([Line(content: expected)])),
@@ -501,7 +501,7 @@ Line(
           final buf = Buffer.empty(
             Rect.create(x: 0, y: 0, width: 32, height: 1),
           );
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
           expect(buf.eq(Buffer.fromStringLines([expected])), isTrue);
         }
       });
@@ -525,7 +525,7 @@ Line(
           final buf = Buffer.empty(
             Rect.create(x: 0, y: 0, width: 32, height: 1),
           );
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
           expect(buf.eq(Buffer.fromStringLines([expected])), isTrue);
         }
       });
@@ -534,7 +534,7 @@ Line(
         final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 1));
         Line.fromSpan(
           const Span(content: 'Hello\nWorld!'),
-        ).render(Rect.create(x: 0, y: 0, width: 11, height: 1), buf);
+        ).render(Rect.create(x: 0, y: 0, width: 11, height: 1), Frame(buf.area, buf, 0));
         expect(buf.eq(Buffer.fromStringLines(['HelloWorld!'])), isTrue);
       });
 
@@ -554,7 +554,7 @@ Line(
           final buf = Buffer.empty(
             Rect.create(x: 0, y: 0, width: kase.width, height: 1),
           );
-          line.render(buf.area, buf);
+          line.render(buf.area, Frame(buf.area, buf, 0));
           final expected = Buffer.fromStringLines([kase.expected]);
           expect(buf.eq(expected), isTrue, reason: 'fail case $kase');
         }

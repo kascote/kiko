@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
-import '../buffer.dart';
 import '../extensions/iterator.dart';
 import '../extensions/string.dart';
 import '../layout/alignment.dart';
@@ -98,12 +97,13 @@ class Text implements Widget {
   }
 
   @override
-  void render(Rect area, Buffer buf) {
+  void render(Rect area, Frame frame) {
+    final buf = frame.buffer;
     final textArea = area.intersection(buf.area);
     buf.setStyle(textArea, style);
 
     for (final (line, lineArea) in _lines.zip(textArea.rows)) {
-      line.renderWidthAlignment(lineArea, buf, alignment);
+      line.renderWidthAlignment(lineArea, frame, alignment);
     }
   }
 

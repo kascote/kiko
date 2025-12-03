@@ -2,7 +2,6 @@ import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
-import '../buffer.dart';
 import '../cell.dart';
 import '../extensions/integer.dart';
 import '../extensions/string.dart';
@@ -72,10 +71,11 @@ class Span implements Widget {
   /// Returns a [Line] from the Span, with the alignment set to [Alignment.right]
   Line rightAlignedLine() => Line.fromSpan(this, alignment: Alignment.right);
 
-  /// Renders the Span into the given buffer, using the given area as the
+  /// Renders the Span into the given frame, using the given area as the
   /// bounding box.
   @override
-  void render(Rect area, Buffer buf) {
+  void render(Rect area, Frame frame) {
+    final buf = frame.buffer;
     final spanArea = area.intersection(buf.area);
     var x = spanArea.x;
     final y = spanArea.y;

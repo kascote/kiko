@@ -3,7 +3,6 @@ import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
-import '../buffer.dart';
 import '../extensions/characters.dart';
 import '../extensions/integer.dart';
 import '../extensions/string.dart';
@@ -95,15 +94,16 @@ class Line implements Widget {
   Line resetStyle() => Line._(_spans, style.patch(const Style.reset()), alignment);
 
   @override
-  void render(Rect area, Buffer buf) => renderWidthAlignment(area, buf);
+  void render(Rect area, Frame frame) => renderWidthAlignment(area, frame);
 
-  /// Renders the line to the buffer, respecting the width of the area and the
+  /// Renders the line to the frame, respecting the width of the area and the
   /// alignment of the line.
   void renderWidthAlignment(
     Rect area,
-    Buffer buf, [
+    Frame frame, [
     Alignment? parentAlignment,
   ]) {
+    final buf = frame.buffer;
     final intArea = area.intersection(buf.area);
     if (intArea.isEmpty) return;
 
@@ -124,18 +124,18 @@ class Line implements Widget {
       };
 
       final areaA = renderArea.indentX(indentWidth);
-      _renderSpans(areaA, buf, 0);
+      _renderSpans(areaA, frame, 0);
     } else {
       final skipWidth = switch (renderAlignment) {
         Alignment.left || null => 0,
         Alignment.center => lineWidth.saturatingSubU16(areaWidth) ~/ 2,
         Alignment.right => lineWidth.saturatingSubU16(areaWidth),
       };
-      _renderSpans(renderArea, buf, skipWidth);
+      _renderSpans(renderArea, frame, skipWidth);
     }
   }
 
-  void _renderSpans(Rect area, Buffer buf, int spanSkipWidth) {
+  void _renderSpans(Rect area, Frame frame, int spanSkipWidth) {
     var spanArea = area.copyWith();
     for (final (span, spanWidth, offset) in _spanAfterWidth(
       _spans,
@@ -144,7 +144,7 @@ class Line implements Widget {
       spanArea = spanArea.indentX(offset);
       if (spanArea.isEmpty) break;
 
-      span.render(spanArea, buf);
+      span.render(spanArea, frame);
       spanArea = spanArea.indentX(spanWidth);
     }
   }

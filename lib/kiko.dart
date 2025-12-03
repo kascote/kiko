@@ -27,4 +27,8 @@ export 'src/widgets/block/block.dart';
 export 'src/widgets/block/padding.dart';
 export 'src/widgets/borders.dart';
 export 'src/widgets/frame.dart';
+export 'src/widgets/layout/column.dart';
+export 'src/widgets/layout/flex_layout.dart';
+export 'src/widgets/layout/layout_child.dart';
+export 'src/widgets/layout/row.dart';
 export 'src/widgets/paragraph.dart';

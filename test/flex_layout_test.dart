@@ -188,4 +188,192 @@ void main() {
       expect(buffer.eq(Buffer.fromStringLines(['AABB', 'CCDD'])), isTrue);
     });
   });
+
+  group('LayoutBuilder', () {
+    test('passes computed rect to builder', () {
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 5));
+      Rect? capturedRect;
+
+      LayoutBuilder(
+        builder: (rect) {
+          capturedRect = rect;
+          return const _FillWidget('X');
+        },
+      ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+      expect(capturedRect, buffer.area);
+    });
+
+    test('renders widget returned by builder', () {
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
+      LayoutBuilder(
+        builder: (rect) => const _FillWidget('B'),
+      ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+      expect(buffer.eq(Buffer.fromStringLines(['BBB'])), isTrue);
+    });
+
+    test('works inside Row/Column', () {
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+      final capturedRects = <Rect>[];
+
+      Row(
+        children: [
+          Fixed(
+            2,
+            child: LayoutBuilder(
+              builder: (rect) {
+                capturedRects.add(rect);
+                return const _FillWidget('A');
+              },
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (rect) {
+                capturedRects.add(rect);
+                return const _FillWidget('B');
+              },
+            ),
+          ),
+        ],
+      ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+      expect(buffer.eq(Buffer.fromStringLines(['AABBBB'])), isTrue);
+      expect(capturedRects[0], Rect.create(x: 0, y: 0, width: 2, height: 1));
+      expect(capturedRects[1], Rect.create(x: 2, y: 0, width: 4, height: 1));
+    });
+  });
+
+  group('Parity with Layout', () {
+    test('Row matches Layout.horizontal', () {
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      final constraints = [
+        const ConstraintLength(3),
+        const ConstraintFill(1),
+        const ConstraintLength(2),
+      ];
+
+      // Imperative approach
+      final layout = Layout.horizontal(constraints);
+      final imperativeRects = layout.areas(area);
+
+      // Declarative approach
+      final capturedRects = <Rect>[];
+      Row(
+        children: [
+          Fixed(3, child: _RectCapture(capturedRects.add)),
+          Expanded(child: _RectCapture(capturedRects.add)),
+          Fixed(2, child: _RectCapture(capturedRects.add)),
+        ],
+      ).render(
+        area,
+        Frame(area, Buffer.empty(area), 0),
+      );
+
+      expect(capturedRects, imperativeRects);
+    });
+
+    test('Column matches Layout.vertical', () {
+      final area = Rect.create(x: 0, y: 0, width: 5, height: 10);
+      final constraints = [
+        const ConstraintLength(2),
+        const ConstraintPercentage(50),
+        const ConstraintFill(1),
+      ];
+
+      // Imperative approach
+      final layout = Layout.vertical(constraints);
+      final imperativeRects = layout.areas(area);
+
+      // Declarative approach
+      final capturedRects = <Rect>[];
+      Column(
+        children: [
+          Fixed(2, child: _RectCapture(capturedRects.add)),
+          Percent(50, child: _RectCapture(capturedRects.add)),
+          Expanded(child: _RectCapture(capturedRects.add)),
+        ],
+      ).render(
+        area,
+        Frame(area, Buffer.empty(area), 0),
+      );
+
+      expect(capturedRects, imperativeRects);
+    });
+
+    test('spacing parity', () {
+      final area = Rect.create(x: 0, y: 0, width: 11, height: 1);
+      final spacing = Space(1);
+      final constraints = [
+        const ConstraintLength(3),
+        const ConstraintLength(3),
+        const ConstraintLength(3),
+      ];
+
+      // Imperative
+      final layout = Layout(
+        direction: Direction.horizontal,
+        constraints: constraints,
+        spacing: spacing,
+      );
+      final imperativeRects = layout.areas(area);
+
+      // Declarative
+      final capturedRects = <Rect>[];
+      Row(
+        spacing: spacing,
+        children: [
+          Fixed(3, child: _RectCapture(capturedRects.add)),
+          Fixed(3, child: _RectCapture(capturedRects.add)),
+          Fixed(3, child: _RectCapture(capturedRects.add)),
+        ],
+      ).render(
+        area,
+        Frame(area, Buffer.empty(area), 0),
+      );
+
+      expect(capturedRects, imperativeRects);
+    });
+
+    test('flex distribution parity', () {
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      final constraints = [
+        const ConstraintFill(1),
+        const ConstraintFill(2),
+        const ConstraintFill(1),
+      ];
+
+      // Imperative
+      final layout = Layout.horizontal(constraints);
+      final imperativeRects = layout.areas(area);
+
+      // Declarative
+      final capturedRects = <Rect>[];
+      Row(
+        children: [
+          Expanded(child: _RectCapture(capturedRects.add)),
+          Expanded(weight: 2, child: _RectCapture(capturedRects.add)),
+          Expanded(child: _RectCapture(capturedRects.add)),
+        ],
+      ).render(
+        area,
+        Frame(area, Buffer.empty(area), 0),
+      );
+
+      expect(capturedRects, imperativeRects);
+    });
+  });
+}
+
+/// A widget that captures the rect it receives.
+class _RectCapture implements Widget {
+  final void Function(Rect) onRect;
+
+  const _RectCapture(this.onRect);
+
+  @override
+  void render(Rect area, Frame frame) {
+    onRect(area);
+  }
 }

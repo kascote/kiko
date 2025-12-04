@@ -84,3 +84,19 @@ class Expanded implements LayoutChild {
   /// The weight determines the proportion of remaining space (default 1).
   Expanded({required this.child, int weight = 1}) : constraint = ConstraintFill(weight);
 }
+
+/// A layout child with an arbitrary constraint.
+///
+/// Use this when you need a constraint type not covered by [Fixed], [MinSize],
+/// [Percent], or [Expanded], or when building higher-order widgets like Grid.
+@immutable
+class ConstraintChild implements LayoutChild {
+  @override
+  final Constraint constraint;
+
+  @override
+  final Widget child;
+
+  /// Creates a layout child with a custom constraint.
+  const ConstraintChild(this.constraint, {required this.child});
+}

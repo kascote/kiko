@@ -29,6 +29,7 @@ export 'src/widgets/borders.dart';
 export 'src/widgets/frame.dart';
 export 'src/widgets/layout/column.dart';
 export 'src/widgets/layout/flex_layout.dart';
+export 'src/widgets/layout/grid.dart';
 export 'src/widgets/layout/layout_builder.dart';
 export 'src/widgets/layout/layout_child.dart';
 export 'src/widgets/layout/padding.dart';

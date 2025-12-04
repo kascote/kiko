@@ -52,7 +52,7 @@ void draw(Frame frame) {
 | ---------------------------- | ------------------------- |
 | `Fixed(n, child:)`           | `ConstraintLength(n)`     |
 | `MinSize(n, child:)`         | `ConstraintMin(n)`        |
-| `Percent(n, child:)`         | `ConstraintPercentage(n)` |
+| `Percent(n, child:)`         | `ConstraintPercent(n)` |
 | `Expanded(child:)`           | `ConstraintFill(1)`       |
 | `ConstraintChild(c, child:)` | Any custom constraint     |
 

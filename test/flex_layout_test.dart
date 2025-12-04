@@ -31,10 +31,10 @@ void main() {
       expect((child.constraint as ConstraintMin).value, 5);
     });
 
-    test('Percent creates ConstraintPercentage', () {
+    test('Percent creates ConstraintPercent', () {
       final child = Percent(50, child: const _FillWidget('X'));
-      expect(child.constraint, isA<ConstraintPercentage>());
-      expect((child.constraint as ConstraintPercentage).value, 50);
+      expect(child.constraint, isA<ConstraintPercent>());
+      expect((child.constraint as ConstraintPercent).value, 50);
     });
 
     test('Expanded creates ConstraintFill', () {
@@ -278,7 +278,7 @@ void main() {
       final area = Rect.create(x: 0, y: 0, width: 5, height: 10);
       final constraints = [
         const ConstraintLength(2),
-        const ConstraintPercentage(50),
+        const ConstraintPercent(50),
         const ConstraintFill(1),
       ];
 

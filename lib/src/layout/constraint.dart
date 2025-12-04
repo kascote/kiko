@@ -15,7 +15,7 @@ import 'package:meta/meta.dart';
 /// 1. [ConstraintMin]
 /// 2. [ConstraintMax]
 /// 3. [ConstraintLength]
-/// 4. [ConstraintPercentage]
+/// 4. [ConstraintPercent]
 /// 5. [ConstraintRatio]
 /// 6. [ConstraintFill]
 sealed class Constraint {
@@ -181,25 +181,25 @@ class ConstraintLength extends Constraint {
 /// └───────────────────────┘└───────────────────────┘
 /// ```
 @immutable
-class ConstraintPercentage extends Constraint {
+class ConstraintPercent extends Constraint {
   /// The constraint value
   final int value;
 
-  /// Creates a new [ConstraintPercentage] with the specified value.
-  const ConstraintPercentage(this.value);
+  /// Creates a new [ConstraintPercent] with the specified value.
+  const ConstraintPercent(this.value);
 
   // coverage:ignore-start
   @override
   bool operator ==(Object other) {
-    if (other is ConstraintPercentage && value == other.value) return true;
+    if (other is ConstraintPercent && value == other.value) return true;
     return false;
   }
 
   @override
-  int get hashCode => Object.hash(ConstraintPercentage, value);
+  int get hashCode => Object.hash(ConstraintPercent, value);
 
   @override
-  String toString() => 'ConstraintPercentage($value)';
+  String toString() => 'ConstraintPercent($value)';
   // coverage:ignore-end
 }
 

@@ -103,12 +103,12 @@ void draw(Frame frame) {
     (
       'Perc',
       const [
-        ConstraintPercentage(0),
-        ConstraintPercentage(25),
-        ConstraintPercentage(50),
-        ConstraintPercentage(75),
-        ConstraintPercentage(100),
-        ConstraintPercentage(150),
+        ConstraintPercent(0),
+        ConstraintPercent(25),
+        ConstraintPercent(50),
+        ConstraintPercent(75),
+        ConstraintPercent(100),
+        ConstraintPercent(150),
       ],
     ),
     (
@@ -187,7 +187,7 @@ String constraintLabel(Constraint constraint) {
     ConstraintLength(:final value) ||
     ConstraintMin(:final value) ||
     ConstraintMax(:final value) ||
-    ConstraintPercentage(:final value) ||
+    ConstraintPercent(:final value) ||
     ConstraintFill(:final value) => value.toString(),
   };
 }

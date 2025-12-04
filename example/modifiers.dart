@@ -37,7 +37,7 @@ void draw(Frame frame) {
           .split(mainArea)
           .map(
             (area) => Layout.horizontal(
-              List.generate(5, (_) => const ConstraintPercentage(20)),
+              List.generate(5, (_) => const ConstraintPercent(20)),
             ).split(area),
           )
           .expand((x) => x)

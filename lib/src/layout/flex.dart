@@ -15,7 +15,7 @@ enum Flex {
   /// 1. [ConstraintMin]
   /// 2. [ConstraintMax]
   /// 3. [ConstraintLength]
-  /// 4. [ConstraintPercentage]
+  /// 4. [ConstraintPercent]
   /// 5. [ConstraintRatio]
   /// 6. [ConstraintFill]
   ///

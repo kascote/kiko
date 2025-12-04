@@ -39,7 +39,7 @@ void draw(Frame frame) {
           rows: 9,
           columns: 2,
           rowConstraint: ConstraintMax(4),
-          columnConstraint: ConstraintPercentage(50),
+          columnConstraint: ConstraintPercent(50),
           cellBuilder: _buildCell,
         ),
       ),

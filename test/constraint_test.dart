@@ -22,10 +22,10 @@ void main() {
     );
   }
 
-  List<ConstraintPercentage> constraintFromPercentages(List<int> values) {
+  List<ConstraintPercent> constraintFromPercentages(List<int> values) {
     return List.generate(
       values.length,
-      (i) => ConstraintPercentage(values[i]),
+      (i) => ConstraintPercent(values[i]),
       growable: false,
     );
   }
@@ -71,9 +71,9 @@ void main() {
     });
     test('fromPercentages', () {
       expect(constraintFromPercentages([25, 50, 25]), [
-        const ConstraintPercentage(25),
-        const ConstraintPercentage(50),
-        const ConstraintPercentage(25),
+        const ConstraintPercent(25),
+        const ConstraintPercent(50),
+        const ConstraintPercent(25),
       ]);
     });
     test('fromMaxes', () {

@@ -118,7 +118,8 @@ enum Strengths {
   /// ┌───────┐
   /// │<= x =>│
   /// └───────┘
-  allSegmentGrow(_weak);
+  allSegmentGrow(_weak)
+  ;
 
   /// The value of the strength.
   final double value;
@@ -550,7 +551,7 @@ class Layout {
           solver.addConstraint(
             segment.hasIntSize(value, Strengths.lengthSizeEq.value),
           );
-        case ConstraintPercentage(:final value):
+        case ConstraintPercent(:final value):
           final size = area.size * cos.cm(value.toDouble()) / cos.cm(100);
           solver.addConstraint(
             segment.hasSize(size, Strengths.percentageSizeEq.value),

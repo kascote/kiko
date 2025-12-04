@@ -60,7 +60,7 @@ void draw(Frame frame) {
       .split(mainArea)
       .map(
         (a) => Layout.horizontal(
-          const [ConstraintPercentage(50), ConstraintPercentage(50)],
+          const [ConstraintPercent(50), ConstraintPercent(50)],
         ).split(a),
       )
       .toList();

@@ -204,7 +204,7 @@ void renderMultipleTitlePositions(Text text, Frame frame, Rect area) {
 void renderPadding(Text text, Frame frame, Rect area) {
   final block = const Block(
     borders: Borders.all,
-    padding: Padding(left: 5, right: 10, top: 1, bottom: 2),
+    padding: EdgeInsets(left: 5, right: 10, top: 1, bottom: 2),
   ).titleTop(Line(content: 'Padding'));
 
   final inner = block.inner(area);

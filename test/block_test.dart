@@ -179,23 +179,23 @@ void main() {
 
     test('vertical space takes into account padding', () {
       final cases = [
-        (border: Borders.top, pad: const Padding(top: 1), expected: (2, 0)),
-        (border: Borders.right, pad: const Padding(top: 1), expected: (1, 0)),
-        (border: Borders.bottom, pad: const Padding(top: 1), expected: (1, 1)),
-        (border: Borders.left, pad: const Padding(top: 1), expected: (1, 0)),
+        (border: Borders.top, pad: const EdgeInsets(top: 1), expected: (2, 0)),
+        (border: Borders.right, pad: const EdgeInsets(top: 1), expected: (1, 0)),
+        (border: Borders.bottom, pad: const EdgeInsets(top: 1), expected: (1, 1)),
+        (border: Borders.left, pad: const EdgeInsets(top: 1), expected: (1, 0)),
         (
           border: Borders.top | Borders.bottom,
-          pad: const Padding(top: 4, left: 100, bottom: 5, right: 100),
+          pad: const EdgeInsets(top: 4, left: 100, bottom: 5, right: 100),
           expected: (5, 6),
         ),
         (
           border: Borders.none,
-          pad: const Padding(top: 10, left: 100, bottom: 13, right: 100),
+          pad: const EdgeInsets(top: 10, left: 100, bottom: 13, right: 100),
           expected: (10, 13),
         ),
         (
           border: Borders.all,
-          pad: const Padding(top: 1, left: 100, bottom: 3, right: 100),
+          pad: const EdgeInsets(top: 1, left: 100, bottom: 3, right: 100),
           expected: (2, 4),
         ),
       ];
@@ -245,17 +245,17 @@ void main() {
 
     test('horizontal space takes into_account padding', () {
       var block = const Block(
-        padding: Padding(top: 100, left: 1, bottom: 100, right: 1),
+        padding: EdgeInsets(top: 100, left: 1, bottom: 100, right: 1),
       );
       expect(block.horizontalSpace(), (1, 1));
 
-      block = const Block(padding: Padding(left: 3, right: 5));
+      block = const Block(padding: EdgeInsets(left: 3, right: 5));
       expect(block.horizontalSpace(), (3, 5));
 
-      block = const Block(padding: Padding(top: 100, bottom: 100, right: 1));
+      block = const Block(padding: EdgeInsets(top: 100, bottom: 100, right: 1));
       expect(block.horizontalSpace(), (0, 1));
 
-      block = const Block(padding: Padding(top: 100, left: 1, bottom: 100));
+      block = const Block(padding: EdgeInsets(top: 100, left: 1, bottom: 100));
       expect(block.horizontalSpace(), (1, 0));
     });
   });
@@ -264,17 +264,17 @@ void main() {
     final cases = [
       (
         borders: Borders.all,
-        pad: const Padding(top: 1, left: 1, bottom: 1, right: 1),
+        pad: const EdgeInsets(top: 1, left: 1, bottom: 1, right: 1),
         hs: (2, 2),
       ),
-      (borders: Borders.all, pad: const Padding(left: 1), hs: (2, 1)),
-      (borders: Borders.all, pad: const Padding(right: 1), hs: (1, 2)),
-      (borders: Borders.all, pad: const Padding(top: 1), hs: (1, 1)),
-      (borders: Borders.all, pad: const Padding(bottom: 1), hs: (1, 1)),
-      (borders: Borders.left, pad: const Padding(left: 1), hs: (2, 0)),
-      (borders: Borders.left, pad: const Padding(right: 1), hs: (1, 1)),
-      (borders: Borders.right, pad: const Padding(right: 1), hs: (0, 2)),
-      (borders: Borders.right, pad: const Padding(left: 1), hs: (1, 1)),
+      (borders: Borders.all, pad: const EdgeInsets(left: 1), hs: (2, 1)),
+      (borders: Borders.all, pad: const EdgeInsets(right: 1), hs: (1, 2)),
+      (borders: Borders.all, pad: const EdgeInsets(top: 1), hs: (1, 1)),
+      (borders: Borders.all, pad: const EdgeInsets(bottom: 1), hs: (1, 1)),
+      (borders: Borders.left, pad: const EdgeInsets(left: 1), hs: (2, 0)),
+      (borders: Borders.left, pad: const EdgeInsets(right: 1), hs: (1, 1)),
+      (borders: Borders.right, pad: const EdgeInsets(right: 1), hs: (0, 2)),
+      (borders: Borders.right, pad: const EdgeInsets(left: 1), hs: (1, 1)),
     ];
 
     for (final kase in cases) {
@@ -500,4 +500,65 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('child renders in inner area', () {
+    final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
+    const Block(
+      borders: Borders.all,
+      child: _FillWidget('X'),
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+    final expected = Buffer.fromStringLines([
+      '┌────────┐',
+      '│XXXXXXXX│',
+      '└────────┘',
+    ]);
+    expect(buffer.eq(expected), isTrue);
+  });
+
+  test('child renders in inner area with padding', () {
+    final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 12, height: 5));
+    const Block(
+      borders: Borders.all,
+      padding: EdgeInsets(left: 1, right: 1, top: 1, bottom: 1),
+      child: _FillWidget('X'),
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+    final expected = Buffer.fromStringLines([
+      '┌──────────┐',
+      '│          │',
+      '│ XXXXXXXX │',
+      '│          │',
+      '└──────────┘',
+    ]);
+    expect(buffer.eq(expected), isTrue);
+  });
+
+  test('child not rendered if inner area is empty', () {
+    final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 2, height: 2));
+    const Block(
+      borders: Borders.all,
+      child: _FillWidget('X'),
+    ).render(buffer.area, Frame(buffer.area, buffer, 0));
+
+    final expected = Buffer.fromStringLines([
+      '┌┐',
+      '└┘',
+    ]);
+    expect(buffer.eq(expected), isTrue);
+  });
+}
+
+class _FillWidget implements Widget {
+  final String char;
+  const _FillWidget(this.char);
+
+  @override
+  void render(Rect area, Frame frame) {
+    for (var y = area.top; y < area.bottom; y++) {
+      for (var x = area.left; x < area.right; x++) {
+        frame.buffer[(x: x, y: y)] = frame.buffer[(x: x, y: y)].copyWith(char: char);
+      }
+    }
+  }
 }

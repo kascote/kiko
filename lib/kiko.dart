@@ -31,5 +31,6 @@ export 'src/widgets/layout/column.dart';
 export 'src/widgets/layout/flex_layout.dart';
 export 'src/widgets/layout/layout_builder.dart';
 export 'src/widgets/layout/layout_child.dart';
+export 'src/widgets/layout/padding.dart';
 export 'src/widgets/layout/row.dart';
 export 'src/widgets/paragraph.dart';

@@ -149,11 +149,14 @@ class Block implements Widget {
   final Style style;
 
   /// Padding to apply to the block.
-  final Padding padding;
+  final EdgeInsets padding;
 
   /// Border set to use when rendering the block. This will be used when
   /// [borderType] is set to [BorderType.custom].
   final BorderSet? borderSet;
+
+  /// Optional child widget to render inside the block's inner area.
+  final Widget? child;
 
   /// Creates a new block widget.
   const Block({
@@ -162,8 +165,9 @@ class Block implements Widget {
     this.borderType = BorderType.plain,
     this.style = const Style(),
     this.titlesStyle = const Style(),
-    this.padding = const Padding.zero(),
+    this.padding = const EdgeInsets.zero(),
     this.borderSet,
+    this.child,
     List<Line> topTitles = const [],
     List<Line> bottomTitles = const [],
   }) : _topTitles = topTitles,
@@ -269,7 +273,7 @@ class Block implements Widget {
 
   /// Calculate the left, and right space the [Block] will take up.
   ///
-  /// The result takes the [Block]'s, [Borders], and [Padding] into account.
+  /// The result takes the [Block]'s, [Borders], and [EdgeInsets] into account.
   (int, int) horizontalSpace() {
     final left = padding.left.saturatingAddU16(borders.has(Borders.left) ? 1 : 0);
     final right = padding.right.saturatingAddU16(
@@ -280,7 +284,7 @@ class Block implements Widget {
 
   /// Calculate the top, and bottom space that the [Block] will take up.
   ///
-  /// Takes the [Padding], title's position, and the [Borders] that are
+  /// Takes the [EdgeInsets], title's position, and the [Borders] that are
   /// selected into account when calculating the result.
   (int, int) verticalSpace() {
     final hasTop = borders.has(Borders.top) || _topTitles.isNotEmpty ? 1 : 0;
@@ -305,6 +309,13 @@ class Block implements Widget {
     buffer.setStyle(renderArea, style);
     _renderBorders(renderArea, buffer);
     _renderTitles(renderArea, frame);
+
+    if (child != null) {
+      final innerArea = inner(area);
+      if (!innerArea.isEmpty) {
+        child!.render(innerArea, frame);
+      }
+    }
   }
 
   void _renderBorders(Rect area, Buffer buffer) {
@@ -485,8 +496,9 @@ class Block implements Widget {
     BorderType? borderType,
     Style? style,
     Style? titlesStyle,
-    Padding? padding,
+    EdgeInsets? padding,
     BorderSet? borderSet,
+    Widget? child,
     List<Line>? topTitles,
     List<Line>? bottomTitles,
   }) {
@@ -498,6 +510,7 @@ class Block implements Widget {
       titlesStyle: titlesStyle ?? this.titlesStyle,
       padding: padding ?? this.padding,
       borderSet: borderSet ?? this.borderSet,
+      child: child ?? this.child,
       topTitles: topTitles ?? _topTitles,
       bottomTitles: bottomTitles ?? _bottomTitles,
     );
@@ -515,6 +528,7 @@ class Block implements Widget {
           titlesStyle == other.titlesStyle &&
           padding == other.padding &&
           borderSet == other.borderSet &&
+          child == other.child &&
           const ListEquality<Line>().equals(_topTitles, other._topTitles) &&
           const ListEquality<Line>().equals(_bottomTitles, other._bottomTitles);
     }
@@ -531,6 +545,7 @@ class Block implements Widget {
     titlesStyle,
     padding,
     borderSet,
+    child,
     Object.hashAll(_topTitles),
     Object.hashAll(_bottomTitles),
   );

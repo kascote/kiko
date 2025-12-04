@@ -311,10 +311,7 @@ class Block implements Widget {
     _renderTitles(renderArea, frame);
 
     if (child != null) {
-      final innerArea = inner(area);
-      if (!innerArea.isEmpty) {
-        child!.render(innerArea, frame);
-      }
+      child!.render(inner(area), frame);
     }
   }
 

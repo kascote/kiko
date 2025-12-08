@@ -54,7 +54,7 @@ class Buffer implements Equality<Buffer> {
   /// Build a Buffer from a list of string lines
   @visibleForTesting
   factory Buffer.fromStringLines(List<String> stringLines) {
-    final lines = stringLines.map((line) => Line(content: line)).toList();
+    final lines = stringLines.map(Line.new).toList();
     return Buffer.fromLines(lines);
   }
 

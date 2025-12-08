@@ -24,7 +24,7 @@ class Span implements Widget {
   final Style _style;
 
   /// Creates a new Span with the given content and style.
-  const Span({String? content, Style? style}) : _content = content ?? '', _style = style ?? const Style();
+  const Span(String content, {Style? style}) : _content = content, _style = style ?? const Style();
 
   /// Returns the style of the Span.
   Style get style => _style;
@@ -59,7 +59,7 @@ class Span implements Widget {
 
   /// Returns a new Span with the given content.
   Span copyWith({String? content, Style? style}) {
-    return Span(content: content ?? _content, style: style ?? _style);
+    return Span(content ?? _content, style: style ?? _style);
   }
 
   /// Returns a [Line] from the Span, with the alignment set to [Alignment.left]

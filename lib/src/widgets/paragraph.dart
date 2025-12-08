@@ -104,7 +104,7 @@ class Paragraph implements Widget {
 
   List<Line> _wrapSpansAtWidth(Spans spans, int lineWidth) {
     final wrappedLines = <Line>[];
-    var currentLine = Line();
+    var currentLine = Line('');
     final spanBuffer = StringBuffer();
     final wordBuffer = StringBuffer();
     var currentLineWidth = 0;
@@ -112,7 +112,7 @@ class Paragraph implements Widget {
     void addCurrentSpan(Style style) {
       if (spanBuffer.isNotEmpty) {
         currentLine = currentLine.add(
-          Span(content: spanBuffer.toString(), style: style),
+          Span(spanBuffer.toString(), style: style),
         );
         spanBuffer.clear();
       }
@@ -121,7 +121,7 @@ class Paragraph implements Widget {
     void startNewLine() {
       if (currentLine.width > 0) {
         wrappedLines.add(currentLine);
-        currentLine = Line();
+        currentLine = Line('');
         currentLineWidth = 0;
       }
     }

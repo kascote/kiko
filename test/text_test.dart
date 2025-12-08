@@ -6,8 +6,8 @@ void main() {
     test('raw', () {
       final text = Text.raw('The first line\nThe second line');
       expect(text.lines, [
-        Line.fromSpan(const Span(content: 'The first line')),
-        Line.fromSpan(const Span(content: 'The second line')),
+        Line.fromSpan(const Span('The first line')),
+        Line.fromSpan(const Span('The second line')),
       ]);
     });
 
@@ -76,7 +76,7 @@ void main() {
     test('addLine', () {
       final text = Text.raw(
         'The first line\nThe second line',
-      ).addLine(Line.fromSpan(const Span(content: 'The third line')));
+      ).addLine(Line.fromSpan(const Span('The third line')));
       final expectedText = Text.raw(
         'The first line\nThe second line\nThe third line',
       );
@@ -86,17 +86,16 @@ void main() {
     test('addSpan', () {
       final text = Text.raw(
         'The first line\nThe second line',
-      ).addSpan(const Span(content: 'The third line'));
-      final expectedText = Text.raw('The first line\nThe second line')
-        ..lines.last.add(const Span(content: 'The third line'));
+      ).addSpan(const Span('The third line'));
+      final expectedText = Text.raw('The first line\nThe second line')..lines.last.add(const Span('The third line'));
       expect(text, expectedText);
     });
 
     test('addSpan empty', () {
       final text = Text(
-        lines: const [],
-      ).addSpan(const Span(content: 'foo bar'));
-      final expectedText = Text(lines: [Line(content: 'foo bar')]);
+        const [],
+      ).addSpan(const Span('foo bar'));
+      final expectedText = Text([Line('foo bar')]);
       expect(text, expectedText);
     });
 
@@ -173,8 +172,8 @@ null
     test('render one line right', () {
       final text = Text.fromLines(
         [
-          Line(content: 'foo'),
-          Line(content: 'bar', alignment: Alignment.center),
+          Line('foo'),
+          Line('bar', alignment: Alignment.center),
         ],
         alignment: Alignment.right,
       );
@@ -190,7 +189,7 @@ null
       final buf = Buffer.empty(area);
       final line = Line.fromSpan(
         const Span(
-          content: 'foo',
+          'foo',
           style: Style(bg: Color.blue),
         ),
       );
@@ -209,7 +208,7 @@ null
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
       final line = Line.fromSpan(
         const Span(
-          content: 'foobar',
+          'foobar',
           style: Style(bg: Color.blue),
         ),
       );

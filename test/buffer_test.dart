@@ -27,10 +27,10 @@ Buffer {
 
     test('style', () {
       final buf = Buffer.fromLines([
-        Line.fromSpan(const Span(content: 'Hello World!', style: Style())),
+        Line.fromSpan(const Span('Hello World!', style: Style())),
         Line.fromSpan(
           Span(
-            content: "G'day World!",
+            "G'day World!",
             style: const Style(
               fg: Color.green,
               bg: Color.yellow,
@@ -130,12 +130,9 @@ Buffer {
           const Style(fg: Color.red),
         );
       final expected = Buffer.fromLines([
-        Line(content: 'aaaaa'),
-        Line(
-          content: 'bbbbb',
-          style: const Style(fg: Color.red),
-        ),
-        Line(content: 'ccccc'),
+        Line('aaaaa'),
+        Line('bbbbb', style: const Style(fg: Color.red)),
+        Line('ccccc'),
       ]);
       expect(buf.eq(expected), isTrue);
     });

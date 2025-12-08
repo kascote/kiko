@@ -31,13 +31,13 @@ void draw(Frame frame) {
   frame.renderWidget(
     Text.fromLines([
       Line(
-        content: 'Horizontal layout example',
+        'Horizontal layout example',
         style: const Style(fg: Color.darkGray),
         alignment: Alignment.center,
       ),
-      Line(content: 'Each line has 2 constraints, plus Min(0) to fill the remaining space.'),
-      Line(content: 'E.g. the second line of the Len/Min box is [Length(2), Min(2), Min(0)]'),
-      Line(content: "Note: constraint labels that don't fit are truncated"),
+      Line('Each line has 2 constraints, plus Min(0) to fill the remaining space.'),
+      Line('E.g. the second line of the Len/Min box is [Length(2), Min(2), Min(0)]'),
+      Line("Note: constraint labels that don't fit are truncated"),
     ]),
     textArea,
   );
@@ -145,7 +145,7 @@ void renderExampleCombination(
         borderStyle: Style(fg: Color.darkGray),
       ).titleTop(
         Line(
-          content: title,
+          title,
           style: const Style(fg: Color.green),
           alignment: Alignment.left,
         ),

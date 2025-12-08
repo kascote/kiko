@@ -59,8 +59,8 @@ void main() {
 
     test('render a wrapping line width spans', () {
       final line1 = Line.fromSpans(const [
-        Span(content: 'Hello World'),
-        Span(content: ' Buenos Dias!'),
+        Span('Hello World'),
+        Span(' Buenos Dias!'),
       ]);
       final para = Paragraph.withText(Text.fromLines([line1]));
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 21, height: 2));
@@ -80,25 +80,25 @@ void main() {
     test('render a wrapping line width spans spanning multiple lines', () {
       final line1 = Line.fromSpans(const [
         Span(
-          content: 'The brow fox ',
+          'The brow fox ',
           style: Style(fg: Color.red),
         ),
         Span(
-          content: 'jumps over the lazy dog ',
+          'jumps over the lazy dog ',
           style: Style(fg: Color.green),
         ),
         Span(
-          content: 'and the funny snake ',
+          'and the funny snake ',
           style: Style(fg: Color.magenta),
         ),
       ]);
       final line2 = Line.fromSpans(const [
         Span(
-          content: 'from down the hill ',
+          'from down the hill ',
           style: Style(fg: Color.blue),
         ),
         Span(
-          content: 'but the dog is too lazy to care',
+          'but the dog is too lazy to care',
           style: Style(fg: Color.yellow),
         ),
       ]);

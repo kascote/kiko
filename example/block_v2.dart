@@ -85,7 +85,7 @@ class _BordersDemo implements Widget {
     Block(
       borders: border,
       child: _placeHolderText,
-    ).titleTop(Line(content: 'Borders::$name')).render(area, frame);
+    ).titleTop(Line('Borders::$name')).render(area, frame);
   }
 }
 
@@ -101,7 +101,7 @@ class _BorderTypeDemo implements Widget {
       borders: Borders.all,
       borderType: borderType,
       child: _placeHolderText,
-    ).titleTop(Line(content: 'BorderType::$name')).render(area, frame);
+    ).titleTop(Line('BorderType::$name')).render(area, frame);
   }
 }
 
@@ -112,7 +112,7 @@ class _StyledBlockDemo implements Widget {
       borders: Borders.all,
       style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       child: _placeHolderText,
-    ).titleTop(Line(content: 'Styled block')).render(area, frame);
+    ).titleTop(Line('Styled block')).render(area, frame);
   }
 }
 
@@ -123,7 +123,7 @@ class _StyledBorderDemo implements Widget {
       borders: Borders.all,
       borderStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       child: _placeHolderText,
-    ).titleTop(Line(content: 'Styled borders')).render(area, frame);
+    ).titleTop(Line('Styled borders')).render(area, frame);
   }
 }
 
@@ -134,7 +134,7 @@ class _StyledTitleDemo implements Widget {
       borders: Borders.all,
       titlesStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       child: _placeHolderText,
-    ).titleTop(Line(content: 'Styled title')).render(area, frame);
+    ).titleTop(Line('Styled title')).render(area, frame);
   }
 }
 
@@ -143,11 +143,11 @@ class _StyledTitleContentDemo implements Widget {
   void render(Rect area, Frame frame) {
     final title = Line.fromSpans([
       Span(
-        content: 'Styled ',
+        'Styled ',
         style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       ),
       Span(
-        content: 'title content',
+        'title content',
         style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       ),
     ]);
@@ -165,13 +165,13 @@ class _MultipleTitlesDemo implements Widget {
     Block(borders: Borders.all, child: _placeHolderText)
         .titleTop(
           Line(
-            content: 'Multiple',
+            'Multiple',
             style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
           ),
         )
         .titleTop(
           Line(
-            content: 'Titles',
+            'Titles',
             style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
           ),
         )
@@ -183,12 +183,12 @@ class _MultipleTitlePositionsDemo implements Widget {
   @override
   void render(Rect area, Frame frame) {
     Block(borders: Borders.all, child: _placeHolderText)
-        .titleTop(Line(content: 'top left', alignment: Alignment.left))
-        .titleTop(Line(content: 'top center', alignment: Alignment.center))
-        .titleTop(Line(content: 'top right', alignment: Alignment.right))
-        .titleBottom(Line(content: 'bottom left', alignment: Alignment.left))
-        .titleBottom(Line(content: 'bottom center', alignment: Alignment.center))
-        .titleBottom(Line(content: 'bottom right', alignment: Alignment.right))
+        .titleTop(Line('top left', alignment: Alignment.left))
+        .titleTop(Line('top center', alignment: Alignment.center))
+        .titleTop(Line('top right', alignment: Alignment.right))
+        .titleBottom(Line('bottom left', alignment: Alignment.left))
+        .titleBottom(Line('bottom center', alignment: Alignment.center))
+        .titleBottom(Line('bottom right', alignment: Alignment.right))
         .render(area, frame);
   }
 }
@@ -200,7 +200,7 @@ class _PaddingDemo implements Widget {
       borders: Borders.all,
       padding: const EdgeInsets(left: 5, right: 10, top: 1, bottom: 2),
       child: _placeHolderText,
-    ).titleTop(Line(content: 'Padding')).render(area, frame);
+    ).titleTop(Line('Padding')).render(area, frame);
   }
 }
 
@@ -209,8 +209,8 @@ class _NestedBlocksDemo implements Widget {
   void render(Rect area, Frame frame) {
     Block(
       borders: Borders.all,
-      child: const Block(borders: Borders.all).titleTop(Line(content: 'Inner block')),
-    ).titleTop(Line(content: 'Outer block')).render(area, frame);
+      child: const Block(borders: Borders.all).titleTop(Line('Inner block')),
+    ).titleTop(Line('Outer block')).render(area, frame);
   }
 }
 

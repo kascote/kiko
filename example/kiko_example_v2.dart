@@ -20,22 +20,22 @@ void main() async {
                       child: Text.fromLines([
                         Line.fromSpans(const [
                           Span(
-                            content: 'Hello, ',
+                            'Hello, ',
                             style: Style(fg: Color.red),
                           ),
                           Span(
-                            content: 'World',
+                            'World',
                             style: Style(fg: Color.black, bg: Color.yellow),
                           ),
                           Span(
-                            content: '!',
+                            '!',
                             style: Style(bg: Color.blue),
                           ),
                         ]),
                       ]),
                     ).titleTop(
                       Line(
-                        content: 'Kiko',
+                        'Kiko',
                         style: const Style(fg: Color.green),
                         alignment: Alignment.left,
                       ),

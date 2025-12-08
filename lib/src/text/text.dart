@@ -30,13 +30,11 @@ class Text implements Widget {
   final Alignment? alignment;
 
   /// Creates a new text widget.
-  Text({required List<Line> lines, Style? style, this.alignment})
-    : _lines = List.from(lines),
-      style = style ?? const Style();
+  Text(List<Line> lines, {Style? style, this.alignment}) : _lines = List.from(lines), style = style ?? const Style();
 
   /// Creates a new text widget from a raw string.
   Text.raw(String lines, {Style? style, this.alignment})
-    : _lines = lines.lines().map((line) => Line.fromSpan(Span(content: line))),
+    : _lines = lines.lines().map((line) => Line.fromSpan(Span(line))),
       style = style != null ? const Style().patch(style) : const Style();
 
   // /// Creates a new text widget from a styled string.
@@ -50,7 +48,7 @@ class Text implements Widget {
     Style? style,
     Alignment? alignment,
   }) => Text(
-    lines: List.from(lines),
+    List.from(lines),
     style: style ?? const Style(),
     alignment: alignment ?? Alignment.left,
   );
@@ -81,7 +79,7 @@ class Text implements Widget {
 
   /// Add a [Line] to this text
   Text addLine(Line line) => Text(
-    lines: _lines.toList()..add(line),
+    _lines.toList()..add(line),
     style: style,
     alignment: alignment,
   );
@@ -110,7 +108,7 @@ class Text implements Widget {
   /// Creates a copy of this Text but with the given fields replaced with the new values.
   Text copyWith({List<Line>? lines, Style? style, Alignment? alignment}) {
     return Text(
-      lines: lines ?? List.from(_lines),
+      lines ?? List.from(_lines),
       style: style ?? this.style,
       alignment: alignment ?? this.alignment,
     );

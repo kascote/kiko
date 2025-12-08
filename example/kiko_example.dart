@@ -7,15 +7,15 @@ void main() async {
   term.draw((frame) {
     final lines = [
       const Span(
-        content: 'Hello, ',
+        'Hello, ',
         style: Style(fg: Color.red),
       ),
       const Span(
-        content: 'World',
+        'World',
         style: Style(fg: Color.black, bg: Color.yellow),
       ),
       const Span(
-        content: '!',
+        '!',
         style: Style(bg: Color.blue),
       ),
     ];
@@ -27,7 +27,7 @@ void main() async {
       ..renderWidget(
         const Block(borders: Borders.all, borderType: BorderType.rounded).titleTop(
           Line(
-            content: 'Kiko',
+            'Kiko',
             style: const Style(fg: Color.green),
             alignment: Alignment.left,
           ),

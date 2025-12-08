@@ -104,7 +104,7 @@ void main() {
         final area = Rect.create(x: 0, y: 0, width: 0, height: 1);
         final expected = Rect.create(x: 0, y: 1, width: 0, height: 0);
 
-        final block = const Block().titleTop(Line(content: 'Test', alignment: align));
+        final block = const Block().titleTop(Line('Test', alignment: align));
         expect(block.inner(area), expected);
       }
     });
@@ -112,19 +112,19 @@ void main() {
     test('takes into account border an title', () {
       final cases = [
         (
-          block: const Block(borders: Borders.top).titleTop(Line(content: 'Test')),
+          block: const Block(borders: Borders.top).titleTop(Line('Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 1),
         ),
         (
-          block: const Block(borders: Borders.bottom).titleTop(Line(content: 'Test')),
+          block: const Block(borders: Borders.bottom).titleTop(Line('Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 0),
         ),
         (
-          block: const Block(borders: Borders.top).titleBottom(Line(content: 'Test')),
+          block: const Block(borders: Borders.top).titleBottom(Line('Test')),
           expected: Rect.create(x: 0, y: 1, width: 0, height: 0),
         ),
         (
-          block: const Block(borders: Borders.bottom).titleBottom(Line(content: 'Test')),
+          block: const Block(borders: Borders.bottom).titleBottom(Line('Test')),
           expected: Rect.create(x: 0, y: 0, width: 0, height: 1),
         ),
       ];
@@ -142,15 +142,15 @@ void main() {
         expect(block.hasTitleAtTop, false);
         expect(block.hasTitleAtBottom, false);
 
-        block = const Block().titleTop(Line(content: 'Test'));
+        block = const Block().titleTop(Line('Test'));
         expect(block.hasTitleAtTop, true);
         expect(block.hasTitleAtBottom, false);
 
-        block = const Block().titleBottom(Line(content: 'Test'));
+        block = const Block().titleBottom(Line('Test'));
         expect(block.hasTitleAtTop, false);
         expect(block.hasTitleAtBottom, true);
 
-        block = const Block().titleTop(Line(content: 'Test')).titleBottom(Line(content: 'Test'));
+        block = const Block().titleTop(Line('Test')).titleBottom(Line('Test'));
         expect(block.hasTitleAtTop, true);
         expect(block.hasTitleAtBottom, true);
       },
@@ -207,10 +207,10 @@ void main() {
     });
 
     test('vertical space takes into account titles', () {
-      final block = const Block().titleTop(Line(content: 'Test'));
+      final block = const Block().titleTop(Line('Test'));
       expect(block.verticalSpace(), (1, 0));
 
-      final block2 = const Block().titleBottom(Line(content: 'Test'));
+      final block2 = const Block().titleBottom(Line('Test'));
       expect(block2.verticalSpace(), (0, 1));
     });
 
@@ -227,7 +227,7 @@ void main() {
       ];
 
       for (final kase in cases) {
-        final block = Block(borders: kase.borders).title(Line(content: 'Test'), kase.pos);
+        final block = Block(borders: kase.borders).title(Line('Test'), kase.pos);
         expect(block.verticalSpace(), kase.vs);
       }
     });
@@ -286,12 +286,12 @@ void main() {
   test('title', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 3));
     const Block(borders: Borders.all)
-        .title(Line(content: 'A', alignment: Alignment.left), TitlePosition.top)
-        .title(Line(content: 'B', alignment: Alignment.center), TitlePosition.top)
-        .title(Line(content: 'C', alignment: Alignment.right), TitlePosition.top)
-        .title(Line(content: 'D', alignment: Alignment.left), TitlePosition.bottom)
-        .title(Line(content: 'E', alignment: Alignment.center), TitlePosition.bottom)
-        .title(Line(content: 'F', alignment: Alignment.right), TitlePosition.bottom)
+        .title(Line('A', alignment: Alignment.left), TitlePosition.top)
+        .title(Line('B', alignment: Alignment.center), TitlePosition.top)
+        .title(Line('C', alignment: Alignment.right), TitlePosition.top)
+        .title(Line('D', alignment: Alignment.left), TitlePosition.bottom)
+        .title(Line('E', alignment: Alignment.center), TitlePosition.bottom)
+        .title(Line('F', alignment: Alignment.right), TitlePosition.bottom)
         .render(buffer.area, Frame(buffer.area, buffer, 0));
 
     expect(
@@ -309,12 +309,12 @@ void main() {
   test('title top bottom', () {
     final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 3));
     const Block(borders: Borders.all)
-        .titleTop(Line(content: 'A'))
-        .titleTop(Line(content: 'B', alignment: Alignment.center))
-        .titleTop(Line(content: 'C', alignment: Alignment.right))
-        .titleBottom(Line(content: 'D', alignment: Alignment.left))
-        .titleBottom(Line(content: 'E', alignment: Alignment.center))
-        .titleBottom(Line(content: 'F', alignment: Alignment.right))
+        .titleTop(Line('A'))
+        .titleTop(Line('B', alignment: Alignment.center))
+        .titleTop(Line('C', alignment: Alignment.right))
+        .titleBottom(Line('D', alignment: Alignment.left))
+        .titleBottom(Line('E', alignment: Alignment.center))
+        .titleBottom(Line('F', alignment: Alignment.right))
         .render(buffer.area, Frame(buffer.area, buffer, 0));
 
     expect(
@@ -338,9 +338,7 @@ void main() {
 
     for (final kase in cases) {
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 8, height: 1));
-      const Block()
-          .titleTop(Line(content: 'test', alignment: kase.alg))
-          .render(buffer.area, Frame(buffer.area, buffer, 0));
+      const Block().titleTop(Line('test', alignment: kase.alg)).render(buffer.area, Frame(buffer.area, buffer, 0));
       expect(buffer.eq(Buffer.fromStringLines([kase.test])), isTrue);
     }
   });
@@ -351,7 +349,7 @@ void main() {
       const Block()
           .title(
             Line(
-              content: 'test',
+              'test',
               style: const Style(fg: Color.yellow),
               alignment: align,
             ),
@@ -362,7 +360,7 @@ void main() {
         buffer.eq(
           Buffer.fromLines([
             Line(
-              content: 'test',
+              'test',
               style: const Style(fg: Color.yellow),
             ),
           ]),
@@ -377,7 +375,7 @@ void main() {
     const Block(
       borders: Borders.all,
       borderStyle: Style(fg: Color.yellow),
-    ).titleTop(Line(content: 'test')).render(buffer.area, Frame(buffer.area, buffer, 0));
+    ).titleTop(Line('test')).render(buffer.area, Frame(buffer.area, buffer, 0));
 
     final expected =
         Buffer.fromStringLines([

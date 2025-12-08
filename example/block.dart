@@ -81,7 +81,7 @@ void renderTitle(Frame frame, Rect area) {
 void renderBorders(Text text, Borders border, String name, Frame frame, Rect area) {
   final block = Block(
     borders: border,
-  ).titleTop(Line(content: 'Borders::$name'));
+  ).titleTop(Line('Borders::$name'));
 
   final inner = block.inner(area);
 
@@ -94,7 +94,7 @@ void renderBorderType(Text text, BorderType borderType, String name, Frame frame
   final block = Block(
     borders: Borders.all,
     borderType: borderType,
-  ).titleTop(Line(content: 'BorderType::$name'));
+  ).titleTop(Line('BorderType::$name'));
 
   final inner = block.inner(area);
 
@@ -107,7 +107,7 @@ void renderStyledBlock(Text text, Frame frame, Rect area) {
   final block = Block(
     borders: Borders.all,
     style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
-  ).titleTop(Line(content: 'Styled block'));
+  ).titleTop(Line('Styled block'));
 
   final inner = block.inner(area);
 
@@ -120,7 +120,7 @@ void renderStyledBorder(Text text, Frame frame, Rect area) {
   final block = Block(
     borders: Borders.all,
     borderStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
-  ).titleTop(Line(content: 'Styled borders'));
+  ).titleTop(Line('Styled borders'));
 
   final inner = block.inner(area);
 
@@ -133,7 +133,7 @@ void renderStyledTitle(Text text, Frame frame, Rect area) {
   final block = Block(
     borders: Borders.all,
     titlesStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
-  ).titleTop(Line(content: 'Styled title'));
+  ).titleTop(Line('Styled title'));
 
   final inner = block.inner(area);
 
@@ -145,11 +145,11 @@ void renderStyledTitle(Text text, Frame frame, Rect area) {
 void renderStyledTitleContent(Text text, Frame frame, Rect area) {
   final title = Line.fromSpans([
     Span(
-      content: 'Styled ',
+      'Styled ',
       style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
     ),
     Span(
-      content: 'title content',
+      'title content',
       style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
     ),
   ]);
@@ -167,13 +167,13 @@ void renderMultipleTitles(Text text, Frame frame, Rect area) {
   final block = const Block(borders: Borders.all)
       .titleTop(
         Line(
-          content: 'Multiple',
+          'Multiple',
           style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
         ),
       )
       .titleTop(
         Line(
-          content: 'Titles',
+          'Titles',
           style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
         ),
       );
@@ -187,12 +187,12 @@ void renderMultipleTitles(Text text, Frame frame, Rect area) {
 
 void renderMultipleTitlePositions(Text text, Frame frame, Rect area) {
   final block = const Block(borders: Borders.all)
-      .titleTop(Line(content: 'top left', alignment: Alignment.left))
-      .titleTop(Line(content: 'top center', alignment: Alignment.center))
-      .titleTop(Line(content: 'top right', alignment: Alignment.right))
-      .titleBottom(Line(content: 'bottom left', alignment: Alignment.left))
-      .titleBottom(Line(content: 'bottom center', alignment: Alignment.center))
-      .titleBottom(Line(content: 'bottom right', alignment: Alignment.right));
+      .titleTop(Line('top left', alignment: Alignment.left))
+      .titleTop(Line('top center', alignment: Alignment.center))
+      .titleTop(Line('top right', alignment: Alignment.right))
+      .titleBottom(Line('bottom left', alignment: Alignment.left))
+      .titleBottom(Line('bottom center', alignment: Alignment.center))
+      .titleBottom(Line('bottom right', alignment: Alignment.right));
 
   final inner = block.inner(area);
 
@@ -205,7 +205,7 @@ void renderPadding(Text text, Frame frame, Rect area) {
   final block = const Block(
     borders: Borders.all,
     padding: EdgeInsets(left: 5, right: 10, top: 1, bottom: 2),
-  ).titleTop(Line(content: 'Padding'));
+  ).titleTop(Line('Padding'));
 
   final inner = block.inner(area);
 
@@ -215,8 +215,8 @@ void renderPadding(Text text, Frame frame, Rect area) {
 }
 
 void renderNestedBlocks(Text text, Frame frame, Rect area) {
-  final outerBlock = const Block(borders: Borders.all).titleTop(Line(content: 'Outer block'));
-  final innerBlock = const Block(borders: Borders.all).titleTop(Line(content: 'Inner block'));
+  final outerBlock = const Block(borders: Borders.all).titleTop(Line('Outer block'));
+  final innerBlock = const Block(borders: Borders.all).titleTop(Line('Inner block'));
 
   final inner = outerBlock.inner(area);
 

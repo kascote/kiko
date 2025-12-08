@@ -233,11 +233,11 @@ class _IndexedColorCell16 implements Widget {
     final bg = index < 1 ? Color.darkGray : Color.black;
     Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: bg),
       ),
       Span(
-        content: '  ',
+        '  ',
         style: Style(fg: color, bg: color),
       ),
     ]).render(area, frame);
@@ -282,11 +282,11 @@ class _IndexedColorCellSmall implements Widget {
     final colorIndex = index.toString().padLeft(3, '0');
     Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: Color.reset),
       ),
       Span(
-        content: '.',
+        '.',
         style: Style(fg: color, bg: color),
       ),
     ]).render(area, frame);
@@ -331,11 +331,11 @@ class _GrayScaleCell implements Widget {
     final bg = index < 244 ? Color.gray : Color.black;
     Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: bg),
       ),
       Span(
-        content: '  ',
+        '  ',
         style: Style(fg: color, bg: color),
       ),
     ]).render(area, frame);
@@ -347,7 +347,7 @@ Block titleBlock(String title) {
     borders: Borders.top,
     borderStyle: Style(fg: Color.darkGray),
     titlesStyle: Style(fg: Color.reset),
-  ).titleTop(Line(content: title, alignment: Alignment.center));
+  ).titleTop(Line(title, alignment: Alignment.center));
 }
 
 /// Empty widget for spacing.

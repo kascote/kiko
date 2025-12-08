@@ -158,11 +158,11 @@ void renderIndexedColors(Frame frame, Rect area) {
     final bg = i < 1 ? Color.darkGray : Color.black;
     final text = Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: bg),
       ),
       Span(
-        content: '  ',
+        '  ',
         style: Style(fg: color, bg: color),
       ),
     ]);
@@ -194,14 +194,14 @@ void renderIndexedColors(Frame frame, Rect area) {
     final colorIndex = i.toString().padLeft(3, '0');
     final text = Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: Color.reset),
       ),
       Span(
-        content: '.',
+        '.',
         style: Style(fg: color, bg: color),
       ),
-      const Span(content: '   '),
+      const Span('   '),
       //const Span(content: '███'),
     ]);
     frame.renderWidget(text, indexLayout.elementAt(i - 16));
@@ -229,14 +229,14 @@ void renderIndexedGrayScale(Frame frame, Rect area) {
     final bg = i < 244 ? Color.gray : Color.black;
     final text = Line.fromSpans([
       Span(
-        content: colorIndex,
+        colorIndex,
         style: Style(fg: color, bg: bg),
       ),
       Span(
-        content: '  ',
+        '  ',
         style: Style(fg: color, bg: color),
       ),
-      const Span(content: '       '),
+      const Span('       '),
     ]);
     frame.renderWidget(text, layout[i - 232]);
   }
@@ -247,5 +247,5 @@ Block titleBlock(String title) {
     borders: Borders.top,
     borderStyle: Style(fg: Color.darkGray),
     titlesStyle: Style(fg: Color.reset),
-  ).titleTop(Line(content: title, alignment: Alignment.center));
+  ).titleTop(Line(title, alignment: Alignment.center));
 }

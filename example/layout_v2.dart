@@ -128,11 +128,11 @@ class Header implements Widget {
     frame.renderWidget(
       Text.fromLines([
         Line(
-          content: title,
+          title,
           style: const Style(fg: Color.darkGray),
           alignment: Alignment.center,
         ),
-        ...lines.map((l) => Line(content: l)),
+        ...lines.map(Line.new),
       ]),
       area,
     );
@@ -158,7 +158,7 @@ class ConstraintDemoCell implements Widget {
           borderStyle: Style(fg: Color.darkGray),
         ).titleTop(
           Line(
-            content: title,
+            title,
             style: const Style(fg: Color.green),
             alignment: Alignment.left,
           ),
@@ -229,8 +229,8 @@ class DebugPanel implements Widget {
   void render(Rect area, Frame frame) {
     frame.renderWidget(
       Text.fromLines([
-        Line(content: 'Debug Panel'),
-        Line(content: 'Area: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})'),
+        Line('Debug Panel'),
+        Line('Area: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})'),
       ]),
       area,
     );

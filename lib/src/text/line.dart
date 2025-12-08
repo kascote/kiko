@@ -35,8 +35,8 @@ class Line implements Widget {
   final Alignment? alignment;
 
   /// Creates a new [Line] with the given content, style, and alignment.
-  Line({String? content, Style? style, this.alignment})
-    : _spans = (content ?? '').lines().map<Span>((l) => Span(content: l)),
+  Line(String? content, {Style? style, this.alignment})
+    : _spans = (content ?? '').lines().map<Span>(Span.new),
       style = style ?? const Style();
 
   /// Creates a new [Line] from a list of [Span]s
@@ -182,7 +182,7 @@ class Line implements Widget {
       final actualWidth = widthString(contentTruncated);
       final firstOffset = availableWidth.saturatingSubU16(actualWidth);
       acc.add((
-        Span(content: contentTruncated, style: span.style),
+        Span(contentTruncated, style: span.style),
         actualWidth,
         firstOffset,
       ));

@@ -5,12 +5,16 @@ import 'package:termparser/termparser_events.dart';
 
 Future<void> main() async {
   await Application(
-    title: 'Color Demo (Declarative)',
+    title: 'Color Demo',
     onCleanup: (terminal) async {
       stdout.writeln('layoutCache ${layoutCacheStats()}');
     },
-  ).run(
-    render: (frame) {
+  ).runStateless(
+    update: (_, msg) => switch (msg) {
+      KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, const Quit()),
+      _ => (null, null),
+    },
+    view: (_, frame) {
       final ui = Column(
         children: [
           Fixed(30, child: NamedColorsPanel()),
@@ -19,10 +23,6 @@ Future<void> main() async {
         ],
       );
       frame.renderWidget(ui, frame.area);
-    },
-    onEvent: (event) {
-      if (event is KeyEvent && event.code.char == 'q') return 0;
-      return null;
     },
   );
 }
@@ -123,12 +123,7 @@ class NamedColorRow implements Widget {
   final Color? fg;
   final bool isForeground;
 
-  const NamedColorRow({
-    required this.label,
-    required this.isForeground,
-    this.bg,
-    this.fg,
-  });
+  const NamedColorRow({required this.label, required this.isForeground, this.bg, this.fg});
 
   @override
   void render(Rect area, Frame frame) {

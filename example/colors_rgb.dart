@@ -11,12 +11,12 @@ Future<void> main() async {
     onCleanup: (terminal) async {
       stderr.writeln('layoutCache ${layoutCacheStats()}');
     },
-  ).run(
-    render: (frame) => frame.renderWidget(app, frame.area),
-    onEvent: (event) {
-      if (event is KeyEvent && event.code.char == 'q') return 0;
-      return null;
+  ).runStateless(
+    update: (_, msg) => switch (msg) {
+      KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, const Quit()),
+      _ => (null, null),
     },
+    view: (_, frame) => frame.renderWidget(app, frame.area),
   );
 }
 

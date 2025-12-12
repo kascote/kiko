@@ -10,8 +10,12 @@ Future<void> main() async {
     onCleanup: (terminal) async {
       stdout.writeln('layoutCache ${layoutCacheStats()}');
     },
-  ).run(
-    render: (frame) {
+  ).runStateless(
+    update: (_, msg) => switch (msg) {
+      KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, const Quit()),
+      _ => (null, null),
+    },
+    view: (_, frame) {
       final layout = Layout.vertical(const [
         ConstraintLength(30),
         ConstraintLength(17),
@@ -21,10 +25,6 @@ Future<void> main() async {
       renderNamedColors(frame, layout[0]);
       renderIndexedColors(frame, layout[1]);
       renderIndexedGrayScale(frame, layout[2]);
-    },
-    onEvent: (event) {
-      if (event is KeyEvent && event.code.char == 'q') return 0;
-      return null;
     },
   );
 }

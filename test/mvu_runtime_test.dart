@@ -194,10 +194,10 @@ void main() {
 
       test('Batch stops on first Quit', () {
         final result = runtime.processCmd(
-          const Batch([
-            Tick(Duration(milliseconds: 100)),
-            Quit(5),
-            Tick(Duration(milliseconds: 200)),
+          Batch([
+            const Tick(Duration(milliseconds: 100)),
+            const Quit(5),
+            const Tick(Duration(milliseconds: 200)),
           ]),
         );
 
@@ -207,22 +207,49 @@ void main() {
 
       test('Batch returns Quit exit code', () {
         runtime.processCmd(
-          const Batch([None(), Quit(99), None()]),
+          Batch([const None(), const Quit(99), const None()]),
         );
         expect(runtime.exitCode, equals(99));
       });
 
       test('nested Batch works correctly', () {
         final result = runtime.processCmd(
-          const Batch([
-            None(),
-            Batch([None(), Quit(7)]),
-            None(),
+          Batch([
+            const None(),
+            Batch([const None(), const Quit(7)]),
+            const None(),
           ]),
         );
 
         expect(result, isTrue);
         expect(runtime.exitCode, equals(7));
+      });
+
+      test('Emit queues message immediately', () async {
+        final source = TestEventSource();
+
+        runtime.processCmd(const Emit(TestMsg('emitted')));
+
+        final msg = await runtime.nextMsg(source, timeout: 100);
+        expect(msg, isA<TestMsg>());
+        expect((msg as TestMsg).value, equals('emitted'));
+      });
+
+      test('Emit in Batch queues all messages', () async {
+        final source = TestEventSource();
+
+        runtime.processCmd(
+          Batch([
+            const Emit(TestMsg('first')),
+            const Emit(TestMsg('second')),
+          ]),
+        );
+
+        final msg1 = await runtime.nextMsg(source, timeout: 100);
+        final msg2 = await runtime.nextMsg(source, timeout: 100);
+
+        expect((msg1 as TestMsg).value, equals('first'));
+        expect((msg2 as TestMsg).value, equals('second'));
       });
     });
 

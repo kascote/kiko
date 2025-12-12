@@ -141,6 +141,9 @@ class MvuRuntime {
         _tickTimer?.cancel();
         _tickTimer = null;
         return false;
+      case Emit(:final msg):
+        queueMsg(msg);
+        return false;
       case final AsyncCmd task:
         unawaited(task.execute().then(queueMsg));
         return false;

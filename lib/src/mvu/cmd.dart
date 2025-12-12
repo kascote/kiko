@@ -31,11 +31,29 @@ class Quit extends Cmd {
 
 /// Batch multiple commands together.
 class Batch extends Cmd {
-  /// List of commands to execute.
+  /// List of commands to execute (unmodifiable).
   final List<Cmd> cmds;
 
   /// Creates a Batch command.
-  const Batch(this.cmds);
+  Batch(List<Cmd> cmds) : cmds = List.unmodifiable(cmds);
+}
+
+/// Immediately queue a message for processing.
+///
+/// Use when update needs to trigger another message without async work.
+/// The message is queued and processed in the next loop iteration.
+///
+/// Example:
+/// ```dart
+/// // Trigger a refresh after some state change
+/// SomeAction() => (model.copyWith(...), Emit(RefreshRequested())),
+/// ```
+class Emit extends Cmd {
+  /// The message to queue.
+  final Msg msg;
+
+  /// Creates an Emit command.
+  const Emit(this.msg);
 }
 
 /// Request periodic tick messages.

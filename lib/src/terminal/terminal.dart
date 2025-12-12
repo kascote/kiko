@@ -306,6 +306,9 @@ class Terminal {
   /// Reads an event from the Terminal
   Future<evt.Event> readEvent<E extends evt.Event>({int timeout = 100}) async => backend.readEvent<E>(timeout: timeout);
 
+  /// Polls for a terminal event without blocking.
+  evt.Event poll<E extends evt.Event>() => backend.poll<E>();
+
   /// Flush the stdout and stderr buffers and exits the application
   Future<void> flushThenExit(int status) async => backend.flushThenExit(status);
 

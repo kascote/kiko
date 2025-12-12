@@ -130,6 +130,9 @@ class TermlibBackend {
   /// Reads a terminal event of type [T] with an optional [timeout] in milliseconds.
   Future<tle.Event> readEvent<T extends tle.Event>({int timeout = 100}) async => _term.pollTimeout<T>(timeout: timeout);
 
+  /// Polls for a terminal event of type [T] without blocking.
+  tle.Event poll<T extends tle.Event>() => _term.poll<T>();
+
   /// Flushes any buffered output and then exits the application with the given [status] code.
   Future<void> flushThenExit(int status) async => _term.flushThenExit(status);
 

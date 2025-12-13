@@ -212,6 +212,34 @@ void main() {
         expect(runtime.exitCode, equals(99));
       });
 
+      test('Task result discarded after Quit (orphaned task)', () async {
+        final source = TestEventSource();
+        final completer = Completer<int>();
+
+        // Start a task that won't complete immediately
+        final task = Task<int>(
+          () => completer.future,
+          onSuccess: (v) => TestMsg('got $v'),
+        );
+        runtime
+          ..processCmd(task)
+          // Quit before task completes
+          ..processCmd(const Quit());
+
+        // Now complete the task
+        completer.complete(42);
+
+        // Give time for the task callback to run
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // Add an event so nextMsg can return
+        source.addEvent(const KeyEvent(KeyCode.char('x')));
+
+        // Should get the key event, NOT the orphaned task result
+        final msg = await runtime.nextMsg(source, timeout: 100);
+        expect(msg, isA<KeyMsg>());
+      });
+
       test('nested Batch works correctly', () {
         final result = runtime.processCmd(
           Batch([

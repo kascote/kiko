@@ -72,11 +72,11 @@ class InitMsg extends Msg {
 
 /// Message sent on each tick interval.
 class TickMsg extends Msg {
-  /// Time elapsed since last tick.
-  final Duration delta;
+  /// Total time elapsed since Tick command was issued.
+  final Duration elapsed;
 
   /// Creates a TickMsg.
-  const TickMsg(this.delta);
+  const TickMsg(this.elapsed);
 }
 
 /// Wrapper for unknown/unhandled events.

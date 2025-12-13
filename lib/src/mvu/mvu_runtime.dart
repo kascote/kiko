@@ -6,6 +6,24 @@ import 'package:termparser/termparser_events.dart';
 import 'cmd.dart';
 import 'msg.dart';
 
+/// Internal cancellation token to prevent orphaned task results from queueing.
+///
+/// When [Quit] is processed, the token is cancelled. Any async tasks that
+/// complete after cancellation will have their results discarded rather than
+/// queued. This prevents messages from being processed during shutdown.
+///
+/// Note: This does not cancel in-flight async work (e.g., HTTP requests).
+/// The work completes, but its result is discarded.
+class _CancellationToken {
+  bool _cancelled = false;
+
+  /// Whether cancellation has been requested.
+  bool get isCancelled => _cancelled;
+
+  /// Requests cancellation.
+  void cancel() => _cancelled = true;
+}
+
 /// Abstract event source for MVU runtime.
 ///
 /// Allows injecting test implementations that don't require a real terminal.
@@ -24,6 +42,7 @@ typedef OnMsgQueued = void Function();
 class MvuRuntime {
   final Queue<Msg> _msgQueue = Queue<Msg>();
   Timer? _tickTimer;
+  _CancellationToken _token = _CancellationToken();
 
   /// Exit code set by Quit command.
   int exitCode = 0;
@@ -44,6 +63,7 @@ class MvuRuntime {
     _wakeUp = Completer<void>();
     _tickTimer?.cancel();
     _tickTimer = null;
+    _token = _CancellationToken();
   }
 
   /// Queues a message and signals wake-up.
@@ -126,6 +146,7 @@ class MvuRuntime {
       case None():
         return false;
       case Quit(:final code):
+        _token.cancel();
         exitCode = code;
         _tickTimer?.cancel();
         return true;
@@ -134,7 +155,6 @@ class MvuRuntime {
         final stopwatch = Stopwatch()..start();
         _tickTimer = Timer.periodic(interval, (_) {
           queueMsg(TickMsg(stopwatch.elapsed));
-          stopwatch.reset();
         });
         return false;
       case StopTick():
@@ -145,7 +165,10 @@ class MvuRuntime {
         queueMsg(msg);
         return false;
       case final AsyncCmd task:
-        unawaited(task.execute().then(queueMsg));
+        final token = _token; // Capture current token
+        unawaited(task.execute().then((msg) {
+          if (!token.isCancelled) queueMsg(msg);
+        }));
         return false;
       case Batch(:final cmds):
         for (final c in cmds) {

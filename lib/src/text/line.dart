@@ -135,6 +135,22 @@ class Line implements Widget {
     }
   }
 
+  /// Renders the line with a horizontal offset (scroll).
+  ///
+  /// Skips [offset] display-width columns from the start before rendering.
+  /// Useful for horizontal scrolling in text inputs, code viewers, etc.
+  void renderWithOffset(Rect area, Frame frame, int offset) {
+    final buf = frame.buffer;
+    final intArea = area.intersection(buf.area);
+    if (intArea.isEmpty) return;
+
+    final renderArea = intArea.copyWith(height: 1);
+    if (width == 0) return;
+
+    buf.setStyle(renderArea, style);
+    _renderSpans(renderArea, frame, offset);
+  }
+
   void _renderSpans(Rect area, Frame frame, int spanSkipWidth) {
     var spanArea = area.copyWith();
     for (final (span, spanWidth, offset) in _spanAfterWidth(

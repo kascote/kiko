@@ -542,6 +542,89 @@ Line(
           expect(buf.eq(expected), isTrue, reason: 'fail case $kase');
         }
       });
+
+      group('renderWithOffset >', () {
+        test('offset 0 same as normal render', () {
+          final line = Line('Hello World');
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 11, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 0);
+          expect(buf.eq(Buffer.fromLines([Line('Hello World')])), isTrue);
+        });
+
+        test('skips characters by offset', () {
+          final line = Line('Hello World');
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 6);
+          expect(buf.eq(Buffer.fromLines([Line('World ')])), isTrue);
+        });
+
+        test('offset with emoji', () {
+          // "ab👋cd" - 'ab' = 2 cols, '👋' = 2 cols, 'cd' = 2 cols
+          final line = Line('ab👋cd');
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 2);
+          expect(buf.eq(Buffer.fromLines([Line('👋cd')])), isTrue);
+        });
+
+        test('offset skips wide char completely', () {
+          // Skip past the emoji (offset=4 skips 'ab' + '👋')
+          final line = Line('ab👋cd');
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 4);
+          expect(buf.eq(Buffer.fromLines([Line('cd  ')])), isTrue);
+        });
+
+        test('offset exceeds content', () {
+          final line = Line('Hello');
+          final buf = Buffer.filled(
+            Rect.create(x: 0, y: 0, width: 5, height: 1),
+            const Cell(char: 'X'),
+          );
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 10);
+          // Nothing rendered, buffer unchanged except style
+          expect(buf[(x: 0, y: 0)].symbol, 'X');
+        });
+
+        test('applies style', () {
+          const style = Style(fg: Color.red);
+          final line = Line('Hello', style: style);
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 0);
+          expect(buf[(x: 0, y: 0)].fg, Color.red);
+        });
+
+        test('scroll simulation', () {
+          // Simulates TextInput scrolling: "abcdefgh" in 5-col viewport
+          final cases = [
+            (offset: 0, expected: 'abcde'),
+            (offset: 1, expected: 'bcdef'),
+            (offset: 2, expected: 'cdefg'),
+            (offset: 3, expected: 'defgh'),
+            (offset: 4, expected: 'efgh '),
+          ];
+
+          for (final (offset: o, expected: e) in cases) {
+            final line = Line('abcdefgh');
+            final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
+            line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), o);
+            expect(buf.eq(Buffer.fromLines([Line(e)])), isTrue, reason: 'offset $o');
+          }
+        });
+
+        test('multi-span with offset', () {
+          final line = Line.fromSpans(const [
+            Span('Hello ', style: Style(fg: Color.blue)),
+            Span('World', style: Style(fg: Color.green)),
+          ]);
+          final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 1));
+          line.renderWithOffset(buf.area, Frame(buf.area, buf, 0), 4);
+          // Skips "Hell", shows "o Wor" (5 chars)
+          expect(buf[(x: 0, y: 0)].symbol, 'o');
+          expect(buf[(x: 0, y: 0)].fg, Color.blue);
+          expect(buf[(x: 2, y: 0)].symbol, 'W');
+          expect(buf[(x: 2, y: 0)].fg, Color.green);
+        });
+      });
     });
   });
 }

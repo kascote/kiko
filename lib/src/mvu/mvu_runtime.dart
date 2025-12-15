@@ -166,9 +166,11 @@ class MvuRuntime {
         return false;
       case final AsyncCmd task:
         final token = _token; // Capture current token
-        unawaited(task.execute().then((msg) {
-          if (!token.isCancelled) queueMsg(msg);
-        }));
+        unawaited(
+          task.execute().then((msg) {
+            if (!token.isCancelled) queueMsg(msg);
+          }),
+        );
         return false;
       case Batch(:final cmds):
         for (final c in cmds) {

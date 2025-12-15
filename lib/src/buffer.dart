@@ -51,61 +51,6 @@ class Buffer implements Equality<Buffer> {
   /// given Cell
   Buffer.filled(Rect rect, Cell cell) : this._(rect, cell);
 
-  /// Build a Buffer from a list of string lines
-  @visibleForTesting
-  factory Buffer.fromStringLines(List<String> stringLines) {
-    final lines = stringLines.map(Line.new).toList();
-    return Buffer.fromLines(lines);
-  }
-
-  /// Build a Buffer from a list of Line objects
-  @visibleForTesting
-  factory Buffer.fromLines(List<Line> lines) {
-    final height = lines.length;
-    final width = lines.fold(0, (acc, line) => math.max(acc, line.width));
-    final area = Rect.create(x: 0, y: 0, width: width, height: height);
-
-    final b = Buffer._(area);
-    for (var y = 0; y < lines.length; y++) {
-      var offset = 0;
-      var xx = 0;
-      for (final span in lines[y].spans) {
-        for (final (i, char) in span.content.characters.indexed) {
-          b.setCellAtPos(
-            x: xx + i + offset,
-            y: y,
-            char: char,
-            style: lines[y].style.patch(span.style),
-          );
-          if (widthString(char) > 1) {
-            offset++;
-          }
-        }
-        xx += span.width;
-      }
-    }
-    return b;
-  }
-
-  /// Helper function to set the buffer cells at a given position.
-  /// Intended to be used as a helper for testing
-  @visibleForTesting
-  factory Buffer.setCells(Rect area, List<CharAtPos> cells) {
-    final buf = Buffer._(area);
-
-    for (final cell in cells) {
-      for (final (i, char) in cell.char.characters.indexed) {
-        buf.setCellAtPos(
-          x: cell.x + i,
-          y: cell.y,
-          char: char,
-          style: cell.style,
-        );
-      }
-    }
-    return buf;
-  }
-
   int? _indexOfOpt(Position pos) {
     if (!area.contains(pos)) return null;
     // remove offset
@@ -124,15 +69,6 @@ class Buffer implements Equality<Buffer> {
       throw RangeError('Position ($x,$y) is out of bounds. area: $area');
     }
     return idx;
-  }
-
-  /// Helper method to get the cell at a given [TPoint]
-  Cell? cellAtPoint(TPoint point) => cellAtPos(point.toPos());
-
-  /// Helper method to get the cell at a given [Position]
-  Cell? cellAtPos(Position pos) {
-    final idx = _indexOfOpt(pos);
-    return (idx == null) ? null : buf[idx];
   }
 
   /// Array access operator to get the cell at a given [TPoint]
@@ -335,6 +271,24 @@ class Buffer implements Equality<Buffer> {
     return true;
   }
 
+  /// Helper function to compare this buffer to another
+  bool eq(Buffer other) => equals(this, other);
+
+  // coverage:ignore-start
+  @override
+  String toString() {
+    return debug();
+  }
+
+  // coverage:ignore-line to ignore one line.
+  @override
+  int hash(Buffer e) => Object.hash(Buffer, area, Object.hashAll(buf));
+
+  // coverage:ignore-line to ignore one line.
+  @override
+  bool isValidKey(Object? o) => o is Buffer;
+  // coverage:ignore-end
+
   /// Helper function to set the cell at a given position.
   /// Intended to be used as a helper for testing
   @visibleForTesting
@@ -356,21 +310,69 @@ class Buffer implements Equality<Buffer> {
     }
   }
 
-  /// Helper function to compare this buffer to another
-  bool eq(Buffer other) => equals(this, other);
-
-  // coverage:ignore-start
-  @override
-  String toString() {
-    return debug();
+  /// Build a Buffer from a list of string lines
+  @visibleForTesting
+  factory Buffer.fromStringLines(List<String> stringLines) {
+    final lines = stringLines.map(Line.new).toList();
+    return Buffer.fromLines(lines);
   }
 
-  // coverage:ignore-line to ignore one line.
-  @override
-  int hash(Buffer e) => Object.hash(Buffer, area, Object.hashAll(buf));
+  /// Build a Buffer from a list of Line objects
+  @visibleForTesting
+  factory Buffer.fromLines(List<Line> lines) {
+    final height = lines.length;
+    final width = lines.fold(0, (acc, line) => math.max(acc, line.width));
+    final area = Rect.create(x: 0, y: 0, width: width, height: height);
 
-  // coverage:ignore-line to ignore one line.
-  @override
-  bool isValidKey(Object? o) => o is Buffer;
-  // coverage:ignore-end
+    final b = Buffer._(area);
+    for (var y = 0; y < lines.length; y++) {
+      var offset = 0;
+      var xx = 0;
+      for (final span in lines[y].spans) {
+        for (final (i, char) in span.content.characters.indexed) {
+          b.setCellAtPos(
+            x: xx + i + offset,
+            y: y,
+            char: char,
+            style: lines[y].style.patch(span.style),
+          );
+          if (widthString(char) > 1) {
+            offset++;
+          }
+        }
+        xx += span.width;
+      }
+    }
+    return b;
+  }
+
+  /// Helper function to set the buffer cells at a given position.
+  /// Intended to be used as a helper for testing
+  @visibleForTesting
+  factory Buffer.setCells(Rect area, List<CharAtPos> cells) {
+    final buf = Buffer._(area);
+
+    for (final cell in cells) {
+      for (final (i, char) in cell.char.characters.indexed) {
+        buf.setCellAtPos(
+          x: cell.x + i,
+          y: cell.y,
+          char: char,
+          style: cell.style,
+        );
+      }
+    }
+    return buf;
+  }
+
+  /// Helper method to get the cell at a given [TPoint]
+  @visibleForTesting
+  Cell? cellAtPoint(TPoint point) => cellAtPos(point.toPos());
+
+  /// Helper method to get the cell at a given [Position]
+  @visibleForTesting
+  Cell? cellAtPos(Position pos) {
+    final idx = _indexOfOpt(pos);
+    return (idx == null) ? null : buf[idx];
+  }
 }

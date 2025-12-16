@@ -1,14 +1,7 @@
 import 'package:characters/characters.dart';
+import 'package:kiko/kiko.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 import 'package:termunicode/termunicode.dart';
-
-import '../../layout/position.dart';
-import '../../layout/rect.dart';
-import '../../text/line.dart';
-import '../../text/span.dart';
-import '../../widgets/frame.dart';
-import '../cmd.dart';
-import '../msg.dart';
 
 // ═══════════════════════════════════════════════════════════
 // MODEL

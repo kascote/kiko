@@ -1,0 +1,22 @@
+name: kiko_widgets
+description: Widget for the TUI framework Kiko
+version: 0.0.1
+publish_to: "none"
+
+environment:
+  sdk: ^3.10.3
+
+resolution: workspace
+
+# Add regular dependencies here.
+dependencies:
+  kiko: ^0.0.1
+  characters: ^1.3.0
+  termparser: ^0.3.0
+  termunicode: ^0.1.0
+
+dev_dependencies:
+  coverage: ^1.11.0
+  lints: ^6.0.0
+  test: ^1.24.0
+  very_good_analysis: ^10.0.0

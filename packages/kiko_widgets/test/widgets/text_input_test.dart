@@ -1,5 +1,5 @@
 import 'package:kiko/kiko.dart';
-import 'package:kiko/src/mvu/widgets/text_input.dart';
+import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 

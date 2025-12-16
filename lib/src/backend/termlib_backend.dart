@@ -47,6 +47,11 @@ class TermlibBackend {
   }
 
   /// Draws the given [cellPos] iterable to the terminal.
+  ///
+  /// Resets terminal style at end of draw to prevent style leaking between
+  /// frames. Without reset, tracking vars reset to Color.reset each frame but
+  /// terminal keeps last frame's state, causing cells with reset color to
+  /// inherit stale styles.
   void draw(Iterable<CellPos> cellPos) {
     var fg = Color.reset;
     var bg = Color.reset;
@@ -80,7 +85,12 @@ class TermlibBackend {
 
       _term.write(tStyle);
     }
-    _term.endSyncUpdate();
+
+    // Reset terminal style to match tracking state for next frame.
+    // This ensures cells with Color.reset won't inherit stale styles.
+    _term
+      ..write('\x1b[0m')
+      ..endSyncUpdate();
   }
 
   /// Flushes any buffered output to the terminal.

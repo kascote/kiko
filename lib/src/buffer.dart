@@ -76,7 +76,7 @@ class Buffer implements Equality<Buffer> {
 
   /// Array access operator to set the cell at a given [Position]
   //
-  // Span.render and Buffer.setStringLength will set Cell.skip = true, when
+  // Span.render will set Cell.skip = true, when
   // rendering a wide character. This is to prevent the next cell from being
   // rendered. This is why we need to reset the skip flag when setting a new
   // cell. The idea is to pay the cost of resetting the skip flag only when

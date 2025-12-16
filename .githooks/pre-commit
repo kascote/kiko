@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+echo "Running pre-commit checks..."
+
+for pkg in packages/kiko_core packages/kiko_widgets; do
+  echo "=== $pkg ==="
+
+  echo "Linting..."
+  make -C "$pkg" lint
+
+  echo "Testing..."
+  make -C "$pkg" test
+done
+
+echo "All checks passed!"

@@ -83,3 +83,11 @@ See `example/layout_v2.dart` for a complete example.
 ## RGB
 
 ![rgb_example](./images/rgb_example.png)
+
+## Development
+
+Setup git hooks (runs lint + tests on commit):
+
+```bash
+git config core.hooksPath .githooks
+```

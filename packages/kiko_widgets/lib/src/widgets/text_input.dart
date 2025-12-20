@@ -37,6 +37,12 @@ class TextInputModel implements Focusable {
   /// Character used to obscure text when [obscureText] is true.
   final String obscureChar;
 
+  /// Character used to fill remaining input area for visual width feedback.
+  final String? fillChar;
+
+  /// Style for the fill character.
+  final Style? fillStyle;
+
   /// Transforms or filters input before insertion.
   ///
   /// Receives input as grapheme clusters, returns sanitized output.
@@ -50,6 +56,8 @@ class TextInputModel implements Focusable {
     this.maxLength,
     this.obscureText = false,
     this.obscureChar = '•',
+    this.fillChar,
+    this.fillStyle,
     this.inputFilter,
     this.focused = false,
   }) : _text = Characters(initial),
@@ -243,21 +251,52 @@ class TextInput extends Widget {
 
     final showPlaceholder = m.length == 0 && m.placeholder.isNotEmpty;
 
+    int usedWidth;
+
     if (showPlaceholder) {
       Span(m.placeholder).render(renderArea, frame);
+      usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
       if (m.focused) {
         frame.cursorPosition = Position(renderArea.x, y);
       }
-      return;
+    } else {
+      final (:displayText, :cursorDisplayPos, :scrollOffset) =
+          m.adjustScroll(visibleWidth);
+
+      Line(displayText.string).renderWithOffset(renderArea, frame, scrollOffset);
+
+      final totalTextWidth = widthChars(displayText);
+      usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
+
+      if (m.focused) {
+        final cursorX = renderArea.x + (cursorDisplayPos - scrollOffset);
+        frame.cursorPosition = Position(cursorX, y);
+      }
     }
 
-    final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
-
-    Line(displayText.string).renderWithOffset(renderArea, frame, scrollOffset);
-
-    if (m.focused) {
-      final cursorX = renderArea.x + (cursorDisplayPos - scrollOffset);
-      frame.cursorPosition = Position(cursorX, y);
+    // Fill remaining space with fillChar
+    if (m.fillChar case final fillChar?) {
+      // If maxLength is set, fill up to maxLength; otherwise fill visible width
+      final targetWidth = m.maxLength != null
+          ? m.maxLength!.clamp(0, visibleWidth)
+          : visibleWidth;
+      final remainingWidth = targetWidth - usedWidth;
+      if (remainingWidth > 0) {
+        final charWidth = widthString(fillChar);
+        if (charWidth > 0) {
+          final fillCount = remainingWidth ~/ charWidth;
+          if (fillCount > 0) {
+            final fillText = fillChar * fillCount;
+            final fillArea = Rect.create(
+              x: renderArea.x + usedWidth,
+              y: y,
+              width: remainingWidth,
+              height: 1,
+            );
+            Span(fillText, style: m.fillStyle).render(fillArea, frame);
+          }
+        }
+      }
     }
   }
 }

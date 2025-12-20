@@ -466,4 +466,156 @@ void main() {
       expect(frame.cursorPosition, equals(const Position(3, 0)));
     });
   });
+
+  group('TextInput fillChar and fillStyle', () {
+    late Buffer buffer;
+    late Frame frame;
+
+    Frame makeFrame(int width, int height) {
+      final area = Rect.create(x: 0, y: 0, width: width, height: height);
+      buffer = Buffer.empty(area);
+      return Frame(area, buffer, 0);
+    }
+
+    test('config fields are set', () {
+      final model = TextInputModel(
+        fillChar: '_',
+        fillStyle: const Style(fg: Color.red),
+      );
+      expect(model.fillChar, equals('_'));
+      expect(model.fillStyle, equals(const Style(fg: Color.red)));
+    });
+
+    test('fills remaining space after text', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(initial: 'abc', fillChar: '_');
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      // 'abc' takes 3 chars, fill 7 underscores
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('c'));
+      expect(buffer[(x: 3, y: 0)].symbol, equals('_'));
+      expect(buffer[(x: 9, y: 0)].symbol, equals('_'));
+    });
+
+    test('fills remaining space after placeholder', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(placeholder: 'Hi', fillChar: '.');
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      // 'Hi' takes 2 chars, fill 8 dots
+      expect(buffer[(x: 0, y: 0)].symbol, equals('H'));
+      expect(buffer[(x: 1, y: 0)].symbol, equals('i'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('.'));
+      expect(buffer[(x: 9, y: 0)].symbol, equals('.'));
+    });
+
+    test('respects maxLength when set', () {
+      frame = makeFrame(20, 1);
+      final model = TextInputModel(
+        initial: 'abc',
+        maxLength: 10,
+        fillChar: '_',
+      );
+      final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
+      TextInput(model).render(area, frame);
+
+      // 'abc' takes 3 chars, fill to maxLength (10), so 7 underscores
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('c'));
+      expect(buffer[(x: 3, y: 0)].symbol, equals('_'));
+      expect(buffer[(x: 9, y: 0)].symbol, equals('_'));
+      // Position 10+ should be empty (space)
+      expect(buffer[(x: 10, y: 0)].symbol, equals(' '));
+    });
+
+    test('fills entire widget width when no maxLength', () {
+      frame = makeFrame(15, 1);
+      final model = TextInputModel(initial: 'ab', fillChar: '-');
+      final area = Rect.create(x: 0, y: 0, width: 15, height: 1);
+      TextInput(model).render(area, frame);
+
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('-'));
+      expect(buffer[(x: 14, y: 0)].symbol, equals('-'));
+    });
+
+    test('applies fillStyle to fill characters', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(
+        initial: 'ab',
+        fillChar: '_',
+        fillStyle: const Style(fg: Color.red, bg: Color.blue),
+      );
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      // Text cells should have default style
+      expect(buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
+
+      // Fill cells should have the fillStyle
+      expect(buffer[(x: 2, y: 0)].symbol, equals('_'));
+      expect(buffer[(x: 2, y: 0)].fg, equals(Color.red));
+      expect(buffer[(x: 2, y: 0)].bg, equals(Color.blue));
+    });
+
+    test('no fill when fillChar is null', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(initial: 'abc');
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 3, y: 0)].symbol, equals(' ')); // default empty
+    });
+
+    test('no fill when text fills entire maxLength', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(
+        initial: 'abcde',
+        maxLength: 5,
+        fillChar: '_',
+      );
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      expect(buffer[(x: 4, y: 0)].symbol, equals('e'));
+      expect(buffer[(x: 5, y: 0)].symbol, equals(' ')); // no fill
+    });
+
+    test('handles wide fill characters', () {
+      frame = makeFrame(10, 1);
+      // Using a wide char like '＿' (fullwidth low line, 2 cols)
+      final model = TextInputModel(initial: 'ab', fillChar: '＿');
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      // 'ab' = 2 cols, remaining 8 cols, wide char = 2 cols each, so 4 chars
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('＿'));
+    });
+
+    test('maxLength clamped to visible width', () {
+      frame = makeFrame(5, 1);
+      // maxLength 20 but only 5 visible
+      final model = TextInputModel(
+        initial: 'ab',
+        maxLength: 20,
+        fillChar: '_',
+      );
+      final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
+      TextInput(model).render(area, frame);
+
+      // Should only fill up to visible width (5), not maxLength (20)
+      expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(buffer[(x: 2, y: 0)].symbol, equals('_'));
+      expect(buffer[(x: 4, y: 0)].symbol, equals('_'));
+    });
+  });
 }

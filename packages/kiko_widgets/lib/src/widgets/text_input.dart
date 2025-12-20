@@ -260,8 +260,7 @@ class TextInput extends Widget {
         frame.cursorPosition = Position(renderArea.x, y);
       }
     } else {
-      final (:displayText, :cursorDisplayPos, :scrollOffset) =
-          m.adjustScroll(visibleWidth);
+      final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
 
       Line(displayText.string).renderWithOffset(renderArea, frame, scrollOffset);
 
@@ -277,9 +276,7 @@ class TextInput extends Widget {
     // Fill remaining space with fillChar
     if (m.fillChar case final fillChar?) {
       // If maxLength is set, fill up to maxLength; otherwise fill visible width
-      final targetWidth = m.maxLength != null
-          ? m.maxLength!.clamp(0, visibleWidth)
-          : visibleWidth;
+      final targetWidth = m.maxLength != null ? m.maxLength!.clamp(0, visibleWidth) : visibleWidth;
       final remainingWidth = targetWidth - usedWidth;
       if (remainingWidth > 0) {
         final charWidth = widthString(fillChar);

@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 /// Base class for all messages in MVU architecture.
@@ -9,15 +10,24 @@ abstract class Msg {
 }
 
 /// Wrapper for keyboard events.
+@immutable
 class KeyMsg extends Msg {
   /// The underlying key event.
   final evt.KeyEvent key;
 
   /// Creates a KeyMsg from a KeyEvent.
   const KeyMsg(this.key);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is KeyMsg && key == other.key;
+
+  @override
+  int get hashCode => key.hashCode;
 }
 
 /// Wrapper for mouse events.
+@immutable
 class MouseMsg extends Msg {
   /// The underlying mouse event.
   final evt.MouseEvent mouse;
@@ -30,9 +40,17 @@ class MouseMsg extends Msg {
 
   /// Y coordinate of mouse event.
   int get y => mouse.y;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is MouseMsg && mouse == other.mouse;
+
+  @override
+  int get hashCode => mouse.hashCode;
 }
 
 /// Wrapper for focus events.
+@immutable
 class FocusMsg extends Msg {
   /// The underlying focus event.
   final evt.FocusEvent focus;
@@ -42,9 +60,17 @@ class FocusMsg extends Msg {
 
   /// Whether the terminal has focus.
   bool get hasFocus => focus.hasFocus;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is FocusMsg && focus == other.focus;
+
+  @override
+  int get hashCode => focus.hashCode;
 }
 
 /// Wrapper for paste events.
+@immutable
 class PasteMsg extends Msg {
   /// The underlying paste event.
   final evt.PasteEvent paste;
@@ -54,6 +80,13 @@ class PasteMsg extends Msg {
 
   /// The pasted text.
   String get text => paste.text;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PasteMsg && paste == other.paste;
+
+  @override
+  int get hashCode => paste.hashCode;
 }
 
 /// Message sent when event polling times out (no input).

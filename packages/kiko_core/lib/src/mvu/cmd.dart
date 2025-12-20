@@ -74,6 +74,18 @@ class StopTick extends Cmd {
   const StopTick();
 }
 
+/// Signals that a focused model didn't handle a message.
+///
+/// Return this from `update()` when the model is focused but chooses not to
+/// handle the message. Parent can then handle it (e.g., Tab for focus cycling,
+/// global shortcuts).
+///
+/// Unfocused models should return `null` (ignored), not `Unhandled`.
+class Unhandled extends Cmd {
+  /// Creates an Unhandled command.
+  const Unhandled();
+}
+
 /// Run an async operation and send a message when complete.
 ///
 /// Example:

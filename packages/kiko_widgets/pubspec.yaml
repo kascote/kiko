@@ -13,6 +13,7 @@ dependencies:
   characters: ^1.3.0
   crypto: ^3.0.7
   kiko: ^0.0.1
+  meta: ^1.16.0
   termparser: ^0.3.0
   termunicode: ^0.1.0
 

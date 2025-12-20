@@ -1,5 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 import 'package:termunicode/termunicode.dart';
 
@@ -10,18 +11,14 @@ import 'package:termunicode/termunicode.dart';
 /// Model for a single-line text input.
 ///
 /// Holds both state (text, cursor, scroll) and config (placeholder, maxLength).
-/// Use [update] to handle messages.
-class TextInputModel {
-  /// The text content as grapheme clusters.
-  Characters text;
+/// Use [update] to handle messages. Returns [Unhandled] for keys it doesn't handle.
+class TextInputModel implements Focusable {
+  Characters _text;
+  int _cursor;
+  int _scrollOffset;
 
-  /// Cursor position (index into grapheme sequence).
-  int cursor;
-
-  /// Horizontal scroll offset for rendering.
-  int scrollOffset;
-
-  /// Whether this input has focus (receives keyboard input).
+  /// Whether the input is focused.
+  @override
   bool focused;
 
   // ─────────────────────────────────────────────
@@ -40,6 +37,12 @@ class TextInputModel {
   /// Character used to obscure text when [obscureText] is true.
   final String obscureChar;
 
+  /// Transforms or filters input before insertion.
+  ///
+  /// Receives input as grapheme clusters, returns sanitized output.
+  /// Return empty to reject. Can lowercase, strip chars, validate, etc.
+  final Characters Function(Characters input)? inputFilter;
+
   /// Creates a TextInputModel.
   TextInputModel({
     String initial = '',
@@ -47,57 +50,62 @@ class TextInputModel {
     this.maxLength,
     this.obscureText = false,
     this.obscureChar = '•',
+    this.inputFilter,
     this.focused = false,
-  }) : text = Characters(initial),
-       cursor = initial.characters.length,
-       scrollOffset = 0;
+  }) : _text = Characters(initial),
+       _cursor = initial.characters.length,
+       _scrollOffset = 0;
 
   /// The text as a String.
-  String get value => text.string;
+  String get value => _text.string;
 
   /// Length in grapheme clusters.
-  int get length => text.length;
+  int get length => _text.length;
+
+  /// Cursor position (index into grapheme sequence).
+  ///
+  /// Exposed for testing. Production code should use messages to move cursor.
+  @visibleForTesting
+  int get cursor => _cursor;
+  @visibleForTesting
+  set cursor(int value) => _cursor = value;
 
   /// Updates the model based on the message.
   ///
-  /// Returns a command if any side effect is needed.
+  /// Returns [Unhandled] for keys it doesn't handle (e.g., Tab).
+  /// Returns `null` for handled keys, non-key messages, or when not focused.
   Cmd? update(Msg msg) {
+    if (!focused) return null;
+
     if (msg case KeyMsg(key: final key)) {
       return _handleKey(key);
     }
-    return null;
+    return null; // ignore non-KeyMsg
   }
 
   Cmd? _handleKey(evt.KeyEvent key) {
+    // Tab → let parent handle (focus cycling)
+    if (key.code.name == evt.KeyCodeName.tab) {
+      return const Unhandled();
+    }
+
     final action = _defaultBindings[key];
 
     if (action != null) {
-      switch (action) {
-        case _TextInputAction.home:
-          cursor = 0;
-        case _TextInputAction.end:
-          cursor = length;
-        case _TextInputAction.left:
-          if (cursor > 0) cursor--;
-        case _TextInputAction.right:
-          if (cursor < length) cursor++;
-        case _TextInputAction.jumpWordLeft:
-          cursor = _findWordBoundaryLeft(text, cursor);
-        case _TextInputAction.jumpWordRight:
-          cursor = _findWordBoundaryRight(text, cursor);
-        case _TextInputAction.backspace:
-          _deleteBeforeCursor();
-        case _TextInputAction.delete:
-          _deleteAfterCursor();
-        case _TextInputAction.deleteWordLeft:
-          _deleteWordLeft();
-        case _TextInputAction.deleteWordRight:
-          _deleteWordRight();
-        case _TextInputAction.deleteToLineStart:
-          _deleteToLineStart();
-        case _TextInputAction.deleteToLineEnd:
-          _deleteToLineEnd();
-      }
+      final _ = switch (action) {
+        _TextInputAction.home => _cursor = 0,
+        _TextInputAction.end => _cursor = length,
+        _TextInputAction.left => _cursor > 0 ? _cursor-- : null,
+        _TextInputAction.right => _cursor < length ? _cursor++ : null,
+        _TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
+        _TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
+        _TextInputAction.backspace => _deleteBeforeCursor(),
+        _TextInputAction.delete => _deleteAfterCursor(),
+        _TextInputAction.deleteWordLeft => _deleteWordLeft(),
+        _TextInputAction.deleteWordRight => _deleteWordRight(),
+        _TextInputAction.deleteToLineStart => _deleteToLineStart(),
+        _TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
+      };
       return null;
     }
 
@@ -107,63 +115,103 @@ class TextInputModel {
       modifiers: final mods,
     ) when c.isNotEmpty && !mods.has(evt.KeyModifiers.ctrl)) {
       _insertAt(c);
+      return null;
     }
 
-    return null;
+    return const Unhandled(); // unhandled key
   }
 
   void _insertAt(String input) {
+    // Apply input filter
+    var filtered = Characters(input);
+    if (inputFilter != null) {
+      filtered = inputFilter!(filtered);
+      if (filtered.isEmpty) return;
+    }
+
     // Check maxLength
-    if (maxLength != null && length + input.characters.length > maxLength!) {
+    if (maxLength != null && length + filtered.length > maxLength!) {
       return;
     }
-    final before = text.take(cursor);
-    final after = text.skip(cursor);
-    text = Characters('${before.string}$input${after.string}');
-    cursor += input.characters.length;
+    final before = _text.take(_cursor);
+    final after = _text.skip(_cursor);
+    _text = Characters('${before.string}${filtered.string}${after.string}');
+    _cursor += filtered.length;
   }
 
   void _deleteBeforeCursor() {
-    if (cursor <= 0) return;
-    final before = text.take(cursor - 1);
-    final after = text.skip(cursor);
-    text = Characters('${before.string}${after.string}');
-    cursor--;
+    if (_cursor <= 0) return;
+    final before = _text.take(_cursor - 1);
+    final after = _text.skip(_cursor);
+    _text = Characters('${before.string}${after.string}');
+    _cursor--;
   }
 
   void _deleteAfterCursor() {
-    if (cursor >= length) return;
-    final before = text.take(cursor);
-    final after = text.skip(cursor + 1);
-    text = Characters('${before.string}${after.string}');
+    if (_cursor >= length) return;
+    final before = _text.take(_cursor);
+    final after = _text.skip(_cursor + 1);
+    _text = Characters('${before.string}${after.string}');
   }
 
   void _deleteWordLeft() {
-    final boundary = _findWordBoundaryLeft(text, cursor);
-    if (boundary == cursor) return;
-    final before = text.take(boundary);
-    final after = text.skip(cursor);
-    text = Characters('${before.string}${after.string}');
-    cursor = boundary;
+    final boundary = _findWordBoundaryLeft(_text, _cursor);
+    if (boundary == _cursor) return;
+    final before = _text.take(boundary);
+    final after = _text.skip(_cursor);
+    _text = Characters('${before.string}${after.string}');
+    _cursor = boundary;
   }
 
   void _deleteWordRight() {
-    final boundary = _findWordBoundaryRight(text, cursor);
-    if (boundary == cursor) return;
-    final before = text.take(cursor);
-    final after = text.skip(boundary);
-    text = Characters('${before.string}${after.string}');
+    final boundary = _findWordBoundaryRight(_text, _cursor);
+    if (boundary == _cursor) return;
+    final before = _text.take(_cursor);
+    final after = _text.skip(boundary);
+    _text = Characters('${before.string}${after.string}');
   }
 
   void _deleteToLineStart() {
-    if (cursor <= 0) return;
-    text = text.skip(cursor);
-    cursor = 0;
+    if (_cursor <= 0) return;
+    _text = _text.skip(_cursor);
+    _cursor = 0;
   }
 
   void _deleteToLineEnd() {
-    if (cursor >= length) return;
-    text = text.take(cursor);
+    if (_cursor >= length) return;
+    _text = _text.take(_cursor);
+  }
+
+  /// Adjusts scroll offset to keep cursor visible within given width.
+  ///
+  /// Call this during rendering to ensure cursor remains in view.
+  /// Returns display info needed for rendering.
+  ({Characters displayText, int cursorDisplayPos, int scrollOffset}) adjustScroll(int visibleWidth) {
+    final displayText = obscureText ? Characters(obscureChar * length) : _text;
+    final cursorDisplayPos = _widthUpTo(displayText, _cursor);
+
+    if (cursorDisplayPos < _scrollOffset) {
+      _scrollOffset = cursorDisplayPos;
+    } else if (cursorDisplayPos >= _scrollOffset + visibleWidth) {
+      _scrollOffset = cursorDisplayPos - visibleWidth + 1;
+    }
+
+    return (
+      displayText: displayText,
+      cursorDisplayPos: cursorDisplayPos,
+      scrollOffset: _scrollOffset,
+    );
+  }
+
+  int _widthUpTo(Characters text, int index) {
+    var width = 0;
+    var i = 0;
+    for (final g in text) {
+      if (i >= index) break;
+      width += widthChars(Characters(g));
+      i++;
+    }
+    return width;
   }
 }
 
@@ -193,8 +241,6 @@ class TextInput extends Widget {
     final y = renderArea.y;
     final m = model;
 
-    // Determine what to display
-    final displayText = m.obscureText ? Characters(m.obscureChar * m.length) : m.text;
     final showPlaceholder = m.length == 0 && m.placeholder.isNotEmpty;
 
     if (showPlaceholder) {
@@ -205,36 +251,14 @@ class TextInput extends Widget {
       return;
     }
 
-    // Calculate cursor display position (width in columns from start)
-    final cursorDisplayPos = _widthUpTo(displayText, m.cursor);
+    final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
 
-    // Adjust scroll to keep cursor visible
-    if (cursorDisplayPos < m.scrollOffset) {
-      m.scrollOffset = cursorDisplayPos;
-    } else if (cursorDisplayPos >= m.scrollOffset + visibleWidth) {
-      m.scrollOffset = cursorDisplayPos - visibleWidth + 1;
-    }
+    Line(displayText.string).renderWithOffset(renderArea, frame, scrollOffset);
 
-    // Render with horizontal scroll offset
-    Line(displayText.string).renderWithOffset(renderArea, frame, m.scrollOffset);
-
-    // Cursor position in terminal coords (only if focused)
     if (m.focused) {
-      final cursorX = renderArea.x + (cursorDisplayPos - m.scrollOffset);
+      final cursorX = renderArea.x + (cursorDisplayPos - scrollOffset);
       frame.cursorPosition = Position(cursorX, y);
     }
-  }
-
-  /// Returns display width from start up to [index] graphemes.
-  int _widthUpTo(Characters text, int index) {
-    var width = 0;
-    var i = 0;
-    for (final g in text) {
-      if (i >= index) break;
-      width += widthChars(Characters(g));
-      i++;
-    }
-    return width;
   }
 }
 

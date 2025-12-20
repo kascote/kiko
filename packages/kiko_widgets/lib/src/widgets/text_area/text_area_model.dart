@@ -7,12 +7,15 @@ import 'textarea.dart';
 /// Model for a multi-line text area with word wrapping.
 ///
 /// Wraps [TextArea] and adds MVU integration (update method), focus state,
-/// and configuration options.
-class TextAreaModel {
+/// and configuration options. Returns [Unhandled] for keys it doesn't handle.
+///
+/// Note: Tab is consumed (inserts spaces for indentation), not passed to parent.
+class TextAreaModel implements Focusable {
   /// The underlying text area buffer.
   final TextArea textArea;
 
-  /// Whether this text area has focus.
+  /// Whether the text area is focused.
+  @override
   bool focused;
 
   /// Placeholder text shown when empty.
@@ -30,8 +33,10 @@ class TextAreaModel {
   /// Style for line numbers.
   final Style lineNumberStyle;
 
+  int _scrollOffset = 0;
+
   /// Vertical scroll offset in visual rows.
-  int scrollOffset = 0;
+  int get scrollOffset => _scrollOffset;
 
   /// Creates a TextAreaModel.
   ///
@@ -80,8 +85,13 @@ class TextAreaModel {
   /// Returns line info for current cursor position.
   LineInfo get currentLineInfo => textArea.lineInfo();
 
-  /// Updates model based on message. Returns command if needed.
+  /// Updates model based on message.
+  ///
+  /// Returns [Unhandled] for keys it doesn't handle.
+  /// Returns `null` for handled keys, non-key messages, or when not focused.
   Cmd? update(Msg msg) {
+    if (!focused) return null;
+
     if (msg case KeyMsg(key: final key)) {
       return _handleKey(key);
     }
@@ -89,7 +99,7 @@ class TextAreaModel {
       textArea.insert(text);
       return null;
     }
-    return null;
+    return null; // ignore other messages
   }
 
   Cmd? _handleKey(evt.KeyEvent key) {
@@ -106,48 +116,33 @@ class TextAreaModel {
       modifiers: final mods,
     ) when c.isNotEmpty && !mods.has(evt.KeyModifiers.ctrl)) {
       textArea.insert(c);
+      return null; // handled
     }
 
-    return null;
+    return const Unhandled(); // unhandled key
   }
 
   void _executeAction(_TextAreaAction action, evt.KeyModifiers mods) {
     final isSelecting = mods.has(evt.KeyModifiers.shift);
 
-    switch (action) {
-      case _TextAreaAction.up:
-        textArea.moveCursorUp(isSelecting: isSelecting);
-      case _TextAreaAction.down:
-        textArea.moveCursorDown(isSelecting: isSelecting);
-      case _TextAreaAction.left:
-        textArea.moveCursorLeft(isSelecting: isSelecting);
-      case _TextAreaAction.right:
-        textArea.moveCursorRight(isSelecting: isSelecting);
-      case _TextAreaAction.home:
-        textArea.setCursorStart();
-      case _TextAreaAction.end:
-        textArea.setCursorEnd();
-      case _TextAreaAction.docStart:
-        textArea.setCursorStartBuffer();
-      case _TextAreaAction.docEnd:
-        textArea.setCursorEndBuffer();
-      case _TextAreaAction.backspace:
-        textArea.deleteCharBackward();
-      case _TextAreaAction.delete:
-        textArea.deleteCharForward();
-      case _TextAreaAction.deleteWordLeft:
-        textArea.deleteWordLeft();
-      case _TextAreaAction.deleteWordRight:
-        textArea.deleteWordRight();
-      case _TextAreaAction.deleteToLineStart:
-        textArea.deleteBeforeCursor();
-      case _TextAreaAction.deleteToLineEnd:
-        textArea.deleteAfterCursor();
-      case _TextAreaAction.newline:
-        textArea.insert('\n');
-      case _TextAreaAction.tab:
-        textArea.insert(' ' * tabWidth);
-    }
+    final _ = switch (action) {
+      _TextAreaAction.up => textArea.moveCursorUp(isSelecting: isSelecting),
+      _TextAreaAction.down => textArea.moveCursorDown(isSelecting: isSelecting),
+      _TextAreaAction.left => textArea.moveCursorLeft(isSelecting: isSelecting),
+      _TextAreaAction.right => textArea.moveCursorRight(isSelecting: isSelecting),
+      _TextAreaAction.home => textArea.setCursorStart(),
+      _TextAreaAction.end => textArea.setCursorEnd(),
+      _TextAreaAction.docStart => textArea.setCursorStartBuffer(),
+      _TextAreaAction.docEnd => textArea.setCursorEndBuffer(),
+      _TextAreaAction.backspace => textArea.deleteCharBackward(),
+      _TextAreaAction.delete => textArea.deleteCharForward(),
+      _TextAreaAction.deleteWordLeft => textArea.deleteWordLeft(),
+      _TextAreaAction.deleteWordRight => textArea.deleteWordRight(),
+      _TextAreaAction.deleteToLineStart => textArea.deleteBeforeCursor(),
+      _TextAreaAction.deleteToLineEnd => textArea.deleteAfterCursor(),
+      _TextAreaAction.newline => textArea.insert('\n'),
+      _TextAreaAction.tab => textArea.insert(' ' * tabWidth),
+    };
   }
 
   /// Calculates total visual height (all wrapped lines).
@@ -179,10 +174,10 @@ class TextAreaModel {
 
     final cursorRow = cursorVisualRow();
 
-    if (cursorRow < scrollOffset) {
-      scrollOffset = cursorRow;
-    } else if (cursorRow >= scrollOffset + visibleHeight) {
-      scrollOffset = cursorRow - visibleHeight + 1;
+    if (cursorRow < _scrollOffset) {
+      _scrollOffset = cursorRow;
+    } else if (cursorRow >= _scrollOffset + visibleHeight) {
+      _scrollOffset = cursorRow - visibleHeight + 1;
     }
   }
 }

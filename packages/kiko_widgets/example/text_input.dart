@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:termparser/termparser_events.dart' as evt;
@@ -7,8 +8,17 @@ import 'package:termparser/termparser_events.dart' as evt;
 // ═══════════════════════════════════════════════════════════
 
 class AppModel {
-  final username = TextInputModel(placeholder: 'Enter username', maxLength: 20, focused: true);
-  final password = TextInputModel(placeholder: 'Enter password', obscureText: true);
+  late final focus = FocusGroup<Focusable>([
+    TextInputModel(
+      placeholder: 'Enter username',
+      maxLength: 20,
+      inputFilter: (c) => Characters(c.where((g) => g.trim().isNotEmpty).join()),
+    ),
+    TextInputModel(placeholder: 'Enter password', obscureText: true),
+  ]);
+
+  TextInputModel get username => focus.children[0] as TextInputModel;
+  TextInputModel get password => focus.children[1] as TextInputModel;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -16,19 +26,25 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
-  // Quit on Ctrl+Q or Escape
-  if (msg case KeyMsg(
-    key: evt.KeyEvent(code: evt.KeyCode(char: 'q'), modifiers: final mods),
-  ) when mods.has(evt.KeyModifiers.ctrl)) {
-    return (model, const Quit());
-  }
-  if (msg case KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.escape)))) {
-    return (model, const Quit());
+  // Route to focused input
+  final cmd = (model.focus.focused as TextInputModel).update(msg);
+  if (cmd is! Unhandled) return (model, cmd);
+
+  // Unhandled key - check for Tab cycling and global shortcuts
+  if (msg case KeyMsg(key: final key)) {
+    // Tab cycling
+    if (key.code.name == evt.KeyCodeName.tab) {
+      model.focus.cycle(key.modifiers.has(evt.KeyModifiers.shift) ? -1 : 1);
+      return (model, null);
+    }
+
+    // Quit shortcuts
+    if (key == evt.KeyEvent.fromString('ctrl+q') || key.code.name == evt.KeyCodeName.escape) {
+      return (model, const Quit());
+    }
   }
 
-  // Delegate to text input (for now, just username - no focus yet)
-  final cmd = model.username.update(msg);
-  return (model, cmd);
+  return (model, null);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -44,6 +60,7 @@ void appView(AppModel model, Frame frame) {
           3,
           child: Block(
             borders: Borders.all,
+            borderStyle: model.username.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             child: TextInput(model.username),
           ).titleTop(Line('Username')),
@@ -53,6 +70,7 @@ void appView(AppModel model, Frame frame) {
           3,
           child: Block(
             borders: Borders.all,
+            borderStyle: model.password.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             child: TextInput(model.password),
           ).titleTop(Line('Password')),
@@ -61,14 +79,15 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Text.raw(
             'Username: "${model.username.value}"\n'
-            'Password: "${model.password.value}" (${model.password.length} chars)',
+            'Password: "${model.password.value}" (${model.password.length} chars)\n'
+            'Focused: ${model.focus.index == 0 ? "username" : "password"}',
           ),
         ),
         // Help
         Fixed(
           1,
           child: Text.raw(
-            'Esc/Ctrl+Q to quit',
+            'Tab to switch fields | Esc/Ctrl+Q to quit',
             alignment: Alignment.center,
             style: const Style(fg: Color.darkGray),
           ),

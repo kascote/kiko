@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -17,15 +16,9 @@ class CounterModel {
 // ═══════════════════════════════════════════════════════════
 (CounterModel, Cmd?) counterUpdate(CounterModel model, Msg msg) {
   return switch (msg) {
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(char: 'q'))) => (model, const Quit()),
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.up))) => (
-      model.copyWith(count: model.count + 1),
-      null,
-    ),
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.down))) => (
-      model.copyWith(count: model.count - 1),
-      null,
-    ),
+    KeyMsg(key: 'q') => (model, const Quit()),
+    KeyMsg(key: 'up') => (model.copyWith(count: model.count + 1), null),
+    KeyMsg(key: 'down') => (model.copyWith(count: model.count - 1), null),
     _ => (model, null),
   };
 }

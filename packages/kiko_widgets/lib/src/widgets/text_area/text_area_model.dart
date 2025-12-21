@@ -1,5 +1,5 @@
+import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 import 'selection.dart';
 import 'textarea.dart';
@@ -92,7 +92,7 @@ class TextAreaModel implements Focusable {
   Cmd? update(Msg msg) {
     if (!focused) return null;
 
-    if (msg case KeyMsg(key: final key)) {
+    if (msg case KeyMsg(:final key)) {
       return _handleKey(key);
     }
     if (msg case PasteMsg(text: final text)) {
@@ -102,34 +102,33 @@ class TextAreaModel implements Focusable {
     return null; // ignore other messages
   }
 
-  Cmd? _handleKey(evt.KeyEvent key) {
-    final action = _defaultBindings[key];
+  Cmd? _handleKey(String spec) {
+    final action = _defaultBindings[spec];
 
     if (action != null) {
-      _executeAction(action, key.modifiers);
+      _executeAction(action);
       return null;
     }
 
-    // Character input (no Ctrl)
-    if (key case evt.KeyEvent(
-      code: evt.KeyCode(char: final c),
-      modifiers: final mods,
-    ) when c.isNotEmpty && !mods.has(evt.KeyModifiers.ctrl)) {
-      textArea.insert(c);
+    // Character input (single grapheme, no modifiers)
+    if (spec.characters.length == 1) {
+      textArea.insert(spec);
       return null; // handled
     }
 
     return const Unhandled(); // unhandled key
   }
 
-  void _executeAction(_TextAreaAction action, evt.KeyModifiers mods) {
-    final isSelecting = mods.has(evt.KeyModifiers.shift);
-
+  void _executeAction(_TextAreaAction action) {
     final _ = switch (action) {
-      _TextAreaAction.up => textArea.moveCursorUp(isSelecting: isSelecting),
-      _TextAreaAction.down => textArea.moveCursorDown(isSelecting: isSelecting),
-      _TextAreaAction.left => textArea.moveCursorLeft(isSelecting: isSelecting),
-      _TextAreaAction.right => textArea.moveCursorRight(isSelecting: isSelecting),
+      _TextAreaAction.up => textArea.moveCursorUp(),
+      _TextAreaAction.down => textArea.moveCursorDown(),
+      _TextAreaAction.left => textArea.moveCursorLeft(),
+      _TextAreaAction.right => textArea.moveCursorRight(),
+      _TextAreaAction.selectUp => textArea.moveCursorUp(isSelecting: true),
+      _TextAreaAction.selectDown => textArea.moveCursorDown(isSelecting: true),
+      _TextAreaAction.selectLeft => textArea.moveCursorLeft(isSelecting: true),
+      _TextAreaAction.selectRight => textArea.moveCursorRight(isSelecting: true),
       _TextAreaAction.home => textArea.setCursorStart(),
       _TextAreaAction.end => textArea.setCursorEnd(),
       _TextAreaAction.docStart => textArea.setCursorStartBuffer(),
@@ -191,6 +190,10 @@ enum _TextAreaAction {
   down,
   left,
   right,
+  selectUp,
+  selectDown,
+  selectLeft,
+  selectRight,
   home,
   end,
   docStart,
@@ -206,13 +209,13 @@ enum _TextAreaAction {
 }
 
 class _KeyBindings {
-  final Map<evt.KeyEvent, _TextAreaAction> _bindings = {};
+  final Map<String, _TextAreaAction> _bindings = {};
 
   void bind(String spec, _TextAreaAction action) {
-    _bindings[evt.KeyEvent.fromString(spec)] = action;
+    _bindings[spec] = action;
   }
 
-  _TextAreaAction? operator [](evt.KeyEvent key) => _bindings[key];
+  _TextAreaAction? operator [](String spec) => _bindings[spec];
 }
 
 final _defaultBindings = _KeyBindings()
@@ -221,10 +224,11 @@ final _defaultBindings = _KeyBindings()
   ..bind('down', _TextAreaAction.down)
   ..bind('left', _TextAreaAction.left)
   ..bind('right', _TextAreaAction.right)
-  ..bind('shift+up', _TextAreaAction.up)
-  ..bind('shift+down', _TextAreaAction.down)
-  ..bind('shift+left', _TextAreaAction.left)
-  ..bind('shift+right', _TextAreaAction.right)
+  // Selection
+  ..bind('shift+up', _TextAreaAction.selectUp)
+  ..bind('shift+down', _TextAreaAction.selectDown)
+  ..bind('shift+left', _TextAreaAction.selectLeft)
+  ..bind('shift+right', _TextAreaAction.selectRight)
   ..bind('home', _TextAreaAction.home)
   ..bind('end', _TextAreaAction.end)
   ..bind('ctrl+home', _TextAreaAction.docStart)

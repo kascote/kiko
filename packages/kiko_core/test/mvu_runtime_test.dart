@@ -357,7 +357,7 @@ void main() {
         final msg = await runtime.nextMsg(source, timeout: 100);
 
         expect(msg, isA<KeyMsg>());
-        expect((msg as KeyMsg).key.code.char, equals('z'));
+        expect((msg as KeyMsg).key, equals('z'));
       });
 
       test('converts MouseEvent to MouseMsg', () async {
@@ -399,7 +399,7 @@ void main() {
 
         expect((msg1 as TestMsg).value, equals('first'));
         expect((msg2 as TestMsg).value, equals('second'));
-        expect((msg3 as KeyMsg).key.code.char, equals('x'));
+        expect((msg3 as KeyMsg).key, equals('x'));
       });
 
       test('returns NoneMsg on timeout (enables render cycle)', () async {

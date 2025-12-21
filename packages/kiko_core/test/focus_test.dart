@@ -36,9 +36,7 @@ void main() {
 
     test('cycle moves forward and updates focused fields', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items);
-
-      group.cycle(1);
+      final group = FocusGroup(items)..cycle(1);
       expect(group.index, equals(1));
       expect(items[0].focused, isFalse);
       expect(items[1].focused, isTrue);
@@ -52,9 +50,7 @@ void main() {
 
     test('cycle wraps forward', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items, initial: 2);
-
-      group.cycle(1);
+      final group = FocusGroup(items, initial: 2)..cycle(1);
       expect(group.index, equals(0));
       expect(items[2].focused, isFalse);
       expect(items[0].focused, isTrue);
@@ -62,9 +58,7 @@ void main() {
 
     test('cycle moves backward', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items, initial: 2);
-
-      group.cycle(-1);
+      final group = FocusGroup(items, initial: 2)..cycle(-1);
       expect(group.index, equals(1));
       expect(items[2].focused, isFalse);
       expect(items[1].focused, isTrue);
@@ -72,9 +66,7 @@ void main() {
 
     test('cycle wraps backward', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items);
-
-      group.cycle(-1);
+      final group = FocusGroup(items)..cycle(-1);
       expect(group.index, equals(2));
       expect(items[0].focused, isFalse);
       expect(items[2].focused, isTrue);
@@ -82,9 +74,7 @@ void main() {
 
     test('cycle by multiple positions', () {
       final items = List.generate(5, (i) => MockFocusable('$i'));
-      final group = FocusGroup(items);
-
-      group.cycle(3);
+      final group = FocusGroup(items)..cycle(3);
       expect(group.index, equals(3));
       expect(items[0].focused, isFalse);
       expect(items[3].focused, isTrue);
@@ -96,17 +86,13 @@ void main() {
     });
 
     test('cycle does nothing for empty group', () {
-      final group = FocusGroup<MockFocusable>([]);
-
-      group.cycle(1);
+      final group = FocusGroup<MockFocusable>([])..cycle(1);
       expect(group.length, equals(0));
     });
 
     test('setIndex changes focus and updates focused fields', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items);
-
-      group.setIndex(2);
+      final group = FocusGroup(items)..setIndex(2);
       expect(group.index, equals(2));
       expect(items[0].focused, isFalse);
       expect(items[2].focused, isTrue);
@@ -119,9 +105,7 @@ void main() {
 
     test('setIndex ignores out of bounds', () {
       final items = [MockFocusable('a'), MockFocusable('b'), MockFocusable('c')];
-      final group = FocusGroup(items, initial: 1);
-
-      group.setIndex(5);
+      final group = FocusGroup(items, initial: 1)..setIndex(5);
       expect(group.index, equals(1)); // unchanged
       expect(items[1].focused, isTrue);
 

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart';
 
 Future<void> main() async {
   await Application(
@@ -12,7 +11,7 @@ Future<void> main() async {
     },
   ).runStateless(
     update: (_, msg) => switch (msg) {
-      KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, const Quit()),
+      KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },
     view: (_, frame) {

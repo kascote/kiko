@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -33,15 +32,19 @@ class AppModel {
   if (cmd is! Unhandled) return (model, cmd);
 
   // Unhandled key - check for Tab cycling and global shortcuts
-  if (msg case KeyMsg(key: final key)) {
+  if (msg case KeyMsg(:final key)) {
     // Tab cycling
-    if (key.code.name == evt.KeyCodeName.tab) {
-      model.focus.cycle(key.modifiers.has(evt.KeyModifiers.shift) ? -1 : 1);
+    if (key == 'tab') {
+      model.focus.cycle(1);
+      return (model, null);
+    }
+    if (key == 'shift+tab') {
+      model.focus.cycle(-1);
       return (model, null);
     }
 
     // Quit shortcuts
-    if (key == evt.KeyEvent.fromString('ctrl+q') || key.code.name == evt.KeyCodeName.escape) {
+    if (key == 'ctrl+q' || key == 'escape') {
       return (model, const Quit());
     }
   }

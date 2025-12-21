@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -65,10 +64,10 @@ Future<int> fetchRandomNumber() async {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   return switch (msg) {
     // Quit on 'q'
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(char: 'q'))) => (model, const Quit()),
+    KeyMsg(key: 'q') => (model, const Quit()),
 
     // Enter triggers fetch
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.enter))) when !model.loading => (
+    KeyMsg(key: 'enter') when !model.loading => (
       model.copyWith(status: 'Fetching...', loading: true),
       Task(
         fetchRandomNumber,

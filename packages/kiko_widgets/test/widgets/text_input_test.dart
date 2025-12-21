@@ -1,14 +1,13 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg for a character.
-KeyMsg charMsg(String c) => KeyMsg(KeyEvent(KeyCode.char(c)));
+KeyMsg charMsg(String c) => KeyMsg(c);
 
 /// Helper to create a KeyMsg for backspace.
-KeyMsg backspaceMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.backSpace)));
+KeyMsg backspaceMsg() => const KeyMsg('backSpace');
 
 void main() {
   group('TextInputModel', () {
@@ -109,7 +108,10 @@ void main() {
       final model = TextInputModel(
         inputFilter: (c) => Characters(c.string.toUpperCase()),
         focused: true,
-      )..update(charMsg('hello'));
+      );
+      for (final char in 'hello'.split('')) {
+        model.update(charMsg(char));
+      }
       expect(model.value, equals('HELLO'));
     });
 
@@ -117,10 +119,13 @@ void main() {
       final model = TextInputModel(
         inputFilter: (c) => Characters(c.where((g) => g.trim().isNotEmpty).join()),
         focused: true,
-      )..update(charMsg('hello'));
+      );
+      for (final char in 'hello'.split('')) {
+        model.update(charMsg(char));
+      }
       expect(model.value, equals('hello'));
 
-      model.update(charMsg(' ')); // stripped
+      model.update(const KeyMsg('space'));
       expect(model.value, equals('hello'));
     });
   });
@@ -156,7 +161,7 @@ void main() {
   });
 
   group('TextInputModel.update delete key', () {
-    KeyMsg deleteMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.delete)));
+    KeyMsg deleteMsg() => const KeyMsg('delete');
 
     test('delete removes char after cursor', () {
       final model = TextInputModel(initial: 'abc', focused: true)
@@ -188,10 +193,10 @@ void main() {
   });
 
   group('TextInputModel.update navigation', () {
-    KeyMsg leftMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.left)));
-    KeyMsg rightMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.right)));
-    KeyMsg homeMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.home)));
-    KeyMsg endMsg() => const KeyMsg(KeyEvent(KeyCode.named(KeyCodeName.end)));
+    KeyMsg leftMsg() => const KeyMsg('left');
+    KeyMsg rightMsg() => const KeyMsg('right');
+    KeyMsg homeMsg() => const KeyMsg('home');
+    KeyMsg endMsg() => const KeyMsg('end');
 
     test('left arrow moves cursor left', () {
       final model = TextInputModel(initial: 'abc', focused: true)
@@ -247,34 +252,15 @@ void main() {
   });
 
   group('TextInputModel.update Ctrl keybindings', () {
-    KeyMsg ctrlKey(String char) => KeyMsg(
-      KeyEvent(KeyCode.char(char), modifiers: KeyModifiers.ctrl),
-    );
+    KeyMsg ctrlKey(String char) => KeyMsg('ctrl+$char');
 
-    KeyMsg ctrlLeft() => const KeyMsg(
-      KeyEvent(KeyCode.named(KeyCodeName.left), modifiers: KeyModifiers.ctrl),
-    );
+    KeyMsg ctrlLeft() => const KeyMsg('ctrl+left');
 
-    KeyMsg ctrlRight() => const KeyMsg(
-      KeyEvent(
-        KeyCode.named(KeyCodeName.right),
-        modifiers: KeyModifiers.ctrl,
-      ),
-    );
+    KeyMsg ctrlRight() => const KeyMsg('ctrl+right');
 
-    KeyMsg ctrlBackspace() => const KeyMsg(
-      KeyEvent(
-        KeyCode.named(KeyCodeName.backSpace),
-        modifiers: KeyModifiers.ctrl,
-      ),
-    );
+    KeyMsg ctrlBackspace() => const KeyMsg('ctrl+backSpace');
 
-    KeyMsg ctrlDelete() => const KeyMsg(
-      KeyEvent(
-        KeyCode.named(KeyCodeName.delete),
-        modifiers: KeyModifiers.ctrl,
-      ),
-    );
+    KeyMsg ctrlDelete() => const KeyMsg('ctrl+delete');
 
     test('Ctrl+A moves to start', () {
       final model = TextInputModel(initial: 'hello', focused: true)

@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -24,29 +23,20 @@ class AppModel {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   return switch (msg) {
     // Quit on 'q'
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(char: 'q'))) => (model, const Quit()),
+    KeyMsg(key: 'q') => (model, const Quit()),
 
     // Space toggles timer
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(char: ' '))) =>
+    KeyMsg(key: 'space') =>
       model.running
           ? (model.copyWith(running: false), const StopTick())
           : (model.copyWith(running: true), const Tick(Duration(seconds: 1))),
 
     // Reset timer on 'r'
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(char: 'r'))) => (
-      model.copyWith(seconds: 0, running: false),
-      const StopTick(),
-    ),
+    KeyMsg(key: 'r') => (model.copyWith(seconds: 0, running: false), const StopTick()),
 
     // Arrow keys control counter (works while timer runs)
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.up))) => (
-      model.copyWith(counter: model.counter + 1),
-      null,
-    ),
-    KeyMsg(key: evt.KeyEvent(code: evt.KeyCode(name: evt.KeyCodeName.down))) => (
-      model.copyWith(counter: model.counter - 1),
-      null,
-    ),
+    KeyMsg(key: 'up') => (model.copyWith(counter: model.counter + 1), null),
+    KeyMsg(key: 'down') => (model.copyWith(counter: model.counter - 1), null),
 
     // Tick increments timer
     TickMsg() => (model.copyWith(seconds: model.seconds + 1), null),

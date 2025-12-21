@@ -1,10 +1,9 @@
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart';
 
 void main() async {
   await Application(title: 'Kiko Example (Declarative)').runStateless(
     update: (_, msg) => switch (msg) {
-      KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, const Quit()),
+      KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },
     view: (_, frame) {

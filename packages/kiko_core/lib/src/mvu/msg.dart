@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
@@ -9,21 +10,44 @@ abstract class Msg {
   const Msg();
 }
 
+/// Key event types.
+enum KeyEventType {
+  /// Key was pressed.
+  press,
+
+  /// Key is being held (repeat).
+  repeat,
+
+  /// Key was released.
+  release,
+}
+
 /// Wrapper for keyboard events.
 @immutable
 class KeyMsg extends Msg {
-  /// The underlying key event.
-  final evt.KeyEvent key;
+  /// The key string (e.g., 'ctrl+a', 'enter', 'q').
+  final String key;
 
-  /// Creates a KeyMsg from a KeyEvent.
-  const KeyMsg(this.key);
+  /// The event type.
+  final KeyEventType type;
+
+  /// Creates a KeyMsg for key press (default).
+  const KeyMsg(this.key, {this.type = KeyEventType.press});
+
+  /// Creates a KeyMsg for key release.
+  const KeyMsg.release(this.key) : type = KeyEventType.release;
+
+  /// Creates a KeyMsg for key repeat.
+  const KeyMsg.repeat(this.key) : type = KeyEventType.repeat;
+
+  /// Returns the character if key is a single grapheme, null otherwise.
+  String? get char => key.characters.length == 1 ? key : null;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is KeyMsg && key == other.key;
+  bool operator ==(Object other) => identical(this, other) || other is KeyMsg && key == other.key && type == other.type;
 
   @override
-  int get hashCode => key.hashCode;
+  int get hashCode => Object.hash(key, type);
 }
 
 /// Wrapper for mouse events.
@@ -42,8 +66,7 @@ class MouseMsg extends Msg {
   int get y => mouse.y;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is MouseMsg && mouse == other.mouse;
+  bool operator ==(Object other) => identical(this, other) || other is MouseMsg && mouse == other.mouse;
 
   @override
   int get hashCode => mouse.hashCode;
@@ -62,8 +85,7 @@ class FocusMsg extends Msg {
   bool get hasFocus => focus.hasFocus;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is FocusMsg && focus == other.focus;
+  bool operator ==(Object other) => identical(this, other) || other is FocusMsg && focus == other.focus;
 
   @override
   int get hashCode => focus.hashCode;
@@ -82,8 +104,7 @@ class PasteMsg extends Msg {
   String get text => paste.text;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is PasteMsg && paste == other.paste;
+  bool operator ==(Object other) => identical(this, other) || other is PasteMsg && paste == other.paste;
 
   @override
   int get hashCode => paste.hashCode;
@@ -124,11 +145,20 @@ class UnknownMsg extends Msg {
 /// Converts a termparser Event to a Msg.
 Msg eventToMsg(evt.Event event) {
   return switch (event) {
-    final evt.KeyEvent e => KeyMsg(e),
+    final evt.KeyEvent e => _keyEventToMsg(e),
     final evt.MouseEvent e => MouseMsg(e),
     final evt.FocusEvent e => FocusMsg(e),
     final evt.PasteEvent e => PasteMsg(e),
     evt.NoneEvent() => const NoneMsg(),
     final e => UnknownMsg(e),
+  };
+}
+
+KeyMsg _keyEventToMsg(evt.KeyEvent e) {
+  final key = e.toSpec();
+  return switch (e.eventType) {
+    evt.KeyEventType.keyPress => KeyMsg(key),
+    evt.KeyEventType.keyRepeat => KeyMsg.repeat(key),
+    evt.KeyEventType.keyRelease => KeyMsg.release(key),
   };
 }

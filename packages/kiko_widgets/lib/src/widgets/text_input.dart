@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 import 'package:termunicode/termunicode.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -85,15 +84,15 @@ class TextInputModel implements Focusable {
   Cmd? update(Msg msg) {
     if (!focused) return null;
 
-    if (msg case KeyMsg(key: final key)) {
+    if (msg case KeyMsg(:final key)) {
       return _handleKey(key);
     }
     return null; // ignore non-KeyMsg
   }
 
-  Cmd? _handleKey(evt.KeyEvent key) {
+  Cmd? _handleKey(String key) {
     // Tab → let parent handle (focus cycling)
-    if (key.code.name == evt.KeyCodeName.tab) {
+    if (key == 'tab') {
       return const Unhandled();
     }
 
@@ -117,12 +116,9 @@ class TextInputModel implements Focusable {
       return null;
     }
 
-    // Character input (no Ctrl)
-    if (key case evt.KeyEvent(
-      code: evt.KeyCode(char: final c),
-      modifiers: final mods,
-    ) when c.isNotEmpty && !mods.has(evt.KeyModifiers.ctrl)) {
-      _insertAt(c);
+    // Character input (single grapheme, no modifiers)
+    if (key.characters.length == 1) {
+      _insertAt(key);
       return null;
     }
 
@@ -318,15 +314,15 @@ enum _TextInputAction {
   deleteToLineEnd,
 }
 
-/// Maps KeyEvents to actions.
+/// Maps key to actions.
 class _KeyBindings {
-  final Map<evt.KeyEvent, _TextInputAction> _bindings = {};
+  final Map<String, _TextInputAction> _bindings = {};
 
-  void bind(String spec, _TextInputAction action) {
-    _bindings[evt.KeyEvent.fromString(spec)] = action;
+  void bind(String key, _TextInputAction action) {
+    _bindings[key] = action;
   }
 
-  _TextInputAction? operator [](evt.KeyEvent key) => _bindings[key];
+  _TextInputAction? operator [](String key) => _bindings[key];
 }
 
 /// Default key bindings for text input.

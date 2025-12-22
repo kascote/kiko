@@ -33,6 +33,9 @@ class TextAreaModel implements Focusable {
   /// Style for line numbers.
   final Style lineNumberStyle;
 
+  /// Key bindings for text area actions.
+  late final KeyBinding<TextAreaAction> keyBinding;
+
   int _scrollOffset = 0;
 
   /// Vertical scroll offset in visual rows.
@@ -41,6 +44,7 @@ class TextAreaModel implements Focusable {
   /// Creates a TextAreaModel.
   ///
   /// The wrap width is set dynamically by the widget based on render area.
+  /// Pass a custom [keyBinding] to override default key bindings.
   TextAreaModel({
     String initial = '',
     this.placeholder = '',
@@ -52,6 +56,7 @@ class TextAreaModel implements Focusable {
     int maxCharacters = 0,
     int maxLines = 0,
     int maxColumns = 0,
+    KeyBinding<TextAreaAction>? keyBinding,
   }) : selectionStyle = selectionStyle ?? const Style(fg: Color.black, bg: Color.white),
        lineNumberStyle = lineNumberStyle ?? const Style(fg: Color.darkGray),
        textArea = TextArea(
@@ -59,6 +64,7 @@ class TextAreaModel implements Focusable {
          maxLines: maxLines,
          maxColumns: maxColumns,
        ) {
+    this.keyBinding = keyBinding ?? defaultTextAreaBindings.copy();
     if (initial.isNotEmpty) {
       textArea.initBuffer(initial);
     }
@@ -92,8 +98,8 @@ class TextAreaModel implements Focusable {
   Cmd? update(Msg msg) {
     if (!focused) return null;
 
-    if (msg case KeyMsg(:final key)) {
-      return _handleKey(key);
+    if (msg case KeyMsg()) {
+      return _handleKey(msg);
     }
     if (msg case PasteMsg(text: final text)) {
       textArea.insert(text);
@@ -102,8 +108,8 @@ class TextAreaModel implements Focusable {
     return null; // ignore other messages
   }
 
-  Cmd? _handleKey(String spec) {
-    final action = _defaultBindings[spec];
+  Cmd? _handleKey(KeyMsg msg) {
+    final action = keyBinding.resolve(msg);
 
     if (action != null) {
       _executeAction(action);
@@ -111,36 +117,36 @@ class TextAreaModel implements Focusable {
     }
 
     // Character input (single grapheme, no modifiers)
-    if (spec.characters.length == 1) {
-      textArea.insert(spec);
+    if (msg.key.characters.length == 1) {
+      textArea.insert(msg.key);
       return null; // handled
     }
 
     return const Unhandled(); // unhandled key
   }
 
-  void _executeAction(_TextAreaAction action) {
+  void _executeAction(TextAreaAction action) {
     final _ = switch (action) {
-      _TextAreaAction.up => textArea.moveCursorUp(),
-      _TextAreaAction.down => textArea.moveCursorDown(),
-      _TextAreaAction.left => textArea.moveCursorLeft(),
-      _TextAreaAction.right => textArea.moveCursorRight(),
-      _TextAreaAction.selectUp => textArea.moveCursorUp(isSelecting: true),
-      _TextAreaAction.selectDown => textArea.moveCursorDown(isSelecting: true),
-      _TextAreaAction.selectLeft => textArea.moveCursorLeft(isSelecting: true),
-      _TextAreaAction.selectRight => textArea.moveCursorRight(isSelecting: true),
-      _TextAreaAction.home => textArea.setCursorStart(),
-      _TextAreaAction.end => textArea.setCursorEnd(),
-      _TextAreaAction.docStart => textArea.setCursorStartBuffer(),
-      _TextAreaAction.docEnd => textArea.setCursorEndBuffer(),
-      _TextAreaAction.backspace => textArea.deleteCharBackward(),
-      _TextAreaAction.delete => textArea.deleteCharForward(),
-      _TextAreaAction.deleteWordLeft => textArea.deleteWordLeft(),
-      _TextAreaAction.deleteWordRight => textArea.deleteWordRight(),
-      _TextAreaAction.deleteToLineStart => textArea.deleteBeforeCursor(),
-      _TextAreaAction.deleteToLineEnd => textArea.deleteAfterCursor(),
-      _TextAreaAction.newline => textArea.insert('\n'),
-      _TextAreaAction.tab => textArea.insert(' ' * tabWidth),
+      TextAreaAction.up => textArea.moveCursorUp(),
+      TextAreaAction.down => textArea.moveCursorDown(),
+      TextAreaAction.left => textArea.moveCursorLeft(),
+      TextAreaAction.right => textArea.moveCursorRight(),
+      TextAreaAction.selectUp => textArea.moveCursorUp(isSelecting: true),
+      TextAreaAction.selectDown => textArea.moveCursorDown(isSelecting: true),
+      TextAreaAction.selectLeft => textArea.moveCursorLeft(isSelecting: true),
+      TextAreaAction.selectRight => textArea.moveCursorRight(isSelecting: true),
+      TextAreaAction.home => textArea.setCursorStart(),
+      TextAreaAction.end => textArea.setCursorEnd(),
+      TextAreaAction.docStart => textArea.setCursorStartBuffer(),
+      TextAreaAction.docEnd => textArea.setCursorEndBuffer(),
+      TextAreaAction.backspace => textArea.deleteCharBackward(),
+      TextAreaAction.delete => textArea.deleteCharForward(),
+      TextAreaAction.deleteWordLeft => textArea.deleteWordLeft(),
+      TextAreaAction.deleteWordRight => textArea.deleteWordRight(),
+      TextAreaAction.deleteToLineStart => textArea.deleteBeforeCursor(),
+      TextAreaAction.deleteToLineEnd => textArea.deleteAfterCursor(),
+      TextAreaAction.newline => textArea.insert('\n'),
+      TextAreaAction.tab => textArea.insert(' ' * tabWidth),
     };
   }
 
@@ -185,69 +191,100 @@ class TextAreaModel implements Focusable {
 // KEY BINDINGS
 // ═══════════════════════════════════════════════════════════
 
-enum _TextAreaAction {
+/// Actions for text area key bindings.
+enum TextAreaAction {
+  /// Move cursor up one line.
   up,
+
+  /// Move cursor down one line.
   down,
+
+  /// Move cursor left one character.
   left,
+
+  /// Move cursor right one character.
   right,
+
+  /// Extend selection up one line.
   selectUp,
+
+  /// Extend selection down one line.
   selectDown,
+
+  /// Extend selection left one character.
   selectLeft,
+
+  /// Extend selection right one character.
   selectRight,
+
+  /// Move cursor to start of line.
   home,
+
+  /// Move cursor to end of line.
   end,
+
+  /// Move cursor to start of document.
   docStart,
+
+  /// Move cursor to end of document.
   docEnd,
+
+  /// Delete character before cursor.
   backspace,
+
+  /// Delete character after cursor.
   delete,
+
+  /// Delete word before cursor.
   deleteWordLeft,
+
+  /// Delete word after cursor.
   deleteWordRight,
+
+  /// Delete from cursor to start of line.
   deleteToLineStart,
+
+  /// Delete from cursor to end of line.
   deleteToLineEnd,
+
+  /// Insert newline.
   newline,
+
+  /// Insert tab (as spaces).
   tab,
 }
 
-class _KeyBindings {
-  final Map<String, _TextAreaAction> _bindings = {};
-
-  void bind(String spec, _TextAreaAction action) {
-    _bindings[spec] = action;
-  }
-
-  _TextAreaAction? operator [](String spec) => _bindings[spec];
-}
-
-final _defaultBindings = _KeyBindings()
+/// Default key bindings for text area.
+final defaultTextAreaBindings = KeyBinding<TextAreaAction>()
   // Navigation
-  ..bind('up', _TextAreaAction.up)
-  ..bind('down', _TextAreaAction.down)
-  ..bind('left', _TextAreaAction.left)
-  ..bind('right', _TextAreaAction.right)
+  ..map(['up'], TextAreaAction.up)
+  ..map(['down'], TextAreaAction.down)
+  ..map(['left'], TextAreaAction.left)
+  ..map(['right'], TextAreaAction.right)
   // Selection
-  ..bind('shift+up', _TextAreaAction.selectUp)
-  ..bind('shift+down', _TextAreaAction.selectDown)
-  ..bind('shift+left', _TextAreaAction.selectLeft)
-  ..bind('shift+right', _TextAreaAction.selectRight)
-  ..bind('home', _TextAreaAction.home)
-  ..bind('end', _TextAreaAction.end)
-  ..bind('ctrl+home', _TextAreaAction.docStart)
-  ..bind('ctrl+end', _TextAreaAction.docEnd)
+  ..map(['shift+up'], TextAreaAction.selectUp)
+  ..map(['shift+down'], TextAreaAction.selectDown)
+  ..map(['shift+left'], TextAreaAction.selectLeft)
+  ..map(['shift+right'], TextAreaAction.selectRight)
+  ..map(['home'], TextAreaAction.home)
+  ..map(['end'], TextAreaAction.end)
+  ..map(['ctrl+home'], TextAreaAction.docStart)
+  ..map(['ctrl+end'], TextAreaAction.docEnd)
   // Readline
-  ..bind('ctrl+a', _TextAreaAction.home)
-  ..bind('ctrl+e', _TextAreaAction.end)
-  ..bind('ctrl+p', _TextAreaAction.up)
-  ..bind('ctrl+n', _TextAreaAction.down)
-  ..bind('ctrl+b', _TextAreaAction.left)
-  ..bind('ctrl+f', _TextAreaAction.right)
+  ..map(['ctrl+a'], TextAreaAction.home)
+  ..map(['ctrl+e'], TextAreaAction.end)
+  ..map(['ctrl+p'], TextAreaAction.up)
+  ..map(['ctrl+n'], TextAreaAction.down)
+  ..map(['ctrl+b'], TextAreaAction.left)
+  ..map(['ctrl+f'], TextAreaAction.right)
   // Deletion
-  ..bind('backSpace', _TextAreaAction.backspace)
-  ..bind('delete', _TextAreaAction.delete)
-  ..bind('ctrl+backSpace', _TextAreaAction.deleteWordLeft)
-  ..bind('ctrl+w', _TextAreaAction.deleteWordLeft)
-  ..bind('ctrl+delete', _TextAreaAction.deleteWordRight)
-  ..bind('ctrl+u', _TextAreaAction.deleteToLineStart)
-  ..bind('ctrl+k', _TextAreaAction.deleteToLineEnd)
+  ..map(['backSpace'], TextAreaAction.backspace)
+  ..map(['delete'], TextAreaAction.delete)
+  ..map(['ctrl+backSpace'], TextAreaAction.deleteWordLeft)
+  ..map(['ctrl+w'], TextAreaAction.deleteWordLeft)
+  ..map(['ctrl+delete'], TextAreaAction.deleteWordRight)
+  ..map(['ctrl+u'], TextAreaAction.deleteToLineStart)
+  ..map(['ctrl+k'], TextAreaAction.deleteToLineEnd)
   // Input
-  ..bind('enter', _TextAreaAction.newline)
-  ..bind('tab', _TextAreaAction.tab);
+  ..map(['enter'], TextAreaAction.newline)
+  ..map(['tab'], TextAreaAction.tab);

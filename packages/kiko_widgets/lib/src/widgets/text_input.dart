@@ -48,7 +48,12 @@ class TextInputModel implements Focusable {
   /// Return empty to reject. Can lowercase, strip chars, validate, etc.
   final Characters Function(Characters input)? inputFilter;
 
+  /// Key bindings for text input actions.
+  late final KeyBinding<TextInputAction> keyBinding;
+
   /// Creates a TextInputModel.
+  ///
+  /// Pass a custom [keyBinding] to override default key bindings.
   TextInputModel({
     String initial = '',
     this.placeholder = '',
@@ -59,9 +64,12 @@ class TextInputModel implements Focusable {
     this.fillStyle,
     this.inputFilter,
     this.focused = false,
+    KeyBinding<TextInputAction>? keyBinding,
   }) : _text = Characters(initial),
        _cursor = initial.characters.length,
-       _scrollOffset = 0;
+       _scrollOffset = 0 {
+    this.keyBinding = keyBinding ?? defaultTextInputBindings.copy();
+  }
 
   /// The text as a String.
   String get value => _text.string;
@@ -84,41 +92,41 @@ class TextInputModel implements Focusable {
   Cmd? update(Msg msg) {
     if (!focused) return null;
 
-    if (msg case KeyMsg(:final key)) {
-      return _handleKey(key);
+    if (msg case KeyMsg()) {
+      return _handleKey(msg);
     }
     return null; // ignore non-KeyMsg
   }
 
-  Cmd? _handleKey(String key) {
+  Cmd? _handleKey(KeyMsg msg) {
     // Tab → let parent handle (focus cycling)
-    if (key == 'tab') {
+    if (msg.key == 'tab') {
       return const Unhandled();
     }
 
-    final action = _defaultBindings[key];
+    final action = keyBinding.resolve(msg);
 
     if (action != null) {
       final _ = switch (action) {
-        _TextInputAction.home => _cursor = 0,
-        _TextInputAction.end => _cursor = length,
-        _TextInputAction.left => _cursor > 0 ? _cursor-- : null,
-        _TextInputAction.right => _cursor < length ? _cursor++ : null,
-        _TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
-        _TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
-        _TextInputAction.backspace => _deleteBeforeCursor(),
-        _TextInputAction.delete => _deleteAfterCursor(),
-        _TextInputAction.deleteWordLeft => _deleteWordLeft(),
-        _TextInputAction.deleteWordRight => _deleteWordRight(),
-        _TextInputAction.deleteToLineStart => _deleteToLineStart(),
-        _TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
+        TextInputAction.home => _cursor = 0,
+        TextInputAction.end => _cursor = length,
+        TextInputAction.left => _cursor > 0 ? _cursor-- : null,
+        TextInputAction.right => _cursor < length ? _cursor++ : null,
+        TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
+        TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
+        TextInputAction.backspace => _deleteBeforeCursor(),
+        TextInputAction.delete => _deleteAfterCursor(),
+        TextInputAction.deleteWordLeft => _deleteWordLeft(),
+        TextInputAction.deleteWordRight => _deleteWordRight(),
+        TextInputAction.deleteToLineStart => _deleteToLineStart(),
+        TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
       };
       return null;
     }
 
     // Character input (single grapheme, no modifiers)
-    if (key.characters.length == 1) {
-      _insertAt(key);
+    if (msg.key.characters.length == 1) {
+      _insertAt(msg.key);
       return null;
     }
 
@@ -299,51 +307,63 @@ class TextInput extends Widget {
 // ═══════════════════════════════════════════════════════════
 
 /// Actions for text input key bindings.
-enum _TextInputAction {
+enum TextInputAction {
+  /// Move cursor to start of line.
   home,
+
+  /// Move cursor to end of line.
   end,
+
+  /// Move cursor left one character.
   left,
+
+  /// Move cursor right one character.
   right,
+
+  /// Delete character before cursor.
   backspace,
+
+  /// Delete character after cursor.
   delete,
+
+  /// Delete word before cursor.
   deleteWordLeft,
+
+  /// Delete word after cursor.
   deleteWordRight,
+
+  /// Jump cursor to previous word boundary.
   jumpWordLeft,
+
+  /// Jump cursor to next word boundary.
   jumpWordRight,
+
+  /// Delete from cursor to start of line.
   deleteToLineStart,
+
+  /// Delete from cursor to end of line.
   deleteToLineEnd,
 }
 
-/// Maps key to actions.
-class _KeyBindings {
-  final Map<String, _TextInputAction> _bindings = {};
-
-  void bind(String key, _TextInputAction action) {
-    _bindings[key] = action;
-  }
-
-  _TextInputAction? operator [](String key) => _bindings[key];
-}
-
 /// Default key bindings for text input.
-final _defaultBindings = _KeyBindings()
+final defaultTextInputBindings = KeyBinding<TextInputAction>()
   // Readline
-  ..bind('ctrl+a', _TextInputAction.home)
-  ..bind('ctrl+e', _TextInputAction.end)
-  ..bind('ctrl+w', _TextInputAction.deleteWordLeft)
-  ..bind('ctrl+backSpace', _TextInputAction.deleteWordLeft)
-  ..bind('ctrl+delete', _TextInputAction.deleteWordRight)
-  ..bind('ctrl+left', _TextInputAction.jumpWordLeft)
-  ..bind('ctrl+right', _TextInputAction.jumpWordRight)
-  ..bind('ctrl+u', _TextInputAction.deleteToLineStart)
-  ..bind('ctrl+k', _TextInputAction.deleteToLineEnd)
+  ..map(['ctrl+a'], TextInputAction.home)
+  ..map(['ctrl+e'], TextInputAction.end)
+  ..map(['ctrl+w'], TextInputAction.deleteWordLeft)
+  ..map(['ctrl+backSpace'], TextInputAction.deleteWordLeft)
+  ..map(['ctrl+delete'], TextInputAction.deleteWordRight)
+  ..map(['ctrl+left'], TextInputAction.jumpWordLeft)
+  ..map(['ctrl+right'], TextInputAction.jumpWordRight)
+  ..map(['ctrl+u'], TextInputAction.deleteToLineStart)
+  ..map(['ctrl+k'], TextInputAction.deleteToLineEnd)
   // Basic
-  ..bind('backSpace', _TextInputAction.backspace)
-  ..bind('delete', _TextInputAction.delete)
-  ..bind('left', _TextInputAction.left)
-  ..bind('right', _TextInputAction.right)
-  ..bind('home', _TextInputAction.home)
-  ..bind('end', _TextInputAction.end);
+  ..map(['backSpace'], TextInputAction.backspace)
+  ..map(['delete'], TextInputAction.delete)
+  ..map(['left'], TextInputAction.left)
+  ..map(['right'], TextInputAction.right)
+  ..map(['home'], TextInputAction.home)
+  ..map(['end'], TextInputAction.end);
 
 // ═══════════════════════════════════════════════════════════
 // WORD BOUNDARY HELPERS

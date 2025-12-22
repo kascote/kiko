@@ -6,6 +6,7 @@ library;
 export 'src/buffer.dart';
 export 'src/cell.dart';
 export 'src/colors.dart';
+export 'src/key_binding.dart';
 export 'src/layout/alignment.dart';
 export 'src/layout/constraint.dart';
 export 'src/layout/flex.dart';

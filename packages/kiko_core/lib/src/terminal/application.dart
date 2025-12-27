@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:meta/meta.dart';
-import 'package:termparser/termparser_events.dart';
 
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
@@ -95,6 +94,12 @@ class Application {
   /// Event polling timeout in milliseconds
   final int eventTimeout;
 
+  /// Target frames per second for render loop.
+  ///
+  /// FrameTick timer fires at this rate to drive rendering.
+  /// Default is 60fps (~16ms between frames).
+  final int fps;
+
   Terminal? _terminal;
   StreamSubscription<ProcessSignal>? _sigintSub;
   StreamSubscription<ProcessSignal>? _sigtermSub;
@@ -115,6 +120,7 @@ class Application {
     this.onCleanup,
     @visibleForTesting this.exitCallback,
     this.eventTimeout = 10,
+    this.fps = 60,
   });
 
   /// Runs the application with Model-View-Update architecture.
@@ -168,28 +174,40 @@ class Application {
     View<M> view,
   ) async {
     final terminal = _terminal!;
-    final runtime = _runtime = MvuRuntime();
-    final eventSource = _TerminalEventSource(terminal);
+    final runtime = _runtime = MvuRuntime()
+      ..reset()
+      ..subscribeToEvents(terminal.events);
 
-    runtime.reset();
-
-    // Send InitMsg to allow initial commands
+    // 1. Send InitMsg, process, render immediately (before FrameTick starts)
     var (model, initCmd) = update(init, const InitMsg());
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
+    terminal.draw((frame) => view(model, frame));
 
+    // 2. Start FrameTick timer
+    runtime.startFrameTick(fps);
+
+    // 3. Main loop
     while (true) {
-      // 1. Render
-      terminal.draw((frame) => view(model, frame));
+      // Coalesce pending messages (e.g. mouse moves) before processing
+      runtime.coalesceQueue();
 
-      // 2. Get next message
-      final msg = await runtime.nextMsg(eventSource, timeout: eventTimeout);
+      // Get next message
+      final msg = await runtime.nextMsg(timeout: eventTimeout);
 
-      // 3. Update
+      // Drop stale frames to prevent backlog
+      if (runtime.isStale(msg, fps)) continue;
+
+      // Update model (all messages, including FrameTick)
       final (newModel, cmd) = update(model, msg);
       model = newModel;
 
-      // 4. Process command
+      // Process command
       if (runtime.processCmd(cmd)) return runtime.exitCode;
+
+      // Render only on FrameTick
+      if (msg is FrameTickMsg) {
+        terminal.draw((frame) => view(model, frame));
+      }
     }
   }
 
@@ -298,17 +316,4 @@ class Application {
 
   /// Clean up terminal state and exit.
   Future<void> dispose(int exitCode) => _shutdown(exitCode: exitCode);
-}
-
-/// Adapter to make Terminal implement EventSource.
-class _TerminalEventSource implements EventSource {
-  final Terminal _terminal;
-
-  _TerminalEventSource(this._terminal);
-
-  @override
-  Event poll() => _terminal.poll<Event>();
-
-  @override
-  Future<Event> readEvent({required int timeout}) => _terminal.readEvent<Event>(timeout: timeout);
 }

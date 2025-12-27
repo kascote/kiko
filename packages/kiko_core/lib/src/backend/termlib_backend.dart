@@ -143,6 +143,11 @@ class TermlibBackend {
   /// Polls for a terminal event of type [T] without blocking.
   tle.Event poll<T extends tle.Event>() => _term.poll<T>();
 
+  /// Broadcast stream of parsed terminal events.
+  ///
+  /// Provides push-based event delivery for subscribers.
+  Stream<tle.Event> get events => _term.events;
+
   /// Flushes any buffered output and then exits the application with the given [status] code.
   Future<void> flushThenExit(int status) async => _term.flushThenExit(status);
 

@@ -8,6 +8,25 @@ import 'package:termparser/termparser_events.dart' as evt;
 abstract class Msg {
   /// Creates a Msg.
   const Msg();
+
+  /// Whether this message can be dropped when stale.
+  ///
+  /// Droppable messages (e.g. FrameTickMsg) can be skipped when rendering
+  /// falls behind. Input events should never be droppable.
+  bool get droppable => false;
+
+  /// Whether this message can be coalesced with others of the same key.
+  ///
+  /// Coalesceable messages (e.g. mouse moves, resizes) are merged between
+  /// frames, keeping only the latest. This reduces processing for
+  /// high-frequency events.
+  bool get coalesceable => false;
+
+  /// Key for grouping coalesceable messages.
+  ///
+  /// Messages with the same coalesceKey are coalesced together.
+  /// Only meaningful when [coalesceable] is true.
+  String get coalesceKey => '';
 }
 
 /// Key event types.
@@ -64,6 +83,19 @@ class MouseMsg extends Msg {
 
   /// Y coordinate of mouse event.
   int get y => mouse.y;
+
+  /// Whether this is a move event (no button pressed).
+  bool get isMove => mouse.button.action == evt.MouseButtonAction.moved;
+
+  /// Whether this is a drag event (button held while moving).
+  bool get isDrag => mouse.button.action == evt.MouseButtonAction.drag;
+
+  /// Only mouse moves are coalesceable (not clicks/releases).
+  @override
+  bool get coalesceable => isMove || isDrag;
+
+  @override
+  String get coalesceKey => 'mouse-move';
 
   @override
   bool operator ==(Object other) => identical(this, other) || other is MouseMsg && mouse == other.mouse;
@@ -131,6 +163,32 @@ class TickMsg extends Msg {
 
   /// Creates a TickMsg.
   const TickMsg(this.elapsed);
+}
+
+/// Internal frame tick message for render loop.
+///
+/// Sent automatically at the configured fps rate.
+/// Unlike [TickMsg] (user-controlled), this drives the render cycle.
+class FrameTickMsg extends Msg {
+  /// Time since last frame.
+  final Duration delta;
+
+  /// Frame number since app start.
+  final int frameNumber;
+
+  /// Timestamp when this tick was created.
+  final DateTime timestamp;
+
+  /// Creates a FrameTickMsg.
+  const FrameTickMsg({
+    required this.delta,
+    required this.frameNumber,
+    required this.timestamp,
+  });
+
+  /// FrameTickMsg can be dropped when stale (rendering behind).
+  @override
+  bool get droppable => true;
 }
 
 /// Wrapper for unknown/unhandled events.

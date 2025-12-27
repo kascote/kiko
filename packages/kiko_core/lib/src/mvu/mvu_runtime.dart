@@ -24,25 +24,25 @@ class _CancellationToken {
   void cancel() => _cancelled = true;
 }
 
-/// Abstract event source for MVU runtime.
-///
-/// Allows injecting test implementations that don't require a real terminal.
-abstract interface class EventSource {
-  /// Polls for event without blocking. Returns [NoneEvent] if none available.
-  Event poll();
-
-  /// Reads event with timeout. Returns [NoneEvent] on timeout.
-  Future<Event> readEvent({required int timeout});
-}
-
 /// Callback when a message is queued (for wake-up signaling).
 typedef OnMsgQueued = void Function();
 
 /// MVU runtime handles command processing and message queue management.
+///
+/// Uses unified stream architecture where all event sources (terminal events,
+/// ticks, async tasks) push to the same queue in FIFO order.
 class MvuRuntime {
   final Queue<Msg> _msgQueue = Queue<Msg>();
   Timer? _tickTimer;
+  Timer? _frameTickTimer;
   _CancellationToken _token = _CancellationToken();
+
+  // Frame timing
+  DateTime _lastFrameTime = DateTime.now();
+  int _frameNumber = 0;
+
+  /// Subscription to terminal events stream.
+  StreamSubscription<Event>? _eventSubscription;
 
   /// Exit code set by Quit command.
   int exitCode = 0;
@@ -63,7 +63,24 @@ class MvuRuntime {
     _wakeUp = Completer<void>();
     _tickTimer?.cancel();
     _tickTimer = null;
+    _frameTickTimer?.cancel();
+    _frameTickTimer = null;
+    _lastFrameTime = DateTime.now();
+    _frameNumber = 0;
+    unawaited(_eventSubscription?.cancel());
+    _eventSubscription = null;
     _token = _CancellationToken();
+  }
+
+  /// Subscribes to terminal events stream.
+  ///
+  /// All terminal events are converted to messages and queued in FIFO order
+  /// along with ticks and async task results.
+  void subscribeToEvents(Stream<Event> events) {
+    unawaited(_eventSubscription?.cancel());
+    _eventSubscription = events.listen((event) {
+      queueMsg(eventToMsg(event));
+    });
   }
 
   /// Queues a message and signals wake-up.
@@ -81,7 +98,7 @@ class MvuRuntime {
   }
 
   /// Resets wake-up completer for next wait cycle.
-  void resetWakeUp() {
+  void _resetWakeUp() {
     if (_wakeUp.isCompleted) {
       _wakeUp = Completer<void>();
     }
@@ -90,53 +107,120 @@ class MvuRuntime {
   /// Returns the wake-up future for awaiting.
   Future<void> get wakeUpFuture => _wakeUp.future;
 
-  /// Gets next message from queue, poll, or wait.
+  /// Gets next message from the unified queue.
   ///
-  /// Priority order:
-  /// 1. Queued messages (from Tasks, Ticks)
-  /// 2. Polled terminal events (sync check)
-  /// 3. Wait for terminal event or wake-up signal
+  /// All event sources (terminal events, ticks, async tasks) push to the same
+  /// queue in FIFO order, providing fair interleaving without starvation.
   ///
-  /// ## Starvation Warning
-  ///
-  /// Queued messages always have priority over terminal events. This means:
-  /// - A very fast [Tick] (e.g., <10ms) could starve keyboard/mouse input
-  /// - Use reasonable tick intervals (≥100ms for animations, ≥1000ms for clocks)
-  ///
-  /// Note: Simply reversing the priority (terminal first) would cause the
-  /// opposite problem - rapid mouse movements could starve tick/task messages.
-  ///
-  /// ## Future Improvement
-  ///
-  /// True fair interleaving requires a unified event stream where all sources
-  /// (terminal, ticks, tasks) push to the same queue ordered by arrival time.
-  /// This needs a new broadcast stream API in termlib (can't reuse internal
-  /// onEvent - it would break read()/pollTimeout()).
-  /// See specs/model_view_update.md "Future: Fair Event Scheduling" for details.
-  Future<Msg> nextMsg(EventSource source, {required int timeout}) async {
-    while (true) {
-      // 1. Check queue (Tasks, Ticks)
-      if (_msgQueue.isNotEmpty) {
-        return _msgQueue.removeFirst();
-      }
-
-      // 2. Check terminal events (sync, no wait)
-      final peek = source.poll();
-      if (peek is! NoneEvent) {
-        return eventToMsg(peek);
-      }
-
-      // 3. Wait for terminal event OR wake-up signal
-      final readFuture = source.readEvent(timeout: timeout);
-      await Future.any([readFuture, _wakeUp.future]);
-
-      // Reset wake-up for next round
-      resetWakeUp();
-
-      // Always await readFuture to prevent losing events
-      final event = await readFuture;
-      return eventToMsg(event);
+  /// Returns immediately if message available, otherwise waits for wake-up
+  /// signal or timeout.
+  Future<Msg> nextMsg({required int timeout}) async {
+    // Check queue first
+    if (_msgQueue.isNotEmpty) {
+      return _msgQueue.removeFirst();
     }
+
+    // Wait for message or timeout
+    await Future.any([
+      _wakeUp.future,
+      Future<void>.delayed(Duration(milliseconds: timeout)),
+    ]);
+
+    // Reset wake-up for next round
+    _resetWakeUp();
+
+    // Return message if available, otherwise NoneMsg
+    if (_msgQueue.isNotEmpty) {
+      return _msgQueue.removeFirst();
+    }
+    return const NoneMsg();
+  }
+
+  /// Starts the frame tick timer at the specified fps.
+  ///
+  /// FrameTick is internal and drives the render loop.
+  /// This is separate from user [Tick] timers.
+  void startFrameTick(int fps) {
+    _frameTickTimer?.cancel();
+    _lastFrameTime = DateTime.now();
+    _frameNumber = 0;
+
+    final interval = Duration(milliseconds: (1000 / fps).round());
+    _frameTickTimer = Timer.periodic(interval, (_) {
+      final now = DateTime.now();
+      final delta = now.difference(_lastFrameTime);
+      _lastFrameTime = now;
+      _frameNumber++;
+
+      queueMsg(
+        FrameTickMsg(
+          delta: delta,
+          frameNumber: _frameNumber,
+          timestamp: now,
+        ),
+      );
+    });
+  }
+
+  /// Stops the frame tick timer.
+  void stopFrameTick() {
+    _frameTickTimer?.cancel();
+    _frameTickTimer = null;
+  }
+
+  /// Checks if a message is stale and should be dropped.
+  ///
+  /// Droppable messages (e.g. FrameTickMsg) are stale when older than
+  /// 2 frame intervals. This prevents rendering backlog from building up.
+  bool isStale(Msg msg, int fps) {
+    if (!msg.droppable) return false;
+    if (msg is! FrameTickMsg) return false;
+    // Stale = older than 2 frame intervals
+    final threshold = Duration(milliseconds: (1000 / fps * 2).round());
+    return DateTime.now().difference(msg.timestamp) > threshold;
+  }
+
+  /// Coalesces pending messages in the queue.
+  ///
+  /// For each coalesceable message type (identified by [Msg.coalesceKey]),
+  /// keeps only the latest message, removing older duplicates.
+  /// This reduces processing for high-frequency events like mouse moves.
+  void coalesceQueue() {
+    if (_msgQueue.length < 2) return;
+
+    final messages = _msgQueue.toList();
+    final seen = <String, int>{}; // coalesceKey → index to keep
+    final toRemove = <int>{};
+
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      if (msg.coalesceable) {
+        final key = msg.coalesceKey;
+        if (seen.containsKey(key)) {
+          toRemove.add(seen[key]!); // mark older for removal
+        }
+        seen[key] = i;
+      }
+    }
+
+    if (toRemove.isNotEmpty) {
+      _msgQueue.clear();
+      for (var i = 0; i < messages.length; i++) {
+        if (!toRemove.contains(i)) {
+          _msgQueue.add(messages[i]);
+        }
+      }
+    }
+  }
+
+  /// Cancels timers and subscriptions.
+  void _cleanup() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    _frameTickTimer?.cancel();
+    _frameTickTimer = null;
+    unawaited(_eventSubscription?.cancel());
+    _eventSubscription = null;
   }
 
   /// Process command, returns true if should exit.
@@ -149,7 +233,7 @@ class MvuRuntime {
       case Quit(:final code):
         _token.cancel();
         exitCode = code;
-        _tickTimer?.cancel();
+        _cleanup();
         return true;
       case Tick(:final interval):
         _tickTimer?.cancel();
@@ -182,8 +266,5 @@ class MvuRuntime {
   }
 
   /// Disposes runtime resources.
-  void dispose() {
-    _tickTimer?.cancel();
-    _tickTimer = null;
-  }
+  void dispose() => _cleanup();
 }

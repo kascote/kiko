@@ -309,6 +309,11 @@ class Terminal {
   /// Polls for a terminal event without blocking.
   evt.Event poll<E extends evt.Event>() => backend.poll<E>();
 
+  /// Broadcast stream of parsed terminal events.
+  ///
+  /// Provides push-based event delivery for subscribers.
+  Stream<evt.Event> get events => backend.events;
+
   /// Flush the stdout and stderr buffers and exits the application
   Future<void> flushThenExit(int status) async => backend.flushThenExit(status);
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:logging/logging.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../backend/termlib_backend.dart';
@@ -118,23 +117,19 @@ class Terminal {
   // Number of frames rendered up until current time.
   int _frameCount;
 
-  final Logger? _logger;
-
   Terminal._(
     this.backend, {
     bool hiddenCursor = false,
     ViewPort? viewport,
     Position lastKnowCursorPosition = Position.origin,
     Rect viewportArea = Rect.zero,
-    Logger? logger,
   }) : _lastKnowCursorPosition = lastKnowCursorPosition,
        _currentBufferIndex = 0,
        _hiddenCursor = hiddenCursor,
        _frameCount = 0,
        _viewPort = viewport ?? const ViewPortFullScreen(),
        _viewportArea = viewportArea,
-       _lastKnowArea = Rect.zero,
-       _logger = logger;
+       _lastKnowArea = Rect.zero;
 
   /// Returns the current frame count.
   int get frameCount => _frameCount;
@@ -144,7 +139,6 @@ class Terminal {
     bool hiddenCursor = false,
     ViewPort viewport = const ViewPortFullScreen(),
     Position lastKnowCursorPosition = Position.origin,
-    Logger? logger,
   }) async {
     final backend = TermlibBackend();
     const origin = Position.origin;
@@ -175,7 +169,6 @@ class Terminal {
       viewport: viewport,
       lastKnowCursorPosition: cursorPosition,
       viewportArea: viewportArea,
-      logger: logger,
     );
     terminal._buffers.addAll([
       Buffer.empty(viewportArea),
@@ -420,9 +413,6 @@ class Terminal {
     setCursorPosition(Position(0, _lastKnowArea.height.saturatingSubU16(1)));
     backend.insertNewLines(linesToScroll);
   }
-
-  /// Logs a message
-  void log(Level level, Object value) => _logger?.log(level, value);
 
   /// Enables the alternate screen
   void enableAlternateScreen() => backend.enableAlternateScreen();

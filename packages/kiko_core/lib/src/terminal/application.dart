@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:kiko_log/kiko_log.dart';
 import 'package:meta/meta.dart';
 
 import '../mvu/cmd.dart';
@@ -100,6 +101,18 @@ class Application {
   /// Default is 60fps (~16ms between frames).
   final int fps;
 
+  /// Path to log file. If null, logging is disabled.
+  final String? logPath;
+
+  /// Minimum log level to record.
+  final LogLevel logLevel;
+
+  /// Log formatter (default: standard). Null means use standard formatter.
+  final LogFormatter? logFormatter;
+
+  /// Flush after every write (default: false, buffered).
+  final bool logFlushPerWrite;
+
   Terminal? _terminal;
   StreamSubscription<ProcessSignal>? _sigintSub;
   StreamSubscription<ProcessSignal>? _sigtermSub;
@@ -121,6 +134,10 @@ class Application {
     @visibleForTesting this.exitCallback,
     this.eventTimeout = 10,
     this.fps = 60,
+    this.logPath,
+    this.logLevel = LogLevel.info,
+    this.logFormatter,
+    this.logFlushPerWrite = false,
   });
 
   /// Runs the application with Model-View-Update architecture.
@@ -133,21 +150,41 @@ class Application {
     required Update<M> update,
     required View<M> view,
   }) async {
-    final exitValue = await runZonedGuarded(
+    // Create logger
+    final log = logPath != null
+        ? Log(
+            output: FileOutput(
+              logPath!,
+              formatter: logFormatter ?? LogFormatter.standard,
+              flushPerWrite: logFlushPerWrite,
+            ),
+            level: logLevel,
+          )
+        : Log(output: const NullOutput(), level: logLevel);
+
+    final completer = Completer<int>();
+
+    unawaited(runZonedGuarded(
       () async {
+        Log.info('Application starting');
         _terminal = await Terminal.create(viewport: viewport);
         _initTerminal();
         _setupSignalHandlers();
         final rc = await _runLoop(init, update, view);
         await _shutdown(exitCode: rc);
-        return rc;
+        completer.complete(rc);
       },
       (error, stackTrace) async {
+        Log.error('Uncaught error', error, stackTrace);
         await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
+        if (!completer.isCompleted) completer.complete(defaultErrorCode);
       },
-    );
+      zoneValues: {#kiko.log: log},
+    ));
 
-    return exitValue ?? _baseError;
+    final exitCode = await completer.future;
+    await log.output.close();
+    return exitCode;
   }
 
   /// Runs the application without model state.
@@ -250,6 +287,8 @@ class Application {
     if (_disposed) return;
     _disposed = true;
 
+    Log.info('Application stopping (code: $exitCode)');
+
     _runtime?.dispose();
 
     await _cancelSignalHandlers();
@@ -275,6 +314,7 @@ class Application {
 
   void _setupSignalHandlers() {
     void handleSignal(ProcessSignal signal) {
+      Log.info('Signal received: ${signal.name}');
       // Signal exit code: 128 + signal number
       final code = signal == ProcessSignal.sigint ? _sigInt : _sigTerm;
       unawaited(_shutdown(exitCode: code));

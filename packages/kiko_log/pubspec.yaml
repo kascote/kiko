@@ -1,0 +1,13 @@
+name: kiko_log
+description: Zone-based structured logging for TUI apps.
+version: 0.0.1
+publish_to: "none"
+
+environment:
+  sdk: ^3.10.3
+
+resolution: workspace
+
+dev_dependencies:
+  test: ^1.24.0
+  very_good_analysis: ^10.0.0

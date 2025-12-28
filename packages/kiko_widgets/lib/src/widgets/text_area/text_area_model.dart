@@ -221,6 +221,7 @@ class TextAreaModel implements Focusable {
       TextAreaAction.deleteToLineEnd => textArea.deleteAfterCursor(),
       TextAreaAction.newline => textArea.insert('\n'),
       TextAreaAction.tab => textArea.insert(' ' * tabWidth),
+      TextAreaAction.shiftTab => null, // consumed, no-op
     };
   }
 
@@ -326,6 +327,9 @@ enum TextAreaAction {
 
   /// Insert tab (as spaces).
   tab,
+
+  /// Shift+tab (consumed, no-op by default).
+  shiftTab,
 }
 
 /// Default key bindings for text area.
@@ -361,4 +365,5 @@ final defaultTextAreaBindings = KeyBinding<TextAreaAction>()
   ..map(['ctrl+k'], TextAreaAction.deleteToLineEnd)
   // Input
   ..map(['enter'], TextAreaAction.newline)
-  ..map(['tab'], TextAreaAction.tab);
+  ..map(['tab'], TextAreaAction.tab)
+  ..map(['shift+tab'], TextAreaAction.shiftTab);

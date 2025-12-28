@@ -164,23 +164,25 @@ class Application {
 
     final completer = Completer<int>();
 
-    unawaited(runZonedGuarded(
-      () async {
-        Log.info('Application starting');
-        _terminal = await Terminal.create(viewport: viewport);
-        _initTerminal();
-        _setupSignalHandlers();
-        final rc = await _runLoop(init, update, view);
-        await _shutdown(exitCode: rc);
-        completer.complete(rc);
-      },
-      (error, stackTrace) async {
-        Log.error('Uncaught error', error, stackTrace);
-        await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
-        if (!completer.isCompleted) completer.complete(defaultErrorCode);
-      },
-      zoneValues: {#kiko.log: log},
-    ));
+    unawaited(
+      runZonedGuarded(
+        () async {
+          Log.info('Application starting');
+          _terminal = await Terminal.create(viewport: viewport);
+          _initTerminal();
+          _setupSignalHandlers();
+          final rc = await _runLoop(init, update, view);
+          await _shutdown(exitCode: rc);
+          completer.complete(rc);
+        },
+        (error, stackTrace) async {
+          Log.error('Uncaught error', error, stackTrace);
+          await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
+          if (!completer.isCompleted) completer.complete(defaultErrorCode);
+        },
+        zoneValues: {#kiko.log: log},
+      ),
+    );
 
     final exitCode = await completer.future;
     await log.output.close();

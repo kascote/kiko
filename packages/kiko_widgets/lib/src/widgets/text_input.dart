@@ -4,6 +4,71 @@ import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
 // ═══════════════════════════════════════════════════════════
+// STYLE
+// ═══════════════════════════════════════════════════════════
+
+/// Styles for [TextInput] widget.
+@immutable
+class TextInputStyle {
+  /// Style for user-entered text.
+  final Style? text;
+
+  /// Style for obscured text (password dots).
+  final Style? obscured;
+
+  /// Style for placeholder text.
+  final Style? placeholder;
+
+  /// Style for fill characters.
+  final Style? fill;
+
+  /// Creates a TextInputStyle.
+  const TextInputStyle({this.text, this.obscured, this.placeholder, this.fill});
+
+  /// Default style (no colors, inherits terminal defaults).
+  static const defaultStyle = TextInputStyle();
+
+  /// Merges [other] on top of this, non-null values override.
+  TextInputStyle merge(TextInputStyle? other) {
+    if (other == null) return this;
+    return TextInputStyle(
+      text: other.text ?? text,
+      obscured: other.obscured ?? obscured,
+      placeholder: other.placeholder ?? placeholder,
+      fill: other.fill ?? fill,
+    );
+  }
+
+  /// Creates a copy with the given fields replaced.
+  TextInputStyle copyWith({
+    Style? text,
+    Style? obscured,
+    Style? placeholder,
+    Style? fill,
+  }) {
+    return TextInputStyle(
+      text: text ?? this.text,
+      obscured: obscured ?? this.obscured,
+      placeholder: placeholder ?? this.placeholder,
+      fill: fill ?? this.fill,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TextInputStyle &&
+        other.text == text &&
+        other.obscured == obscured &&
+        other.placeholder == placeholder &&
+        other.fill == fill;
+  }
+
+  @override
+  int get hashCode => Object.hash(text, obscured, placeholder, fill);
+}
+
+// ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
@@ -39,8 +104,8 @@ class TextInputModel implements Focusable {
   /// Character used to fill remaining input area for visual width feedback.
   final String? fillChar;
 
-  /// Style for the fill character.
-  final Style? fillStyle;
+  /// Styles for text, placeholder, and fill.
+  final TextInputStyle style;
 
   /// Transforms or filters input before insertion.
   ///
@@ -61,13 +126,14 @@ class TextInputModel implements Focusable {
     this.obscureText = false,
     this.obscureChar = '•',
     this.fillChar,
-    this.fillStyle,
     this.inputFilter,
     this.focused = false,
+    TextInputStyle? style,
     KeyBinding<TextInputAction>? keyBinding,
   }) : _text = Characters(initial),
        _cursor = initial.characters.length,
-       _scrollOffset = 0 {
+       _scrollOffset = 0,
+       style = style ?? TextInputStyle.defaultStyle {
     this.keyBinding = keyBinding ?? defaultTextInputBindings.copy();
   }
 
@@ -258,7 +324,7 @@ class TextInput extends Widget {
     int usedWidth;
 
     if (showPlaceholder) {
-      Span(m.placeholder).render(renderArea, frame);
+      Span(m.placeholder, style: m.style.placeholder).render(renderArea, frame);
       usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
       if (m.focused) {
         frame.cursorPosition = Position(renderArea.x, y);
@@ -266,7 +332,8 @@ class TextInput extends Widget {
     } else {
       final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
 
-      Line(displayText.string).renderWithOffset(renderArea, frame, scrollOffset);
+      final textStyle = m.obscureText ? m.style.obscured : m.style.text;
+      Line(displayText.string, style: textStyle).renderWithOffset(renderArea, frame, scrollOffset);
 
       final totalTextWidth = widthChars(displayText);
       usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
@@ -294,7 +361,7 @@ class TextInput extends Widget {
               width: remainingWidth,
               height: 1,
             );
-            Span(fillText, style: m.fillStyle).render(fillArea, frame);
+            Span(fillText, style: m.style.fill).render(fillArea, frame);
           }
         }
       }

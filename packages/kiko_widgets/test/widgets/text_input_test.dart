@@ -453,7 +453,7 @@ void main() {
     });
   });
 
-  group('TextInput fillChar and fillStyle', () {
+  group('TextInput fillChar and style', () {
     late Buffer buffer;
     late Frame frame;
 
@@ -466,10 +466,10 @@ void main() {
     test('config fields are set', () {
       final model = TextInputModel(
         fillChar: '_',
-        fillStyle: const Style(fg: Color.red),
+        style: const TextInputStyle(fill: Style(fg: Color.red)),
       );
       expect(model.fillChar, equals('_'));
-      expect(model.fillStyle, equals(const Style(fg: Color.red)));
+      expect(model.style.fill, equals(const Style(fg: Color.red)));
     });
 
     test('fills remaining space after text', () {
@@ -530,12 +530,14 @@ void main() {
       expect(buffer[(x: 14, y: 0)].symbol, equals('-'));
     });
 
-    test('applies fillStyle to fill characters', () {
+    test('applies style.fill to fill characters', () {
       frame = makeFrame(10, 1);
       final model = TextInputModel(
         initial: 'ab',
         fillChar: '_',
-        fillStyle: const Style(fg: Color.red, bg: Color.blue),
+        style: const TextInputStyle(
+          fill: Style(fg: Color.red, bg: Color.blue),
+        ),
       );
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
       TextInput(model).render(area, frame);
@@ -543,7 +545,7 @@ void main() {
       // Text cells should have default style
       expect(buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
 
-      // Fill cells should have the fillStyle
+      // Fill cells should have the style.fill
       expect(buffer[(x: 2, y: 0)].symbol, equals('_'));
       expect(buffer[(x: 2, y: 0)].fg, equals(Color.red));
       expect(buffer[(x: 2, y: 0)].bg, equals(Color.blue));
@@ -557,6 +559,74 @@ void main() {
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
       expect(buffer[(x: 3, y: 0)].symbol, equals(' ')); // default empty
+    });
+
+    test('applies style.text to input text', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(
+        initial: 'hello',
+        style: const TextInputStyle(text: Style(fg: Color.green)),
+      );
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      expect(buffer[(x: 0, y: 0)].symbol, equals('h'));
+      expect(buffer[(x: 0, y: 0)].fg, equals(Color.green));
+      expect(buffer[(x: 4, y: 0)].symbol, equals('o'));
+      expect(buffer[(x: 4, y: 0)].fg, equals(Color.green));
+    });
+
+    test('applies style.placeholder to placeholder text', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(
+        placeholder: 'Type here',
+        style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
+      );
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      expect(buffer[(x: 0, y: 0)].symbol, equals('T'));
+      expect(buffer[(x: 0, y: 0)].fg, equals(Color.gray));
+    });
+
+    test('applies style.obscured to obscured text', () {
+      frame = makeFrame(10, 1);
+      final model = TextInputModel(
+        initial: 'secret',
+        obscureText: true,
+        style: const TextInputStyle(
+          text: Style(fg: Color.green),
+          obscured: Style(fg: Color.yellow),
+        ),
+      );
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
+      TextInput(model).render(area, frame);
+
+      // Uses obscured style, not text style
+      expect(buffer[(x: 0, y: 0)].symbol, equals('•'));
+      expect(buffer[(x: 0, y: 0)].fg, equals(Color.yellow));
+    });
+
+    test('applies all styles together', () {
+      frame = makeFrame(20, 1);
+      final model = TextInputModel(
+        initial: 'ab',
+        fillChar: '_',
+        style: const TextInputStyle(
+          text: Style(fg: Color.cyan),
+          fill: Style(fg: Color.darkGray),
+        ),
+      );
+      final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
+      TextInput(model).render(area, frame);
+
+      // Text has text style
+      expect(buffer[(x: 0, y: 0)].fg, equals(Color.cyan));
+      expect(buffer[(x: 1, y: 0)].fg, equals(Color.cyan));
+
+      // Fill has fill style
+      expect(buffer[(x: 2, y: 0)].symbol, equals('_'));
+      expect(buffer[(x: 2, y: 0)].fg, equals(Color.darkGray));
     });
 
     test('no fill when text fills entire maxLength', () {

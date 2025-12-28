@@ -1,8 +1,87 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 
 import 'selection.dart';
 import 'textarea.dart';
+
+// ═══════════════════════════════════════════════════════════
+// STYLE
+// ═══════════════════════════════════════════════════════════
+
+/// Styles for TextArea widget.
+@immutable
+class TextAreaStyle {
+  /// Style for text content.
+  final Style? text;
+
+  /// Style for placeholder text.
+  final Style? placeholder;
+
+  /// Style for selected text.
+  final Style? selection;
+
+  /// Style for line numbers.
+  final Style? lineNumber;
+
+  /// Creates a TextAreaStyle.
+  const TextAreaStyle({
+    this.text,
+    this.placeholder,
+    this.selection,
+    this.lineNumber,
+  });
+
+  /// Default style with sensible defaults.
+  static const defaultStyle = TextAreaStyle(
+    selection: Style(fg: Color.black, bg: Color.white),
+    lineNumber: Style(fg: Color.darkGray),
+    placeholder: Style(fg: Color.darkGray),
+  );
+
+  /// Merges [other] on top of this, non-null values override.
+  TextAreaStyle merge(TextAreaStyle? other) {
+    if (other == null) return this;
+    return TextAreaStyle(
+      text: other.text ?? text,
+      placeholder: other.placeholder ?? placeholder,
+      selection: other.selection ?? selection,
+      lineNumber: other.lineNumber ?? lineNumber,
+    );
+  }
+
+  /// Creates a copy with the given fields replaced.
+  TextAreaStyle copyWith({
+    Style? text,
+    Style? placeholder,
+    Style? selection,
+    Style? lineNumber,
+  }) {
+    return TextAreaStyle(
+      text: text ?? this.text,
+      placeholder: placeholder ?? this.placeholder,
+      selection: selection ?? this.selection,
+      lineNumber: lineNumber ?? this.lineNumber,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TextAreaStyle &&
+        other.text == text &&
+        other.placeholder == placeholder &&
+        other.selection == selection &&
+        other.lineNumber == lineNumber;
+  }
+
+  @override
+  int get hashCode => Object.hash(text, placeholder, selection, lineNumber);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODEL
+// ═══════════════════════════════════════════════════════════
 
 /// Model for a multi-line text area with word wrapping.
 ///
@@ -24,14 +103,11 @@ class TextAreaModel implements Focusable {
   /// Number of spaces inserted for tab.
   final int tabWidth;
 
-  /// Style for selected text.
-  final Style selectionStyle;
-
   /// Whether to show line numbers.
   final bool showLineNumbers;
 
-  /// Style for line numbers.
-  final Style lineNumberStyle;
+  /// Styles for text, placeholder, selection, and line numbers.
+  final TextAreaStyle style;
 
   /// Key bindings for text area actions.
   late final KeyBinding<TextAreaAction> keyBinding;
@@ -50,15 +126,13 @@ class TextAreaModel implements Focusable {
     this.placeholder = '',
     this.focused = false,
     this.tabWidth = 4,
-    Style? selectionStyle,
     this.showLineNumbers = false,
-    Style? lineNumberStyle,
+    TextAreaStyle? style,
     int maxCharacters = 0,
     int maxLines = 0,
     int maxColumns = 0,
     KeyBinding<TextAreaAction>? keyBinding,
-  }) : selectionStyle = selectionStyle ?? const Style(fg: Color.black, bg: Color.white),
-       lineNumberStyle = lineNumberStyle ?? const Style(fg: Color.darkGray),
+  }) : style = TextAreaStyle.defaultStyle.merge(style),
        textArea = TextArea(
          maxCharacters: maxCharacters,
          maxLines: maxLines,

@@ -58,9 +58,9 @@ ValidationResult validateEmail(String value) {
 ValidationResult validatePassword(String value) {
   if (value.isEmpty) return const Empty();
   if (value.length < 8) return const Invalid('Min 8 characters');
-  if (!RegExp(r'[a-z]').hasMatch(value)) return const Invalid('Need lowercase');
-  if (!RegExp(r'[A-Z]').hasMatch(value)) return const Invalid('Need uppercase');
-  if (!RegExp(r'[0-9]').hasMatch(value)) return const Invalid('Need number');
+  if (!RegExp('[a-z]').hasMatch(value)) return const Invalid('Need lowercase');
+  if (!RegExp('[A-Z]').hasMatch(value)) return const Invalid('Need uppercase');
+  if (!RegExp('[0-9]').hasMatch(value)) return const Invalid('Need number');
   return const Valid();
 }
 
@@ -99,7 +99,7 @@ class AppModel {
 
   bool get isFormValid => usernameValid is Valid && emailValid is Valid && passwordValid is Valid;
 
-  int get validCount => [usernameValid, emailValid, passwordValid].where((v) => v is Valid).length;
+  int get validCount => [usernameValid, emailValid, passwordValid].whereType<Valid>().length;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -131,8 +131,9 @@ class AppModel {
     // Submit
     if (key == 'enter' || key == 'ctrl+s') {
       if (model.isFormValid) {
-        model.submitMessage = 'Form submitted successfully!';
-        model.submitted = true;
+        model
+          ..submitMessage = 'Form submitted successfully!'
+          ..submitted = true;
       } else {
         model.submitMessage = 'Please fix validation errors (${model.validCount}/3 valid)';
       }

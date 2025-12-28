@@ -56,7 +56,7 @@ class TextAreaWidget extends Widget {
       x: area.x + gutterWidth,
       width: area.width - gutterWidth,
     );
-    Span(model.placeholder, style: const Style(fg: Color.darkGray)).render(textArea, frame);
+    Span(model.placeholder, style: model.style.placeholder).render(textArea, frame);
 
     if (model.focused) {
       frame.cursorPosition = Position(textArea.x, textArea.y);
@@ -142,7 +142,7 @@ class TextAreaWidget extends Widget {
     final text = lineNum != null ? lineNum.toString().padLeft(gutterWidth - 1) : ' ' * (gutterWidth - 1);
 
     final lineRect = Rect.create(x: x, y: y, width: gutterWidth, height: 1);
-    Span('$text ', style: model.lineNumberStyle).render(
+    Span('$text ', style: model.style.lineNumber).render(
       lineRect,
       Frame(lineRect, buf, 0),
     );
@@ -158,9 +158,11 @@ class TextAreaWidget extends Widget {
     final ta = model.textArea;
     final parts = ta.selectedBlock.getLineParts(bufferRow, wrapOffset, line);
 
+    final textStyle = model.style.text ?? const Style();
+
     if (parts == null || parts.isEmpty) {
       // No selection, render plain
-      _renderSpan(frame, area, line.string, const Style());
+      _renderSpan(frame, area, line.string, textStyle);
       return;
     }
 
@@ -169,7 +171,7 @@ class TextAreaWidget extends Widget {
     for (final part in parts) {
       if (part.part.isEmpty) continue;
 
-      final style = part.kind == PartKind.selection ? model.selectionStyle : const Style();
+      final style = part.kind == PartKind.selection ? (model.style.selection ?? const Style()) : textStyle;
       final partWidth = widthChars(part.part);
       final partRect = Rect.create(x: x, y: area.y, width: partWidth, height: 1);
 

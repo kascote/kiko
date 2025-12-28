@@ -12,7 +12,7 @@ class AppModel {
       placeholder: 'Enter username',
       maxLength: 20,
       fillChar: '_',
-      fillStyle: const Style(fg: Color.darkGray),
+      style: const TextInputStyle(fill: Style(fg: Color.darkGray)),
       inputFilter: (c) => Characters(c.where((g) => g.trim().isNotEmpty).join()),
     ),
     TextInputModel(placeholder: 'Enter password', obscureText: true, maxLength: 50),

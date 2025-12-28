@@ -3,7 +3,9 @@ import 'msg.dart';
 /// Commands are side effects returned from update.
 ///
 /// Commands tell the MVU runtime what side effects to perform.
-sealed class Cmd {
+/// Extend this class to create custom commands for widgets.
+abstract class Cmd {
+  /// Creates a command.
   const Cmd();
 }
 

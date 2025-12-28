@@ -4,6 +4,7 @@
     "termparser",
     "termunicode",
     "Termlib",
-    "crossout"
+    "crossout",
+    "coalesceable"
   ]
 }

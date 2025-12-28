@@ -262,6 +262,9 @@ class MvuRuntime {
           if (processCmd(c)) return true;
         }
         return false;
+      default:
+        // Custom commands from widgets - not handled by runtime
+        return false;
     }
   }
 

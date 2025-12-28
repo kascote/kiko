@@ -1,10 +1,10 @@
-// Demonstrates combining TextInput with a filterable list.
+// Demonstrates combining TextInput with a filterable ListView.
 //
 // Shows how to:
 // - Filter a list based on text input
-// - Handle focus between search and list
-// - Navigate list with arrow keys
-// - Select items with Enter
+// - Handle focus between search and list using FocusGroup
+// - Update dataSource when filter changes
+// - Select items with Enter via ListConfirmCmd
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -57,13 +57,13 @@ const allItems = [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-enum FocusArea { search, list }
-
 class AppModel {
   final search = TextInputModel(placeholder: 'Type to filter...');
+  late final list = ListViewModel<String, String>(
+    dataSource: ListDataSource.fromList(allItems),
+  );
 
-  FocusArea focusArea = FocusArea.search;
-  int listIndex = 0;
+  String _lastQuery = '';
   String? selected;
 
   AppModel() {
@@ -76,24 +76,14 @@ class AppModel {
     return allItems.where((item) => item.toLowerCase().contains(query)).toList();
   }
 
-  void setFocus(FocusArea area) {
-    focusArea = area;
-    search.focused = area == FocusArea.search;
-    // Clamp list index when switching to list
-    if (area == FocusArea.list && filteredItems.isNotEmpty) {
-      listIndex = listIndex.clamp(0, filteredItems.length - 1);
-    }
-  }
+  /// Update list dataSource when filter changes.
+  void refreshFilter() {
+    final query = search.value;
+    if (query == _lastQuery) return;
+    _lastQuery = query;
 
-  void moveListIndex(int delta) {
-    if (filteredItems.isEmpty) return;
-    listIndex = (listIndex + delta).clamp(0, filteredItems.length - 1);
-  }
-
-  void selectCurrent() {
-    if (filteredItems.isNotEmpty && listIndex < filteredItems.length) {
-      selected = filteredItems[listIndex];
-    }
+    // Update dataSource - this resets cursor to 0
+    list.dataSource = ListDataSource.fromList(filteredItems);
   }
 }
 
@@ -102,66 +92,70 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
-  // Clear selection on new search
-  final prevQuery = model.search.value;
-
   // Route to search input if focused
-  if (model.focusArea == FocusArea.search) {
+  if (model.search.focused) {
     final cmd = model.search.update(msg);
 
-    // Reset list index when query changes
-    if (model.search.value != prevQuery) {
-      model
-        ..listIndex = 0
-        ..selected = null;
+    // Refresh filter after search processes the message
+    model.refreshFilter();
+
+    if (cmd is! Unhandled) return (model, cmd);
+  }
+
+  // Route to list if focused
+  if (model.list.focused) {
+    final cmd = model.list.update(msg);
+
+    // Handle confirm
+    if (cmd case ListConfirmCmd(:final source)) {
+      if (source == model.list) {
+        model.selected = model.list.getCursorItem();
+      }
+      return (model, null);
     }
 
     if (cmd is! Unhandled) return (model, cmd);
   }
 
   if (msg case KeyMsg(:final key)) {
-    // Navigation between areas
+    // Tab switches focus
     if (key == 'tab') {
-      model.setFocus(
-        model.focusArea == FocusArea.search ? FocusArea.list : FocusArea.search,
-      );
-      return (model, null);
-    }
-
-    // Arrow keys for list (work in both areas)
-    if (key == 'down' || key == 'ctrl+n') {
-      if (model.focusArea == FocusArea.search) {
-        model.setFocus(FocusArea.list);
+      if (model.search.focused) {
+        model.search.focused = false;
+        model.list.focused = true;
       } else {
-        model.moveListIndex(1);
-      }
-      return (model, null);
-    }
-    if (key == 'up' || key == 'ctrl+p') {
-      if (model.focusArea == FocusArea.list) {
-        if (model.listIndex == 0) {
-          model.setFocus(FocusArea.search);
-        } else {
-          model.moveListIndex(-1);
-        }
+        model.list.focused = false;
+        model.search.focused = true;
       }
       return (model, null);
     }
 
-    // Select with Enter
-    if (key == 'enter') {
-      model.selectCurrent();
+    // Down arrow from search enters list
+    if (key == 'down' && model.search.focused) {
+      model.search.focused = false;
+      model.list.focused = true;
       return (model, null);
     }
 
-    // Back to search with Escape or /
-    if (key == '/' || (key == 'escape' && model.focusArea == FocusArea.list)) {
-      model.setFocus(FocusArea.search);
+    // / focuses search
+    if (key == '/') {
+      model.list.focused = false;
+      model.search.focused = true;
       return (model, null);
+    }
+
+    // Escape: if in list, go to search; otherwise quit
+    if (key == 'escape') {
+      if (model.list.focused) {
+        model.list.focused = false;
+        model.search.focused = true;
+        return (model, null);
+      }
+      return (model, const Quit());
     }
 
     // Quit
-    if (key == 'escape' || key == 'ctrl+q') {
+    if (key == 'ctrl+q') {
       return (model, const Quit());
     }
   }
@@ -181,20 +175,29 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: model.focusArea == FocusArea.search ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.search.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: TextInput(model.search),
     ).titleTop(Line('Search (${items.length}/${allItems.length})')),
   );
 
-  // List area
+  // List area using ListView
   final listBox = Expanded(
     child: Block(
       borders: Borders.all,
-      borderStyle: model.focusArea == FocusArea.list ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
-      child: _ListView(
-        items: items,
-        selectedIndex: model.focusArea == FocusArea.list ? model.listIndex : -1,
+      borderStyle: model.list.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      child: ListView(
+        model: model.list,
+        itemBuilder: (item, index, state) {
+          var defaultStyle = const Style();
+          if (state.focused) {
+            defaultStyle = state.focused ? const Style(fg: Color.black, bg: Color.green) : const Style();
+          } else if (model.selected == item) {
+            defaultStyle = const Style(fg: Color.green);
+          }
+          return Text.raw(' $item', style: defaultStyle);
+        },
+        emptyPlaceholder: Text.raw('No matches', style: const Style(fg: Color.darkGray)),
       ),
     ).titleTop(Line('Results')),
   );
@@ -208,9 +211,7 @@ void appView(AppModel model, Frame frame) {
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         model.selected ?? 'Press Enter to select',
-        style: Style(
-          fg: model.selected != null ? Color.white : Color.darkGray,
-        ),
+        style: Style(fg: model.selected != null ? Color.white : Color.darkGray),
       ),
     ).titleTop(Line('Selected')),
   );
@@ -219,77 +220,17 @@ void appView(AppModel model, Frame frame) {
   final help = Fixed(
     1,
     child: Text.raw(
-      'Tab to switch | ↑↓ navigate | Enter select | / search | Esc quit',
+      'Tab to switch | ↑↓/jk navigate | Enter select | / search | Esc quit',
       alignment: Alignment.center,
       style: const Style(fg: Color.darkGray),
     ),
   );
 
-  final ui =
-      Block(
-        child: Column(
-          children: [searchBox, listBox, selectedBox, help],
-        ),
-      ).titleTop(
-        Line('Searchable List Demo', style: const Style(fg: Color.darkGray)),
-      );
+  final ui = Block(
+    child: Column(children: [searchBox, listBox, selectedBox, help]),
+  ).titleTop(Line('Searchable List Demo', style: const Style(fg: Color.darkGray)));
 
   frame.renderWidget(ui, frame.area);
-}
-
-// ═══════════════════════════════════════════════════════════
-// LIST WIDGET
-// ═══════════════════════════════════════════════════════════
-
-class _ListView extends Widget {
-  final List<String> items;
-  final int selectedIndex;
-
-  _ListView({required this.items, required this.selectedIndex});
-
-  @override
-  void render(Rect area, Frame frame) {
-    if (area.isEmpty) return;
-
-    final visibleCount = area.height;
-
-    // Calculate scroll offset to keep selection visible
-    var scrollOffset = 0;
-    if (selectedIndex >= 0) {
-      if (selectedIndex >= scrollOffset + visibleCount) {
-        scrollOffset = selectedIndex - visibleCount + 1;
-      } else if (selectedIndex < scrollOffset) {
-        scrollOffset = selectedIndex;
-      }
-    }
-
-    for (var i = 0; i < visibleCount && i + scrollOffset < items.length; i++) {
-      final itemIndex = i + scrollOffset;
-      final item = items[itemIndex];
-      final y = area.y + i;
-      final isSelected = itemIndex == selectedIndex;
-
-      final style = isSelected ? const Style(fg: Color.black, bg: Color.green) : const Style();
-
-      final prefix = isSelected ? '▶ ' : '  ';
-      final text = '$prefix$item';
-
-      // Render line
-      final lineArea = Rect.create(x: area.x, y: y, width: area.width, height: 1);
-
-      if (isSelected) {
-        // Fill background for selected item
-        frame.buffer.setStyle(lineArea, style);
-      }
-
-      Span(text, style: style).render(lineArea, frame);
-    }
-
-    // Show empty state
-    if (items.isEmpty) {
-      const Span('No matches', style: Style(fg: Color.darkGray)).render(area, frame);
-    }
-  }
 }
 
 // ═══════════════════════════════════════════════════════════

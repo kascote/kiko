@@ -83,5 +83,38 @@ void main() {
 
       expect(cell1 == cell2, true);
     });
+
+    group('setCell skip flag handling', () {
+      test('setCell clears skip flag', () {
+        // This is critical: when overwriting a skip cell (used for wide char
+        // overflow), the skip flag must be cleared so the cell appears in
+        // buffer diff and gets rendered to terminal.
+        const skipCell = Cell(char: ' ', skip: true);
+        final result = skipCell.setCell(char: 'a');
+
+        expect(result.symbol, 'a');
+        expect(result.skip, false, reason: 'setCell must clear skip flag');
+      });
+
+      test('setCell on normal cell keeps skip false', () {
+        const normalCell = Cell(char: 'x');
+        final result = normalCell.setCell(char: 'y');
+
+        expect(result.symbol, 'y');
+        expect(result.skip, false);
+      });
+
+      test('setCell with style clears skip flag', () {
+        const skipCell = Cell(char: ' ', skip: true);
+        final result = skipCell.setCell(
+          char: 'b',
+          style: const Style(fg: Color.red),
+        );
+
+        expect(result.symbol, 'b');
+        expect(result.fg, Color.red);
+        expect(result.skip, false, reason: 'setCell must clear skip flag');
+      });
+    });
   });
 }

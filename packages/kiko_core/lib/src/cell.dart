@@ -56,6 +56,11 @@ class Cell {
   }
 
   /// Helper function to update the char and style
+  ///
+  /// Note: This resets `skip` to false. When writing actual content to a cell,
+  /// it should never be skipped in buffer diff - only overflow cells from wide
+  /// characters should have skip=true. This is done on the render phase.
+  /// Check the Span.render method for reference.
   Cell setCell({String? char, Style style = const Style()}) {
     return copyWith(
       char: char,
@@ -63,6 +68,7 @@ class Cell {
       bg: style.bg ?? bg,
       underline: style.underline ?? underline,
       modifier: (modifier | style.addModifier) - style.subModifier,
+      skip: false,
     );
   }
 

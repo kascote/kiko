@@ -7,3 +7,8 @@ export 'src/widgets/text_area/text_area_model.dart';
 export 'src/widgets/text_area/text_area_widget.dart';
 export 'src/widgets/text_area/textarea.dart' show LineInfo;
 export 'src/widgets/text_input.dart';
+export 'src/widgets/tree_view/tree_data_source.dart';
+export 'src/widgets/tree_view/tree_node.dart';
+export 'src/widgets/tree_view/tree_view_model.dart';
+export 'src/widgets/tree_view/tree_view_widget.dart';
+export 'src/widgets/tree_view/types.dart';

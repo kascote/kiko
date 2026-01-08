@@ -460,8 +460,7 @@ Buffer {
       // Write wide char at position 0 (occupies cells 0 and 1)
       buf[(x: 0, y: 0)] = const Cell(char: '称');
       // Cell 1 should be marked as skip by buffer's []= operator
-      expect(buf[(x: 1, y: 0)].skip, false,
-          reason: 'Buffer []= should clear skip on overflow cells');
+      expect(buf[(x: 1, y: 0)].skip, false, reason: 'Buffer []= should clear skip on overflow cells');
 
       // Now overwrite with narrow chars using setCell (as Span.render does)
       buf[(x: 0, y: 0)] = buf[(x: 0, y: 0)].setCell(char: 'a');
@@ -470,8 +469,7 @@ Buffer {
       expect(buf[(x: 0, y: 0)].symbol, 'a');
       expect(buf[(x: 0, y: 0)].skip, false);
       expect(buf[(x: 1, y: 0)].symbol, 'b');
-      expect(buf[(x: 1, y: 0)].skip, false,
-          reason: 'Overwritten skip cell must have skip=false');
+      expect(buf[(x: 1, y: 0)].skip, false, reason: 'Overwritten skip cell must have skip=false');
     });
 
     test('diff includes cells after wide char overwrite', () {
@@ -486,15 +484,14 @@ Buffer {
       // Next frame: overwrite with narrow chars (simulating clear + redraw)
       // First, simulate what happens when a skip cell is overwritten
       next.buf[0] = const Cell(char: 'a');
-      next.buf[1] = const Cell(char: ' ', skip: true).setCell(char: 'b');
+      next.buf[1] = const Cell(skip: true).setCell(char: 'b');
       next.buf[2] = const Cell(char: 'c');
       next.buf[3] = const Cell(char: 'd');
 
       final diff = prev.diff(next).toList();
 
       // All 4 cells should be in diff (they all changed)
-      expect(diff.length, 4,
-          reason: 'All cells should appear in diff, including former skip cell');
+      expect(diff.length, 4, reason: 'All cells should appear in diff, including former skip cell');
       expect(diff.map((d) => d.cell.symbol), ['a', 'b', 'c', 'd']);
     });
 
@@ -515,13 +512,11 @@ Buffer {
       final diff = prev.diff(next).toList();
 
       // All 6 positions should be updated
-      expect(diff.length, 6,
-          reason: 'All cells must be in diff after wide→narrow transition');
+      expect(diff.length, 6, reason: 'All cells must be in diff after wide→narrow transition');
 
       // Verify no skip flags remain
       for (var i = 0; i < 6; i++) {
-        expect(next.buf[i].skip, false,
-            reason: 'Cell $i should not have skip flag');
+        expect(next.buf[i].skip, false, reason: 'Cell $i should not have skip flag');
       }
     });
 
@@ -553,13 +548,11 @@ Buffer {
 
       // All cells should be in diff
       final diff = prevBuf.diff(buf).toList();
-      expect(diff.length, 4,
-          reason: 'All 4 cells must appear in diff after wide→narrow');
+      expect(diff.length, 4, reason: 'All 4 cells must appear in diff after wide→narrow');
 
       // No skip flags
       for (var i = 0; i < 4; i++) {
-        expect(buf.buf[i].skip, false,
-            reason: 'Cycle 3: cell $i must not have skip flag');
+        expect(buf.buf[i].skip, false, reason: 'Cycle 3: cell $i must not have skip flag');
       }
     });
 
@@ -573,12 +566,10 @@ Buffer {
 
       // Wide char at 0: skip=false (must appear in diff)
       expect(buf.buf[0].symbol, '称');
-      expect(buf.buf[0].skip, false,
-          reason: 'Wide char main cell must have skip=false');
+      expect(buf.buf[0].skip, false, reason: 'Wide char main cell must have skip=false');
 
       // Overflow at 1: skip=true (placeholder, not in diff)
-      expect(buf.buf[1].skip, true,
-          reason: 'Wide char overflow cell must have skip=true');
+      expect(buf.buf[1].skip, true, reason: 'Wide char overflow cell must have skip=true');
 
       // Narrow chars: skip=false
       expect(buf.buf[2].symbol, 'a');
@@ -597,9 +588,9 @@ Buffer {
       // First render: '称号xy' - two wide chars + two narrow
       const Span('称号xy').render(area, frame);
       expect(buf.buf[0].skip, false); // 称
-      expect(buf.buf[1].skip, true);  // overflow
+      expect(buf.buf[1].skip, true); // overflow
       expect(buf.buf[2].skip, false); // 号
-      expect(buf.buf[3].skip, true);  // overflow
+      expect(buf.buf[3].skip, true); // overflow
       expect(buf.buf[4].skip, false); // x
       expect(buf.buf[5].skip, false); // y
 
@@ -611,11 +602,9 @@ Buffer {
       expect(buf.buf[0].skip, false, reason: 'Narrow char must have skip=false');
 
       expect(buf.buf[1].symbol, '称');
-      expect(buf.buf[1].skip, false,
-          reason: 'Wide char on former skip cell must have skip=false');
+      expect(buf.buf[1].skip, false, reason: 'Wide char on former skip cell must have skip=false');
 
-      expect(buf.buf[2].skip, true,
-          reason: 'Wide char overflow must have skip=true');
+      expect(buf.buf[2].skip, true, reason: 'Wide char overflow must have skip=true');
 
       expect(buf.buf[3].symbol, 'b');
       expect(buf.buf[3].skip, false);
@@ -641,8 +630,7 @@ Buffer {
       final diff = prev.diff(next).toList();
 
       // Should have 2 cells in diff (the two wide chars, not their overflows)
-      expect(diff.length, 2,
-          reason: 'Diff should include wide chars but not overflow cells');
+      expect(diff.length, 2, reason: 'Diff should include wide chars but not overflow cells');
       expect(diff[0].x, 0);
       expect(diff[0].cell.symbol, '称');
       expect(diff[1].x, 2);

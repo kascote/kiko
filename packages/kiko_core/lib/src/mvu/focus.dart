@@ -4,6 +4,7 @@
 /// If you don't want to use FocusGroup, manage focus manually instead.
 abstract interface class Focusable {
   /// Whether this object currently has focus.
+  // ignore: avoid_setters_without_getters
   set focused(bool value);
 }
 

@@ -89,7 +89,7 @@ void main() {
         // This is critical: when overwriting a skip cell (used for wide char
         // overflow), the skip flag must be cleared so the cell appears in
         // buffer diff and gets rendered to terminal.
-        const skipCell = Cell(char: ' ', skip: true);
+        const skipCell = Cell(skip: true);
         final result = skipCell.setCell(char: 'a');
 
         expect(result.symbol, 'a');
@@ -105,7 +105,7 @@ void main() {
       });
 
       test('setCell with style clears skip flag', () {
-        const skipCell = Cell(char: ' ', skip: true);
+        const skipCell = Cell(skip: true);
         final result = skipCell.setCell(
           char: 'b',
           style: const Style(fg: Color.red),

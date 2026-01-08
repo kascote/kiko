@@ -154,8 +154,8 @@ class TreeView<T> extends Widget {
       final char = state.loading
           ? m.loadingChar
           : state.expanded
-              ? m.expandedChar
-              : m.collapsedChar;
+          ? m.expandedChar
+          : m.collapsedChar;
       spans.add(Span('$char ', style: m.indicatorStyle));
     }
 

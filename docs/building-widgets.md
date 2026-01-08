@@ -401,6 +401,7 @@ class AppModel {
 ```
 
 This pattern is useful when:
+
 - Mixing widget-based and custom focus (search box + list)
 - Different areas have different key handling
 - Arrow keys should work across focus boundaries
@@ -633,14 +634,14 @@ See `searchable_list.dart` for a custom `_ListView` widget example.
 
 All in `packages/kiko_widgets/example/`:
 
-| Example | Demonstrates |
-|---------|-------------|
-| `text_input.dart` | Basic form with FocusGroup, two inputs |
-| `text_area.dart` | Mixed form (TextInput + TextArea), status bar |
-| `manual_focus.dart` | Focus without FocusGroup, manual index tracking |
-| `custom_keybindings.dart` | Vim-style bindings, app-level KeyBinding |
-| `validated_form.dart` | Input filtering, validation feedback, sealed classes |
-| `searchable_list.dart` | TextInput + list filtering, custom list widget |
+| Example                   | Demonstrates                                         |
+| ------------------------- | ---------------------------------------------------- |
+| `text_input.dart`         | Basic form with FocusGroup, two inputs               |
+| `text_area.dart`          | Mixed form (TextInput + TextArea), status bar        |
+| `manual_focus.dart`       | Focus without FocusGroup, manual index tracking      |
+| `custom_keybindings.dart` | Vim-style bindings, app-level KeyBinding             |
+| `validated_form.dart`     | Input filtering, validation feedback, sealed classes |
+| `searchable_list.dart`    | TextInput + list filtering, custom list widget       |
 
 Also see `packages/kiko_core/example/counter.dart` for minimal MVU.
 

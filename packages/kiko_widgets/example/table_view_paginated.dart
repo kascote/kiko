@@ -163,8 +163,10 @@ class AppModel {
     ],
     loadThreshold: 15,
     focused: true,
-    hoverStyle: const Style(bg: Color.blue),
-    columnHighlight: const Style(bg: Color.cyan, fg: Color.black),
+    styles: const TableViewStyle(
+      hover: Style(bg: Color.blue),
+      columnHighlight: Style(bg: Color.cyan, fg: Color.black),
+    ),
     loadingIndicator: Line.fromSpans(const [
       Span('Loading...', style: Style(fg: Color.yellow)),
     ]),

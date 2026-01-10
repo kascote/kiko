@@ -264,7 +264,7 @@ void appView(AppModel model, Frame frame) {
       child: Column(
         children: [
           Expanded(
-            child: Text.raw(
+            child: Span(
               model.selectedPath ?? 'Press Enter to select a category',
               style: Style(
                 fg: model.selectedPath != null ? Color.white : Color.darkGray,
@@ -273,7 +273,7 @@ void appView(AppModel model, Frame frame) {
           ),
           Fixed(
             1,
-            child: Text.raw(
+            child: Span(
               'Expansions: ${model.loadCount}',
               style: const Style(fg: Color.darkGray),
             ),
@@ -285,7 +285,7 @@ void appView(AppModel model, Frame frame) {
 
   final help = Fixed(
     1,
-    child: Text.raw(
+    child: Line(
       '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
       alignment: Alignment.center,
       style: const Style(fg: Color.darkGray),

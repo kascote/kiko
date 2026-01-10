@@ -83,9 +83,11 @@ class AppModel {
     ],
     selectionEnabled: true,
     focused: true,
-    hoverStyle: const Style(bg: Color.blue),
-    selectedStyle: const Style(bg: Color.green),
-    columnHighlight: const Style(bg: Color.cyan, fg: Color.black),
+    styles: const TableViewStyle(
+      hover: Style(bg: Color.blue),
+      selected: Style(bg: Color.green),
+      columnHighlight: Style(bg: Color.cyan, fg: Color.black),
+    ),
   );
 
   String? confirmedCell;

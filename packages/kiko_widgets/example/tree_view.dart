@@ -14,17 +14,26 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 // ═══════════════════════════════════════════════════════════
 
 List<TreeNode<void>> buildFileTree() => [
-  TreeNode(path: '/documents', label: Line('Documents')),
+  TreeNode(
+    path: '/documents',
+    label: Line('Documents', style: const Style(fg: .blue)),
+  ),
   TreeNode(path: '/documents/work', label: Line('Work')),
   TreeNode(path: '/documents/work/report.pdf', label: Line('report.pdf'), isLeaf: true),
   TreeNode(path: '/documents/work/presentation.pptx', label: Line('presentation.pptx'), isLeaf: true),
   TreeNode(path: '/documents/personal', label: Line('Personal')),
   TreeNode(path: '/documents/personal/notes.txt', label: Line('notes.txt'), isLeaf: true),
   TreeNode(path: '/documents/personal/todo.md', label: Line('todo.md'), isLeaf: true),
-  TreeNode(path: '/downloads', label: Line('Downloads')),
+  TreeNode(
+    path: '/downloads',
+    label: Line('Downloads', style: const Style(fg: .yellow)),
+  ),
   TreeNode(path: '/downloads/image.png', label: Line('image.png'), isLeaf: true),
   TreeNode(path: '/downloads/archive.zip', label: Line('archive.zip'), isLeaf: true),
-  TreeNode(path: '/music', label: Line('Music')),
+  TreeNode(
+    path: '/music',
+    label: Line('Music', style: const Style(fg: .magenta)),
+  ),
   TreeNode(path: '/music/song1.mp3', label: Line('song1.mp3'), isLeaf: true),
   TreeNode(path: '/music/song2.mp3', label: Line('song2.mp3'), isLeaf: true),
 ];

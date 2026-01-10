@@ -170,15 +170,23 @@ void appView(AppModel model, Frame frame) {
           bg: state.focused ? Color.green : null,
           addModifier: Modifier.bold,
         );
-        final roleStyle = Style(
-          fg: state.focused ? Color.black : Color.gray,
-          bg: state.focused ? Color.green : null,
-        );
+
+        final roleStyle = state.focused
+            ? const Style(
+                fg: Color.black,
+                bg: Color.green,
+              )
+            : switch (user.role) {
+                'Admin' => const Style(fg: Color.red, addModifier: Modifier.italic),
+                'Manager' => const Style(fg: Color.yellow),
+                'Member' => const Style(fg: Color.blue),
+                _ => const Style(fg: Color.gray),
+              };
 
         return Column(
           children: [
-            Fixed(1, child: Text.raw(' ${user.name}', style: nameStyle)),
-            Fixed(1, child: Text.raw('  ${user.role} (${user.id})', style: roleStyle)),
+            Fixed(1, child: Line(' ${user.name}', style: nameStyle)),
+            Fixed(1, child: Line('  ${user.role} (${user.id})', style: roleStyle)),
           ],
         );
       },

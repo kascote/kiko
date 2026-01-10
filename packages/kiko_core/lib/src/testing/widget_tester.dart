@@ -37,7 +37,7 @@ class WidgetTester {
   WidgetTester({
     this.defaultWidth = 80,
     this.defaultHeight = 24,
-    String emptyCellMarker = '·',
+    String emptyCellMarker = defaultEmptyCellMarker,
     bool trimTrailingWhitespace = true,
     bool stripBlankLines = true,
     bool includeStyles = false,

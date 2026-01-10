@@ -21,7 +21,7 @@ String capture(
   required int height,
   bool showBorder = false,
   bool showEmptyCells = false,
-  String emptyCellMarker = '·',
+  String emptyCellMarker = defaultEmptyCellMarker,
   bool trimTrailingWhitespace = true,
   bool stripBlankLines = true,
 }) {
@@ -52,7 +52,7 @@ CaptureResult captureResult(
   required int height,
   bool showBorder = false,
   bool showEmptyCells = false,
-  String emptyCellMarker = '·',
+  String emptyCellMarker = defaultEmptyCellMarker,
   bool trimTrailingWhitespace = true,
   bool stripBlankLines = true,
 }) {
@@ -101,7 +101,7 @@ String captureWith(
   required int height,
   bool showBorder = false,
   bool showEmptyCells = false,
-  String emptyCellMarker = '·',
+  String emptyCellMarker = defaultEmptyCellMarker,
   bool trimTrailingWhitespace = true,
   bool stripBlankLines = true,
 }) {
@@ -125,7 +125,7 @@ CaptureResult captureWithResult(
   required int height,
   bool showBorder = false,
   bool showEmptyCells = false,
-  String emptyCellMarker = '·',
+  String emptyCellMarker = defaultEmptyCellMarker,
   bool trimTrailingWhitespace = true,
   bool stripBlankLines = true,
 }) {

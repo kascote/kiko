@@ -1,3 +1,6 @@
+/// Default marker character for empty cells.
+const defaultEmptyCellMarker = '·';
+
 /// Configuration for capture operations.
 class CaptureConfig {
   /// Whether to show a debug border around the widget area.
@@ -25,7 +28,7 @@ class CaptureConfig {
   const CaptureConfig({
     this.showBorder = false,
     this.showEmptyCells = false,
-    this.emptyCellMarker = '·',
+    this.emptyCellMarker = defaultEmptyCellMarker,
     this.trimTrailingWhitespace = true,
     this.stripBlankLines = true,
     this.includeStyles = false,

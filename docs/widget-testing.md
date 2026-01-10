@@ -435,6 +435,18 @@ Test on your target terminal. Simple emoji (😀) work reliably.
 
 ## API Reference
 
+### Constants
+
+```dart
+const defaultEmptyCellMarker = '·';
+```
+
+Use in tests to avoid hardcoding the marker:
+
+```dart
+expect(result, contains('${defaultEmptyCellMarker}X'));
+```
+
 ### capture()
 
 Render widget to string.
@@ -477,9 +489,36 @@ class CaptureResult {
   final int width;
   final int height;
   List<String> get lines;    // content.split('\n')
+  int get lineCount;
+
+  String line(int index);    // get single line (0-based)
+  String region({            // extract rectangular region
+    required int x,
+    required int y,
+    required int width,
+    required int height,
+  });
 
   String toString() => content;
 }
+```
+
+#### Partial Assertions
+
+For large widgets, use `line()` or `region()` to check specific areas:
+
+```dart
+final result = captureResult(widget, width: 80, height: 24);
+
+// Check specific line
+expect(result.line(0), equals('Header'));
+expect(result.line(2), contains('Item 1'));
+
+// Check rectangular region (x, y, width, height)
+expect(
+  result.region(x: 5, y: 1, width: 10, height: 2),
+  equals('Column A\nColumn B'),
+);
 ```
 
 ### captureWith()

@@ -9,7 +9,7 @@
 
 export 'capture.dart';
 export 'capture_builder.dart';
-export 'capture_config.dart';
+export 'capture_config.dart' show CaptureConfig, defaultEmptyCellMarker;
 export 'capture_result.dart';
 export 'capture_tester.dart';
 export 'capture_utils.dart' show normalizeExpected;

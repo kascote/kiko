@@ -145,6 +145,37 @@ class TableScrollState {
 }
 
 // ═══════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════
+
+/// Style configuration for TableView.
+class TableViewStyle {
+  /// Header row style.
+  final Style? header;
+
+  /// Default row style.
+  final Style? row;
+
+  /// Current row (hover) style.
+  final Style? hover;
+
+  /// Selected rows style.
+  final Style? selected;
+
+  /// Current column highlight in current row.
+  final Style? columnHighlight;
+
+  /// Creates a TableViewStyle.
+  const TableViewStyle({
+    this.header,
+    this.row,
+    this.hover,
+    this.selected,
+    this.columnHighlight,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // COMMANDS
 // ═══════════════════════════════════════════════════════════
 

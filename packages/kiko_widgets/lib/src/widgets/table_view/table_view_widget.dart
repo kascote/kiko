@@ -142,7 +142,7 @@ class TableView extends Widget {
       final cellArea = Rect.create(x: x, y: y, width: col.width, height: 1);
 
       // Determine header style
-      final style = model.headerStyle ?? const Style();
+      final style = model.styles.header ?? const Style();
 
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
@@ -186,15 +186,17 @@ class TableView extends Widget {
       final cellArea = Rect.create(x: x, y: area.y, width: col.width, height: 1);
 
       // Style precedence: column highlight > selected > hover > column > default
-      var style = model.rowStyle ?? const Style();
+      var style = model.styles.row ?? const Style();
       if (col.style != null) style = col.style!;
-      if (isHover && model.hoverStyle != null) style = model.hoverStyle!;
-      if (isSelected && model.selectedStyle != null) style = model.selectedStyle!;
+      if (isHover && model.styles.hover != null) style = model.styles.hover!;
+      if (isSelected && model.styles.selected != null) {
+        style = model.styles.selected!;
+      }
 
       // Column highlight for current cell (cursor row + cursor col)
       final isCursorCell = isHover && (scrollCol + colIdx) == model.cursorCol;
-      if (isCursorCell && model.columnHighlight != null) {
-        style = model.columnHighlight!;
+      if (isCursorCell && model.styles.columnHighlight != null) {
+        style = model.styles.columnHighlight!;
       }
 
       // Build render context

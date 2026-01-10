@@ -61,20 +61,8 @@ class TableViewModel implements Focusable {
   /// Shown when no data.
   final Widget? emptyPlaceholder;
 
-  /// Default header row style.
-  final Style? headerStyle;
-
-  /// Default row style.
-  final Style? rowStyle;
-
-  /// Current row style.
-  final Style? hoverStyle;
-
-  /// Selected rows style.
-  final Style? selectedStyle;
-
-  /// Current column in current row.
-  final Style? columnHighlight;
+  /// Style configuration.
+  final TableViewStyle styles;
 
   /// Called once on init to fetch total count.
   final Future<int?> Function()? fetchTotalCount;
@@ -121,11 +109,7 @@ class TableViewModel implements Focusable {
     this.columnSeparator = const Span(' '),
     this.loadingIndicator,
     this.emptyPlaceholder,
-    this.headerStyle,
-    this.rowStyle,
-    this.hoverStyle,
-    this.selectedStyle,
-    this.columnHighlight,
+    this.styles = const TableViewStyle(),
     KeyBinding<TableViewAction>? keyBinding,
     this.focused = false,
     this.fetchTotalCount,

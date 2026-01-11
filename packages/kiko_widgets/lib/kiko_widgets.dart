@@ -2,6 +2,7 @@ export 'src/widgets/list_view/data_source.dart';
 export 'src/widgets/list_view/list_view_model.dart';
 export 'src/widgets/list_view/list_view_widget.dart';
 export 'src/widgets/list_view/types.dart';
+export 'src/widgets/modal.dart';
 export 'src/widgets/table_view/table_column.dart';
 export 'src/widgets/table_view/table_data_source.dart';
 export 'src/widgets/table_view/table_view_model.dart';

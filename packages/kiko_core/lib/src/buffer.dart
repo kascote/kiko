@@ -51,6 +51,13 @@ class Buffer implements Equality<Buffer> {
   /// given Cell
   Buffer.filled(Rect rect, Cell cell) : this._(rect, cell);
 
+  /// Creates a copy of another buffer.
+  ///
+  /// Since [Cell] is immutable, a shallow copy of the cell list is sufficient.
+  factory Buffer.copyFrom(Buffer other) {
+    return Buffer.empty(other.area)..buf = List.from(other.buf);
+  }
+
   int? _indexOfOpt(Position pos) {
     if (!area.contains(pos)) return null;
     // remove offset

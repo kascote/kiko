@@ -5,6 +5,7 @@
     "termunicode",
     "Termlib",
     "crossout",
-    "coalesceable"
+    "coalesceable",
+    "termansi"
   ]
 }

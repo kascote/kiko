@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:termparser/termparser_events.dart' as evt;
 
-import '../backend/termlib_backend.dart';
+import '../backend/termlib_backend.dart' show ClearType, TermlibBackend;
 import '../buffer.dart';
 import '../cell.dart';
 import '../extensions/integer.dart';

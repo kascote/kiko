@@ -1,11 +1,8 @@
+import 'package:kiko/kiko.dart';
 import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
 
-import '../buffer.dart';
-import '../colors.dart';
-import '../layout/position.dart';
-import '../layout/size.dart';
-import '../style.dart';
+export 'package:termlib/termlib.dart' show ProfileEnum;
 
 /// The [ClearType] enum defines the different ways to clear the terminal screen.
 enum ClearType {
@@ -124,6 +121,9 @@ class TermlibBackend {
 
   /// Gets the current size of the terminal.
   Size size() => Size(_term.terminalColumns, _term.terminalLines);
+
+  /// Gets the terminal color profile.
+  tl.ProfileEnum get profile => _term.profile;
 
   /// Enables the alternate screen buffer.
   void enableAlternateScreen() => _term.enableAlternateScreen();

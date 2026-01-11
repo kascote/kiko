@@ -1,6 +1,8 @@
 // coverage:ignore-file
 //
 import '../buffer.dart';
+import '../cell.dart';
+import '../layout/constraint.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 
@@ -44,6 +46,70 @@ class Frame {
   void renderWidget(Widget widget, Rect area) {
     widget.render(area, this);
   }
+
+  /// Renders a widget centered in the frame with the given size constraints.
+  ///
+  /// This is a helper for modal rendering. The caller should ensure the
+  /// backdrop is restored before calling this method.
+  void renderModal({
+    required Widget child,
+    required Constraint width,
+    required Constraint height,
+  }) {
+    final modalWidth = _resolveConstraint(width, area.width);
+    final modalHeight = _resolveConstraint(height, area.height);
+
+    // Center the modal in the frame
+    final x = area.x + (area.width - modalWidth) ~/ 2;
+    final y = area.y + (area.height - modalHeight) ~/ 2;
+
+    final modalArea = Rect.create(
+      x: x,
+      y: y,
+      width: modalWidth,
+      height: modalHeight,
+    );
+
+    // Clear the modal area to make it opaque
+    for (var py = modalArea.top; py < modalArea.bottom; py++) {
+      for (var px = modalArea.left; px < modalArea.right; px++) {
+        buffer[(x: px, y: py)] = Cell.empty();
+      }
+    }
+
+    renderWidget(child, modalArea);
+  }
+
+  /// Dims all cell colors in the buffer toward black.
+  ///
+  /// Used to create a backdrop effect for modals.
+  ///
+  /// Note: This always performs the dim operation regardless of terminal
+  /// profile. For noColor terminals, the dimmed RGB values are computed but
+  /// ignored at render time. If this becomes a perf issue, could check
+  /// `Platform.environment['NO_COLOR']` directly, but prefer letting termlib
+  /// handle profile detection consistently.
+  void dimBackdrop({double factor = 0.3}) {
+    for (var i = 0; i < buffer.buf.length; i++) {
+      final cell = buffer.buf[i];
+      buffer.buf[i] = cell.copyWith(
+        fg: cell.fg.dim(factor: factor),
+        bg: cell.bg.dim(factor: factor, isBackground: true),
+      );
+    }
+  }
+}
+
+/// Resolves a constraint to an actual size given available space.
+int _resolveConstraint(Constraint constraint, int available) {
+  return switch (constraint) {
+    ConstraintLength(:final value) => value.clamp(0, available),
+    ConstraintPercent(:final value) => (available * value ~/ 100).clamp(0, available),
+    ConstraintRatio(:final numerator, :final denominator) => (available * numerator ~/ denominator).clamp(0, available),
+    ConstraintMin(:final value) => value.clamp(0, available),
+    ConstraintMax(:final value) => value.clamp(0, available),
+    ConstraintFill(:final value) => (available * value).clamp(0, available),
+  };
 }
 
 /// [CompletedFrame] represents the state of the terminal after all changes

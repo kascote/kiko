@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:termansi/termansi.dart' as ansi;
 
 /// Color kind
 enum ColorKind {
@@ -185,4 +186,37 @@ class Color {
   @override
   int get hashCode => Object.hash(Color, value, kind);
   // coverage:ignore-end
+
+  /// Converts this color to RGB.
+  ///
+  /// - RGB: returns self
+  /// - ANSI (0-15): looks up RGB value from ansiHex table
+  /// - Indexed (0-255): looks up RGB value from ansiHex table
+  /// - Reset: returns [defaultRgb] (defaults to #c0c0c0 for foreground)
+  Color toRgb([int defaultRgb = 0xc0c0c0]) {
+    return switch (kind) {
+      ColorKind.rgb => this,
+      ColorKind.ansi =>
+        value < 0
+            ? Color.fromRGB(defaultRgb) // reset → default
+            : Color.fromRGB(ansi.ansiHex[value]),
+      ColorKind.indexed => Color.fromRGB(ansi.ansiHex[value]),
+    };
+  }
+
+  /// Returns a dimmed version of this color as RGB.
+  ///
+  /// [factor] should be between 0.0 (black) and 1.0 (original color).
+  /// [isBackground] when true, treats reset as black instead of gray.
+  /// Converts to RGB first, then multiplies each channel by factor.
+  Color dim({double factor = 0.3, bool isBackground = false}) {
+    final defaultRgb = isBackground ? 0x000000 : 0xc0c0c0;
+    final rgb = toRgb(defaultRgb);
+    final r = ((rgb.value >> 16) & 0xFF) * factor;
+    final g = ((rgb.value >> 8) & 0xFF) * factor;
+    final b = (rgb.value & 0xFF) * factor;
+    return Color.fromRGB(
+      (r.round() << 16) | (g.round() << 8) | b.round(),
+    );
+  }
 }

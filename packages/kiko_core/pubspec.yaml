@@ -16,6 +16,7 @@ dependencies:
   kiko_log: ^0.0.1
   matcher: ^0.12.16
   meta: ^1.16.0
+  termansi: ^0.3.1
   termlib: ^0.4.0
   termparser: ^0.3.0
   termunicode: ^0.1.0

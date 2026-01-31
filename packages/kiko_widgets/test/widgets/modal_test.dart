@@ -25,11 +25,10 @@ class TestModel {
 
   const TestModel({this.value = 0, this.modal});
 
-  TestModel copyWith({int? value, Modal<dynamic>? Function()? modal}) =>
-      TestModel(
-        value: value ?? this.value,
-        modal: modal != null ? modal() : this.modal,
-      );
+  TestModel copyWith({int? value, Modal<dynamic>? Function()? modal}) => TestModel(
+    value: value ?? this.value,
+    modal: modal != null ? modal() : this.modal,
+  );
 }
 
 void main() {

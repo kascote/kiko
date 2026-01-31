@@ -106,9 +106,9 @@ class Modal<M> implements Widget {
     required this.height,
     this.dimBackdrop = true,
     this.dimFactor = 0.3,
-  })  : _model = init,
-        _update = update,
-        _view = view;
+  }) : _model = init,
+       _update = update,
+       _view = view;
 
   /// Creates a simple modal with static content.
   ///

@@ -75,9 +75,9 @@ class AppModel {
   final cmd = model.list.update(msg);
 
   // Handle confirm
-  if (cmd case ListConfirmCmd(:final source)) {
+  if (cmd case ListActionCmd(:final source)) {
     if (source == model.list) {
-      model.selected = model.list.getCursorItem();
+      model.selected = model.list.cursorItem;
     }
     return (model, null);
   }

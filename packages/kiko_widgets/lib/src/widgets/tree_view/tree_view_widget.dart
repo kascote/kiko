@@ -92,7 +92,7 @@ class TreeView<T> extends Widget {
 
     for (var i = startIndex; i < endIndex; i++) {
       final node = nodes[i];
-      final isFocused = i == m.cursorIndex;
+      final isFocused = i == m.cursor;
       final isExpanded = m.isExpanded(node.path);
       final isLoading = m.isPathLoading(node.path);
 

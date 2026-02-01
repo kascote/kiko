@@ -152,9 +152,10 @@ void appView(AppModel model, Frame frame) {
   ).titleTop(Line('Employees (${employees.length})'));
 
   // Selected rows info
-  final selectedCount = model.table.selectedKeys.length;
+  final selectedKeys = model.table.getSelectedKeys();
+  final selectedCount = selectedKeys.length;
   final selectedInfo = selectedCount > 0
-      ? 'Selected: $selectedCount rows (${model.table.selectedKeys.join(", ")})'
+      ? 'Selected: $selectedCount rows (${selectedKeys.join(", ")})'
       : 'No rows selected';
 
   final selectedBox = Fixed(

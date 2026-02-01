@@ -13,10 +13,10 @@ void main() {
           dataSource: ListDataSource.fromList(['a', 'b', 'c']),
         );
         expect(model.cursor, equals(0));
-        expect(model.getChecked(), isEmpty);
+        expect(model.getSelectedKeys(), isEmpty);
         expect(model.focused, isFalse);
         expect(model.dataSource.length, equals(3));
-        expect(model.getCursorItem(), equals('a'));
+        expect(model.cursorItem, equals('a'));
       });
 
       test('config fields', () {
@@ -48,7 +48,7 @@ void main() {
               // Select first item
               ..update(keyMsg('space'));
 
-        expect(model.getChecked(), equals({'a'}));
+        expect(model.getSelectedKeys(), equals({'a'}));
       });
     });
 
@@ -65,7 +65,7 @@ void main() {
       test('down moves cursor', () {
         model.update(keyMsg('down'));
         expect(model.cursor, equals(1));
-        expect(model.getCursorItem(), equals('b'));
+        expect(model.cursorItem, equals('b'));
       });
 
       test('j moves cursor down (vim)', () {
@@ -177,7 +177,7 @@ void main() {
             dataSource: ListDataSource.fromList(['a', 'b', 'c']),
             focused: true,
           )..update(keyMsg('space'));
-          expect(model.getChecked(), isEmpty);
+          expect(model.getSelectedKeys(), isEmpty);
         });
       });
 
@@ -194,16 +194,16 @@ void main() {
 
         test('space toggles check', () {
           model.update(keyMsg('space'));
-          expect(model.getChecked(), equals({'a'}));
-          expect(model.isChecked(0), isTrue);
-          expect(model.isChecked(1), isFalse);
+          expect(model.getSelectedKeys(), equals({'a'}));
+          expect(model.isSelected(0), isTrue);
+          expect(model.isSelected(1), isFalse);
         });
 
         test('space toggles off', () {
           model
             ..update(keyMsg('space'))
             ..update(keyMsg('space'));
-          expect(model.getChecked(), isEmpty);
+          expect(model.getSelectedKeys(), isEmpty);
         });
 
         test('multiple items can be checked', () {
@@ -213,8 +213,7 @@ void main() {
             ..update(keyMsg('space'))
             ..update(keyMsg('down'))
             ..update(keyMsg('space'));
-          expect(model.getChecked(), equals({'a', 'b', 'c'}));
-          expect(model.getCheckedItems(), equals(['a', 'b', 'c']));
+          expect(model.getSelectedKeys(), equals({'a', 'b', 'c'}));
         });
       });
 
@@ -232,13 +231,13 @@ void main() {
         test('shift+down extends check range', () {
           model.update(keyMsg('shift+down'));
           expect(model.cursor, equals(1));
-          expect(model.getChecked(), equals({'a', 'b'}));
+          expect(model.getSelectedKeys(), equals({'a', 'b'}));
         });
 
         test('shift+j extends check range (vim)', () {
           model.update(keyMsg('shift+j'));
           expect(model.cursor, equals(1));
-          expect(model.getChecked(), equals({'a', 'b'}));
+          expect(model.getSelectedKeys(), equals({'a', 'b'}));
         });
 
         test('shift+up extends check range upward', () {
@@ -247,7 +246,7 @@ void main() {
             ..update(keyMsg('down'))
             ..update(keyMsg('shift+up'));
           expect(model.cursor, equals(1));
-          expect(model.getChecked(), equals({'b', 'c'}));
+          expect(model.getSelectedKeys(), equals({'b', 'c'}));
         });
 
         test('shift+k extends check range upward (vim)', () {
@@ -256,7 +255,7 @@ void main() {
             ..update(keyMsg('down'))
             ..update(keyMsg('shift+k'));
           expect(model.cursor, equals(1));
-          expect(model.getChecked(), equals({'b', 'c'}));
+          expect(model.getSelectedKeys(), equals({'b', 'c'}));
         });
 
         test('continued range select expands checked', () {
@@ -265,7 +264,7 @@ void main() {
             ..update(keyMsg('shift+down'))
             ..update(keyMsg('shift+down'));
           expect(model.cursor, equals(3));
-          expect(model.getChecked(), equals({'a', 'b', 'c', 'd'}));
+          expect(model.getSelectedKeys(), equals({'a', 'b', 'c', 'd'}));
         });
 
         test('normal nav clears anchor', () {
@@ -275,7 +274,7 @@ void main() {
             ..update(keyMsg('shift+down'));
           // New anchor at cursor 2
           expect(model.cursor, equals(3));
-          expect(model.getChecked(), equals({'a', 'b', 'c', 'd'}));
+          expect(model.getSelectedKeys(), equals({'a', 'b', 'c', 'd'}));
         });
 
         test('safe when data source shrinks after anchor set', () {
@@ -283,7 +282,7 @@ void main() {
           model
             ..update(keyMsg('end')) // cursor at 4
             ..update(keyMsg('shift+up')); // anchor at 4, cursor at 3
-          expect(model.getChecked(), equals({'d', 'e'}));
+          expect(model.getSelectedKeys(), equals({'d', 'e'}));
 
           // Shrink data source - anchor (4) now stale
           model
@@ -292,7 +291,7 @@ void main() {
             // Loop iterates anchor..cursor but _safeItemAt returns null for invalid
             ..update(keyMsg('shift+up'));
           // Old keys remain, only valid index 1 ('b') added
-          expect(model.getChecked(), equals({'d', 'e', 'b'}));
+          expect(model.getSelectedKeys(), equals({'d', 'e', 'b'}));
         });
       });
 
@@ -308,7 +307,7 @@ void main() {
                 ..setVisibleCount(5)
                 ..update(keyMsg('down')) // cursor at b (disabled)
                 ..update(keyMsg('space')); // should not check
-          expect(model.getChecked(), isEmpty);
+          expect(model.getSelectedKeys(), isEmpty);
         });
 
         test('range select skips disabled', () {
@@ -323,7 +322,7 @@ void main() {
                 ..update(keyMsg('shift+down'))
                 ..update(keyMsg('shift+down'))
                 ..update(keyMsg('shift+down'));
-          expect(model.getChecked(), equals({'a', 'c', 'd'})); // b skipped
+          expect(model.getSelectedKeys(), equals({'a', 'c', 'd'})); // b skipped
         });
       });
     });
@@ -335,8 +334,8 @@ void main() {
           focused: true,
         );
         final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<ListConfirmCmd<String, String>>());
-        expect((cmd! as ListConfirmCmd).source, same(model));
+        expect(cmd, isA<ListActionCmd<String, String>>());
+        expect((cmd! as ListActionCmd).source, same(model));
       });
 
       test('unhandled key returns Unhandled', () {
@@ -382,7 +381,7 @@ void main() {
               ..update(keyMsg('down'));
 
         final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<LoadMoreCmd<String, String>>());
+        expect(cmd, isA<ListLoadMoreCmd<String, String>>());
       });
 
       test('not emitted when hasMore is false', () {
@@ -409,7 +408,7 @@ void main() {
           focused: true,
         );
         expect(model.cursor, equals(0));
-        expect(model.getCursorItem(), isNull);
+        expect(model.cursorItem, isNull);
         expect(model.dataSource.length, equals(0));
       });
 

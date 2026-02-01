@@ -32,7 +32,7 @@ void main() {
           dataSource: TestTreeDataSource(roots: []),
         );
         expect(model.flatNodes, isEmpty);
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
         expect(model.cursorNode, isNull);
         expect(model.focused, isFalse);
         expect(model.isLoaded, isFalse);
@@ -174,39 +174,39 @@ void main() {
 
       test('down moves cursor', () {
         model.update(keyMsg('down'));
-        expect(model.cursorIndex, equals(1));
+        expect(model.cursor, equals(1));
         expect(model.cursorNode?.path, equals('/b'));
       });
 
       test('j moves cursor down (vim)', () {
         model.update(keyMsg('j'));
-        expect(model.cursorIndex, equals(1));
+        expect(model.cursor, equals(1));
       });
 
       test('up moves cursor', () {
         model
           ..update(keyMsg('down'))
           ..update(keyMsg('up'));
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
       });
 
       test('k moves cursor up (vim)', () {
         model
           ..update(keyMsg('j'))
           ..update(keyMsg('k'));
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
       });
 
       test('up at first stays at 0', () {
         model.update(keyMsg('up'));
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
       });
 
       test('down at last stays at end', () {
         for (var i = 0; i < 10; i++) {
           model.update(keyMsg('down'));
         }
-        expect(model.cursorIndex, equals(4));
+        expect(model.cursor, equals(4));
       });
 
       test('home moves to first', () {
@@ -214,29 +214,29 @@ void main() {
           ..update(keyMsg('down'))
           ..update(keyMsg('down'))
           ..update(keyMsg('home'));
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
       });
 
       test('end moves to last', () {
         model.update(keyMsg('end'));
-        expect(model.cursorIndex, equals(4));
+        expect(model.cursor, equals(4));
       });
 
       test('G moves to last (vim)', () {
         model.update(keyMsg('G'));
-        expect(model.cursorIndex, equals(4));
+        expect(model.cursor, equals(4));
       });
 
       test('pageDown moves by visible count', () {
         model.update(keyMsg('pageDown'));
-        expect(model.cursorIndex, equals(3));
+        expect(model.cursor, equals(3));
       });
 
       test('pageUp moves by visible count', () {
         model
           ..update(keyMsg('end'))
           ..update(keyMsg('pageUp'));
-        expect(model.cursorIndex, equals(1));
+        expect(model.cursor, equals(1));
       });
     });
 
@@ -387,8 +387,8 @@ void main() {
         await model.loadRoots();
 
         final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<TreeConfirmCmd<String>>());
-        expect((cmd! as TreeConfirmCmd).path, equals('/a'));
+        expect(cmd, isA<TreeActionCmd<String>>());
+        expect((cmd! as TreeActionCmd).path, equals('/a'));
       });
 
       test('unhandled key returns Unhandled', () async {
@@ -434,7 +434,7 @@ void main() {
           model.update(keyMsg('down'));
         }
 
-        expect(model.cursorIndex, equals(6));
+        expect(model.cursor, equals(6));
         expect(model.scrollOffset, equals(2));
       });
 
@@ -482,7 +482,7 @@ void main() {
           ..update(keyMsg('home'))
           ..update(keyMsg('end'));
 
-        expect(model.cursorIndex, equals(0));
+        expect(model.cursor, equals(0));
       });
     });
   });

@@ -96,7 +96,7 @@ class ListView<T, K> extends Widget {
     for (var i = startIndex; i < endIndex; i++) {
       final item = dataSource.itemAt(i);
       final isFocused = i == m.cursor;
-      final isChecked = m.isChecked(i);
+      final isChecked = m.isSelected(i);
       final isDisabled = m.isDisabled?.call(i) ?? false;
 
       // Item area (clipped to renderArea to prevent overflow)

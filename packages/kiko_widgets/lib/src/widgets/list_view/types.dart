@@ -101,19 +101,19 @@ typedef ItemState = ({bool checked, bool focused, bool disabled});
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when cursor nears end and dataSource.hasMore is true.
-class LoadMoreCmd<T, K> extends Cmd {
+class ListLoadMoreCmd<T, K> extends Cmd {
   /// The list view model that needs more data.
   final ListViewModel<T, K> source;
 
   /// Creates a LoadMoreCmd.
-  const LoadMoreCmd(this.source);
+  const ListLoadMoreCmd(this.source);
 }
 
-/// Emitted on Enter/confirm action.
-class ListConfirmCmd<T, K> extends Cmd {
+/// Emitted when execute an action in the current item
+class ListActionCmd<T, K> extends Cmd {
   /// The list view model where confirm was triggered.
   final ListViewModel<T, K> source;
 
-  /// Creates a ListConfirmCmd.
-  const ListConfirmCmd(this.source);
+  /// Creates a ListActionCmd.
+  const ListActionCmd(this.source);
 }

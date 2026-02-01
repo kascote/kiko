@@ -85,13 +85,13 @@ class TextAreaStyle {
 
 /// Model for a multi-line text area with word wrapping.
 ///
-/// Wraps [TextArea] and adds MVU integration (update method), focus state,
+/// Wraps [TextAreaComponent] and adds MVU integration (update method), focus state,
 /// and configuration options. Returns [Unhandled] for keys it doesn't handle.
 ///
 /// Note: Tab is consumed (inserts spaces for indentation), not passed to parent.
 class TextAreaModel implements Focusable {
   /// The underlying text area buffer.
-  final TextArea textArea;
+  final TextAreaComponent textArea;
 
   /// Whether the text area is focused.
   @override
@@ -133,7 +133,7 @@ class TextAreaModel implements Focusable {
     int maxColumns = 0,
     KeyBinding<TextAreaAction>? keyBinding,
   }) : style = TextAreaStyle.defaultStyle.merge(style),
-       textArea = TextArea(
+       textArea = TextAreaComponent(
          maxCharacters: maxCharacters,
          maxLines: maxLines,
          maxColumns: maxColumns,
@@ -148,10 +148,10 @@ class TextAreaModel implements Focusable {
   String get value => textArea.content.string;
 
   /// Current cursor row in buffer.
-  int get row => textArea.row;
+  int get cursorRow => textArea.row;
 
   /// Current cursor column in buffer.
-  int get column => textArea.column;
+  int get cursorCol => textArea.column;
 
   /// Number of lines in buffer.
   int get lineCount => textArea.lineCount;

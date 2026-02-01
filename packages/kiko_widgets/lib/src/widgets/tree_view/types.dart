@@ -109,8 +109,8 @@ class TreeCollapseCmd<T> extends Cmd {
   const TreeCollapseCmd(this.source, this.path, this.node);
 }
 
-/// Emitted on Enter/confirm action.
-class TreeConfirmCmd<T> extends Cmd {
+/// Emitted when execute an action in the current item
+class TreeActionCmd<T> extends Cmd {
   /// The tree view model.
   final TreeViewModel<T> source;
 
@@ -121,5 +121,5 @@ class TreeConfirmCmd<T> extends Cmd {
   final TreeNode<T> node;
 
   /// Creates a TreeConfirmCmd.
-  const TreeConfirmCmd(this.source, this.path, this.node);
+  const TreeActionCmd(this.source, this.path, this.node);
 }

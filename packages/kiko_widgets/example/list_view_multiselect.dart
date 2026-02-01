@@ -117,22 +117,21 @@ void appView(AppModel model, Frame frame) {
   ).titleTop(Line('Contacts'));
 
   // Selection summary
-  final checkedItems = model.list.getCheckedItems();
-  final summary = checkedItems.isEmpty
-      ? 'No contacts checked'
-      : 'Checked: ${checkedItems.map((c) => c.name).join(', ')}';
+  final selectedKeys = model.list.getSelectedKeys();
+  final selectedNames = contacts.where((c) => selectedKeys.contains(c.id)).map((c) => c.name);
+  final summary = selectedKeys.isEmpty ? 'No contacts checked' : 'Checked: ${selectedNames.join(', ')}';
 
   final summaryBox = Fixed(
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: checkedItems.isNotEmpty ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: selectedKeys.isNotEmpty ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         summary,
-        style: Style(fg: checkedItems.isNotEmpty ? Color.white : Color.darkGray),
+        style: Style(fg: selectedKeys.isNotEmpty ? Color.white : Color.darkGray),
       ),
-    ).titleTop(Line('Checked (${checkedItems.length})')),
+    ).titleTop(Line('Checked (${selectedKeys.length})')),
   );
 
   final help = Fixed(

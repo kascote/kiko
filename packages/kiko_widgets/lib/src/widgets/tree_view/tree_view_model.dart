@@ -30,7 +30,7 @@ class TreeViewModel<T> implements Focusable {
   final Map<String, List<TreeNode<T>>> _childrenCache = {};
   List<TreeNode<T>> _flatNodes = [];
   List<TreeNode<T>>? _roots;
-  int _cursorIndex = 0;
+  int _cursor = 0;
   int _scrollOffset = 0;
   int _visibleCount = 0;
   bool _rootsLoaded = false;
@@ -91,14 +91,13 @@ class TreeViewModel<T> implements Focusable {
   List<TreeNode<T>> get flatNodes => _flatNodes;
 
   /// Current cursor index in flatNodes.
-  int get cursorIndex => _cursorIndex;
+  int get cursor => _cursor;
 
   /// Current scroll offset.
   int get scrollOffset => _scrollOffset;
 
   /// Node at cursor, or null if empty.
-  TreeNode<T>? get cursorNode =>
-      _cursorIndex >= 0 && _cursorIndex < _flatNodes.length ? _flatNodes[_cursorIndex] : null;
+  TreeNode<T>? get cursorNode => _cursor >= 0 && _cursor < _flatNodes.length ? _flatNodes[_cursor] : null;
 
   /// Whether roots have been loaded.
   bool get isLoaded => _rootsLoaded;
@@ -180,8 +179,8 @@ class TreeViewModel<T> implements Focusable {
     _rebuildFlatNodes();
 
     // Adjust cursor if it was in collapsed subtree
-    if (_cursorIndex >= _flatNodes.length) {
-      _cursorIndex = _flatNodes.isEmpty ? 0 : _flatNodes.length - 1;
+    if (_cursor >= _flatNodes.length) {
+      _cursor = _flatNodes.isEmpty ? 0 : _flatNodes.length - 1;
     }
 
     return TreeCollapseCmd<T>(this, path, node);
@@ -216,7 +215,7 @@ class TreeViewModel<T> implements Focusable {
     // Scroll to the node
     final index = _flatNodes.indexWhere((n) => n.path == path);
     if (index >= 0) {
-      _cursorIndex = index;
+      _cursor = index;
       _adjustScrollToCursor();
     }
   }
@@ -225,7 +224,7 @@ class TreeViewModel<T> implements Focusable {
   void collapseAll() {
     _expanded.clear();
     _rebuildFlatNodes();
-    _cursorIndex = 0;
+    _cursor = 0;
     _scrollOffset = 0;
   }
 
@@ -281,11 +280,11 @@ class TreeViewModel<T> implements Focusable {
         case TreeViewAction.down:
           _moveCursor(1);
         case TreeViewAction.first:
-          _cursorIndex = 0;
+          _cursor = 0;
           _adjustScrollToCursor();
         case TreeViewAction.last:
           if (_flatNodes.isNotEmpty) {
-            _cursorIndex = _flatNodes.length - 1;
+            _cursor = _flatNodes.length - 1;
           }
           _adjustScrollToCursor();
         case TreeViewAction.pageUp:
@@ -363,17 +362,17 @@ class TreeViewModel<T> implements Focusable {
 
   void _moveCursor(int delta) {
     if (_flatNodes.isEmpty) return;
-    _cursorIndex = (_cursorIndex + delta).clamp(0, _flatNodes.length - 1);
+    _cursor = (_cursor + delta).clamp(0, _flatNodes.length - 1);
     _adjustScrollToCursor();
   }
 
   void _adjustScrollToCursor() {
     if (_visibleCount <= 0) return;
 
-    if (_cursorIndex < _scrollOffset) {
-      _scrollOffset = _cursorIndex;
-    } else if (_cursorIndex >= _scrollOffset + _visibleCount) {
-      _scrollOffset = _cursorIndex - _visibleCount + 1;
+    if (_cursor < _scrollOffset) {
+      _scrollOffset = _cursor;
+    } else if (_cursor >= _scrollOffset + _visibleCount) {
+      _scrollOffset = _cursor - _visibleCount + 1;
     }
   }
 
@@ -385,11 +384,11 @@ class TreeViewModel<T> implements Focusable {
 
     if (_expanded.contains(node.path)) {
       // Already expanded - move to first child
-      if (_cursorIndex + 1 < _flatNodes.length) {
-        final nextNode = _flatNodes[_cursorIndex + 1];
+      if (_cursor + 1 < _flatNodes.length) {
+        final nextNode = _flatNodes[_cursor + 1];
         // Check if next node is a child
         if (nextNode.path.startsWith('${node.path}/')) {
-          _cursorIndex++;
+          _cursor++;
           _adjustScrollToCursor();
         }
       }
@@ -420,7 +419,7 @@ class TreeViewModel<T> implements Focusable {
       if (parentPath != null) {
         final parentIndex = _flatNodes.indexWhere((n) => n.path == parentPath);
         if (parentIndex >= 0) {
-          _cursorIndex = parentIndex;
+          _cursor = parentIndex;
           _adjustScrollToCursor();
         }
       }
@@ -443,7 +442,7 @@ class TreeViewModel<T> implements Focusable {
   Cmd? _handleConfirm() {
     final node = cursorNode;
     if (node == null) return null;
-    return TreeConfirmCmd<T>(this, node.path, node);
+    return TreeActionCmd<T>(this, node.path, node);
   }
 }
 

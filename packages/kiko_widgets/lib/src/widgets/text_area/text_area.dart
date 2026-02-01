@@ -12,12 +12,12 @@ import 'text_area_model.dart';
 /// - Optional line numbers
 /// - Selection highlighting
 /// - Vertical scrolling
-class TextAreaWidget extends Widget {
+class TextArea extends Widget {
   /// The model containing state and config.
   final TextAreaModel model;
 
   /// Creates a TextAreaWidget.
-  TextAreaWidget(this.model);
+  TextArea(this.model);
 
   @override
   void render(Rect area, Frame frame) {

@@ -180,7 +180,7 @@ class TableViewStyle {
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when cursor nears edge of loaded data.
-class LoadPageCmd extends Cmd {
+class TableLoadMoreCmd extends Cmd {
   /// The table view model that needs more data.
   final TableViewModel source;
 
@@ -188,7 +188,7 @@ class LoadPageCmd extends Cmd {
   final LoadDirection direction;
 
   /// Creates a LoadPageCmd.
-  const LoadPageCmd(this.source, {required this.direction});
+  const TableLoadMoreCmd(this.source, {required this.direction});
 }
 
 /// Emitted when an action is triggered on the table.

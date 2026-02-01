@@ -29,7 +29,7 @@ void main() {
         );
         expect(model.cursorRow, equals(0));
         expect(model.cursorCol, equals(0));
-        expect(model.selectedKeys, isEmpty);
+        expect(model.getSelectedKeys(), isEmpty);
         expect(model.focused, isFalse);
         expect(model.isLoading, isFalse);
       });
@@ -139,13 +139,13 @@ void main() {
           ..update(keyMsg('space'));
 
         expect(model.cursorRow, equals(1));
-        expect(model.selectedKeys.length, equals(1));
+        expect(model.getSelectedKeys().length, equals(1));
 
         model.reset();
 
         expect(model.cursorRow, equals(0));
         expect(model.cursorCol, equals(0));
-        expect(model.selectedKeys, isEmpty);
+        expect(model.getSelectedKeys(), isEmpty);
         expect(model.cachedRowCount, equals(0));
       });
     });
@@ -338,8 +338,8 @@ void main() {
         expect(model.scrollCol, equals(1)); // 2 visible cols
       });
 
-      test('verticalScroll returns correct values', () {
-        final state = model.verticalScroll;
+      test('getScrollState returns correct values', () {
+        final state = model.getScrollState();
         expect(state.visible, equals(5));
         expect(state.total, equals(50));
         expect(state.offset, equals(0));
@@ -361,7 +361,7 @@ void main() {
           ..insertRows(page, 0)
           ..update(keyMsg('space'));
 
-        expect(model.selectedKeys, isEmpty);
+        expect(model.getSelectedKeys(), isEmpty);
       });
 
       test('space toggles selection', () async {
@@ -379,7 +379,7 @@ void main() {
           ..insertRows(page, 0)
           ..update(keyMsg('space'));
 
-        expect(model.selectedKeys, equals({'row0'}));
+        expect(model.getSelectedKeys(), equals({'row0'}));
         expect(model.isSelected(0), isTrue);
         expect(model.isSelected(1), isFalse);
       });
@@ -400,7 +400,7 @@ void main() {
           ..update(keyMsg('space'))
           ..update(keyMsg('space'));
 
-        expect(model.selectedKeys, isEmpty);
+        expect(model.getSelectedKeys(), isEmpty);
       });
 
       test('multiple rows can be selected', () async {
@@ -422,7 +422,7 @@ void main() {
           ..update(keyMsg('down'))
           ..update(keyMsg('space'));
 
-        expect(model.selectedKeys, equals({'row0', 'row1', 'row2'}));
+        expect(model.getSelectedKeys(), equals({'row0', 'row1', 'row2'}));
       });
 
       test('selection persists after eviction', () async {
@@ -450,7 +450,7 @@ void main() {
           ..insertRows(page2, 2);
 
         // Selection should persist even if row was evicted
-        expect(model.selectedKeys, contains('row0'));
+        expect(model.getSelectedKeys(), contains('row0'));
       });
     });
 
@@ -590,8 +590,8 @@ void main() {
         }
 
         final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<LoadPageCmd>());
-        expect((cmd! as LoadPageCmd).direction, equals(LoadDirection.forward));
+        expect(cmd, isA<TableLoadMoreCmd>());
+        expect((cmd! as TableLoadMoreCmd).direction, equals(LoadDirection.forward));
       });
 
       test('not emitted when hasMore is false', () async {

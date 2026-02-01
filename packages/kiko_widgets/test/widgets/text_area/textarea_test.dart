@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 
 void main() {
   test('Check initialization values', () {
-    final buffer = TextArea();
+    final buffer = TextAreaComponent();
     expect(buffer.content, ''.characters);
     expect(buffer.row, 0);
     expect(buffer.column, 0);
@@ -14,7 +14,7 @@ void main() {
   });
 
   test('Check initialize string', () {
-    final buffer = TextArea()..initBuffer('foo 1\nbar 22\nbaz 333');
+    final buffer = TextAreaComponent()..initBuffer('foo 1\nbar 22\nbaz 333');
     expect(buffer.row, 2);
     expect(buffer.column, 7);
     expect(buffer.content, 'foo 1\nbar 22\nbaz 333'.characters);
@@ -27,7 +27,7 @@ void main() {
 
   group('Insert string', () {
     test('insert chars in the middle', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('foo baz')
         ..column = 4
         ..insert('bar ');
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('insert chars at max capacity', () {
-      final buffer = TextArea(maxCharacters: 10)
+      final buffer = TextAreaComponent(maxCharacters: 10)
         ..initBuffer('foo baz')
         ..column = 4
         ..insert('zZzZzZz');
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('insert individual characters', () {
-      final buffer = TextArea()..initBuffer('foo baz');
+      final buffer = TextAreaComponent()..initBuffer('foo baz');
       void insertChars(String chars) => buffer.insertChars(chars.characters);
 
       ['b', 'a', 'r', '\n', 's', 'o', 'l'].forEach(insertChars);
@@ -69,7 +69,7 @@ void main() {
     });
 
     test('inser lines at max lines capacity', () {
-      final buffer = TextArea(maxLines: 2)
+      final buffer = TextAreaComponent(maxLines: 2)
         ..initBuffer('foo baz\nbar toc')
         ..column = 4
         ..row = 0
@@ -81,7 +81,7 @@ void main() {
     });
 
     test('Insert multiple carriage returns', () {
-      final buffer = TextArea()..initBuffer('\n\n\n');
+      final buffer = TextAreaComponent()..initBuffer('\n\n\n');
 
       expect(buffer.content, '\n\n\n'.characters);
       expect(buffer.row, 3);
@@ -89,7 +89,7 @@ void main() {
     });
 
     test('Insert emojis', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('Hello bar')
         ..column = 6
         ..insertChars('🌍 👋🏻 '.characters);
@@ -108,7 +108,7 @@ void main() {
 
   group('Move Cursor Down', () {
     test('Line with chars with different visual width', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好\nHello')
         ..row = 0
         ..column = 2;
@@ -132,7 +132,7 @@ void main() {
     });
 
     test('Line wrapped base', () {
-      final buffer = TextArea(visualWidth: 10)
+      final buffer = TextAreaComponent(visualWidth: 10)
         ..initBuffer('foo bar baz argos line')
         ..row = 0
         ..column = 6
@@ -159,7 +159,7 @@ void main() {
     });
 
     test('Line wrapped long word to new line', () {
-      final buffer = TextArea(visualWidth: 10)
+      final buffer = TextAreaComponent(visualWidth: 10)
         ..initBuffer('foo bar baz argoss line')
         ..row = 0
         ..column = 6
@@ -186,7 +186,7 @@ void main() {
     });
 
     test('Line wrapped with last word', () {
-      final buffer = TextArea(visualWidth: 10)
+      final buffer = TextAreaComponent(visualWidth: 10)
         ..initBuffer('foo bar baz argos line')
         ..row = 0
         ..column = 6
@@ -213,7 +213,7 @@ void main() {
     });
 
     test('Line wrapped with emoji', () {
-      final buffer = TextArea(visualWidth: 10)
+      final buffer = TextAreaComponent(visualWidth: 10)
         ..initBuffer('foo bar baz arg🌎 line')
         ..row = 0
         ..column = 6
@@ -240,7 +240,7 @@ void main() {
     });
 
     test('Line wrapped long word', () {
-      final buffer = TextArea(visualWidth: 10)
+      final buffer = TextAreaComponent(visualWidth: 10)
         ..initBuffer('foo bar bazargossss line')
         ..row = 0
         ..column = 6
@@ -269,7 +269,7 @@ void main() {
 
   group('Move Cursor Up', () {
     test('lines with different lenghts', () {
-      final buffer = TextArea()..initBuffer('Hi where\nWorld\nThis is a long line');
+      final buffer = TextAreaComponent()..initBuffer('Hi where\nWorld\nThis is a long line');
 
       expect(buffer.row, 2);
       expect(buffer.column, 19);
@@ -353,7 +353,7 @@ void main() {
 
   group('Move Cursor Right', () {
     test('move between multiple wide characters', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 3
         ..moveCursorRight();
@@ -384,7 +384,7 @@ void main() {
     });
 
     test('move between wrapped lines', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好\nHello')
         ..row = 0
         ..column = 3
@@ -419,7 +419,7 @@ void main() {
 
   group('Move Cursor Left', () {
     test('move between multiple wide characters', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 6
         ..moveCursorLeft();
@@ -445,7 +445,7 @@ void main() {
     });
 
     test('move between wrapped lines', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好\nHello')
         ..row = 1
         ..column = 2
@@ -492,7 +492,7 @@ void main() {
   });
 
   test('deleteBeforeCursor', () {
-    final buffer = TextArea()
+    final buffer = TextAreaComponent()
       ..initBuffer('你好你好 Hello')
       ..column = 2
       ..deleteBeforeCursor();
@@ -510,7 +510,7 @@ void main() {
   });
 
   test('deleterAfterCursor', () {
-    final buffer = TextArea()
+    final buffer = TextAreaComponent()
       ..initBuffer('你好你好 Hello')
       ..column = 7
       ..deleteAfterCursor();
@@ -529,7 +529,7 @@ void main() {
 
   group('deleteWordLeft', () {
     test('delete single and multi byte', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 6
         ..deleteWordLeft();
@@ -546,7 +546,7 @@ void main() {
     });
 
     test('delete word at the beginning', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 0
         ..deleteWordLeft();
@@ -558,7 +558,7 @@ void main() {
 
   group('deleteWordRight', () {
     test('delete single and multi byte', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 2
         ..deleteWordRight();
@@ -575,7 +575,7 @@ void main() {
     });
 
     test('delete at the end of the line', () {
-      final buffer = TextArea()
+      final buffer = TextAreaComponent()
         ..initBuffer('你好你好 Hello')
         ..column = 10
         ..deleteWordRight();
@@ -586,7 +586,7 @@ void main() {
   });
 
   test('mergeLineBelow', () {
-    final buffer = TextArea()
+    final buffer = TextAreaComponent()
       ..initBuffer('你好你好\nHello\nWorld')
       ..mergeLineBelow(1);
 
@@ -596,7 +596,7 @@ void main() {
   });
 
   test('mergeLineAbove', () {
-    final buffer = TextArea()
+    final buffer = TextAreaComponent()
       ..initBuffer('你好你好\nHello\nWorld')
       ..mergeLineAbove(1);
 
@@ -606,7 +606,7 @@ void main() {
   });
 
   test('splitLine', () {
-    final buffer = TextArea()
+    final buffer = TextAreaComponent()
       ..initBuffer('你好你好\nHello\nWorld')
       ..splitLine(1, 2);
 
@@ -616,7 +616,7 @@ void main() {
   });
 
   test('lineInfo', () {
-    final buffer = TextArea();
+    final buffer = TextAreaComponent();
 
     final li = buffer.lineInfo();
     expect(li.width, 1);

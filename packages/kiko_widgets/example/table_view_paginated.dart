@@ -232,7 +232,7 @@ class AppModel {
   final cmd = model.table.update(msg);
 
   // Handle load page command
-  if (cmd case LoadPageCmd(:final source, :final direction)) {
+  if (cmd case TableLoadMoreCmd(:final source, :final direction)) {
     if (source == model.table && !model.table.isLoading) {
       model.table.isLoading = true;
       final pageNum = direction == LoadDirection.forward ? model.table.nextPageNum : model.table.prevPageNum;
@@ -310,7 +310,7 @@ void appView(AppModel model, Frame frame) {
   );
 
   // Scroll position
-  final scroll = table.verticalScroll;
+  final scroll = table.getScrollState();
   final scrollInfo = scroll.total != null
       ? 'Row ${table.cursorRow + 1}/${scroll.total} | Window: ${table.loadedRange}'
       : 'Row ${table.cursorRow + 1}';

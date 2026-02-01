@@ -205,7 +205,7 @@ class AppModel {
   }
 
   // Handle confirm
-  if (cmd case TreeConfirmCmd(:final path)) {
+  if (cmd case TreeActionCmd(:final path)) {
     model.selectedPath = path;
     return (model, null);
   }

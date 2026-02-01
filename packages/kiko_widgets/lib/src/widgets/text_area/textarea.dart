@@ -81,7 +81,7 @@ typedef WrappedLine = List<RowLine>;
 typedef LineItem = ({RowLine line, int width});
 
 /// Holds the buffer of characters
-class TextArea {
+class TextAreaComponent {
   /// The buffer of characters
   final List<RowLine> _buffer = [_spc];
 
@@ -113,7 +113,7 @@ class TextArea {
   int _lastVisualOffset = 0;
 
   /// Creates a new Buffer object
-  TextArea({
+  TextAreaComponent({
     this.maxCharacters = 1000,
     this.maxLines = 10,
     this.maxColumns = 80,

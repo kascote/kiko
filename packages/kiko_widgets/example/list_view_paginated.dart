@@ -124,7 +124,7 @@ class AppModel {
   final cmd = model.list.update(msg);
 
   // Handle load more
-  if (cmd case LoadMoreCmd(:final source)) {
+  if (cmd case ListLoadMoreCmd(:final source)) {
     if (source == model.list && !model.list.isLoading) {
       model.list.isLoading = true;
       return (

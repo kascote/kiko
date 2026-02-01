@@ -154,7 +154,7 @@ class TableViewModel implements Focusable {
   // ─────────────────────────────────────────────
 
   /// Unordered set of selected row keys.
-  Set<String> get selectedKeys => Set.unmodifiable(_selected);
+  Set<String> getSelectedKeys() => Set.unmodifiable(_selected);
 
   /// Check if row at index is selected.
   bool isSelected(int rowIndex) {
@@ -169,7 +169,7 @@ class TableViewModel implements Focusable {
   // ─────────────────────────────────────────────
 
   /// Vertical scroll state for external scrollbar.
-  TableScrollState get verticalScroll => TableScrollState(
+  TableScrollState getScrollState() => TableScrollState(
     offset: _scrollRow,
     visible: _visibleRows,
     total: totalCount,
@@ -391,10 +391,10 @@ class TableViewModel implements Focusable {
     final distToEnd = _loadedEnd - _cursorRow;
 
     if (distToStart < loadThreshold && _loadedStart > 0) {
-      return LoadPageCmd(this, direction: LoadDirection.backward);
+      return TableLoadMoreCmd(this, direction: LoadDirection.backward);
     }
     if (distToEnd < loadThreshold && dataSource.hasMore) {
-      return LoadPageCmd(this, direction: LoadDirection.forward);
+      return TableLoadMoreCmd(this, direction: LoadDirection.forward);
     }
     return null;
   }

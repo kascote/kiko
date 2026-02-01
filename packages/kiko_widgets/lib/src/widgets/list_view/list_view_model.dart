@@ -27,7 +27,7 @@ class ListViewModel<T, K> implements Focusable {
   // ─────────────────────────────────────────────
 
   int _cursor = 0;
-  final Set<K> _checked = {};
+  final Set<K> _selectedKeys = {};
   int _scrollOffset = 0;
   int? _selectionAnchor;
   int _visibleCount = 0;
@@ -49,7 +49,7 @@ class ListViewModel<T, K> implements Focusable {
   /// Whether multiple items can be selected.
   final bool multiSelect;
 
-  /// Emit [LoadMoreCmd] when cursor is within this many items from end.
+  /// Emit [ListLoadMoreCmd] when cursor is within this many items from end.
   final int loadMoreThreshold;
 
   /// Returns true if item at index is disabled (can't be selected).
@@ -91,41 +91,25 @@ class ListViewModel<T, K> implements Focusable {
   /// Current cursor position.
   int get cursor => _cursor;
 
-  /// Set of checked item keys (unmodifiable).
+  /// Set of selected item keys (unmodifiable).
   ///
-  /// Only populated when [multiSelect] is true. Items are checked/unchecked
+  /// Only populated when [multiSelect] is true. Items are selected/unselected
   /// via Space key (toggleSelect action) or Shift+arrow (range select).
   /// Returns empty set when multiSelect is false.
-  Set<K> getChecked() => Set.unmodifiable(_checked);
+  Set<K> getSelectedKeys() => Set.unmodifiable(_selectedKeys);
 
   /// Current scroll offset.
   int get scrollOffset => _scrollOffset;
 
   /// Item at cursor, or null if out of bounds.
-  T? getCursorItem() => _safeItemAt(_cursor);
-
-  /// Returns checked items by matching itemKey.
-  ///
-  /// Only populated when [multiSelect] is true. Returns empty list otherwise.
-  /// Iterates through all items, so may be expensive for large lists.
-  List<T> getCheckedItems() {
-    final len = dataSource.length ?? _cursor + 1;
-    final result = <T>[];
-    for (var i = 0; i < len; i++) {
-      final item = _safeItemAt(i);
-      if (item != null && _checked.contains(itemKey(item))) {
-        result.add(item);
-      }
-    }
-    return result;
-  }
+  T? get cursorItem => _safeItemAt(_cursor);
 
   /// Check if item at index is checked (multi-select only).
   ///
   /// Always returns false when [multiSelect] is false.
-  bool isChecked(int index) {
+  bool isSelected(int index) {
     final item = _safeItemAt(index);
-    return item != null && _checked.contains(itemKey(item));
+    return item != null && _selectedKeys.contains(itemKey(item));
   }
 
   /// Called by widget during render to update visible count.
@@ -176,7 +160,7 @@ class ListViewModel<T, K> implements Focusable {
         case ListViewAction.toggleSelect:
           _toggleSelectAtCursor();
         case ListViewAction.confirm:
-          return ListConfirmCmd<T, K>(this);
+          return ListActionCmd<T, K>(this);
         case ListViewAction.selectUp:
           if (multiSelect) _rangeSelect(-1);
         case ListViewAction.selectDown:
@@ -187,7 +171,7 @@ class ListViewModel<T, K> implements Focusable {
       final len = dataSource.length;
       if (dataSource.hasMore && len != null) {
         if (_cursor >= len - loadMoreThreshold) {
-          return LoadMoreCmd<T, K>(this);
+          return ListLoadMoreCmd<T, K>(this);
         }
       }
     }
@@ -234,10 +218,10 @@ class ListViewModel<T, K> implements Focusable {
     if (item == null) return;
 
     final key = itemKey(item);
-    if (_checked.contains(key)) {
-      _checked.remove(key);
+    if (_selectedKeys.contains(key)) {
+      _selectedKeys.remove(key);
     } else {
-      _checked.add(key);
+      _selectedKeys.add(key);
     }
   }
 
@@ -258,7 +242,7 @@ class ListViewModel<T, K> implements Focusable {
       if (isDisabled?.call(i) ?? false) continue;
       final item = _safeItemAt(i);
       if (item != null) {
-        _checked.add(itemKey(item));
+        _selectedKeys.add(itemKey(item));
       }
     }
   }

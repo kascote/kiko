@@ -96,7 +96,7 @@ void appView(AppModel model, Frame frame) {
       borders: Borders.all,
       borderStyle: model.editor.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
       padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextAreaWidget(e),
+      child: TextArea(e),
     ).titleTop(Line('Content')),
   );
 
@@ -104,7 +104,7 @@ void appView(AppModel model, Frame frame) {
   final statusBar = Fixed(
     1,
     child: Text.raw(
-      'Ln ${e.row + 1}, Col ${e.column + 1} | '
+      'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
       '${e.lineCount} lines | '
       '${e.length} chars | '
       'Focus: ${_focusName(model.focus.index)}',

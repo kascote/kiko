@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 
-import 'button_styles.dart';
 import 'types.dart';
 
 /// Model for a single button.
@@ -26,9 +25,6 @@ class ButtonModel implements Focusable {
   /// Horizontal padding (symmetric).
   final int padding;
 
-  /// Custom styles for the button.
-  final ButtonStyles styles;
-
   /// Custom key bindings. Null uses defaults.
   final KeyBinding<ButtonAction>? keyBinding;
 
@@ -49,11 +45,9 @@ class ButtonModel implements Focusable {
     Line? loadingText,
     bool focused = false,
     this.padding = 1,
-    ButtonStyles? styles,
     this.keyBinding,
   }) : _focused = focused,
-       loadingText = loadingText ?? _defaultLoadingText,
-       styles = styles ?? ButtonStyles.defaultStyle;
+       loadingText = loadingText ?? _defaultLoadingText;
 
   /// Whether the button is focused.
   bool get focused => _focused;
@@ -66,14 +60,6 @@ class ButtonModel implements Focusable {
 
   /// Width of the button in terminal characters.
   int get width => label.width + (padding * 2);
-
-  /// Gets the current style based on state.
-  Style? get currentStyle {
-    if (disabled) return styles.disabled;
-    if (loading) return styles.loading;
-    if (focused) return styles.focus;
-    return styles.normal;
-  }
 
   /// Updates the model based on the message.
   ///
@@ -113,7 +99,6 @@ class ButtonModel implements Focusable {
     Line? loadingText,
     bool? focused,
     int? padding,
-    ButtonStyles? styles,
     KeyBinding<ButtonAction>? keyBinding,
   }) {
     return ButtonModel(
@@ -124,7 +109,6 @@ class ButtonModel implements Focusable {
       loadingText: loadingText ?? this.loadingText,
       focused: focused ?? this.focused,
       padding: padding ?? this.padding,
-      styles: styles ?? this.styles,
       keyBinding: keyBinding ?? this.keyBinding,
     );
   }

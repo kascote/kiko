@@ -81,33 +81,21 @@ class Color {
   static const Color white = Color._(15);
 
   /// Creates a color from an ANSI value (0-15)
-  factory Color.ansi(int value) {
-    if (value < 0 || value > 15) {
-      throw ArgumentError.value(value, 'value', 'must be between 0 and 15');
-    }
-    return Color._(value & 0xf);
-  }
+  const Color.ansi(int value) : this._(value & 0xf);
 
   /// Creates a color from an indexed value (0-255)
-  factory Color.indexed(int value) {
-    if (value < 0 || value > 255) {
-      throw ArgumentError.value(value, 'value', 'must be between 0 and 255');
-    }
-    return Color._(value & 0xff, kind: ColorKind.indexed);
-  }
+  const Color.indexed(int value) : this._(value & 0xff, kind: ColorKind.indexed);
 
-  /// Creates a color from an RGB value (0x000000-0xFFFFFF)
-  factory Color.fromRGB(int rgb) {
-    return Color._(rgb & 0xFFFFFF, kind: ColorKind.rgb);
-  }
+  /// Creates a const color from an RGB value (0x000000-0xFFFFFF).
+  const Color.rgb(int value) : this._(value & 0xFFFFFF, kind: ColorKind.rgb);
 
   /// Creates a color from an RGB string (e.g. '#FF0000')
   factory Color.fromRGBString(String rgb) {
-    final value = rgb.startsWith('#') ? rgb.substring(1) : rgb;
+    final value = rgb.trim().startsWith('#') ? rgb.trim().substring(1) : rgb.trim();
     if (value.length != 6) {
       throw ArgumentError.value(rgb, 'rgb', 'must be 6 characters long');
     }
-    return Color._(int.parse(value, radix: 16), kind: ColorKind.rgb);
+    return Color.rgb(int.parse(value, radix: 16));
   }
 
   /// Converts HSV (Hue, Saturation, Value) color values to RGB Color object.
@@ -139,14 +127,12 @@ class Color {
     final v = value.clamp(0.0, 1.0);
 
     // Optimization: Early return for black (value = 0)
-    if (v <= 0.0) {
-      return Color.fromRGB(0);
-    }
+    if (v <= 0.0) return const Color.rgb(0);
 
     // Optimization: Early return for grayscale (saturation = 0)
     if (s <= 0.0) {
       final gray = toRGB(v);
-      return Color.fromRGB((gray << 16) | (gray << 8) | gray);
+      return Color.rgb((gray << 16) | (gray << 8) | gray);
     }
 
     final hSection = h / 60.0;
@@ -158,12 +144,12 @@ class Color {
     final t = v * (1 - s * (1 - f));
 
     return switch (hSectionInt) {
-      0 => Color.fromRGB((toRGB(v) << 16) | (toRGB(t) << 8) | toRGB(p)),
-      1 => Color.fromRGB((toRGB(q) << 16) | (toRGB(v) << 8) | toRGB(p)),
-      2 => Color.fromRGB((toRGB(p) << 16) | (toRGB(v) << 8) | toRGB(t)),
-      3 => Color.fromRGB((toRGB(p) << 16) | (toRGB(q) << 8) | toRGB(v)),
-      4 => Color.fromRGB((toRGB(t) << 16) | (toRGB(p) << 8) | toRGB(v)),
-      _ => Color.fromRGB((toRGB(v) << 16) | (toRGB(p) << 8) | toRGB(q)),
+      0 => Color.rgb((toRGB(v) << 16) | (toRGB(t) << 8) | toRGB(p)),
+      1 => Color.rgb((toRGB(q) << 16) | (toRGB(v) << 8) | toRGB(p)),
+      2 => Color.rgb((toRGB(p) << 16) | (toRGB(v) << 8) | toRGB(t)),
+      3 => Color.rgb((toRGB(p) << 16) | (toRGB(q) << 8) | toRGB(v)),
+      4 => Color.rgb((toRGB(t) << 16) | (toRGB(p) << 8) | toRGB(v)),
+      _ => Color.rgb((toRGB(v) << 16) | (toRGB(p) << 8) | toRGB(q)),
     };
   }
 
@@ -198,9 +184,9 @@ class Color {
       ColorKind.rgb => this,
       ColorKind.ansi =>
         value < 0
-            ? Color.fromRGB(defaultRgb) // reset → default
-            : Color.fromRGB(ansi.ansiHex[value]),
-      ColorKind.indexed => Color.fromRGB(ansi.ansiHex[value]),
+            ? Color.rgb(defaultRgb) // reset → default
+            : Color.rgb(ansi.ansiHex[value]),
+      ColorKind.indexed => Color.rgb(ansi.ansiHex[value]),
     };
   }
 
@@ -215,8 +201,84 @@ class Color {
     final r = ((rgb.value >> 16) & 0xFF) * factor;
     final g = ((rgb.value >> 8) & 0xFF) * factor;
     final b = (rgb.value & 0xFF) * factor;
-    return Color.fromRGB(
-      (r.round() << 16) | (g.round() << 8) | b.round(),
+
+    return Color.rgb((r.round() << 16) | (g.round() << 8) | b.round());
+  }
+
+  /// Returns a lighter version of this color.
+  ///
+  /// [amount] should be between 0.0 (no change) and 1.0 (white).
+  /// RGB/indexed colors are converted to RGB and each channel is lerped
+  /// toward 255. ANSI-16 dark colors map to their bright variant.
+  Color lighten(double amount) {
+    if (kind == ColorKind.ansi && value >= 0 && value <= 15) {
+      return Color._(_ansiBrighten[value]);
+    }
+    final rgb = toRgb();
+    final r = ((rgb.value >> 16) & 0xFF) + ((255 - ((rgb.value >> 16) & 0xFF)) * amount);
+    final g = ((rgb.value >> 8) & 0xFF) + ((255 - ((rgb.value >> 8) & 0xFF)) * amount);
+    final b = (rgb.value & 0xFF) + ((255 - (rgb.value & 0xFF)) * amount);
+    return Color.rgb(
+      (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
+    );
+  }
+
+  /// Returns a darker version of this color.
+  ///
+  /// [amount] should be between 0.0 (no change) and 1.0 (black).
+  /// RGB/indexed colors are converted to RGB and each channel is lerped
+  /// toward 0. ANSI-16 bright colors map to their dark variant.
+  Color darken(double amount) {
+    if (kind == ColorKind.ansi && value >= 0 && value <= 15) {
+      return Color._(_ansiDarken[value]);
+    }
+    final rgb = toRgb();
+    final factor = 1.0 - amount;
+    final r = ((rgb.value >> 16) & 0xFF) * factor;
+    final g = ((rgb.value >> 8) & 0xFF) * factor;
+    final b = (rgb.value & 0xFF) * factor;
+    return Color.rgb(
+      (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
     );
   }
 }
+
+/// ANSI-16 lighten lookup: dark → bright variant.
+const _ansiBrighten = [
+  8, // black → darkGray
+  9, // red → brightRed
+  10, // green → brightGreen
+  11, // yellow → brightYellow
+  12, // blue → brightBlue
+  13, // magenta → brightMagenta
+  14, // cyan → brightCyan
+  15, // gray → white
+  8, // darkGray stays
+  9, // brightRed stays
+  10, // brightGreen stays
+  11, // brightYellow stays
+  12, // brightBlue stays
+  13, // brightMagenta stays
+  14, // brightCyan stays
+  15, // white stays
+];
+
+/// ANSI-16 darken lookup: bright → dark variant.
+const _ansiDarken = [
+  0, // black stays
+  1, // red stays
+  2, // green stays
+  3, // yellow stays
+  4, // blue stays
+  5, // magenta stays
+  6, // cyan stays
+  7, // gray stays
+  0, // darkGray → black
+  1, // brightRed → red
+  2, // brightGreen → green
+  3, // brightYellow → yellow
+  4, // brightBlue → blue
+  5, // brightMagenta → magenta
+  6, // brightCyan → cyan
+  7, // white → gray
+];

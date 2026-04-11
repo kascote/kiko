@@ -13,15 +13,25 @@ import 'types.dart';
 /// - Custom cell rendering per column
 /// - Truncation and alignment
 ///
+/// Uses [StyleResolver] for row-level state styling (hover, selected).
+///
 /// ```dart
-/// TableView(model: tableModel).render(area, frame);
+/// TableView(model: tableModel, theme: theme).render(area, frame);
 /// ```
 class TableView extends Widget {
   /// The model containing table state.
   final TableViewModel model;
 
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  ///
+  /// Fully replaces the default style for that [WidgetState].
+  final Map<WidgetState, Style>? styleOverrides;
+
   /// Creates a TableView widget.
-  TableView({required this.model});
+  TableView({required this.model, required this.theme, this.styleOverrides});
 
   @override
   void render(Rect area, Frame frame) {
@@ -142,7 +152,12 @@ class TableView extends Widget {
       final cellArea = Rect.create(x: x, y: y, width: col.width, height: 1);
 
       // Determine header style
-      final style = model.styles.header ?? const Style();
+      final style =
+          model.styles.header ??
+          Style(
+            fg: theme.background.fg,
+            addModifier: Modifier.bold,
+          );
 
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
@@ -185,18 +200,22 @@ class TableView extends Widget {
       final value = row[col.field];
       final cellArea = Rect.create(x: x, y: area.y, width: col.width, height: 1);
 
-      // Style precedence: column highlight > selected > hover > column > default
+      // Resolve row style via StyleResolver
+      final states = <WidgetState>{
+        if (isHover) WidgetState.hover,
+        if (isSelected) WidgetState.selected,
+      };
+      final resolver = StyleResolver(theme);
       var style = model.styles.row ?? const Style();
       if (col.style != null) style = col.style!;
-      if (isHover && model.styles.hover != null) style = model.styles.hover!;
-      if (isSelected && model.styles.selected != null) {
-        style = model.styles.selected!;
+      if (states.isNotEmpty) {
+        style = resolver.resolve(style, states, overrides: styleOverrides);
       }
 
       // Column highlight for current cell (cursor row + cursor col)
       final isCursorCell = isHover && (scrollCol + colIdx) == model.cursorCol;
-      if (isCursorCell && model.styles.columnHighlight != null) {
-        style = model.styles.columnHighlight!;
+      if (isCursorCell) {
+        style = resolver.resolve(style, {WidgetState.focused}, overrides: styleOverrides);
       }
 
       // Build render context

@@ -348,7 +348,7 @@ void main() {
       frame = makeFrame(20, 1);
       final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
       final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('h'));
       expect(buffer[(x: 1, y: 0)].symbol, equals('e'));
@@ -362,7 +362,7 @@ void main() {
       frame = makeFrame(20, 1);
       final model = TextInputModel(placeholder: 'Type here', focused: true);
       final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('T'));
       expect(buffer[(x: 1, y: 0)].symbol, equals('y'));
@@ -373,7 +373,7 @@ void main() {
       frame = makeFrame(20, 1);
       final model = TextInputModel(initial: 'secret', obscureText: true);
       final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('•'));
       expect(buffer[(x: 1, y: 0)].symbol, equals('•'));
@@ -388,7 +388,7 @@ void main() {
       // Shows: "efgh " with cursor at position 4 (col 4)
       final model = TextInputModel(initial: 'abcdefgh', focused: true);
       final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('e'));
       expect(buffer[(x: 1, y: 0)].symbol, equals('f'));
@@ -405,13 +405,13 @@ void main() {
 
       // First render at cursor 8 - scrolls to show "efgh"
       frame = makeFrame(5, 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
       expect(frame.cursorPosition, equals(const Position(4, 0)));
 
       // Move cursor left
       model.cursor = 7;
       frame = makeFrame(5, 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // Still shows "efgh", cursor moved left within visible area
       expect(buffer[(x: 0, y: 0)].symbol, equals('e'));
@@ -426,12 +426,12 @@ void main() {
 
       // First scroll right
       frame = makeFrame(5, 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // Then jump to beginning - should scroll back
       model.cursor = 0;
       frame = makeFrame(5, 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
       expect(frame.cursorPosition, equals(Position.origin));
@@ -445,7 +445,7 @@ void main() {
       // Shows: "👋c" with cursor at col 4 (after 'c')
       final model = TextInputModel(initial: 'ab👋c', focused: true);
       final area = Rect.create(x: 0, y: 0, width: 4, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('👋'));
       expect(buffer[(x: 2, y: 0)].symbol, equals('c'));
@@ -469,14 +469,14 @@ void main() {
         style: const TextInputStyle(fill: Style(fg: Color.red)),
       );
       expect(model.fillChar, equals('_'));
-      expect(model.style.fill, equals(const Style(fg: Color.red)));
+      expect(model.style!.fill, equals(const Style(fg: Color.red)));
     });
 
     test('fills remaining space after text', () {
       frame = makeFrame(10, 1);
       final model = TextInputModel(initial: 'abc', fillChar: '_');
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // 'abc' takes 3 chars, fill 7 underscores
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -490,7 +490,7 @@ void main() {
       frame = makeFrame(10, 1);
       final model = TextInputModel(placeholder: 'Hi', fillChar: '.');
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // 'Hi' takes 2 chars, fill 8 dots
       expect(buffer[(x: 0, y: 0)].symbol, equals('H'));
@@ -507,7 +507,7 @@ void main() {
         fillChar: '_',
       );
       final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // 'abc' takes 3 chars, fill to maxLength (10), so 7 underscores
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -522,7 +522,7 @@ void main() {
       frame = makeFrame(15, 1);
       final model = TextInputModel(initial: 'ab', fillChar: '-');
       final area = Rect.create(x: 0, y: 0, width: 15, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
       expect(buffer[(x: 1, y: 0)].symbol, equals('b'));
@@ -540,7 +540,7 @@ void main() {
         ),
       );
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // Text cells should have default style
       expect(buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
@@ -555,25 +555,22 @@ void main() {
       frame = makeFrame(10, 1);
       final model = TextInputModel(initial: 'abc');
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
       expect(buffer[(x: 3, y: 0)].symbol, equals(' ')); // default empty
     });
 
-    test('applies style.text to input text', () {
+    test('applies theme fg to input text', () {
       frame = makeFrame(10, 1);
-      final model = TextInputModel(
-        initial: 'hello',
-        style: const TextInputStyle(text: Style(fg: Color.green)),
-      );
+      final model = TextInputModel(initial: 'hello');
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('h'));
-      expect(buffer[(x: 0, y: 0)].fg, equals(Color.green));
+      // Text gets theme.background.fg
+      expect(buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.fg));
       expect(buffer[(x: 4, y: 0)].symbol, equals('o'));
-      expect(buffer[(x: 4, y: 0)].fg, equals(Color.green));
     });
 
     test('applies style.placeholder to placeholder text', () {
@@ -583,7 +580,7 @@ void main() {
         style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
       );
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 0, y: 0)].symbol, equals('T'));
       expect(buffer[(x: 0, y: 0)].fg, equals(Color.gray));
@@ -595,12 +592,11 @@ void main() {
         initial: 'secret',
         obscureText: true,
         style: const TextInputStyle(
-          text: Style(fg: Color.green),
           obscured: Style(fg: Color.yellow),
         ),
       );
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // Uses obscured style, not text style
       expect(buffer[(x: 0, y: 0)].symbol, equals('•'));
@@ -613,16 +609,15 @@ void main() {
         initial: 'ab',
         fillChar: '_',
         style: const TextInputStyle(
-          text: Style(fg: Color.cyan),
           fill: Style(fg: Color.darkGray),
         ),
       );
       final area = Rect.create(x: 0, y: 0, width: 20, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
-      // Text has text style
-      expect(buffer[(x: 0, y: 0)].fg, equals(Color.cyan));
-      expect(buffer[(x: 1, y: 0)].fg, equals(Color.cyan));
+      // Text has theme fg
+      expect(buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.fg));
+      expect(buffer[(x: 1, y: 0)].fg, equals(Theme.dark.background.fg));
 
       // Fill has fill style
       expect(buffer[(x: 2, y: 0)].symbol, equals('_'));
@@ -637,7 +632,7 @@ void main() {
         fillChar: '_',
       );
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       expect(buffer[(x: 4, y: 0)].symbol, equals('e'));
       expect(buffer[(x: 5, y: 0)].symbol, equals(' ')); // no fill
@@ -648,7 +643,7 @@ void main() {
       // Using a wide char like '＿' (fullwidth low line, 2 cols)
       final model = TextInputModel(initial: 'ab', fillChar: '＿');
       final area = Rect.create(x: 0, y: 0, width: 10, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // 'ab' = 2 cols, remaining 8 cols, wide char = 2 cols each, so 4 chars
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -665,7 +660,7 @@ void main() {
         fillChar: '_',
       );
       final area = Rect.create(x: 0, y: 0, width: 5, height: 1);
-      TextInput(model).render(area, frame);
+      TextInput(model, theme: Theme.dark).render(area, frame);
 
       // Should only fill up to visible width (5), not maxLength (20)
       expect(buffer[(x: 0, y: 0)].symbol, equals('a'));

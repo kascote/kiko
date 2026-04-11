@@ -10,6 +10,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA SOURCE
 // ═══════════════════════════════════════════════════════════
@@ -100,7 +102,7 @@ class CountLoadedMsg extends Msg {
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final dataSource = ProductApiDataSource();
   final defaultHeaderStyle = Style(fg: Color.white, addModifier: Modifier.bold | Modifier.italic);
 
@@ -163,10 +165,6 @@ class AppModel {
     ],
     loadThreshold: 15,
     focused: true,
-    styles: const TableViewStyle(
-      hover: Style(bg: Color.blue),
-      columnHighlight: Style(bg: Color.cyan, fg: Color.black),
-    ),
     loadingIndicator: Line.fromSpans(const [
       Span('Loading...', style: Style(fg: Color.yellow)),
     ]),
@@ -184,6 +182,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Initial load on startup
   if (msg is InitMsg) {
     model.table.isLoading = true;
@@ -271,6 +271,9 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final table = model.table;
 
   // Table title with count
@@ -279,9 +282,9 @@ void appView(AppModel model, Frame frame) {
 
   final tableWidget = Block(
     borders: Borders.all,
-    borderStyle: Style(fg: table.isLoading ? Color.yellow : Color.green),
-    child: TableView(model: table),
-  ).titleTop(Line(titleText));
+    borderStyle: table.isLoading ? theme.warning : theme.focus,
+    child: TableView(model: table, theme: theme),
+  ).titleTop(Line(titleText, style: table.isLoading ? theme.warning : theme.focus));
 
   // Status
   final status = table.isLoading ? 'Loading...' : model.error ?? 'Ready';
@@ -291,19 +294,19 @@ void appView(AppModel model, Frame frame) {
     child: Block(
       borders: Borders.all,
       borderStyle: model.error != null
-          ? const Style(fg: Color.red)
+          ? theme.error
           : table.isLoading
-          ? const Style(fg: Color.yellow)
-          : const Style(fg: Color.green),
+          ? theme.warning
+          : theme.success,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         status,
         style: Style(
           fg: model.error != null
-              ? Color.red
+              ? theme.error.fg
               : table.isLoading
-              ? Color.yellow
-              : Color.green,
+              ? theme.warning.fg
+              : theme.success.fg,
         ),
       ),
     ).titleTop(Line('Status')),
@@ -319,10 +322,16 @@ void appView(AppModel model, Frame frame) {
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓←→/hjkl nav | PgUp/PgDn page | $scrollInfo | $cursorInfo | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -334,7 +343,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('Paginated TableView Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('Paginated TableView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

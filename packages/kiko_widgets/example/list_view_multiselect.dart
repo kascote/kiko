@@ -11,6 +11,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -43,7 +45,7 @@ final contacts = [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   late final list = ListViewModel<Contact, String>(
     dataSource: ListDataSource.fromList(contacts),
     itemKey: (c) => c.id, // use ID for selection tracking
@@ -59,6 +61,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   final cmd = model.list.update(msg);
   if (cmd is! Unhandled) return (model, cmd);
 
@@ -76,27 +80,17 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final listWidget = Block(
     borders: Borders.all,
-    borderStyle: const Style(fg: Color.green),
+    borderStyle: theme.focus,
     child: ListView(
       model: model.list,
+      theme: theme,
       itemBuilder: (contact, index, state) {
         final checkbox = state.checked ? '✅' : '⬜';
-
-        final nameStyle = Style(
-          fg: state.disabled
-              ? Color.darkGray
-              : state.focused
-              ? Color.black
-              : Color.white,
-          bg: state.focused ? Color.green : null,
-          addModifier: state.disabled ? Modifier.empty : Modifier.bold,
-        );
-        final emailStyle = Style(
-          fg: state.disabled ? Color.darkGray : Color.gray,
-          bg: state.focused ? Color.green : null,
-        );
         final archivedTag = state.disabled ? ' (archived)' : '';
 
         return Column(
@@ -105,16 +99,16 @@ void appView(AppModel model, Frame frame) {
               1,
               child: Text.raw(
                 ' $checkbox ${contact.name}$archivedTag',
-                style: nameStyle,
+                style: const Style(addModifier: Modifier.bold),
               ),
             ),
-            Fixed(1, child: Text.raw('      ${contact.email}', style: emailStyle)),
+            Fixed(1, child: Text.raw('      ${contact.email}', style: theme.muted)),
           ],
         );
       },
-      separatorBuilder: () => Line.fromSpans([Span('─' * 40, style: const Style(fg: Color.darkGray))]),
+      separatorBuilder: () => Line.fromSpans([Span('─' * 40, style: theme.border)]),
     ),
-  ).titleTop(Line('Contacts'));
+  ).titleTop(Line('Contacts', style: theme.focus));
 
   // Selection summary
   final selectedKeys = model.list.getSelectedKeys();
@@ -125,21 +119,27 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: selectedKeys.isNotEmpty ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: selectedKeys.isNotEmpty ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         summary,
-        style: Style(fg: selectedKeys.isNotEmpty ? Color.white : Color.darkGray),
+        style: selectedKeys.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ).titleTop(Line('Checked (${selectedKeys.length})')),
   );
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -151,7 +151,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('Multi-Select Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('Multi-Select Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

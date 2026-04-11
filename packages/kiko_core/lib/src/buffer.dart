@@ -196,7 +196,7 @@ class Buffer implements Equality<Buffer> {
     var i = 0;
     for (final (current, previous) in nextBuffer.zip(previousBuffer)) {
       if (!current.skip && (current != previous)) {
-        final (x: x, y: y) = posOf(i);
+        final (:x, :y) = posOf(i);
         yield (x: x, y: y, cell: nextBuffer[i]);
       }
       i++;
@@ -218,7 +218,7 @@ class Buffer implements Equality<Buffer> {
     }
     sb.write(',\n    content: [\n');
     var lastStyle = (
-      Color.fromRGB(123456),
+      const Color.rgb(123456),
       Color.reset,
       Color.reset,
       Modifier.empty,

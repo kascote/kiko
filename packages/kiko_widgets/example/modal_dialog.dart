@@ -1,30 +1,22 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
-  final int count;
-  final Modal<void>? modal;
-  final String lastAction;
+class AppModel with ThemeSwitcher {
+  int count;
+  Modal<void>? modal;
+  String lastAction;
 
-  const AppModel({
+  AppModel({
     this.count = 0,
     this.modal,
     this.lastAction = '',
   });
-
-  AppModel copyWith({
-    int? count,
-    Modal<void>? Function()? modal,
-    String? lastAction,
-  }) => AppModel(
-    count: count ?? this.count,
-    modal: modal != null ? modal() : this.modal,
-    lastAction: lastAction ?? this.lastAction,
-  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -64,25 +56,28 @@ class ConfirmDialog implements Widget {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   return switch (msg) {
     // Handle modal results
     ModalConfirm() => (
-      model.copyWith(count: model.count + 10, lastAction: 'Confirmed! +10'),
+      model
+        ..count += 10
+        ..lastAction = 'Confirmed! +10',
       null,
     ),
-    ModalCancel() => (model.copyWith(lastAction: 'Cancelled'), null),
+    ModalCancel() => (model..lastAction = 'Cancelled', null),
 
     // App controls
     KeyMsg(key: 'q') => (model, const Quit()),
     KeyMsg(key: 'm') => (
-      model.copyWith(
-        modal: () => Modal.simple(
+      model
+        ..modal = Modal.simple(
           width: const ConstraintPercent(50),
           height: const ConstraintLength(7),
           child: const ConfirmDialog('Increment counter by 10?'),
           confirmPayload: true,
         ),
-      ),
       null,
     ),
     _ => (model, null),
@@ -92,7 +87,7 @@ class ConfirmDialog implements Widget {
 final Update<AppModel> update = withModalCapture<AppModel>(
   update: appUpdate,
   getModal: (m) => m.modal,
-  setModal: (m, modal) => m.copyWith(modal: () => modal as Modal<void>?),
+  setModal: (m, modal) => m..modal = modal as Modal<void>?,
 );
 
 // ═══════════════════════════════════════════════════════════
@@ -103,35 +98,35 @@ final Update<AppModel> update = withModalCapture<AppModel>(
 Widget rgbPanel() {
   return Block(
     borders: Borders.all,
-    borderStyle: Style(fg: Color.fromRGB(0xFF6600)), // orange
+    borderStyle: const Style(fg: Color.rgb(0xFF6600)), // orange
     child: Column(
       children: [
         Fixed(
           1,
-          child: Line('RGB Colors', style: Style(fg: Color.fromRGB(0xFFFFFF))),
+          child: Line('RGB Colors', style: const Style(fg: Color.rgb(0xFFFFFF))),
         ),
         Fixed(
           1,
-          child: Line('Red text', style: Style(fg: Color.fromRGB(0xFF0000))),
+          child: Line('Red text', style: const Style(fg: Color.rgb(0xFF0000))),
         ),
         Fixed(
           1,
-          child: Line('Green text', style: Style(fg: Color.fromRGB(0x00FF00))),
+          child: Line('Green text', style: const Style(fg: Color.rgb(0x00FF00))),
         ),
         Fixed(
           1,
-          child: Line('Blue text', style: Style(fg: Color.fromRGB(0x0000FF))),
+          child: Line('Blue text', style: const Style(fg: Color.rgb(0x0000FF))),
         ),
         Fixed(
           1,
-          child: Line('Yellow bg', style: Style(bg: Color.fromRGB(0xFFFF00))),
+          child: Line('Yellow bg', style: const Style(bg: Color.rgb(0xFFFF00))),
         ),
         Fixed(
           1,
-          child: Line('Cyan bg', style: Style(bg: Color.fromRGB(0x00FFFF))),
+          child: Line('Cyan bg', style: const Style(bg: Color.rgb(0x00FFFF))),
         ),
         Expanded(
-          child: Line('Magenta', style: Style(fg: Color.fromRGB(0xFF00FF))),
+          child: Line('Magenta', style: const Style(fg: Color.rgb(0xFF00FF))),
         ),
       ],
     ),
@@ -231,39 +226,39 @@ Widget brightAnsiPanel() {
 Widget indexedPanel() {
   return Block(
     borders: Borders.all,
-    borderStyle: Style(fg: Color.indexed(208)), // orange
+    borderStyle: const Style(fg: Color.indexed(208)), // orange
     child: Column(
       children: [
         Fixed(
           1,
-          child: Line('Indexed 0-255', style: Style(fg: Color.indexed(255))),
+          child: Line('Indexed 0-255', style: const Style(fg: Color.indexed(255))),
         ),
         Fixed(
           1,
-          child: Line('Index 196 (red)', style: Style(fg: Color.indexed(196))),
+          child: Line('Index 196 (red)', style: const Style(fg: Color.indexed(196))),
         ),
         Fixed(
           1,
-          child: Line('Index 46 (green)', style: Style(fg: Color.indexed(46))),
+          child: Line('Index 46 (green)', style: const Style(fg: Color.indexed(46))),
         ),
         Fixed(
           1,
-          child: Line('Index 21 (blue)', style: Style(fg: Color.indexed(21))),
+          child: Line('Index 21 (blue)', style: const Style(fg: Color.indexed(21))),
         ),
         Fixed(
           1,
-          child: Line('Index 226 (yellow)', style: Style(fg: Color.indexed(226))),
+          child: Line('Index 226 (yellow)', style: const Style(fg: Color.indexed(226))),
         ),
         Fixed(
           1,
-          child: Line('Index 201 (magenta)', style: Style(fg: Color.indexed(201))),
+          child: Line('Index 201 (magenta)', style: const Style(fg: Color.indexed(201))),
         ),
         Fixed(
           1,
-          child: Line('Grayscale 240', style: Style(fg: Color.indexed(240))),
+          child: Line('Grayscale 240', style: const Style(fg: Color.indexed(240))),
         ),
         Expanded(
-          child: Line('Grayscale 250', style: Style(fg: Color.indexed(250))),
+          child: Line('Grayscale 250', style: const Style(fg: Color.indexed(250))),
         ),
       ],
     ),
@@ -275,9 +270,13 @@ Widget indexedPanel() {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, const Style(bg: Color.black));
+
   // Main layout: 2x2 grid of panels + status bar
   final mainBlock = Block(
     borders: Borders.all,
+    borderStyle: theme.border,
     child: Column(
       children: [
         // Top row: RGB and ANSI panels
@@ -301,15 +300,21 @@ void appView(AppModel model, Frame frame) {
         // Status bar
         Fixed(
           1,
-          child: Text.raw(
-            'Count: ${model.count} | ${model.lastAction.isEmpty ? "[m] Open dialog  [q] Quit" : "Last: ${model.lastAction}"}',
-            alignment: Alignment.center,
-            style: const Style(fg: Color.brightYellow, bg: Color.darkGray),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text.raw(
+                  'Count: ${model.count} | ${model.lastAction.isEmpty ? "[m] dialog  [q] quit" : "Last: ${model.lastAction}"}',
+                  style: Style(fg: theme.warning.fg),
+                ),
+              ),
+              Fixed(25, child: themeIndicator(model)),
+            ],
           ),
         ),
       ],
     ),
-  ).titleTop(Line(' Modal + Dim Demo - Press [m] to see dim effect '));
+  ).titleTop(Line(' Modal + Dim Demo - Press [m] to see dim effect ', style: theme.muted));
 
   frame.renderWidget(mainBlock, frame.area);
 
@@ -323,7 +328,7 @@ void appView(AppModel model, Frame frame) {
 
 void main() async {
   await Application(title: 'Modal Dialog Example').run(
-    init: const AppModel(),
+    init: AppModel(),
     update: update,
     view: appView,
   );

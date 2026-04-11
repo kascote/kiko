@@ -57,7 +57,7 @@ class TermlibBackend {
     Position? lastPos;
 
     _term.startSyncUpdate();
-    for (final (x: x, y: y, cell: cell) in cellPos) {
+    for (final (:x, :y, :cell) in cellPos) {
       final tStyle = _term.style(cell.symbol);
       if (!((x == (lastPos?.x ?? 0) + 1) && (y == (lastPos?.y ?? 0)))) {
         // base terminal coordinates are 1 based, KiKo is 0 based

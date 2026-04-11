@@ -12,12 +12,39 @@ import 'text_area_model.dart';
 /// - Optional line numbers
 /// - Selection highlighting
 /// - Vertical scrolling
+///
+/// Uses [StyleResolver] for state-based styling (focused, disabled) and
+/// [TextAreaStyle] for region-based styling (placeholder, selection, line
+/// numbers).
 class TextArea extends Widget {
   /// The model containing state and config.
   final TextAreaModel model;
 
-  /// Creates a TextAreaWidget.
-  TextArea(this.model);
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  final Map<WidgetState, Style>? styleOverrides;
+
+  /// Region styles resolved at construction.
+  final TextAreaStyle _regionStyle;
+
+  /// Creates a TextArea widget.
+  TextArea(this.model, {required this.theme, this.styleOverrides})
+    : _regionStyle = TextAreaStyle.fromTheme(theme).merge(model.style);
+
+  /// Resolves the base text style from theme + model state.
+  Style _resolveStyle() {
+    final resolver = StyleResolver(theme);
+    final states = <WidgetState>{
+      if (model.focused) WidgetState.focused,
+    };
+    return resolver.resolve(
+      Style(fg: theme.background.fg),
+      states,
+      overrides: {...?styleOverrides},
+    );
+  }
 
   @override
   void render(Rect area, Frame frame) {
@@ -56,7 +83,7 @@ class TextArea extends Widget {
       x: area.x + gutterWidth,
       width: area.width - gutterWidth,
     );
-    Span(model.placeholder, style: model.style.placeholder).render(textArea, frame);
+    Span(model.placeholder, style: _regionStyle.placeholder).render(textArea, frame);
 
     if (model.focused) {
       frame.cursorPosition = Position(textArea.x, textArea.y);
@@ -142,7 +169,7 @@ class TextArea extends Widget {
     final text = lineNum != null ? lineNum.toString().padLeft(gutterWidth - 1) : ' ' * (gutterWidth - 1);
 
     final lineRect = Rect.create(x: x, y: y, width: gutterWidth, height: 1);
-    Span('$text ', style: model.style.lineNumber).render(
+    Span('$text ', style: _regionStyle.lineNumber).render(
       lineRect,
       Frame(lineRect, buf, 0),
     );
@@ -158,7 +185,7 @@ class TextArea extends Widget {
     final ta = model.textArea;
     final parts = ta.selectedBlock.getLineParts(bufferRow, wrapOffset, line);
 
-    final textStyle = model.style.text ?? const Style();
+    final textStyle = _resolveStyle();
 
     if (parts == null || parts.isEmpty) {
       // No selection, render plain
@@ -171,7 +198,7 @@ class TextArea extends Widget {
     for (final part in parts) {
       if (part.part.isEmpty) continue;
 
-      final style = part.kind == PartKind.selection ? (model.style.selection ?? const Style()) : textStyle;
+      final style = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
       final partWidth = widthChars(part.part);
       final partRect = Rect.create(x: x, y: area.y, width: partWidth, height: 1);
 

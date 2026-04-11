@@ -4,29 +4,19 @@ import 'package:test/test.dart';
 void main() {
   group('Color', () {
     test('ansi factory creates correct Color', () {
-      final color = Color.ansi(5);
+      const color = Color.magenta;
       expect(color.value, 5);
       expect(color.kind, ColorKind.ansi);
     });
 
-    test('ansi factory throws error for out of range values', () {
-      expect(() => Color.ansi(-1), throwsArgumentError);
-      expect(() => Color.ansi(16), throwsArgumentError);
-    });
-
     test('indexed factory creates correct Color', () {
-      final color = Color.indexed(100);
+      const color = Color.indexed(100);
       expect(color.value, 100);
       expect(color.kind, ColorKind.indexed);
     });
 
-    test('indexed factory throws error for out of range values', () {
-      expect(() => Color.indexed(-1), throwsArgumentError);
-      expect(() => Color.indexed(256), throwsArgumentError);
-    });
-
     test('fromRGB factory creates correct Color', () {
-      final color = Color.fromRGB(0x123456);
+      const color = Color.rgb(0x123456);
       expect(color.value, 0x123456);
       expect(color.kind, ColorKind.rgb);
     });
@@ -73,7 +63,7 @@ void main() {
     });
 
     test('toString returns correct format', () {
-      final color = Color.ansi(5);
+      const color = Color.magenta;
       expect(color.toString(), 'Color(5, ansi)');
 
       const resetColor = Color.reset;
@@ -128,6 +118,83 @@ void main() {
 
       expect(Color.white.value, 15);
       expect(Color.white.kind, ColorKind.ansi);
+    });
+    group('lighten', () {
+      test('RGB color lightens toward white', () {
+        const color = Color.rgb(0x808080);
+        final lighter = color.lighten(0.5);
+        expect(lighter.kind, ColorKind.rgb);
+        // Each channel: 128 + (127 * 0.5) ≈ 192 = 0xC0
+        expect(lighter.value, 0xC0C0C0);
+      });
+
+      test('amount 0.0 returns same RGB values', () {
+        const color = Color.rgb(0x336699);
+        final result = color.lighten(0);
+        expect(result.value, 0x336699);
+      });
+
+      test('amount 1.0 returns white', () {
+        const color = Color.rgb(0x336699);
+        final result = color.lighten(1);
+        expect(result.value, 0xFFFFFF);
+      });
+
+      test('ANSI dark maps to bright variant', () {
+        expect(Color.red.lighten(0.5), Color.brightRed);
+        expect(Color.blue.lighten(0.5), Color.brightBlue);
+        expect(Color.black.lighten(0.5), Color.darkGray);
+      });
+
+      test('ANSI bright stays bright', () {
+        expect(Color.brightRed.lighten(0.5), Color.brightRed);
+        expect(Color.white.lighten(0.5), Color.white);
+      });
+
+      test('indexed converts to RGB then lightens', () {
+        const color = Color.indexed(196); // red-ish
+        final result = color.lighten(0.5);
+        expect(result.kind, ColorKind.rgb);
+      });
+    });
+
+    group('darken', () {
+      test('RGB color darkens toward black', () {
+        const color = Color.rgb(0x808080);
+        final darker = color.darken(0.5);
+        expect(darker.kind, ColorKind.rgb);
+        // Each channel: 128 * 0.5 = 64 = 0x40
+        expect(darker.value, 0x404040);
+      });
+
+      test('amount 0.0 returns same RGB values', () {
+        const color = Color.rgb(0x336699);
+        final result = color.darken(0);
+        expect(result.value, 0x336699);
+      });
+
+      test('amount 1.0 returns black', () {
+        const color = Color.rgb(0x336699);
+        final result = color.darken(1);
+        expect(result.value, 0x000000);
+      });
+
+      test('ANSI bright maps to dark variant', () {
+        expect(Color.brightRed.darken(0.5), Color.red);
+        expect(Color.brightBlue.darken(0.5), Color.blue);
+        expect(Color.white.darken(0.5), Color.gray);
+      });
+
+      test('ANSI dark stays dark', () {
+        expect(Color.red.darken(0.5), Color.red);
+        expect(Color.black.darken(0.5), Color.black);
+      });
+
+      test('indexed converts to RGB then darkens', () {
+        const color = Color.indexed(196);
+        final result = color.darken(0.5);
+        expect(result.kind, ColorKind.rgb);
+      });
     });
   });
 }

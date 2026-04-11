@@ -8,16 +8,22 @@ import 'types.dart';
 /// Renders items from a [ListViewModel] using [itemBuilder].
 /// Supports separators, empty placeholders, and multi-line items.
 ///
+/// Uses [StyleResolver] to apply row-level background styles based on
+/// item state (focused, selected, disabled). The [itemBuilder] controls
+/// content rendering.
+///
 /// ```dart
 /// // Simple - ignore state
 /// ListView(
 ///   model: listModel,
+///   theme: theme,
 ///   itemBuilder: (item, index, _) => Line(item),
 /// )
 ///
 /// // With state - destructure what you need
 /// ListView(
 ///   model: listModel,
+///   theme: theme,
 ///   itemBuilder: (item, index, (:focused, :checked, :disabled)) =>
 ///       Line('${focused ? '>' : ' '} $item'),
 /// )
@@ -25,6 +31,14 @@ import 'types.dart';
 class ListView<T, K> extends Widget {
   /// The model containing list state.
   final ListViewModel<T, K> model;
+
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  ///
+  /// Fully replaces the default style for that [WidgetState].
+  final Map<WidgetState, Style>? styleOverrides;
 
   /// Builds widget for each item.
   ///
@@ -45,7 +59,9 @@ class ListView<T, K> extends Widget {
   /// Creates a ListView widget.
   ListView({
     required this.model,
+    required this.theme,
     required this.itemBuilder,
+    this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
   });
@@ -107,6 +123,18 @@ class ListView<T, K> extends Widget {
         height: m.itemHeight,
       ).intersection(renderArea);
       if (itemArea.isEmpty) break;
+
+      // Resolve row background style from theme
+      final states = <WidgetState>{
+        if (isFocused) WidgetState.focused,
+        if (isChecked) WidgetState.selected,
+        if (isDisabled) WidgetState.disabled,
+      };
+      if (states.isNotEmpty) {
+        final resolver = StyleResolver(theme);
+        final rowStyle = resolver.resolve(null, states, overrides: styleOverrides);
+        frame.buffer.setStyle(itemArea, rowStyle);
+      }
 
       // Render item via builder
       final state = (

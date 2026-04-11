@@ -6,12 +6,46 @@ import 'button_model.dart';
 ///
 /// Stateless widget that renders from [ButtonModel]. The model holds all
 /// state and config; this widget just renders.
+///
+/// Styles are resolved via [StyleResolver] from the [theme], with
+/// button-specific defaults (e.g. focused = primary inverted).
+/// Use [styleOverrides] to customize per-state styles.
 class Button extends Widget {
   /// The model containing state and config.
   final ButtonModel model;
 
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  ///
+  /// Fully replaces the default style for that [WidgetState].
+  final Map<WidgetState, Style>? styleOverrides;
+
   /// Creates a Button widget.
-  Button(this.model);
+  Button(this.model, {required this.theme, this.styleOverrides});
+
+  /// Resolves the button style from theme + model state + overrides.
+  Style _resolveStyle() {
+    final resolver = StyleResolver(theme);
+    final states = <WidgetState>{
+      if (model.focused) WidgetState.focused,
+      if (model.disabled) WidgetState.disabled,
+      if (model.loading) WidgetState.loading,
+    };
+
+    // Button-specific defaults override resolver's generic defaults.
+    final widgetDefaults = {
+      WidgetState.focused: theme.primary.inverted,
+      WidgetState.loading: theme.warning.inverted,
+    };
+
+    return resolver.resolve(
+      theme.surface.inverted,
+      states,
+      overrides: {...widgetDefaults, ...?styleOverrides},
+    );
+  }
 
   @override
   void render(Rect area, Frame frame) {
@@ -22,7 +56,7 @@ class Button extends Widget {
     if (renderArea.isEmpty) return;
 
     final m = model;
-    final style = m.currentStyle ?? const Style();
+    final style = _resolveStyle();
 
     // Calculate the button width
     final buttonWidth = m.width.clamp(0, renderArea.width);

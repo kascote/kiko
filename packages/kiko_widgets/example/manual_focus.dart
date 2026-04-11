@@ -8,11 +8,13 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final name = TextInputModel(placeholder: 'Name');
   final email = TextInputModel(placeholder: 'Email');
   final phone = TextInputModel(placeholder: 'Phone');
@@ -48,6 +50,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Route to focused widget
   final cmd = model.focused.update(msg);
   if (cmd is! Unhandled) return (model, cmd);
@@ -75,13 +79,16 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   LayoutChild inputField(TextInputModel input, String label) => Fixed(
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: input.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: input.focused ? theme.focus : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(input),
+      child: TextInput(input, theme: theme),
     ).titleTop(Line(label)),
   );
 
@@ -99,20 +106,22 @@ void appView(AppModel model, Frame frame) {
             'Name: "${model.name.value}"\n'
             'Email: "${model.email.value}"\n'
             'Phone: "${model.phone.value}"',
+            style: Style(fg: theme.background.fg),
           ),
         ),
         // Help
         Fixed(
           1,
-          child: Text.raw(
-            'Tab/Shift+Tab to cycle | Esc to quit',
-            alignment: Alignment.center,
-            style: const Style(fg: Color.darkGray),
+          child: Row(
+            children: [
+              Expanded(child: Text.raw('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted)),
+              Fixed(25, child: themeIndicator(model)),
+            ],
           ),
         ),
       ],
     ),
-  ).titleTop(Line('Manual Focus Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('Manual Focus Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

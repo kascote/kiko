@@ -9,12 +9,12 @@ import 'textarea.dart';
 // STYLE
 // ═══════════════════════════════════════════════════════════
 
-/// Styles for TextArea widget.
+/// Region-based styles for TextArea widget.
+///
+/// These are NOT state-based (focused, disabled) — those are handled by
+/// [StyleResolver] in the widget. These style specific visual regions.
 @immutable
 class TextAreaStyle {
-  /// Style for text content.
-  final Style? text;
-
   /// Style for placeholder text.
   final Style? placeholder;
 
@@ -26,42 +26,25 @@ class TextAreaStyle {
 
   /// Creates a TextAreaStyle.
   const TextAreaStyle({
-    this.text,
     this.placeholder,
     this.selection,
     this.lineNumber,
   });
 
-  /// Default style with sensible defaults.
-  static const defaultStyle = TextAreaStyle(
-    selection: Style(fg: Color.black, bg: Color.white),
-    lineNumber: Style(fg: Color.darkGray),
-    placeholder: Style(fg: Color.darkGray),
+  /// Creates region styles derived from a [Theme].
+  factory TextAreaStyle.fromTheme(Theme theme) => TextAreaStyle(
+    placeholder: theme.muted,
+    selection: theme.highlight,
+    lineNumber: theme.muted,
   );
 
   /// Merges [other] on top of this, non-null values override.
   TextAreaStyle merge(TextAreaStyle? other) {
     if (other == null) return this;
     return TextAreaStyle(
-      text: other.text ?? text,
       placeholder: other.placeholder ?? placeholder,
       selection: other.selection ?? selection,
       lineNumber: other.lineNumber ?? lineNumber,
-    );
-  }
-
-  /// Creates a copy with the given fields replaced.
-  TextAreaStyle copyWith({
-    Style? text,
-    Style? placeholder,
-    Style? selection,
-    Style? lineNumber,
-  }) {
-    return TextAreaStyle(
-      text: text ?? this.text,
-      placeholder: placeholder ?? this.placeholder,
-      selection: selection ?? this.selection,
-      lineNumber: lineNumber ?? this.lineNumber,
     );
   }
 
@@ -69,14 +52,13 @@ class TextAreaStyle {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is TextAreaStyle &&
-        other.text == text &&
         other.placeholder == placeholder &&
         other.selection == selection &&
         other.lineNumber == lineNumber;
   }
 
   @override
-  int get hashCode => Object.hash(text, placeholder, selection, lineNumber);
+  int get hashCode => Object.hash(placeholder, selection, lineNumber);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -106,8 +88,11 @@ class TextAreaModel implements Focusable {
   /// Whether to show line numbers.
   final bool showLineNumbers;
 
-  /// Styles for text, placeholder, selection, and line numbers.
-  final TextAreaStyle style;
+  /// Region styles (placeholder, selection, line numbers).
+  ///
+  /// Merged with theme-derived defaults in the widget. Only set fields
+  /// you want to override.
+  final TextAreaStyle? style;
 
   /// Key bindings for text area actions.
   late final KeyBinding<TextAreaAction> keyBinding;
@@ -127,13 +112,12 @@ class TextAreaModel implements Focusable {
     this.focused = false,
     this.tabWidth = 4,
     this.showLineNumbers = false,
-    TextAreaStyle? style,
+    this.style,
     int maxCharacters = 0,
     int maxLines = 0,
     int maxColumns = 0,
     KeyBinding<TextAreaAction>? keyBinding,
-  }) : style = TextAreaStyle.defaultStyle.merge(style),
-       textArea = TextAreaComponent(
+  }) : textArea = TextAreaComponent(
          maxCharacters: maxCharacters,
          maxLines: maxLines,
          maxColumns: maxColumns,
@@ -175,7 +159,7 @@ class TextAreaModel implements Focusable {
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    if (msg case PasteMsg(text: final text)) {
+    if (msg case PasteMsg(:final text)) {
       textArea.insert(text);
       return null;
     }

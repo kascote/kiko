@@ -9,6 +9,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -57,7 +59,7 @@ const allItems = [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final search = TextInputModel(placeholder: 'Type to filter...');
   late final list = ListViewModel<String, String>(
     dataSource: ListDataSource.fromList(allItems),
@@ -92,6 +94,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Route to search input if focused
   if (model.search.focused) {
     final cmd = model.search.update(msg);
@@ -168,6 +172,9 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final items = model.filteredItems;
 
   // Search box
@@ -175,9 +182,9 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: model.search.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.search.focused ? theme.focus : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(model.search),
+      child: TextInput(model.search, theme: theme),
     ).titleTop(Line('Search (${items.length}/${allItems.length})')),
   );
 
@@ -185,19 +192,15 @@ void appView(AppModel model, Frame frame) {
   final listBox = Expanded(
     child: Block(
       borders: Borders.all,
-      borderStyle: model.list.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.list.focused ? theme.focus : theme.border,
       child: ListView(
         model: model.list,
-        itemBuilder: (item, index, state) {
-          var defaultStyle = const Style();
-          if (state.focused) {
-            defaultStyle = state.focused ? const Style(fg: Color.black, bg: Color.green) : const Style();
-          } else if (model.selected == item) {
-            defaultStyle = const Style(fg: Color.green);
-          }
-          return Text.raw(' $item', style: defaultStyle);
+        theme: theme,
+        itemBuilder: (item, index, _) {
+          final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
+          return Text.raw(' $item', style: style);
         },
-        emptyPlaceholder: Text.raw('No matches', style: const Style(fg: Color.darkGray)),
+        emptyPlaceholder: Text.raw('No matches', style: theme.muted),
       ),
     ).titleTop(Line('Results')),
   );
@@ -207,11 +210,11 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: model.selected != null ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.selected != null ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         model.selected ?? 'Press Enter to select',
-        style: Style(fg: model.selected != null ? Color.white : Color.darkGray),
+        style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ).titleTop(Line('Selected')),
   );
@@ -219,16 +222,22 @@ void appView(AppModel model, Frame frame) {
   // Help
   final help = Fixed(
     1,
-    child: Text.raw(
-      'Tab to switch | ↑↓/jk navigate | Enter select | / search | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            'Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
   final ui = Block(
     child: Column(children: [searchBox, listBox, selectedBox, help]),
-  ).titleTop(Line('Searchable List Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('Searchable List Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

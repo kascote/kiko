@@ -28,7 +28,7 @@ void main() {
         )..setVisibleCount(10);
         await model.loadRoots();
 
-        t.render(TreeView(model: model));
+        t.render(TreeView(model: model, theme: Theme.dark));
       }).capture();
 
       expect(
@@ -53,7 +53,7 @@ void main() {
         await model.loadRoots();
         await model.expand('/a');
 
-        t.render(TreeView(model: model));
+        t.render(TreeView(model: model, theme: Theme.dark));
       }).capture();
 
       expect(
@@ -82,7 +82,7 @@ void main() {
         await model.expand('/a');
         await model.expand('/a/b');
 
-        t.render(TreeView(model: model));
+        t.render(TreeView(model: model, theme: Theme.dark));
       }).capture();
 
       expect(
@@ -115,7 +115,7 @@ void main() {
         await model.loadRoots();
         await model.expand('/a');
 
-        t.render(TreeView(model: model));
+        t.render(TreeView(model: model, theme: Theme.dark));
       }).capture();
 
       expect(
@@ -143,7 +143,7 @@ void main() {
             )..setVisibleCount(10);
             await model.loadRoots();
 
-            t.render(TreeView(model: model));
+            t.render(TreeView(model: model, theme: Theme.dark));
           }).capture();
 
       expect(
@@ -164,7 +164,7 @@ void main() {
       )..setVisibleCount(10);
       await model.loadRoots();
 
-      final tree = TreeView(model: model);
+      final tree = TreeView(model: model, theme: Theme.dark);
 
       expect(tree, rendersAs('▶ Item', width: 20, height: 1));
     });
@@ -179,6 +179,7 @@ void main() {
         t.render(
           TreeView(
             model: model,
+            theme: Theme.dark,
             emptyPlaceholder: Paragraph(content: '(empty)'),
           ),
         );
@@ -207,7 +208,7 @@ void main() {
         await model.loadRoots();
         await model.expand('/a');
 
-        t.render(TreeView(model: model));
+        t.render(TreeView(model: model, theme: Theme.dark));
       }).capture();
 
       // Both children should have labels aligned

@@ -19,27 +19,6 @@ void main() {
       expect(button.width, equals(6)); // 2 chars + 2*2 padding
     });
 
-    test('currentStyle returns correct style for state', () {
-      const styles = ButtonStyles(
-        normal: Style(fg: Color.white),
-        focus: Style(fg: Color.green),
-        disabled: Style(fg: Color.gray),
-        loading: Style(fg: Color.yellow),
-      );
-
-      var button = ButtonModel(id: 'btn', label: Line('OK'), styles: styles);
-      expect(button.currentStyle, equals(const Style(fg: Color.white)));
-
-      button = button.copyWith(focused: true);
-      expect(button.currentStyle, equals(const Style(fg: Color.green)));
-
-      button = button.copyWith(disabled: true);
-      expect(button.currentStyle, equals(const Style(fg: Color.gray)));
-
-      button = button.copyWith(disabled: false, loading: true);
-      expect(button.currentStyle, equals(const Style(fg: Color.yellow)));
-    });
-
     test('copyWith creates modified copy', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
       final copy = button.copyWith(disabled: true, loading: true);

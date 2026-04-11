@@ -9,6 +9,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -42,7 +44,7 @@ List<TreeNode<void>> buildFileTree() => [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final tree = TreeViewModel<void>(
     dataSource: StaticTreeDataSource(buildFileTree()),
     focused: true,
@@ -57,6 +59,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Initialize on first message
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
@@ -88,37 +92,44 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final treeWidget = Block(
     borders: Borders.all,
-    borderStyle: const Style(fg: Color.green),
+    borderStyle: theme.focus,
     padding: const EdgeInsets.all(1),
     child: TreeView(
       model: model.tree,
-      focusedStyle: const Style(fg: Color.black, bg: Color.green),
+      theme: theme,
     ),
-  ).titleTop(Line('File Browser'));
+  ).titleTop(Line('File Browser', style: theme.focus));
 
   final infoBox = Fixed(
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: model.selectedPath != null ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.selectedPath != null ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         model.selectedPath ?? 'Press Enter to select',
-        style: Style(
-          fg: model.selectedPath != null ? Color.white : Color.darkGray,
-        ),
+        style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ).titleTop(Line('Selected')),
   );
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -130,7 +141,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('TreeView Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('TreeView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

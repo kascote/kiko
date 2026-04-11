@@ -31,7 +31,7 @@ void main() {
           );
           final page = await source.getPage(0, 5);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -56,7 +56,7 @@ r2   Name 2    20'''),
         model.insertRows(page, 0);
 
         // Render to trigger setVisibleDimensions
-        capture(TableView(model: model), width: 23, height: 4);
+        capture(TableView(model: model, theme: Theme.dark), width: 23, height: 4);
 
         // 4 total - 1 header = 3 visible rows
         expect(model.visibleRows, equals(3));
@@ -75,7 +75,7 @@ r2   Name 2    20'''),
           );
           final page = await source.getPage(0, 5);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // First row is data, not header
@@ -106,7 +106,7 @@ r2   Name 2    20'''),
           );
           final page = await source.getPage(0, 3);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // Only ID and Value columns visible
@@ -129,7 +129,7 @@ r0   0'''),
         model.insertRows(page, 0);
 
         // Width=12: ID(5) + Name(10) = 15 > 12, so only ID fits
-        final result = capture(TableView(model: model), width: 5, height: 2);
+        final result = capture(TableView(model: model, theme: Theme.dark), width: 5, height: 2);
 
         expect(result, equals('ID\nr0'));
         expect(model.visibleCols, equals(1));
@@ -151,7 +151,7 @@ r0   0'''),
             ..update(const KeyMsg('right'))
             ..update(const KeyMsg('right'));
 
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // scrollCol=2 shows Value column
@@ -183,7 +183,7 @@ Value
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // 5 + 1 (sep) + 8 = 14
@@ -213,7 +213,7 @@ X     Y'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // 5 + 3 (sep) + 8 = 16
@@ -243,7 +243,7 @@ X     | Y'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // 5 + 0 (sep) + 8 = 13
@@ -267,11 +267,11 @@ X    Y'''),
         model.insertRows(page, 0);
 
         // Width 23 can't fit all 3 columns with separators
-        capture(TableView(model: model), width: 23, height: 2);
+        capture(TableView(model: model, theme: Theme.dark), width: 23, height: 2);
         expect(model.visibleCols, equals(2));
 
         // Width 25 can fit all 3 columns
-        capture(TableView(model: model), width: 25, height: 2);
+        capture(TableView(model: model, theme: Theme.dark), width: 25, height: 2);
         expect(model.visibleCols, equals(3));
       });
 
@@ -298,7 +298,7 @@ X    Y'''),
         model.insertRows(page, 0);
 
         // Initial: shows ColA and ColB
-        var result = capture(TableView(model: model), width: 14, height: 2);
+        var result = capture(TableView(model: model, theme: Theme.dark), width: 14, height: 2);
         expect(
           result,
           equals('''
@@ -313,7 +313,7 @@ A0    | B0'''),
           ..update(const KeyMsg('right'));
 
         // Now scrollCol=1, shows ColB and ColC
-        result = capture(TableView(model: model), width: 14, height: 2);
+        result = capture(TableView(model: model, theme: Theme.dark), width: 14, height: 2);
         expect(
           result,
           equals('''
@@ -339,7 +339,7 @@ B0     | C0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // Name truncated to "VeryLongN…"
@@ -366,7 +366,7 @@ r0   VeryLongN…0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -395,7 +395,7 @@ r0   LongEno...0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(result, equals('ID\nX'));
@@ -422,7 +422,7 @@ r0   LongEno...0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -454,7 +454,7 @@ r0   LongEno...0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -488,7 +488,7 @@ r0   LongEno...0'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -525,7 +525,7 @@ ID
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
-        capture(TableView(model: model), width: 10, height: 2);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 2);
 
         expect(captured, isNotNull);
         expect(captured!.value, equals('Alice'));
@@ -568,7 +568,7 @@ ID
         );
         final page = await source.getPage(0, 2);
         model.insertRows(page, 0);
-        capture(TableView(model: model), width: 10, height: 3);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 3);
 
         // 2 rows x 2 cols = 4 contexts
         expect(contexts.length, equals(4));
@@ -625,7 +625,7 @@ ID
 
         // Cursor at row 0, col 0 (default)
         contexts.clear();
-        capture(TableView(model: model), width: 10, height: 3);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 3);
 
         // Row 0 is cursor row
         expect(contexts[0].isCursorRow, isTrue);
@@ -641,7 +641,7 @@ ID
           ..update(const KeyMsg('down'))
           ..update(const KeyMsg('right'));
         contexts.clear();
-        capture(TableView(model: model), width: 10, height: 3);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 3);
 
         // Row 0 is not cursor row
         expect(contexts[0].isCursorRow, isFalse);
@@ -684,7 +684,7 @@ ID
           ..insertRows(page, 0)
           ..update(const KeyMsg('space'));
         contexts.clear();
-        capture(TableView(model: model), width: 10, height: 3);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 3);
 
         expect(contexts[0].isSelected, isTrue);
         expect(contexts[1].isSelected, isFalse);
@@ -712,7 +712,7 @@ ID
         );
         final page = await source.getPage(0, 10);
         model.insertRows(page, 0);
-        capture(TableView(model: model), width: 10, height: 2);
+        capture(TableView(model: model, theme: Theme.dark), width: 10, height: 2);
 
         expect(captured!.totalCount, equals(50));
       });
@@ -740,7 +740,7 @@ ID
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
-        capture(TableView(model: model), width: 15, height: 2);
+        capture(TableView(model: model, theme: Theme.dark), width: 15, height: 2);
 
         expect(captured!.column, same(col));
         expect(captured!.column.field, equals('a'));
@@ -777,7 +777,7 @@ ID
           );
           final page = await source.getPage(0, 2);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -800,7 +800,7 @@ Bob       idle'''),
           emptyPlaceholder: Line('No data'),
         );
 
-        final result = capture(TableView(model: model), width: 23, height: 3);
+        final result = capture(TableView(model: model, theme: Theme.dark), width: 23, height: 3);
 
         expect(
           result,
@@ -825,7 +825,7 @@ No data'''),
           model
             ..insertRows(page, 0)
             ..setVisibleDimensions(5, 3);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -856,7 +856,7 @@ r1   Name 1    10'''),
           for (var i = 0; i < 5; i++) {
             model.update(const KeyMsg('down'));
           }
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // Should show rows around cursor (row 5)
@@ -881,7 +881,7 @@ r1   Name 1    10'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         expect(
@@ -909,7 +909,7 @@ r1   Name 1    10'''),
         model.insertRows(page, 0);
 
         expect(
-          TableView(model: model),
+          TableView(model: model, theme: Theme.dark),
           rendersAs('ID\na', width: 5, height: 2),
         );
       });
@@ -924,7 +924,7 @@ r1   Name 1    10'''),
         );
 
         // Should not throw
-        capture(TableView(model: model), width: 0, height: 0);
+        capture(TableView(model: model, theme: Theme.dark), width: 0, height: 0);
       });
 
       test('handles area smaller than header', () async {
@@ -938,7 +938,7 @@ r1   Name 1    10'''),
         model.insertRows(page, 0);
 
         // Height 1 with sticky header = 0 data rows, returns early
-        final result = capture(TableView(model: model), width: 23, height: 1);
+        final result = capture(TableView(model: model, theme: Theme.dark), width: 23, height: 1);
         expect(result, isEmpty);
       });
 
@@ -956,7 +956,7 @@ r1   Name 1    10'''),
         model.insertRows(page, 0);
 
         // Width too narrow for column - should not throw
-        capture(TableView(model: model), width: 5, height: 3);
+        capture(TableView(model: model, theme: Theme.dark), width: 5, height: 3);
       });
 
       test('handles null cell values', () async {
@@ -973,7 +973,7 @@ r1   Name 1    10'''),
           );
           final page = await source.getPage(0, 1);
           model.insertRows(page, 0);
-          t.render(TableView(model: model));
+          t.render(TableView(model: model, theme: Theme.dark));
         }).capture();
 
         // Null renders as empty

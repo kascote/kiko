@@ -587,8 +587,8 @@ class TextAreaComponent {
   /// Returns information about the requested line. If [rowInfo] is not
   /// provided, it will return the current line.
   LineInfo lineInfo({int? rowInfo}) {
-    if (rowInfo != null) rowInfo = rowInfo.clamp(0, _buffer.length - 1);
-    final vLine = lineCache(_buffer[rowInfo ?? _row], visualWidth);
+    final clampRowInfo = (rowInfo != null) ? rowInfo.clamp(0, _buffer.length - 1) : null;
+    final vLine = lineCache(_buffer[clampRowInfo ?? _row], visualWidth);
     var counter = 0;
 
     for (var i = 0; i < vLine.length; i++) {

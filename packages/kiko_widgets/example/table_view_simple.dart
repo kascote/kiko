@@ -10,6 +10,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -36,26 +38,24 @@ final List<Map<String, Object?>> employees = [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
-  final defaultHeaderStyle = const Style(fg: Color.white, bg: Color.darkGray, addModifier: Modifier.bold);
-
+class AppModel with ThemeSwitcher {
   late final table = TableViewModel(
     dataSource: TableDataSource.fromList(employees),
     keyField: 'id',
     columns: [
       TableColumn(
         field: 'id',
-        label: Line('ID', style: defaultHeaderStyle),
+        label: Line('ID'),
         width: 6,
         alignment: Alignment.right,
       ),
       TableColumn(
         field: 'name',
-        label: Line('Name', style: defaultHeaderStyle),
+        label: Line('Name', style: const Style(addModifier: Modifier.bold)),
       ),
       TableColumn(
         field: 'dept',
-        label: Line('Department', style: defaultHeaderStyle),
+        label: Line('Department', style: const Style(addModifier: Modifier.bold)),
         width: 15,
         render: (ctx) {
           final dept = ctx.value?.toString() ?? '';
@@ -71,7 +71,7 @@ class AppModel {
       ),
       TableColumn(
         field: 'salary',
-        label: Line('Salary', style: defaultHeaderStyle),
+        label: Line('Salary', style: const Style(addModifier: Modifier.bold)),
         width: 12,
         alignment: Alignment.right,
         render: (ctx) {
@@ -83,11 +83,6 @@ class AppModel {
     ],
     selectionEnabled: true,
     focused: true,
-    styles: const TableViewStyle(
-      hover: Style(bg: Color.blue),
-      selected: Style(bg: Color.green),
-      columnHighlight: Style(bg: Color.cyan, fg: Color.black),
-    ),
   );
 
   String? confirmedCell;
@@ -108,6 +103,8 @@ String _formatNumber(int n) {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Initial data load
   if (msg is InitMsg) {
     // Load first page synchronously (fromList returns immediately)
@@ -145,11 +142,14 @@ String _formatNumber(int n) {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final tableWidget = Block(
     borders: Borders.all,
-    borderStyle: const Style(fg: Color.green),
-    child: TableView(model: model.table),
-  ).titleTop(Line('Employees (${employees.length})'));
+    borderStyle: theme.focus,
+    child: TableView(model: model.table, theme: theme),
+  ).titleTop(Line('Employees (${employees.length})', style: theme.focus));
 
   // Selected rows info
   final selectedKeys = model.table.getSelectedKeys();
@@ -162,11 +162,11 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: Style(fg: selectedCount > 0 ? Color.green : Color.darkGray),
+      borderStyle: selectedCount > 0 ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         selectedInfo,
-        style: Style(fg: selectedCount > 0 ? Color.white : Color.darkGray),
+        style: selectedCount > 0 ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ).titleTop(Line('Selection')),
   );
@@ -176,21 +176,27 @@ void appView(AppModel model, Frame frame) {
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: Style(fg: model.confirmedCell != null ? Color.cyan : Color.darkGray),
+      borderStyle: model.confirmedCell != null ? theme.accent : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         model.confirmedCell ?? 'Press Enter to confirm cell',
-        style: Style(fg: model.confirmedCell != null ? Color.cyan : Color.darkGray),
+        style: model.confirmedCell != null ? Style(fg: theme.accent.fg) : theme.muted,
       ),
     ).titleTop(Line('Confirmed')),
   );
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -203,7 +209,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('TableView Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('TableView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

@@ -221,6 +221,77 @@ void main() {
       expect(copied.bg, equals(Color.blue));
       expect(copied.toString(), contains('addModifier: Modifier(bold)'));
     });
+
+    group('inverted', () {
+      test('swaps fg and bg', () {
+        const style = Style(fg: Color.red, bg: Color.blue);
+        final inverted = style.inverted;
+
+        expect(inverted.fg, equals(Color.blue));
+        expect(inverted.bg, equals(Color.red));
+      });
+
+      test('preserves underline', () {
+        const style = Style(
+          fg: Color.red,
+          bg: Color.blue,
+          underline: Color.green,
+        );
+        final inverted = style.inverted;
+
+        expect(inverted.underline, equals(Color.green));
+      });
+
+      test('preserves modifiers', () {
+        const style = Style(
+          fg: Color.red,
+          bg: Color.blue,
+          addModifier: Modifier.bold,
+          subModifier: Modifier.italic,
+        );
+        final inverted = style.inverted;
+
+        expect(inverted.addModifier, equals(Modifier.bold));
+        expect(inverted.subModifier, equals(Modifier.italic));
+      });
+
+      test('handles null fg', () {
+        const style = Style(bg: Color.blue);
+        final inverted = style.inverted;
+
+        expect(inverted.fg, equals(Color.blue));
+        expect(inverted.bg, isNull);
+      });
+
+      test('handles null bg', () {
+        const style = Style(fg: Color.red);
+        final inverted = style.inverted;
+
+        expect(inverted.fg, isNull);
+        expect(inverted.bg, equals(Color.red));
+      });
+
+      test('handles both null', () {
+        const style = Style();
+        final inverted = style.inverted;
+
+        expect(inverted.fg, isNull);
+        expect(inverted.bg, isNull);
+      });
+
+      test('double invert returns equivalent style', () {
+        const style = Style(
+          fg: Color.red,
+          bg: Color.blue,
+          addModifier: Modifier.bold,
+        );
+        final doubleInverted = style.inverted.inverted;
+
+        expect(doubleInverted.fg, equals(style.fg));
+        expect(doubleInverted.bg, equals(style.bg));
+        expect(doubleInverted.addModifier, equals(style.addModifier));
+      });
+    });
   });
 
   group('Modifier >', () {

@@ -1,11 +1,13 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   // Pane 1: Basic button group (horizontal)
   final basicGroup = ButtonGroupModel(
     buttons: [
@@ -15,33 +17,12 @@ class AppModel {
     focused: true,
   );
 
-  // Pane 2: Styled buttons
+  // Pane 2: Styled buttons (custom overrides)
   final styledGroup = ButtonGroupModel(
     buttons: [
-      ButtonModel(
-        id: 'save',
-        label: Line('Save  '),
-        styles: const ButtonStyles(
-          normal: Style(fg: Color.white, bg: Color.green),
-          focus: Style(fg: Color.black, bg: Color.green, addModifier: Modifier.bold),
-        ),
-      ),
-      ButtonModel(
-        id: 'delete',
-        label: Line('Delete'),
-        styles: const ButtonStyles(
-          normal: Style(fg: Color.white, bg: Color.red),
-          focus: Style(fg: Color.black, bg: Color.red, addModifier: Modifier.bold),
-        ),
-      ),
-      ButtonModel(
-        id: 'edit',
-        label: Line('Edit  '),
-        styles: const ButtonStyles(
-          normal: Style(fg: Color.white, bg: Color.blue),
-          focus: Style(fg: Color.black, bg: Color.blue, addModifier: Modifier.bold),
-        ),
-      ),
+      ButtonModel(id: 'save', label: Line('Save  ')),
+      ButtonModel(id: 'delete', label: Line('Delete')),
+      ButtonModel(id: 'edit', label: Line('Edit  ')),
     ],
   );
 
@@ -106,6 +87,9 @@ class SubmitComplete extends Msg {
 }
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  // Handle theme switching
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Handle async completion
   if (msg case SubmitComplete()) {
     model.submitButton.loading = false;
@@ -158,29 +142,49 @@ class SubmitComplete extends Msg {
 // VIEW
 // ═══════════════════════════════════════════════════════════
 
+/// Per-button style overrides for the styled pane.
+const _styledOverrides = <String, Map<WidgetState, Style>>{
+  'save': {
+    WidgetState.focused: Style(fg: Color.black, bg: Color.green, addModifier: Modifier.bold),
+  },
+  'delete': {
+    WidgetState.focused: Style(fg: Color.black, bg: Color.red, addModifier: Modifier.bold),
+  },
+  'edit': {
+    WidgetState.focused: Style(fg: Color.black, bg: Color.blue, addModifier: Modifier.bold),
+  },
+};
+
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+
+  // Fill background
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final ui = Column(
     children: [
       // Top row: Basic + Styled
       Expanded(
         child: Row(
           children: [
-            // Pane 1: Basic buttons (horizontal layout)
+            // Pane 1: Basic buttons (theme-derived styles)
             Expanded(
               child: _buildPane(
-                '1. Basic (horizontal)',
+                theme,
+                '1. Basic (themed)',
                 model.basicGroup,
                 model.focusedPane == 0,
-                _buildHorizontalButtons(model.basicGroup, gap: 2),
+                _buildHorizontalButtons(model.basicGroup, gap: 2, theme: theme),
               ),
             ),
-            // Pane 2: Styled buttons (horizontal layout)
+            // Pane 2: Styled buttons (overrides demo)
             Expanded(
               child: _buildPane(
+                theme,
                 '2. Styled',
                 model.styledGroup,
                 model.focusedPane == 1,
-                _buildHorizontalButtons(model.styledGroup),
+                _buildStyledButtons(model.styledGroup, theme: theme),
               ),
             ),
           ],
@@ -190,22 +194,24 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Row(
           children: [
-            // Pane 3: Vertical layout
+            // Pane 3: Vertical layout (theme-derived)
             Expanded(
               child: _buildPane(
+                theme,
                 '3. Vertical (wrap)',
                 model.verticalGroup,
                 model.focusedPane == 2,
-                _buildVerticalButtons(model.verticalGroup),
+                _buildVerticalButtons(model.verticalGroup, theme: theme),
               ),
             ),
-            // Pane 4: States
+            // Pane 4: States (theme-derived)
             Expanded(
               child: _buildPane(
+                theme,
                 '4. States',
                 model.statesGroup,
                 model.focusedPane == 3,
-                _buildHorizontalButtons(model.statesGroup, gap: 2),
+                _buildHorizontalButtons(model.statesGroup, gap: 2, theme: theme),
               ),
             ),
           ],
@@ -219,14 +225,15 @@ void appView(AppModel model, Frame frame) {
             Expanded(
               child: Text.raw(
                 model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
-                style: const Style(fg: Color.yellow),
+                style: Style(fg: theme.accent.fg),
               ),
             ),
+            Fixed(25, child: themeIndicator(model)),
             Fixed(
-              40,
+              30,
               child: Text.raw(
-                'Tab: switch pane | Esc: quit',
-                style: const Style(fg: Color.darkGray),
+                'Tab: pane | Esc: quit',
+                style: theme.muted,
                 alignment: Alignment.right,
               ),
             ),
@@ -239,17 +246,22 @@ void appView(AppModel model, Frame frame) {
   frame.renderWidget(ui, frame.area);
 }
 
-Widget _buildPane(String title, ButtonGroupModel group, bool focused, Widget buttons) {
+Widget _buildPane(
+  Theme theme,
+  String title,
+  ButtonGroupModel group,
+  bool focused,
+  Widget buttons,
+) {
+  final borderStyle = focused ? theme.focus : theme.border;
+  final titleStyle = focused ? theme.focus : theme.muted;
   return Block(
     borders: Borders.all,
-    borderStyle: focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+    borderStyle: borderStyle,
     padding: const EdgeInsets.all(1),
     child: Column(
       children: [
-        Fixed(
-          1,
-          child: Line(title, style: Style(fg: focused ? Color.green : Color.darkGray)),
-        ),
+        Fixed(1, child: Line(title, style: titleStyle)),
         Fixed(1, child: const Span('')), // Spacer
         Expanded(child: buttons),
       ],
@@ -258,26 +270,59 @@ Widget _buildPane(String title, ButtonGroupModel group, bool focused, Widget but
 }
 
 /// Build horizontal button layout with custom gap.
-Widget _buildHorizontalButtons(ButtonGroupModel group, {int gap = 1}) {
+Widget _buildHorizontalButtons(
+  ButtonGroupModel group, {
+  required Theme theme,
+  int gap = 1,
+}) {
   final children = <LayoutChild>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
       children.add(Fixed(gap, child: Text.raw('')));
     }
     final button = group.buttons[i];
-    children.add(Fixed(button.width, child: Button(button)));
+    children.add(Fixed(button.width, child: Button(button, theme: theme)));
+  }
+  return Row(children: children);
+}
+
+/// Build styled buttons with per-button overrides.
+Widget _buildStyledButtons(
+  ButtonGroupModel group, {
+  required Theme theme,
+}) {
+  final children = <LayoutChild>[];
+  for (var i = 0; i < group.buttons.length; i++) {
+    if (i > 0) {
+      children.add(Fixed(1, child: Text.raw('')));
+    }
+    final button = group.buttons[i];
+    children.add(
+      Fixed(
+        button.width,
+        child: Button(
+          button,
+          theme: theme,
+          styleOverrides: _styledOverrides[button.id],
+        ),
+      ),
+    );
   }
   return Row(children: children);
 }
 
 /// Build vertical button layout with gap.
-Widget _buildVerticalButtons(ButtonGroupModel group, {int gap = 1}) {
+Widget _buildVerticalButtons(
+  ButtonGroupModel group, {
+  required Theme theme,
+  int gap = 1,
+}) {
   final children = <LayoutChild>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
       children.add(Fixed(gap, child: Text.raw('')));
     }
-    children.add(Fixed(1, child: Button(group.buttons[i])));
+    children.add(Fixed(1, child: Button(group.buttons[i], theme: theme)));
   }
   return Column(children: children);
 }

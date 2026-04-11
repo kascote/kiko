@@ -15,8 +15,8 @@ sealed class Spacing {
   /// Created an [Space] object if the value is positive and an [Overlap]
   /// object if the value is negative.
   factory Spacing(int value) {
-    value = value.clamp(i16Min, i16Max);
-    return value < 0 ? Overlap(value) : Space(value);
+    final tmp = value.clamp(i16Min, i16Max);
+    return tmp < 0 ? Overlap(tmp) : Space(tmp);
   }
 
   Spacing._(int value) : value = value.abs();

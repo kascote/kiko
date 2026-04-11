@@ -7,50 +7,38 @@ import 'package:termunicode/termunicode.dart';
 // STYLE
 // ═══════════════════════════════════════════════════════════
 
-/// Styles for [TextInput] widget.
+/// Region-based styles for [TextInput] widget.
+///
+/// These control specific regions of the input (placeholder, fill, obscured
+/// text). State-based styling (focused, disabled) is handled by
+/// [StyleResolver] in the widget.
 @immutable
 class TextInputStyle {
-  /// Style for user-entered text.
-  final Style? text;
-
-  /// Style for obscured text (password dots).
-  final Style? obscured;
-
   /// Style for placeholder text.
   final Style? placeholder;
 
   /// Style for fill characters.
   final Style? fill;
 
-  /// Creates a TextInputStyle.
-  const TextInputStyle({this.text, this.obscured, this.placeholder, this.fill});
+  /// Style for obscured text (password dots).
+  final Style? obscured;
 
-  /// Default style (no colors, inherits terminal defaults).
-  static const defaultStyle = TextInputStyle();
+  /// Creates a TextInputStyle.
+  const TextInputStyle({this.placeholder, this.fill, this.obscured});
+
+  /// Creates region styles derived from [theme].
+  factory TextInputStyle.fromTheme(Theme theme) => TextInputStyle(
+    placeholder: theme.muted,
+    fill: theme.muted,
+  );
 
   /// Merges [other] on top of this, non-null values override.
   TextInputStyle merge(TextInputStyle? other) {
     if (other == null) return this;
     return TextInputStyle(
-      text: other.text ?? text,
-      obscured: other.obscured ?? obscured,
       placeholder: other.placeholder ?? placeholder,
       fill: other.fill ?? fill,
-    );
-  }
-
-  /// Creates a copy with the given fields replaced.
-  TextInputStyle copyWith({
-    Style? text,
-    Style? obscured,
-    Style? placeholder,
-    Style? fill,
-  }) {
-    return TextInputStyle(
-      text: text ?? this.text,
-      obscured: obscured ?? this.obscured,
-      placeholder: placeholder ?? this.placeholder,
-      fill: fill ?? this.fill,
+      obscured: other.obscured ?? obscured,
     );
   }
 
@@ -58,14 +46,13 @@ class TextInputStyle {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is TextInputStyle &&
-        other.text == text &&
-        other.obscured == obscured &&
         other.placeholder == placeholder &&
-        other.fill == fill;
+        other.fill == fill &&
+        other.obscured == obscured;
   }
 
   @override
-  int get hashCode => Object.hash(text, obscured, placeholder, fill);
+  int get hashCode => Object.hash(placeholder, fill, obscured);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -104,8 +91,8 @@ class TextInputModel implements Focusable {
   /// Character used to fill remaining input area for visual width feedback.
   final String? fillChar;
 
-  /// Styles for text, placeholder, and fill.
-  final TextInputStyle style;
+  /// Region styles for placeholder, fill, and obscured text.
+  final TextInputStyle? style;
 
   /// Transforms or filters input before insertion.
   ///
@@ -128,12 +115,11 @@ class TextInputModel implements Focusable {
     this.fillChar,
     this.inputFilter,
     this.focused = false,
-    TextInputStyle? style,
+    this.style,
     KeyBinding<TextInputAction>? keyBinding,
   }) : _text = Characters(initial),
        _cursor = initial.characters.length,
-       _scrollOffset = 0,
-       style = style ?? TextInputStyle.defaultStyle {
+       _scrollOffset = 0 {
     this.keyBinding = keyBinding ?? defaultTextInputBindings.copy();
   }
 
@@ -301,12 +287,38 @@ class TextInputModel implements Focusable {
 ///
 /// Renders the state from [TextInputModel]. The model holds all state
 /// and config; this widget is stateless and just renders.
+///
+/// Uses [StyleResolver] for state-based styling (focused, disabled).
+/// Region styles (placeholder, fill, obscured) come from [TextInputStyle].
 class TextInput extends Widget {
   /// The model containing state and config.
   final TextInputModel model;
 
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  final Map<WidgetState, Style>? styleOverrides;
+
+  /// Region styles resolved at construction.
+  final TextInputStyle _regionStyle;
+
   /// Creates a TextInput widget.
-  TextInput(this.model);
+  TextInput(this.model, {required this.theme, this.styleOverrides})
+    : _regionStyle = TextInputStyle.fromTheme(theme).merge(model.style);
+
+  /// Resolves the text style from theme + model state.
+  Style _resolveStyle() {
+    final resolver = StyleResolver(theme);
+    final states = <WidgetState>{
+      if (model.focused) WidgetState.focused,
+    };
+    return resolver.resolve(
+      Style(fg: theme.background.fg),
+      states,
+      overrides: {...?styleOverrides},
+    );
+  }
 
   @override
   void render(Rect area, Frame frame) {
@@ -324,7 +336,10 @@ class TextInput extends Widget {
     int usedWidth;
 
     if (showPlaceholder) {
-      Span(m.placeholder, style: m.style.placeholder).render(renderArea, frame);
+      Span(m.placeholder, style: _regionStyle.placeholder).render(
+        renderArea,
+        frame,
+      );
       usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
       if (m.focused) {
         frame.cursorPosition = Position(renderArea.x, y);
@@ -332,8 +347,12 @@ class TextInput extends Widget {
     } else {
       final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
 
-      final textStyle = m.obscureText ? m.style.obscured : m.style.text;
-      Line(displayText.string, style: textStyle).renderWithOffset(renderArea, frame, scrollOffset);
+      final textStyle = m.obscureText ? (_regionStyle.obscured ?? _resolveStyle()) : _resolveStyle();
+      Line(displayText.string, style: textStyle).renderWithOffset(
+        renderArea,
+        frame,
+        scrollOffset,
+      );
 
       final totalTextWidth = widthChars(displayText);
       usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
@@ -361,7 +380,7 @@ class TextInput extends Widget {
               width: remainingWidth,
               height: 1,
             );
-            Span(fillText, style: m.style.fill).render(fillArea, frame);
+            Span(fillText, style: _regionStyle.fill).render(fillArea, frame);
           }
         }
       }

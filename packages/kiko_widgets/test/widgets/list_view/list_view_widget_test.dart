@@ -16,6 +16,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -34,6 +35,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -51,6 +53,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -74,6 +77,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -91,6 +95,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
           emptyPlaceholder: Line('No items'),
         );
@@ -111,6 +116,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
           separatorBuilder: () => Line('-'),
         );
@@ -134,6 +140,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
           separatorBuilder: () => Line('-'),
         );
@@ -157,6 +164,7 @@ void main() {
         final focusedItems = <int>[];
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, index, state) {
             if (state.focused) focusedItems.add(index);
             return Line(item);
@@ -183,6 +191,7 @@ void main() {
         final checkedItems = <int>[];
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, index, state) {
             if (state.checked) checkedItems.add(index);
             return Line(item);
@@ -204,6 +213,7 @@ void main() {
         final disabledItems = <int>[];
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, index, state) {
             if (state.disabled) disabledItems.add(index);
             return Line(item);
@@ -231,6 +241,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -251,6 +262,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 
@@ -267,6 +279,7 @@ void main() {
 
         final listView = ListView<String, String>(
           model: model,
+          theme: Theme.dark,
           itemBuilder: (item, _, _) => Line(item),
         );
 

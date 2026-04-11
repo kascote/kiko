@@ -9,6 +9,8 @@ import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // VALIDATION
 // ═══════════════════════════════════════════════════════════
@@ -68,7 +70,7 @@ ValidationResult validatePassword(String value) {
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   late final focus = FocusGroup<Focusable>([
     TextInputModel(
       placeholder: 'Username',
@@ -107,6 +109,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Clear submit message on any input
   if (msg is KeyMsg && model.submitMessage != null) {
     model.submitMessage = null;
@@ -154,18 +158,21 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   LayoutChild fieldWithValidation(
     TextInputModel input,
     String label,
     ValidationResult validation,
   ) {
-    final (borderColor, statusText, statusColor) = switch (validation) {
-      Valid() => (Color.green, '✓', Color.green),
-      Invalid(:final message) => (Color.red, message, Color.red),
-      Empty() => (Color.darkGray, 'Required', Color.darkGray),
+    final (borderStyle, statusText, statusColor) = switch (validation) {
+      Valid() => (theme.success, '✓', theme.success.fg),
+      Invalid(:final message) => (theme.error, message, theme.error.fg),
+      Empty() => (theme.border, 'Required', theme.muted.fg),
     };
 
-    final dimColor = input.focused ? borderColor : Color.darkGray;
+    final effectiveBorder = input.focused ? theme.focus : borderStyle;
 
     return Fixed(
       3,
@@ -174,9 +181,9 @@ void appView(AppModel model, Frame frame) {
           Expanded(
             child: Block(
               borders: Borders.all,
-              borderStyle: Style(fg: dimColor),
+              borderStyle: effectiveBorder,
               padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: TextInput(input),
+              child: TextInput(input, theme: theme),
             ).titleTop(Line(label)),
           ),
           Fixed(
@@ -191,47 +198,45 @@ void appView(AppModel model, Frame frame) {
     );
   }
 
-  final ui =
-      Block(
-        child: Column(
-          children: [
-            fieldWithValidation(model.username, 'Username', model.usernameValid),
-            fieldWithValidation(model.email, 'Email', model.emailValid),
-            fieldWithValidation(model.password, 'Password', model.passwordValid),
-            // Submit status
-            Fixed(
-              2,
-              child: Padding(
-                padding: const EdgeInsets(top: 1),
-                child: Text.raw(
-                  model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
-                  style: Style(
-                    fg: model.submitted
-                        ? Color.green
-                        : model.submitMessage != null
-                        ? Color.red
-                        : Color.darkGray,
-                  ),
-                  alignment: Alignment.center,
-                ),
+  final ui = Block(
+    child: Column(
+      children: [
+        fieldWithValidation(model.username, 'Username', model.usernameValid),
+        fieldWithValidation(model.email, 'Email', model.emailValid),
+        fieldWithValidation(model.password, 'Password', model.passwordValid),
+        // Submit status
+        Fixed(
+          2,
+          child: Padding(
+            padding: const EdgeInsets(top: 1),
+            child: Text.raw(
+              model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
+              style: Style(
+                fg: model.submitted
+                    ? theme.success.fg
+                    : model.submitMessage != null
+                    ? theme.error.fg
+                    : theme.muted.fg,
               ),
+              alignment: Alignment.center,
             ),
-            // Spacer
-            Expanded(child: const Block()),
-            // Help
-            Fixed(
-              1,
-              child: Text.raw(
-                'Tab to cycle | Enter to submit | Esc to quit',
-                alignment: Alignment.center,
-                style: const Style(fg: Color.darkGray),
-              ),
-            ),
-          ],
+          ),
         ),
-      ).titleTop(
-        Line('Validated Form Demo', style: const Style(fg: Color.darkGray)),
-      );
+        // Spacer
+        Expanded(child: const Block()),
+        // Help
+        Fixed(
+          1,
+          child: Row(
+            children: [
+              Expanded(child: Text.raw('Tab to cycle | Enter submit | Esc quit', style: theme.muted)),
+              Fixed(25, child: themeIndicator(model)),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ).titleTop(Line('Validated Form Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

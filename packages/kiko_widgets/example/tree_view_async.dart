@@ -9,6 +9,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // ASYNC DATA SOURCE
 // ═══════════════════════════════════════════════════════════
@@ -166,7 +168,7 @@ class AsyncCategorySource extends TreeDataSource<Category> {
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final tree = TreeViewModel<Category>(
     dataSource: AsyncCategorySource(),
     focused: true,
@@ -190,6 +192,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Initialize on first message
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
@@ -227,6 +231,9 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final loadingStatus = model.tree.isLoading
       ? 'Loading roots...'
       : model.tree.isLoaded
@@ -236,20 +243,17 @@ void appView(AppModel model, Frame frame) {
   final treeWidget =
       Block(
         borders: Borders.all,
-        borderStyle: const Style(fg: Color.blue),
+        borderStyle: theme.focus,
         padding: const EdgeInsets.all(1),
         child: TreeView(
           model: model.tree,
-          focusedStyle: const Style(fg: Color.black, bg: Color.blue),
-          emptyPlaceholder: Text.raw(
-            'Loading categories...',
-            style: const Style(fg: Color.darkGray, addModifier: Modifier.dim),
-          ),
+          theme: theme,
+          emptyPlaceholder: Text.raw('Loading categories...', style: theme.muted),
         ),
       ).titleTop(
         Line.fromSpans([
-          const Span('Categories ', style: Style(fg: Color.blue)),
-          Span('($loadingStatus)', style: const Style(fg: Color.darkGray)),
+          Span('Categories ', style: theme.focus),
+          Span('($loadingStatus)', style: theme.muted),
         ]),
       );
 
@@ -257,26 +261,19 @@ void appView(AppModel model, Frame frame) {
     4,
     child: Block(
       borders: Borders.all,
-      borderStyle: Style(
-        fg: model.selectedPath != null ? Color.green : Color.darkGray,
-      ),
+      borderStyle: model.selectedPath != null ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Column(
         children: [
           Expanded(
             child: Span(
               model.selectedPath ?? 'Press Enter to select a category',
-              style: Style(
-                fg: model.selectedPath != null ? Color.white : Color.darkGray,
-              ),
+              style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
             ),
           ),
           Fixed(
             1,
-            child: Span(
-              'Expansions: ${model.loadCount}',
-              style: const Style(fg: Color.darkGray),
-            ),
+            child: Span('Expansions: ${model.loadCount}', style: theme.muted),
           ),
         ],
       ),
@@ -285,25 +282,28 @@ void appView(AppModel model, Frame frame) {
 
   final help = Fixed(
     1,
-    child: Line(
-      '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Line(
+            '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
-  final ui =
-      Block(
-        child: Column(
-          children: [
-            Expanded(child: treeWidget),
-            infoBox,
-            help,
-          ],
-        ),
-      ).titleTop(
-        Line('Async TreeView Demo', style: const Style(fg: Color.darkGray)),
-      );
+  final ui = Block(
+    child: Column(
+      children: [
+        Expanded(child: treeWidget),
+        infoBox,
+        help,
+      ],
+    ),
+  ).titleTop(Line('Async TreeView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

@@ -2,17 +2,18 @@ import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   late final focus = FocusGroup<Focusable>([
     TextInputModel(
       placeholder: 'Enter username',
       maxLength: 20,
       fillChar: '_',
-      style: const TextInputStyle(fill: Style(fg: Color.darkGray)),
       inputFilter: (c) => Characters(c.where((g) => g.trim().isNotEmpty).join()),
     ),
     TextInputModel(placeholder: 'Enter password', obscureText: true, maxLength: 50),
@@ -27,6 +28,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Route to focused input
   final cmd = (model.focus.focused as TextInputModel).update(msg);
   if (cmd is! Unhandled) return (model, cmd);
@@ -57,6 +60,9 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final ui = Block(
     child: Column(
       children: [
@@ -65,9 +71,9 @@ void appView(AppModel model, Frame frame) {
           3,
           child: Block(
             borders: Borders.all,
-            borderStyle: model.username.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+            borderStyle: model.username.focused ? theme.focus : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: TextInput(model.username),
+            child: TextInput(model.username, theme: theme),
           ).titleTop(Line('Username')),
         ),
         // Password input
@@ -75,9 +81,9 @@ void appView(AppModel model, Frame frame) {
           3,
           child: Block(
             borders: Borders.all,
-            borderStyle: model.password.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+            borderStyle: model.password.focused ? theme.focus : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: TextInput(model.password),
+            child: TextInput(model.password, theme: theme),
           ).titleTop(Line('Password')),
         ),
         // Debug info
@@ -86,20 +92,22 @@ void appView(AppModel model, Frame frame) {
             'Username: "${model.username.value}"\n'
             'Password: "${model.password.value}" (${model.password.length} chars)\n'
             'Focused: ${model.focus.index == 0 ? "username" : "password"}',
+            style: Style(fg: theme.background.fg),
           ),
         ),
         // Help
         Fixed(
           1,
-          child: Text.raw(
-            'Tab to switch fields | Esc/Ctrl+Q to quit',
-            alignment: Alignment.center,
-            style: const Style(fg: Color.darkGray),
+          child: Row(
+            children: [
+              Expanded(child: Text.raw('Tab to switch | Esc quit', style: theme.muted)),
+              Fixed(25, child: themeIndicator(model)),
+            ],
           ),
         ),
       ],
     ),
-  ).titleTop(Line('TextInput Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('TextInput Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

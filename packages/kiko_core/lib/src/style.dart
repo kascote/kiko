@@ -179,6 +179,15 @@ class Style {
     );
   }
 
+  /// Returns a new [Style] with foreground and background colors swapped.
+  Style get inverted => Style(
+    fg: bg,
+    bg: fg,
+    underline: underline,
+    addModifier: _addModifier,
+    subModifier: _subModifier,
+  );
+
   /// Returns a new [Style] object with the given [Style] patched.
   Style patch(Style other) {
     return copyWith(

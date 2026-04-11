@@ -9,6 +9,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA SOURCE
 // ═══════════════════════════════════════════════════════════
@@ -76,7 +78,7 @@ class UsersLoadErrorMsg extends Msg {
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   final dataSource = UserApiDataSource();
   late final list = ListViewModel<User, String>(
     dataSource: dataSource,
@@ -93,6 +95,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Initial load on startup
   if (msg is InitMsg) {
     model.list.isLoading = true;
@@ -156,66 +160,62 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   // Status indicator
   final status = model.list.isLoading ? 'Loading...' : model.error ?? 'Loaded ${model.list.dataSource.length} users';
 
   final listWidget = Block(
     borders: Borders.all,
-    borderStyle: const Style(fg: Color.green),
+    borderStyle: theme.focus,
     child: ListView(
       model: model.list,
+      theme: theme,
       itemBuilder: (user, index, state) {
-        final nameStyle = Style(
-          fg: state.focused ? Color.black : Color.white,
-          bg: state.focused ? Color.green : null,
-          addModifier: Modifier.bold,
-        );
-
-        final roleStyle = state.focused
-            ? const Style(
-                fg: Color.black,
-                bg: Color.green,
-              )
-            : switch (user.role) {
-                'Admin' => const Style(fg: Color.red, addModifier: Modifier.italic),
-                'Manager' => const Style(fg: Color.yellow),
-                'Member' => const Style(fg: Color.blue),
-                _ => const Style(fg: Color.gray),
-              };
+        final roleStyle = switch (user.role) {
+          'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
+          'Manager' => Style(fg: theme.warning.fg),
+          'Member' => Style(fg: theme.accent.fg),
+          _ => theme.muted,
+        };
 
         return Column(
           children: [
-            Fixed(1, child: Line(' ${user.name}', style: nameStyle)),
+            Fixed(
+              1,
+              child: Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
+            ),
             Fixed(1, child: Line('  ${user.role} (${user.id})', style: roleStyle)),
           ],
         );
       },
-      separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: const Style(fg: Color.darkGray))]),
+      separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: theme.border)]),
       emptyPlaceholder: Text.raw(
         model.list.isLoading ? 'Loading...' : 'No users',
-        style: const Style(fg: Color.darkGray),
+        style: theme.muted,
       ),
     ),
-  ).titleTop(Line('Users'));
+  ).titleTop(Line('Users', style: theme.focus));
 
   final statusBox = Fixed(
     3,
     child: Block(
       borders: Borders.all,
       borderStyle: model.error != null
-          ? const Style(fg: Color.red)
+          ? theme.error
           : model.list.isLoading
-          ? const Style(fg: Color.yellow)
-          : const Style(fg: Color.green),
+          ? theme.warning
+          : theme.success,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         status,
         style: Style(
           fg: model.error != null
-              ? Color.red
+              ? theme.error.fg
               : model.list.isLoading
-              ? Color.yellow
-              : Color.green,
+              ? theme.warning.fg
+              : theme.success.fg,
         ),
       ),
     ).titleTop(Line('Status')),
@@ -229,10 +229,16 @@ void appView(AppModel model, Frame frame) {
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -244,7 +250,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('Paginated ListView Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('Paginated ListView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

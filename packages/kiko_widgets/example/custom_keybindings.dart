@@ -8,6 +8,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // CUSTOM KEYBINDINGS
 // ═══════════════════════════════════════════════════════════
@@ -43,7 +45,7 @@ final appBindings = KeyBinding<AppAction>()
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   late final focus = FocusGroup<Focusable>([
     TextInputModel(
       placeholder: 'Normal bindings',
@@ -66,6 +68,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   // Route to focused widget first
   final focused = model.focus.focused as TextInputModel;
   final cmd = focused.update(msg);
@@ -100,67 +104,66 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   LayoutChild inputField(TextInputModel input, String label) => Fixed(
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: input.focused ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: input.focused ? theme.focus : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(input),
+      child: TextInput(input, theme: theme),
     ).titleTop(Line(label)),
   );
 
-  final ui =
-      Block(
-        child: Column(
-          children: [
-            inputField(model.normal, 'Normal bindings'),
-            inputField(model.vim, 'Vim bindings'),
-            // Info
-            Expanded(
-              child: Column(
-                children: [
-                  Fixed(
-                    1,
-                    child: Text.raw(
-                      model.message.isNotEmpty ? model.message : 'Type in the fields above',
-                      style: Style(
-                        fg: model.message.isNotEmpty ? Color.green : Color.darkGray,
-                      ),
-                    ),
-                  ),
-                  Fixed(1, child: Text.raw('')),
-                  Fixed(
-                    1,
-                    child: Text.raw(
-                      r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)',
-                      style: const Style(fg: Color.darkGray),
-                    ),
-                  ),
-                  Fixed(
-                    1,
-                    child: Text.raw(
-                      'App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)',
-                      style: const Style(fg: Color.darkGray),
-                    ),
-                  ),
-                ],
+  final ui = Block(
+    child: Column(
+      children: [
+        inputField(model.normal, 'Normal bindings'),
+        inputField(model.vim, 'Vim bindings'),
+        // Info
+        Expanded(
+          child: Column(
+            children: [
+              Fixed(
+                1,
+                child: Text.raw(
+                  model.message.isNotEmpty ? model.message : 'Type in the fields above',
+                  style: model.message.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
+                ),
               ),
-            ),
-            // Help
-            Fixed(
-              1,
-              child: Text.raw(
-                'Tab to switch | Ctrl+Q/Esc to quit',
-                alignment: Alignment.center,
-                style: const Style(fg: Color.darkGray),
+              Fixed(1, child: Text.raw('')),
+              Fixed(
+                1,
+                child: Text.raw(
+                  r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)',
+                  style: theme.muted,
+                ),
               ),
-            ),
-          ],
+              Fixed(
+                1,
+                child: Text.raw(
+                  'App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)',
+                  style: theme.muted,
+                ),
+              ),
+            ],
+          ),
         ),
-      ).titleTop(
-        Line('Custom Keybindings Demo', style: const Style(fg: Color.darkGray)),
-      );
+        // Help
+        Fixed(
+          1,
+          child: Row(
+            children: [
+              Expanded(child: Text.raw('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted)),
+              Fixed(25, child: themeIndicator(model)),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ).titleTop(Line('Custom Keybindings Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

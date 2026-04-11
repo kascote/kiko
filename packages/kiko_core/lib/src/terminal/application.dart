@@ -30,7 +30,7 @@ typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 /// Update function for MVU: (model, msg) -> (model, cmd?)
 typedef Update<M> = (M, Cmd?) Function(M model, Msg msg);
 
-/// View function for MVU: render model to frame
+/// View function for MVU: render model to frame.
 typedef View<M> = void Function(M model, Frame frame);
 
 const _baseError = 128;
@@ -49,7 +49,10 @@ const int _sigTerm = _baseError + 15;
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (model, Quit()),
 ///     _ => (model, null),
 ///   },
-///   view: (model, frame) => frame.renderWidget(Text('Count: ${model.count}')),
+///   view: (model, frame) => frame.renderWidget(
+///     myWidget(model),
+///     frame.area,
+///   ),
 /// );
 /// ```
 ///
@@ -60,7 +63,7 @@ const int _sigTerm = _baseError + 15;
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, Quit()),
 ///     _ => (null, null),
 ///   },
-///   view: (_, frame) => frame.renderWidget(Text('Hello')),
+///   view: (_, frame) => frame.renderWidget(Text('Hello'), frame.area),
 /// );
 /// ```
 class Application {
@@ -207,11 +210,7 @@ class Application {
     );
   }
 
-  Future<int> _runLoop<M>(
-    M init,
-    Update<M> update,
-    View<M> view,
-  ) async {
+  Future<int> _runLoop<M>(M init, Update<M> update, View<M> view) async {
     final terminal = _terminal!;
     final runtime = _runtime = MvuRuntime()
       ..reset()

@@ -13,10 +13,12 @@ typedef NodeState = ({
 /// A hierarchical tree widget with expand/collapse.
 ///
 /// Renders nodes from a [TreeViewModel] with indentation based on depth.
+/// Uses [StyleResolver] for row-level state styling (focused, loading).
 ///
 /// ```dart
 /// TreeView<FileInfo>(
 ///   model: treeModel,
+///   theme: theme,
 ///   nodeBuilder: (node, depth, state) {
 ///     final prefix = state.focused ? '> ' : '  ';
 ///     final expandIcon = node.isLeaf ? '  ' : (state.expanded ? '▼ ' : '▶ ');
@@ -29,6 +31,14 @@ class TreeView<T> extends Widget {
   /// The model containing tree state.
   final TreeViewModel<T> model;
 
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  ///
+  /// Fully replaces the default style for that [WidgetState].
+  final Map<WidgetState, Style>? styleOverrides;
+
   /// Builds widget for each node.
   ///
   /// Parameters:
@@ -37,21 +47,15 @@ class TreeView<T> extends Widget {
   /// - `state`: Node state (focused, expanded, loading)
   final Widget Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder;
 
-  /// Style for focused node row.
-  final Style? focusedStyle;
-
-  /// Style for unfocused node rows.
-  final Style? unfocusedStyle;
-
   /// Shown when tree is empty (no roots loaded).
   final Widget? emptyPlaceholder;
 
   /// Creates a TreeView widget.
   TreeView({
     required this.model,
+    required this.theme,
+    this.styleOverrides,
     this.nodeBuilder,
-    this.focusedStyle,
-    this.unfocusedStyle,
     this.emptyPlaceholder,
   });
 
@@ -104,11 +108,15 @@ class TreeView<T> extends Widget {
       );
       if (rowArea.isEmpty) break;
 
-      // Apply row background style
-      if (isFocused && focusedStyle != null) {
-        frame.buffer.setStyle(rowArea, focusedStyle!);
-      } else if (!isFocused && unfocusedStyle != null) {
-        frame.buffer.setStyle(rowArea, unfocusedStyle!);
+      // Apply row background style via resolver
+      final states = <WidgetState>{
+        if (isFocused) WidgetState.focused,
+        if (isLoading) WidgetState.loading,
+      };
+      if (states.isNotEmpty) {
+        final resolver = StyleResolver(theme);
+        final rowStyle = resolver.resolve(null, states, overrides: styleOverrides);
+        frame.buffer.setStyle(rowArea, rowStyle);
       }
 
       final state = (

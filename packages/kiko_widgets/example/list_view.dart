@@ -9,6 +9,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
+import 'shared/theme_switcher.dart';
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -57,7 +59,7 @@ const fruits = [
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
-class AppModel {
+class AppModel with ThemeSwitcher {
   // Simple case: no itemKey needed, strings are their own keys
   final list = ListViewModel<String, String>(
     dataSource: ListDataSource.fromList(fruits),
@@ -72,6 +74,8 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+  if (model.handleThemeSwitch(msg)) return (model, null);
+
   final cmd = model.list.update(msg);
 
   // Handle confirm
@@ -99,37 +103,44 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
+  final theme = model.theme;
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+
   final listWidget = Block(
     borders: Borders.all,
-    borderStyle: const Style(fg: Color.green),
+    borderStyle: theme.focus,
     child: ListView(
       model: model.list,
-      itemBuilder: (item, index, state) {
-        final style = state.focused ? const Style(fg: Color.black, bg: Color.green) : const Style();
-        return Text.raw(' $item', style: style);
-      },
+      theme: theme,
+      itemBuilder: (item, index, _) => Text.raw(' $item'),
     ),
-  ).titleTop(Line('Fruits (${fruits.length})'));
+  ).titleTop(Line('Fruits (${fruits.length})', style: theme.focus));
 
   final selectedBox = Fixed(
     3,
     child: Block(
       borders: Borders.all,
-      borderStyle: model.selected != null ? const Style(fg: Color.green) : const Style(fg: Color.darkGray),
+      borderStyle: model.selected != null ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text.raw(
         model.selected ?? 'Press Enter to select',
-        style: Style(fg: model.selected != null ? Color.white : Color.darkGray),
+        style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ).titleTop(Line('Selected')),
   );
 
   final help = Fixed(
     1,
-    child: Text.raw(
-      '↑↓/jk navigate | Enter select | Esc quit',
-      alignment: Alignment.center,
-      style: const Style(fg: Color.darkGray),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text.raw(
+            '↑↓/jk navigate | Enter select | Esc quit',
+            style: theme.muted,
+          ),
+        ),
+        Fixed(25, child: themeIndicator(model)),
+      ],
     ),
   );
 
@@ -141,7 +152,7 @@ void appView(AppModel model, Frame frame) {
         help,
       ],
     ),
-  ).titleTop(Line('ListView Demo', style: const Style(fg: Color.darkGray)));
+  ).titleTop(Line('ListView Demo', style: theme.muted));
 
   frame.renderWidget(ui, frame.area);
 }

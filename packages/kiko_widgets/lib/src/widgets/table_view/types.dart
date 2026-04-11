@@ -148,7 +148,11 @@ class TableScrollState {
 // STYLES
 // ═══════════════════════════════════════════════════════════
 
-/// Style configuration for TableView.
+/// Region-based style configuration for TableView.
+///
+/// State-based styling (hover, selected, focused) is handled by
+/// `StyleResolver` in the widget. Use `styleOverrides` on `TableView`
+/// to customize per-state styles.
 class TableViewStyle {
   /// Header row style.
   final Style? header;
@@ -156,22 +160,10 @@ class TableViewStyle {
   /// Default row style.
   final Style? row;
 
-  /// Current row (hover) style.
-  final Style? hover;
-
-  /// Selected rows style.
-  final Style? selected;
-
-  /// Current column highlight in current row.
-  final Style? columnHighlight;
-
   /// Creates a TableViewStyle.
   const TableViewStyle({
     this.header,
     this.row,
-    this.hover,
-    this.selected,
-    this.columnHighlight,
   });
 }
 

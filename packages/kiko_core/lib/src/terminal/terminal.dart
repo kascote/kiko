@@ -296,11 +296,14 @@ class Terminal {
     _hiddenCursor = false;
   }
 
-  /// Reads an event from the Terminal
-  Future<evt.Event> readEvent<E extends evt.Event>({int timeout = 100}) async => backend.readEvent<E>(timeout: timeout);
+  /// Reads an event from the Terminal, or `null` if none arrives before the
+  /// [timeout] (in milliseconds) elapses.
+  Future<evt.Event?> readEvent<E extends evt.Event>({int timeout = 100}) async =>
+      backend.readEvent<E>(timeout: timeout);
 
-  /// Polls for a terminal event without blocking.
-  evt.Event poll<E extends evt.Event>() => backend.poll<E>();
+  /// Polls for a terminal event without blocking. Returns `null` when none is
+  /// currently buffered.
+  evt.Event? poll<E extends evt.Event>() => backend.poll<E>();
 
   /// Broadcast stream of parsed terminal events.
   ///

@@ -24,10 +24,20 @@ enum ClearType {
 
 /// A Backend implementation that uses the [termlib](https://pub.dev/packages/termlib) library.
 class TermlibBackend {
-  final tl.TermLib _term;
+  final tl.InteractiveTerm _term;
 
   /// Creates a new [TermlibBackend] instance.
-  TermlibBackend() : _term = tl.TermLib();
+  ///
+  /// Requires an interactive terminal (stdin connected to a TTY): the render
+  /// loop relies on raw mode, parsed events and cursor queries, which only
+  /// exist on [tl.InteractiveTerm].
+  TermlibBackend() : _term = _openInteractive();
+
+  static tl.InteractiveTerm _openInteractive() {
+    final term = tl.Term.open();
+    if (term is tl.InteractiveTerm) return term;
+    throw StateError('TermlibBackend requires an interactive terminal (stdin must be a TTY).');
+  }
 
   /// Erase the entire screen.
   void clear() => _term.eraseScreen();
@@ -45,49 +55,69 @@ class TermlibBackend {
 
   /// Draws the given [cellPos] iterable to the terminal.
   ///
-  /// Resets terminal style at end of draw to prevent style leaking between
-  /// frames. Without reset, tracking vars reset to Color.reset each frame but
-  /// terminal keeps last frame's state, causing cells with reset color to
-  /// inherit stale styles.
+  /// Consecutive, screen-adjacent cells that share the same style are batched
+  /// into one styled run. Each run is rendered through an immutable [tl.Style],
+  /// which self-closes with an SGR reset, so a cell whose colors are
+  /// [Color.reset] omits them and falls back to the terminal default instead of
+  /// inheriting the previous run's style. The trailing reset is a safety net to
+  /// keep styling from leaking past the frame.
   void draw(Iterable<CellPos> cellPos) {
-    var fg = Color.reset;
-    var bg = Color.reset;
-    var underline = Color.reset;
-    var modifier = Modifier.empty;
+    final run = StringBuffer();
+    tl.Style? runStyle;
     Position? lastPos;
+
+    void flush() {
+      if (run.isEmpty) return;
+      _term.write(runStyle!(run.toString()));
+      run.clear();
+    }
 
     _term.startSyncUpdate();
     for (final (:x, :y, :cell) in cellPos) {
-      final tStyle = _term.style(cell.symbol);
-      if (!((x == (lastPos?.x ?? 0) + 1) && (y == (lastPos?.y ?? 0)))) {
-        // base terminal coordinates are 1 based, KiKo is 0 based
-        _term.moveTo(y + 1, x + 1);
+      final style = _styleFor(cell);
+      // Adjacent means the cursor is already where this cell should be drawn
+      // (one column right of the previously emitted cell on the same row).
+      final adjacent = lastPos != null && x == lastPos.x + 1 && y == lastPos.y;
+
+      if (run.isNotEmpty && adjacent && style == runStyle) {
+        run.write(cell.symbol);
+      } else {
+        flush();
+        if (!adjacent) {
+          // base terminal coordinates are 1 based, KiKo is 0 based
+          _term.moveTo(y + 1, x + 1);
+        }
+        runStyle = style;
+        run.write(cell.symbol);
       }
       lastPos = Position(x, y);
-
-      if (cell.modifier != modifier) {
-        _mergeModifier(tStyle, modifier, cell.modifier);
-        modifier = cell.modifier;
-      }
-
-      if (cell.fg != fg || cell.bg != bg) {
-        _mergeColor(tStyle, cell.fg, cell.bg);
-        fg = cell.fg;
-        bg = cell.bg;
-      }
-      if (cell.underline != underline) {
-        _mergeUnderline(tStyle, underline);
-        underline = cell.underline;
-      }
-
-      _term.write(tStyle);
     }
+    flush();
 
-    // Reset terminal style to match tracking state for next frame.
-    // This ensures cells with Color.reset won't inherit stale styles.
     _term
       ..write('\x1b[0m')
       ..endSyncUpdate();
+  }
+
+  /// Builds the immutable [tl.Style] for [cell], translating Kiko colors and
+  /// modifiers into termlib's representation for the active color profile.
+  tl.Style _styleFor(Cell cell) {
+    final modifier = cell.modifier;
+    final underlineColor = cell.underline;
+    final hasUnderlineColor = underlineColor.value >= 0;
+
+    return _term.style(
+      fg: _resolveColor(cell.fg),
+      bg: _resolveColor(cell.bg),
+      bold: modifier.has(Modifier.bold),
+      faint: modifier.has(Modifier.dim),
+      italic: modifier.has(Modifier.italic),
+      blink: modifier.has(Modifier.slowBlink) || modifier.has(Modifier.rapidBlink),
+      reverse: modifier.has(Modifier.reversed),
+      crossOut: modifier.has(Modifier.crossedOut),
+      underline: modifier.has(Modifier.underlined) || hasUnderlineColor ? tl.Underline.single : tl.Underline.none,
+      underlineColor: hasUnderlineColor ? _toTlColor(underlineColor) : null,
+    );
   }
 
   /// Flushes any buffered output to the terminal.
@@ -137,11 +167,16 @@ class TermlibBackend {
   /// Disables raw mode for terminal input.
   void disableRawMode() => _term.disableRawMode();
 
-  /// Reads a terminal event of type [T] with an optional [timeout] in milliseconds.
-  Future<tle.Event> readEvent<T extends tle.Event>({int timeout = 100}) async => _term.pollTimeout<T>(timeout: timeout);
+  /// Reads a terminal event of type [T], waiting up to [timeout] milliseconds.
+  ///
+  /// Returns `null` if no matching event arrives before the timeout elapses.
+  Future<tle.Event?> readEvent<T extends tle.Event>({int timeout = 100}) =>
+      _term.awaitEvent<T>(timeout: Duration(milliseconds: timeout));
 
   /// Polls for a terminal event of type [T] without blocking.
-  tle.Event poll<T extends tle.Event>() => _term.poll<T>();
+  ///
+  /// Returns `null` when no matching event is currently buffered.
+  tle.Event? poll<T extends tle.Event>() => _term.tryEvent<T>();
 
   /// Broadcast stream of parsed terminal events.
   ///
@@ -172,71 +207,13 @@ class TermlibBackend {
   void setTitle(String title) => _term.setTerminalTitle(title);
 } // End TermlibBackend
 
-void _mergeModifier(
-  tl.Style style,
-  Modifier fromModifier,
-  Modifier toModifier,
-) {
-  final removed = fromModifier - toModifier;
+/// Maps a Kiko [Color] to a termlib color, or `null` when it is [Color.reset]
+/// so the rendered run falls back to the terminal default for that channel.
+tl.Color? _resolveColor(Color color) => color.value < 0 ? null : _toTlColor(color);
 
-  if (removed.has(Modifier.bold)) style.boldOff();
-  if (removed.has(Modifier.italic)) style.italicOff();
-  if (removed.has(Modifier.dim)) style.faintOff();
-  if (removed.has(Modifier.crossedOut)) style.crossoutOff();
-  if (removed.has(Modifier.reversed)) style.reverseOff();
-  if (removed.has(Modifier.slowBlink)) style.blinkOff();
-  if (removed.has(Modifier.rapidBlink)) style.blinkOff();
-  // if (removed.has(Modifier.hidden)) style.hideOff();
-  if (removed.has(Modifier.underlined)) style.underlineOff();
-
-  final added = toModifier - fromModifier;
-  if (added.has(Modifier.bold)) style.bold();
-  if (added.has(Modifier.italic)) style.italic();
-  if (added.has(Modifier.dim)) style.faint();
-  if (added.has(Modifier.crossedOut)) style.crossout();
-  if (added.has(Modifier.reversed)) style.reverse();
-  if (added.has(Modifier.slowBlink)) style.blink();
-  if (added.has(Modifier.rapidBlink)) style.blink();
-  // if (added.has(Modifier.hidden)) style.hide();
-  if (added.has(Modifier.underlined)) style.underline();
-}
-
-void _mergeColor(tl.Style style, Color fg, Color bg) {
-  final _ = switch (fg.kind) {
-    ColorKind.rgb => style.fg(
-      tl.Color.fromRGBComponent(
-        fg.value >> 16 & 0xff,
-        fg.value >> 8 & 0xff,
-        fg.value & 0xff,
-      ),
-    ),
-    ColorKind.ansi => fg.value < 0 ? style.fg(tl.Color.reset) : style.fg(tl.Color.ansi(fg.value)),
-    ColorKind.indexed => style.fg(tl.Color.indexed(fg.value)),
-  };
-
-  return switch (bg.kind) {
-    ColorKind.rgb => style.bg(
-      tl.Color.fromRGBComponent(
-        bg.value >> 16 & 0xff,
-        bg.value >> 8 & 0xff,
-        bg.value & 0xff,
-      ),
-    ),
-    ColorKind.ansi => bg.value < 0 ? style.bg(tl.Color.reset) : style.bg(tl.Color.ansi(bg.value)),
-    ColorKind.indexed => style.bg(tl.Color.indexed(bg.value)),
-  };
-}
-
-void _mergeUnderline(tl.Style style, Color under) {
-  return switch (under.kind) {
-    ColorKind.rgb => style.underline(
-      tl.Color.fromRGBComponent(
-        under.value >> 16 & 0xff,
-        under.value >> 8 & 0xff,
-        under.value & 0xff,
-      ),
-    ),
-    ColorKind.ansi => under.value < 0 ? style.underlineOff() : style.underline(tl.Color.ansi(under.value)),
-    ColorKind.indexed => style.underline(tl.Color.indexed(under.value)),
-  };
-}
+/// Maps a concrete (non-reset) Kiko [Color] to its termlib equivalent.
+tl.Color _toTlColor(Color color) => switch (color.kind) {
+  ColorKind.rgb => tl.Color.fromRGB(color.value),
+  ColorKind.ansi => tl.Color.ansi(color.value),
+  ColorKind.indexed => tl.Color.indexed(color.value),
+};

@@ -199,13 +199,13 @@ class _ModalContent<M> implements Widget {
 /// final update = withModalCapture<AppModel>(
 ///   update: appUpdate,
 ///   getModal: (m) => m.modal,
-///   setModal: (m, modal) => m.copyWith(modal: () => modal),
+///   setModal: (m, modal) => m..modal = modal,
 /// );
 ///
 /// (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) => switch (msg) {
-///   ModalConfirm(:final payload) => (model.handleConfirm(payload), null),
+///   ModalConfirm(:final payload) => (model..handleConfirm(payload), null),
 ///   ModalCancel() => (model, null),
-///   KeyMsg(key: 'm') => (model.copyWith(modal: () => myModal), null),
+///   KeyMsg(key: 'm') => (model..modal = myModal, null),
 ///   _ => (model, null),
 /// };
 /// ```

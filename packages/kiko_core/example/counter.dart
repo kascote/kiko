@@ -3,6 +3,10 @@ import 'package:kiko/kiko.dart';
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
+//
+// NOTE: Kiko models are mutable by default (Bubble Tea style). This example keeps an
+// immutable model with `copyWith` on purpose — for a small, value-like model (one int)
+// immutability is clean and cheap. For app-sized models, prefer plain mutable fields.
 class CounterModel {
   final int count;
 

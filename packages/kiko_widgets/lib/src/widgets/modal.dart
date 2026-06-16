@@ -76,8 +76,8 @@ typedef ModalView<M> = void Function(M model, Rect area, Frame frame);
 ///
 /// Inner update emits [ModalConfirm(data)] or [ModalCancel()] when done.
 class Modal<M> implements Widget {
-  /// Inner model state.
-  final M _model;
+  /// Inner model state (mutable — updated in place, per Kiko's mutable-component model).
+  M _model;
 
   /// Inner update function.
   final ModalUpdate<M> _update;
@@ -98,7 +98,7 @@ class Modal<M> implements Widget {
   final double dimFactor;
 
   /// Creates a modal with custom inner MVU.
-  const Modal({
+  Modal({
     required M init,
     required ModalUpdate<M> update,
     required ModalView<M> view,
@@ -143,19 +143,13 @@ class Modal<M> implements Widget {
 
   /// Processes a message through the inner update.
   ///
-  /// Returns (newModal, cmd). Used by [withModalCapture].
+  /// Mutates the inner model in place and returns `(this, cmd)` — consistent
+  /// with Kiko's mutable-component model (see `specs/a1-model-identity.md`).
+  /// Used by [withModalCapture].
   (Modal<M>, Cmd?) processMsg(Msg msg) {
     final (newModel, cmd) = _update(_model, msg);
-    final newModal = Modal<M>(
-      init: newModel,
-      update: _update,
-      view: _view,
-      width: width,
-      height: height,
-      dimBackdrop: dimBackdrop,
-      dimFactor: dimFactor,
-    );
-    return (newModal, cmd);
+    _model = newModel;
+    return (this, cmd);
   }
 
   @override

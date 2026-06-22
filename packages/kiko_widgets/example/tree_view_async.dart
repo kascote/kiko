@@ -165,12 +165,32 @@ class AsyncCategorySource extends TreeDataSource<Category> {
 }
 
 // ═══════════════════════════════════════════════════════════
+// MESSAGES
+// ═══════════════════════════════════════════════════════════
+
+// Async fetch results carry the owning tree's id so the app routes each result
+// back to the right instance (§3.4 of a2.1-id-addressing). The app owns the
+// data source and drives every fetch — the widget never performs I/O.
+class TreeRootsLoadedMsg extends Msg {
+  final String id;
+  final List<TreeNode<Category>> roots;
+  TreeRootsLoadedMsg(this.id, this.roots);
+}
+
+class TreeChildrenLoadedMsg extends Msg {
+  final String id;
+  final String path;
+  final List<TreeNode<Category>> children;
+  TreeChildrenLoadedMsg(this.id, this.path, this.children);
+}
+
+// ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
+  final treeData = AsyncCategorySource();
   final tree = TreeViewModel<Category>(
-    dataSource: AsyncCategorySource(),
     focused: true,
     showIcons: true,
     indicatorStyle: const Style(fg: Color.red),
@@ -194,18 +214,42 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Initialize on first message
+  // Initialize on first message — the app drives the root fetch.
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
-    return (model, Task(() async => model.tree.loadRoots()));
+    model.tree.isLoading = true;
+    return (
+      model,
+      Task(
+        model.treeData.getRoots,
+        onSuccess: (roots) => TreeRootsLoadedMsg(model.tree.id, roots),
+      ),
+    );
+  }
+
+  // Fetch results resolve home by id (single instance: a guard).
+  if (msg case TreeRootsLoadedMsg(:final id, :final roots)) {
+    if (id == model.tree.id) model.tree.applyRoots(roots);
+    return (model, null);
+  }
+  if (msg case TreeChildrenLoadedMsg(:final id, :final path, :final children)) {
+    if (id == model.tree.id) model.tree.applyChildren(path, children);
+    return (model, null);
   }
 
   final cmd = model.tree.update(msg);
 
-  // Track expand events
-  if (cmd is TreeExpandCmd) {
+  // Expand load request → app drives the children fetch (and counts the load).
+  if (cmd case TreeExpandCmd(:final id, :final path)) {
+    if (id != model.tree.id) return (model, null);
     model.loadCount++;
-    return (model, null);
+    return (
+      model,
+      Task(
+        () => model.treeData.getChildren(path),
+        onSuccess: (children) => TreeChildrenLoadedMsg(id, path, children),
+      ),
+    );
   }
 
   // Handle confirm

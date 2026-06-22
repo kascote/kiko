@@ -24,7 +24,15 @@ import 'types.dart';
 ///   focused: true,
 /// );
 /// ```
-class TableViewModel implements Focusable {
+class TableViewModel implements Component {
+  /// Stable address for this model, carried by value in the widget→app commands
+  /// it emits ([TableActionCmd], [TableLoadMoreCmd]).
+  ///
+  /// Auto-generated when omitted; pass an explicit id to match against a literal
+  /// (`id == 'usersTable'`) or to disambiguate multiple instances.
+  @override
+  final String id;
+
   /// Data provider.
   final TableDataSource dataSource;
 
@@ -100,6 +108,7 @@ class TableViewModel implements Focusable {
     required this.dataSource,
     required this.keyField,
     required this.columns,
+    String? id,
     this.pageSize = 50,
     this.windowSize = 200,
     this.loadThreshold = 10,
@@ -113,7 +122,7 @@ class TableViewModel implements Focusable {
     KeyBinding<TableViewAction>? keyBinding,
     this.focused = false,
     this.fetchTotalCount,
-  }) {
+  }) : id = id ?? autoId('tableview') {
     this.keyBinding = keyBinding ?? defaultTableViewBindings.copy();
     totalCount = dataSource.totalCount;
   }
@@ -286,6 +295,7 @@ class TableViewModel implements Focusable {
   // ─────────────────────────────────────────────
 
   /// Handles keyboard messages. Returns command or [Unhandled].
+  @override
   Cmd? update(Msg msg) {
     if (!focused) return const Unhandled();
     if (isLoading) return null; // Ignore input while loading
@@ -322,7 +332,7 @@ class TableViewModel implements Focusable {
         case TableViewAction.toggleSelect:
           if (selectionEnabled) _toggleSelectAtCursor();
         case TableViewAction.confirm:
-          return TableActionCmd(this, 'primary');
+          return TableActionCmd(id, 'primary');
       }
 
       return _checkLoadThreshold();
@@ -391,10 +401,10 @@ class TableViewModel implements Focusable {
     final distToEnd = _loadedEnd - _cursorRow;
 
     if (distToStart < loadThreshold && _loadedStart > 0) {
-      return TableLoadMoreCmd(this, direction: LoadDirection.backward);
+      return TableLoadMoreCmd(id, direction: LoadDirection.backward);
     }
     if (distToEnd < loadThreshold && dataSource.hasMore) {
-      return TableLoadMoreCmd(this, direction: LoadDirection.forward);
+      return TableLoadMoreCmd(id, direction: LoadDirection.forward);
     }
     return null;
   }

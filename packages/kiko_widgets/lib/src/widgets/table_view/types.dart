@@ -1,7 +1,7 @@
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 
 import 'table_column.dart';
-import 'table_view_model.dart';
 
 // ═══════════════════════════════════════════════════════════
 // CELL RENDER CONTEXT
@@ -172,15 +172,26 @@ class TableViewStyle {
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when cursor nears edge of loaded data.
+@immutable
 class TableLoadMoreCmd extends Cmd {
-  /// The table view model that needs more data.
-  final TableViewModel source;
+  /// Id of the table view model that needs more data.
+  final String id;
 
   /// Direction to load (forward/backward).
   final LoadDirection direction;
 
-  /// Creates a LoadPageCmd.
-  const TableLoadMoreCmd(this.source, {required this.direction});
+  /// Creates a TableLoadMoreCmd.
+  const TableLoadMoreCmd(this.id, {required this.direction});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is TableLoadMoreCmd && other.id == id && other.direction == direction;
+
+  @override
+  int get hashCode => Object.hash(id, direction);
+
+  @override
+  String toString() => 'TableLoadMoreCmd($id, direction: ${direction.name})';
 }
 
 /// Emitted when an action is triggered on the table.
@@ -189,13 +200,24 @@ class TableLoadMoreCmd extends Cmd {
 /// - `'primary'` - Enter key on current row
 ///
 /// Custom actions can be added via keybindings.
+@immutable
 class TableActionCmd extends Cmd {
-  /// The table view model.
-  final TableViewModel source;
+  /// Id of the table view model.
+  final String id;
 
   /// Action name (e.g., 'primary' for Enter, or custom action name).
   final String action;
 
   /// Creates a TableActionCmd.
-  const TableActionCmd(this.source, this.action);
+  const TableActionCmd(this.id, this.action);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is TableActionCmd && other.id == id && other.action == action;
+
+  @override
+  int get hashCode => Object.hash(id, action);
+
+  @override
+  String toString() => 'TableActionCmd($id, $action)';
 }

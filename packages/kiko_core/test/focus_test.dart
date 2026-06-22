@@ -11,6 +11,20 @@ class MockFocusable implements Focusable {
   MockFocusable(this.name);
 }
 
+/// Minimal widget-model satisfying the [Component] contract (`id` + `update`).
+class MockComponent implements Component {
+  @override
+  final String id;
+
+  @override
+  bool focused = false;
+
+  MockComponent(this.id);
+
+  @override
+  Cmd? update(Msg msg) => null;
+}
+
 void main() {
   group('FocusGroup', () {
     test('initializes with first item focused', () {
@@ -136,6 +150,24 @@ void main() {
       expect(item.focused, isFalse);
       item.focused = true;
       expect(item.focused, isTrue);
+    });
+  });
+
+  group('Component', () {
+    test('exposes a stable id through the Component interface', () {
+      final Component c = MockComponent('widget-1');
+      expect(c.id, equals('widget-1'));
+    });
+
+    test('is a Focusable (id is identity, focus is one use of it)', () {
+      final c = MockComponent('w')..focused = true;
+      expect(c, isA<Focusable>());
+      expect(c.focused, isTrue);
+    });
+
+    test('update is reachable generically through Component', () {
+      final Component c = MockComponent('w');
+      expect(c.update(const NoneMsg()), isNull);
     });
   });
 

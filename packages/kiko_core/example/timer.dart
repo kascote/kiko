@@ -4,9 +4,11 @@ import 'package:kiko/kiko.dart';
 // MODEL
 // ═══════════════════════════════════════════════════════════
 //
-// NOTE: Kiko models are mutable by default (Bubble Tea style). This example keeps an
-// immutable model with `copyWith` on purpose — for a small, value-like model
-// immutability is clean and cheap. For app-sized models, prefer plain mutable fields.
+// NOTE: Kiko models are mutable by default (Bubble Tea style). Immutable + `copyWith`
+// is fine for a standalone value model like this — and it stops there. The moment your
+// model holds widget models (TextInput, Table, …), those are mutable and you address
+// their events by stable reference, so the app model goes mutable too. Don't read this
+// as "immutable scales to a real UI" — it doesn't.
 class AppModel {
   final int seconds;
   final bool running;

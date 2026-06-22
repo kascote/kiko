@@ -118,8 +118,7 @@ enum Strengths {
   /// ┌───────┐
   /// │<= x =>│
   /// └───────┘
-  allSegmentGrow(_weak)
-  ;
+  allSegmentGrow(_weak);
 
   /// The value of the strength.
   final double value;

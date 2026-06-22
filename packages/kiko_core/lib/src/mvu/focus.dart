@@ -1,3 +1,6 @@
+import 'cmd.dart';
+import 'msg.dart';
+
 /// Interface for objects that can receive focus.
 ///
 /// Implement this to use [FocusGroup] for automatic focus management.
@@ -6,6 +9,29 @@ abstract interface class Focusable {
   /// Whether this object currently has focus.
   // ignore: avoid_setters_without_getters
   set focused(bool value);
+}
+
+/// The widget-model contract: a [Focusable] model that handles messages and
+/// carries a stable identity.
+///
+/// Every widget model already exposes [update] (by convention); [Component]
+/// promotes that convention to a type so a parent can route to a child
+/// generically. [id] is the model's stable identity; widget→app addressing
+/// is one *use* of it — the commands a model emits carry the id as their address.
+/// Models that emit no addressed commands still have an identity; the id is simply unused.
+///
+/// Widget models declare `implements Component`; their existing `update` and
+/// `id` members satisfy it with no behaviour change.
+abstract interface class Component implements Focusable {
+  /// Stable identity for this model.
+  ///
+  /// Widget→app commands carry it as their address, so an app resolves a
+  /// command back to its owner by matching this id — a command whose id
+  /// resolves to no model is observably dropped rather than silently mishandled.
+  String get id;
+
+  /// Handles a message, optionally returning a command.
+  Cmd? update(Msg msg);
 }
 
 /// Manages focus among a list of [Focusable] items.

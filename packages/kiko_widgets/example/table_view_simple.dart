@@ -115,8 +115,8 @@ String _formatNumber(int n) {
   final cmd = model.table.update(msg);
 
   // Handle confirm
-  if (cmd case TableActionCmd(:final source, action: 'primary')) {
-    if (source == model.table) {
+  if (cmd case TableActionCmd(:final id, action: 'primary')) {
+    if (id == model.table.id) {
       final row = model.table.cursorRowData;
       final field = model.table.cursorColField;
       final value = model.table.cursorCellValue;

@@ -67,11 +67,17 @@ class UserApiDataSource implements ListDataSource<User> {
 // MESSAGES
 // ═══════════════════════════════════════════════════════════
 
-class UsersLoadedMsg extends Msg {}
+// Async results carry the id of the list they belong to, so the app routes
+// each result back to the right instance (§3.4 of a2.1-id-addressing).
+class UsersLoadedMsg extends Msg {
+  final String id;
+  UsersLoadedMsg(this.id);
+}
 
 class UsersLoadErrorMsg extends Msg {
+  final String id;
   final Object error;
-  UsersLoadErrorMsg(this.error);
+  UsersLoadErrorMsg(this.id, this.error);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -104,23 +110,27 @@ class AppModel with ThemeSwitcher {
       model,
       Task(
         model.dataSource.loadMore,
-        onSuccess: (_) => UsersLoadedMsg(),
-        onError: UsersLoadErrorMsg.new,
+        onSuccess: (_) => UsersLoadedMsg(model.list.id),
+        onError: (e) => UsersLoadErrorMsg(model.list.id, e),
       ),
     );
   }
 
-  // Handle load completion
+  // Handle load completion — resolve home by id (single instance: a guard)
   if (msg is UsersLoadedMsg) {
-    model
-      ..list.isLoading = false
-      ..error = null;
+    if (msg.id == model.list.id) {
+      model
+        ..list.isLoading = false
+        ..error = null;
+    }
     return (model, null);
   }
   if (msg is UsersLoadErrorMsg) {
-    model
-      ..list.isLoading = false
-      ..error = 'Failed to load: ${msg.error}';
+    if (msg.id == model.list.id) {
+      model
+        ..list.isLoading = false
+        ..error = 'Failed to load: ${msg.error}';
+    }
     return (model, null);
   }
 
@@ -128,15 +138,15 @@ class AppModel with ThemeSwitcher {
   final cmd = model.list.update(msg);
 
   // Handle load more
-  if (cmd case ListLoadMoreCmd(:final source)) {
-    if (source == model.list && !model.list.isLoading) {
+  if (cmd case ListLoadMoreCmd(:final id)) {
+    if (id == model.list.id && !model.list.isLoading) {
       model.list.isLoading = true;
       return (
         model,
         Task(
           model.dataSource.loadMore,
-          onSuccess: (_) => UsersLoadedMsg(),
-          onError: UsersLoadErrorMsg.new,
+          onSuccess: (_) => UsersLoadedMsg(id),
+          onError: (e) => UsersLoadErrorMsg(id, e),
         ),
       );
     }

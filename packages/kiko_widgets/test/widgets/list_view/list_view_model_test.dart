@@ -334,8 +334,8 @@ void main() {
           focused: true,
         );
         final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<ListActionCmd<String, String>>());
-        expect((cmd! as ListActionCmd).source, same(model));
+        expect(cmd, isA<ListActionCmd>());
+        expect((cmd! as ListActionCmd).id, equals(model.id));
       });
 
       test('unhandled key returns Unhandled', () {
@@ -381,7 +381,7 @@ void main() {
               ..update(keyMsg('down'));
 
         final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<ListLoadMoreCmd<String, String>>());
+        expect(cmd, isA<ListLoadMoreCmd>());
       });
 
       test('not emitted when hasMore is false', () {

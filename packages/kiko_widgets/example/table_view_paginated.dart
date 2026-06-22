@@ -82,20 +82,25 @@ class ProductApiDataSource implements TableDataSource {
 // MESSAGES
 // ═══════════════════════════════════════════════════════════
 
+// Async results carry the id of the table they belong to, so the app routes
+// each result back to the right instance.
 class DataLoadedMsg extends Msg {
+  final String id;
   final List<Map<String, Object?>> rows;
   final int pageNum;
-  DataLoadedMsg(this.rows, this.pageNum);
+  DataLoadedMsg(this.id, this.rows, this.pageNum);
 }
 
 class DataLoadErrorMsg extends Msg {
+  final String id;
   final Object error;
-  DataLoadErrorMsg(this.error);
+  DataLoadErrorMsg(this.id, this.error);
 }
 
 class CountLoadedMsg extends Msg {
+  final String id;
   final int count;
-  CountLoadedMsg(this.count);
+  CountLoadedMsg(this.id, this.count);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -193,38 +198,42 @@ class AppModel with ThemeSwitcher {
         // Fetch total count
         Task(
           model.dataSource.fetchCount,
-          onSuccess: CountLoadedMsg.new,
-          onError: DataLoadErrorMsg.new,
+          onSuccess: (count) => CountLoadedMsg(model.table.id, count),
+          onError: (e) => DataLoadErrorMsg(model.table.id, e),
         ),
         // Load first page
         Task(
           () => model.dataSource.getPage(0, model.table.pageSize),
-          onSuccess: (rows) => DataLoadedMsg(rows, 0),
-          onError: DataLoadErrorMsg.new,
+          onSuccess: (rows) => DataLoadedMsg(model.table.id, rows, 0),
+          onError: (e) => DataLoadErrorMsg(model.table.id, e),
         ),
       ]),
     );
   }
 
-  // Handle count loaded
+  // Handle count loaded — resolve home by id (single instance: a guard)
   if (msg is CountLoadedMsg) {
-    model.table.totalCount = msg.count;
+    if (msg.id == model.table.id) model.table.totalCount = msg.count;
     return (model, null);
   }
 
-  // Handle data loaded
+  // Handle data loaded — resolve home by id
   if (msg is DataLoadedMsg) {
-    model.table
-      ..insertRows(msg.rows, msg.pageNum)
-      ..isLoading = false;
-    model.error = null;
+    if (msg.id == model.table.id) {
+      model.table
+        ..insertRows(msg.rows, msg.pageNum)
+        ..isLoading = false;
+      model.error = null;
+    }
     return (model, null);
   }
 
-  // Handle error
+  // Handle error — resolve home by id
   if (msg is DataLoadErrorMsg) {
-    model.table.isLoading = false;
-    model.error = 'Failed to load: ${msg.error}';
+    if (msg.id == model.table.id) {
+      model.table.isLoading = false;
+      model.error = 'Failed to load: ${msg.error}';
+    }
     return (model, null);
   }
 
@@ -232,8 +241,8 @@ class AppModel with ThemeSwitcher {
   final cmd = model.table.update(msg);
 
   // Handle load page command
-  if (cmd case TableLoadMoreCmd(:final source, :final direction)) {
-    if (source == model.table && !model.table.isLoading) {
+  if (cmd case TableLoadMoreCmd(:final id, :final direction)) {
+    if (id == model.table.id && !model.table.isLoading) {
       model.table.isLoading = true;
       final pageNum = direction == LoadDirection.forward ? model.table.nextPageNum : model.table.prevPageNum;
 
@@ -246,8 +255,8 @@ class AppModel with ThemeSwitcher {
         model,
         Task(
           () => model.dataSource.getPage(pageNum, model.table.pageSize),
-          onSuccess: (rows) => DataLoadedMsg(rows, pageNum),
-          onError: DataLoadErrorMsg.new,
+          onSuccess: (rows) => DataLoadedMsg(id, rows, pageNum),
+          onError: (e) => DataLoadErrorMsg(id, e),
         ),
       );
     }

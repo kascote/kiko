@@ -512,7 +512,7 @@ void main() {
         final cmd = model.update(keyMsg('enter'));
         expect(cmd, isA<TableActionCmd>());
         final actionCmd = cmd! as TableActionCmd;
-        expect(actionCmd.source, same(model));
+        expect(actionCmd.id, equals(model.id));
         expect(actionCmd.action, 'primary');
       });
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:kiko/kiko.dart';
+import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -22,6 +23,23 @@ class TestEventStream {
 class TestMsg extends Msg {
   final String value;
   const TestMsg(this.value);
+}
+
+/// A widget→app event command — the kind that must be consumed in update()
+/// and, if forgotten, falls through to the runtime's default guard.
+class _WidgetEventCmd extends Cmd {
+  const _WidgetEventCmd();
+}
+
+/// In-memory log output for asserting on captured records.
+class _CapturingOutput implements LogOutput {
+  final List<LogRecord> records = [];
+
+  @override
+  void write(LogRecord record) => records.add(record);
+
+  @override
+  Future<void> close() async {}
 }
 
 void main() {
@@ -249,6 +267,38 @@ void main() {
 
         expect((msg1 as TestMsg).value, equals('first'));
         expect((msg2 as TestMsg).value, equals('second'));
+      });
+    });
+
+    group('unhandled command guard', () {
+      test('logs a warning when a custom Cmd reaches the runtime', () {
+        // The guard is debug-only (assert idiom); tests run with asserts on.
+        final output = _CapturingOutput();
+        bool? exit;
+        Log(output: output, level: LogLevel.debug).runZoned(() {
+          exit = runtime.processCmd(const _WidgetEventCmd());
+        });
+
+        // Still dropped (returns false), but now observable.
+        expect(exit, isFalse);
+        expect(output.records, hasLength(1));
+        expect(output.records.single.level, equals(LogLevel.warn));
+        expect(output.records.single.message, contains('_WidgetEventCmd'));
+        expect(output.records.single.message, contains('update()'));
+      });
+
+      test('legitimate commands never trip the guard', () {
+        final output = _CapturingOutput();
+        Log(output: output, level: LogLevel.debug).runZoned(() {
+          runtime
+            ..processCmd(null)
+            ..processCmd(const None())
+            ..processCmd(const Unhandled())
+            ..processCmd(const Emit(TestMsg('x')))
+            ..processCmd(const StopTick());
+        });
+
+        expect(output.records, isEmpty);
       });
     });
 

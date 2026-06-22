@@ -79,8 +79,8 @@ class AppModel with ThemeSwitcher {
   final cmd = model.list.update(msg);
 
   // Handle confirm
-  if (cmd case ListActionCmd(:final source)) {
-    if (source == model.list) {
+  if (cmd case ListActionCmd(:final id)) {
+    if (id == model.list.id) {
       model.selected = model.list.cursorItem;
     }
     return (model, null);

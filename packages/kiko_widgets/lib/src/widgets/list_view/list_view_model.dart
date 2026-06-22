@@ -10,7 +10,7 @@ import 'types.dart';
 /// Model for ListView state and behavior.
 ///
 /// Holds cursor position, selection state, and scroll offset.
-/// Implements [Focusable] for focus management.
+/// Implements [Component] for focus management and id addressing.
 ///
 /// ```dart
 /// final listModel = ListViewModel<String, String>(
@@ -18,7 +18,15 @@ import 'types.dart';
 ///   focused: true,
 /// );
 /// ```
-class ListViewModel<T, K> implements Focusable {
+class ListViewModel<T, K> implements Component {
+  /// Stable address for this model, carried by value in the widget→app commands
+  /// it emits ([ListActionCmd], [ListLoadMoreCmd]).
+  ///
+  /// Auto-generated when omitted; pass an explicit id to match against a literal
+  /// or to disambiguate multiple instances.
+  @override
+  final String id;
+
   /// The data source providing items.
   ListDataSource<T> dataSource;
 
@@ -70,6 +78,7 @@ class ListViewModel<T, K> implements Focusable {
   /// Pass a custom [keyBinding] to override default key bindings.
   ListViewModel({
     required this.dataSource,
+    String? id,
     K Function(T item)? itemKey,
     this.itemHeight = 1,
     this.multiSelect = false,
@@ -77,7 +86,8 @@ class ListViewModel<T, K> implements Focusable {
     this.focused = false,
     this.isDisabled,
     KeyBinding<ListViewAction>? keyBinding,
-  }) : itemKey = itemKey ?? _castItemKey {
+  }) : id = id ?? autoId('listview'),
+       itemKey = itemKey ?? _castItemKey {
     this.keyBinding = keyBinding ?? defaultListViewBindings.copy();
   }
 
@@ -128,6 +138,7 @@ class ListViewModel<T, K> implements Focusable {
   // ─────────────────────────────────────────────
 
   /// Handles keyboard messages. Returns command or [Unhandled].
+  @override
   Cmd? update(Msg msg) {
     if (!focused) return const Unhandled();
 
@@ -160,7 +171,7 @@ class ListViewModel<T, K> implements Focusable {
         case ListViewAction.toggleSelect:
           _toggleSelectAtCursor();
         case ListViewAction.confirm:
-          return ListActionCmd<T, K>(this);
+          return ListActionCmd(id);
         case ListViewAction.selectUp:
           if (multiSelect) _rangeSelect(-1);
         case ListViewAction.selectDown:
@@ -171,7 +182,7 @@ class ListViewModel<T, K> implements Focusable {
       final len = dataSource.length;
       if (dataSource.hasMore && len != null) {
         if (_cursor >= len - loadMoreThreshold) {
-          return ListLoadMoreCmd<T, K>(this);
+          return ListLoadMoreCmd(id);
         }
       }
     }

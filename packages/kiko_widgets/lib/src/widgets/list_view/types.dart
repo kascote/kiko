@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
-
-import 'list_view_model.dart';
+import 'package:meta/meta.dart';
 
 // ═══════════════════════════════════════════════════════════
 // ACTIONS
@@ -101,19 +100,39 @@ typedef ItemState = ({bool checked, bool focused, bool disabled});
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when cursor nears end and dataSource.hasMore is true.
-class ListLoadMoreCmd<T, K> extends Cmd {
-  /// The list view model that needs more data.
-  final ListViewModel<T, K> source;
+@immutable
+class ListLoadMoreCmd extends Cmd {
+  /// Id of the list view model that needs more data.
+  final String id;
 
-  /// Creates a LoadMoreCmd.
-  const ListLoadMoreCmd(this.source);
+  /// Creates a ListLoadMoreCmd.
+  const ListLoadMoreCmd(this.id);
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is ListLoadMoreCmd && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() => 'ListLoadMoreCmd($id)';
 }
 
 /// Emitted when execute an action in the current item
-class ListActionCmd<T, K> extends Cmd {
-  /// The list view model where confirm was triggered.
-  final ListViewModel<T, K> source;
+@immutable
+class ListActionCmd extends Cmd {
+  /// Id of the list view model where confirm was triggered.
+  final String id;
 
   /// Creates a ListActionCmd.
-  const ListActionCmd(this.source);
+  const ListActionCmd(this.id);
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is ListActionCmd && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() => 'ListActionCmd($id)';
 }

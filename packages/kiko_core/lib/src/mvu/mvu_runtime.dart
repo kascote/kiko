@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 
 import 'cmd.dart';
@@ -263,7 +264,17 @@ class MvuRuntime {
         }
         return false;
       default:
-        // Custom commands from widgets - not handled by runtime
+        // Widget→app commands (events) must be consumed in update() before
+        // they reach the runtime — everything legitimate is matched above, so
+        // anything landing here is a forgotten event handler (or a Cmd nobody
+        // handles).
+        assert(() {
+          Log.warn(
+            'Cmd ${cmd.runtimeType} reached the runtime unhandled and was '
+            'dropped — did you forget to consume it in update()?',
+          );
+          return true;
+        }(), 'logs unhandled commands in debug');
         return false;
     }
   }

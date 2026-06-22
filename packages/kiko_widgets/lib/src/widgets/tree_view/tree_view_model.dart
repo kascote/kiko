@@ -1,25 +1,31 @@
-import 'dart:async';
-
 import 'package:kiko/kiko.dart';
 
-import 'tree_data_source.dart';
 import 'tree_node.dart';
 import 'types.dart';
 
 /// Model for TreeView state and behavior.
 ///
-/// Holds expansion state, selection state, and cursor position.
-/// Implements [Focusable] for focus management.
+/// Holds expansion state and cursor position. Implements [Component] (stable
+/// [id] + [update]) for addressing and focus.
+///
+/// The model performs **no** I/O: the app owns the data source and drives every
+/// fetch via a runtime `Task`, then installs the result with [applyRoots] /
+/// [applyChildren]. [expand] returns a [TreeExpandCmd] as a *load request* when a
+/// node's children are not yet cached.
 ///
 /// ```dart
-/// final treeModel = TreeViewModel<FileInfo>(
-///   dataSource: myFileSource,
-///   selectionMode: SelectionMode.leafOnly,
-/// );
+/// final treeModel = TreeViewModel<FileInfo>(focused: true);
+/// // app, on init: Task(treeData.getRoots, onSuccess: (r) => RootsLoaded(treeModel.id, r))
+/// // app, on result: treeModel.applyRoots(roots);
 /// ```
-class TreeViewModel<T> implements Focusable {
-  /// The data source providing nodes.
-  final TreeDataSource<T> dataSource;
+class TreeViewModel<T> implements Component {
+  /// Stable address for this model, carried by value in the widget→app commands
+  /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd]).
+  ///
+  /// Auto-generated when omitted; pass an explicit id to match against a literal
+  /// or to disambiguate multiple instances.
+  @override
+  final String id;
 
   // ─────────────────────────────────────────────
   // State
@@ -34,11 +40,17 @@ class TreeViewModel<T> implements Focusable {
   int _scrollOffset = 0;
   int _visibleCount = 0;
   bool _rootsLoaded = false;
-  bool _rootsLoading = false;
 
   /// Whether the tree is focused.
   @override
   bool focused;
+
+  /// Whether the initial root load is in flight.
+  ///
+  /// The app sets this when it fires the `getRoots` task; [applyRoots] clears it
+  /// on completion (mirrors `TableViewModel.isLoading`). Per-node child loads are
+  /// tracked separately — see [isPathLoading].
+  bool isLoading = false;
 
   // ─────────────────────────────────────────────
   // Config
@@ -67,7 +79,7 @@ class TreeViewModel<T> implements Focusable {
 
   /// Creates a TreeViewModel.
   TreeViewModel({
-    required this.dataSource,
+    String? id,
     this.expandedChar = '▼',
     this.collapsedChar = '▶',
     this.loadingChar = '◌',
@@ -76,7 +88,8 @@ class TreeViewModel<T> implements Focusable {
     Line? loadingIndicator,
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
-  }) : loadingIndicator = loadingIndicator ?? Line('Loading...') {
+  }) : id = id ?? autoId('treeview'),
+       loadingIndicator = loadingIndicator ?? Line('Loading...') {
     this.keyBinding = keyBinding ?? defaultTreeViewBindings.copy();
   }
 
@@ -102,9 +115,6 @@ class TreeViewModel<T> implements Focusable {
   /// Whether roots have been loaded.
   bool get isLoaded => _rootsLoaded;
 
-  /// Whether roots are currently loading.
-  bool get isLoading => _rootsLoading;
-
   /// Whether a specific path is loading children.
   bool isPathLoading(String path) => _loading.contains(path);
 
@@ -126,46 +136,52 @@ class TreeViewModel<T> implements Focusable {
   // Public API - Programmatic control
   // ─────────────────────────────────────────────
 
-  /// Load root nodes. Call this to initialize the tree.
-  Future<void> loadRoots() async {
-    if (_rootsLoaded || _rootsLoading) return;
-    _rootsLoading = true;
-
-    try {
-      _roots = await dataSource.getRoots();
-      _rootsLoaded = true;
-      _rebuildFlatNodes();
-    } finally {
-      _rootsLoading = false;
-    }
+  /// Installs fetched root nodes, completing the initial load.
+  ///
+  /// Called by the app in response to its `getRoots` task — the app drives the
+  /// fetch, the widget never performs I/O. Mutates inside the MVU loop.
+  void applyRoots(List<TreeNode<T>> roots) {
+    _roots = roots;
+    _rootsLoaded = true;
+    isLoading = false;
+    _rebuildFlatNodes();
   }
 
-  /// Expand a node, loading children if needed.
-  Future<Cmd?> expand(String path) async {
+  /// Installs fetched [children] for [path], completing a load that [expand]
+  /// requested (by returning a [TreeExpandCmd]).
+  ///
+  /// Called by the app in response to its `getChildren` task. Mutates inside the
+  /// MVU loop and clears the per-node loading state.
+  void applyChildren(String path, List<TreeNode<T>> children) {
+    _childrenCache[path] = children;
+    _loading.remove(path);
+    _rebuildFlatNodes();
+  }
+
+  /// Expand a node.
+  ///
+  /// If the node's children are already cached (or a load is in flight), expands
+  /// immediately and returns `null`. Otherwise marks the node loading and returns
+  /// a [TreeExpandCmd] as a *load request*: the app drives `getChildren` and
+  /// installs the result with [applyChildren]. The widget never performs I/O.
+  Cmd? expand(String path) {
     if (_expanded.contains(path)) return null;
 
     final node = _findNode(path);
     if (node == null || node.isLeaf) return null;
 
-    // Check if children are cached
-    if (!_childrenCache.containsKey(path)) {
-      // Load children
-      _loading.add(path);
-      _expanded.add(path); // Show loading state
-      _rebuildFlatNodes();
+    _expanded.add(path);
 
-      try {
-        final children = await dataSource.getChildren(path);
-        _childrenCache[path] = children;
-      } finally {
-        _loading.remove(path);
-      }
-    } else {
-      _expanded.add(path);
+    // Children already loaded, or a load is already in flight — just show them.
+    if (_childrenCache.containsKey(path) || _loading.contains(path)) {
+      _rebuildFlatNodes();
+      return null;
     }
 
+    // Children not cached: request a load and show the loading placeholder.
+    _loading.add(path);
     _rebuildFlatNodes();
-    return TreeExpandCmd<T>(this, path, node);
+    return TreeExpandCmd<T>(id, path, node);
   }
 
   /// Collapse a node.
@@ -183,20 +199,26 @@ class TreeViewModel<T> implements Focusable {
       _cursor = _flatNodes.isEmpty ? 0 : _flatNodes.length - 1;
     }
 
-    return TreeCollapseCmd<T>(this, path, node);
+    return TreeCollapseCmd<T>(id, path, node);
   }
 
   /// Toggle expand/collapse.
-  Future<Cmd?> toggle(String path) async {
+  ///
+  /// Returns a [TreeExpandCmd] load request when expanding an uncached node (see
+  /// [expand]); a [TreeCollapseCmd] when collapsing; otherwise `null`.
+  Cmd? toggle(String path) {
     if (_expanded.contains(path)) {
       return collapse(path);
-    } else {
-      return expand(path);
     }
+    return expand(path);
   }
 
-  /// Expand all ancestors to make a node visible, then scroll to it.
-  Future<void> expandPath(String path) async {
+  /// Expand all cached ancestors of [path], then scroll to it if visible.
+  ///
+  /// Best-effort over already-loaded data: ancestors whose children are not yet
+  /// cached cannot be revealed here (the widget performs no I/O). Load the needed
+  /// subtree first (drive `getChildren` + [applyChildren]), then call this.
+  void expandPath(String path) {
     // Build list of ancestors
     final ancestors = <String>[];
     var current = path;
@@ -207,10 +229,8 @@ class TreeViewModel<T> implements Focusable {
       ancestors.insert(0, current);
     }
 
-    // Expand each ancestor
-    for (final ancestor in ancestors) {
-      await expand(ancestor);
-    }
+    // Expand each cached ancestor (load requests for uncached ones are dropped).
+    ancestors.forEach(expand);
 
     // Scroll to the node
     final index = _flatNodes.indexWhere((n) => n.path == path);
@@ -267,6 +287,7 @@ class TreeViewModel<T> implements Focusable {
   // ─────────────────────────────────────────────
 
   /// Handles keyboard messages. Returns command or [Unhandled].
+  @override
   Cmd? update(Msg msg) {
     if (!focused) return const Unhandled();
 
@@ -395,15 +416,9 @@ class TreeViewModel<T> implements Focusable {
       return null;
     }
 
-    // Trigger async expand - this needs to be handled specially
-    // Return a command that the runtime can handle
-    _triggerExpand(node.path);
-    return null;
-  }
-
-  void _triggerExpand(String path) {
-    // Fire and forget - will update state when done
-    unawaited(expand(path));
+    // Request expansion — returns a TreeExpandCmd load request when the node's
+    // children aren't cached yet (the app drives the fetch).
+    return expand(node.path);
   }
 
   Cmd? _handleCollapse() {
@@ -433,16 +448,14 @@ class TreeViewModel<T> implements Focusable {
 
     if (_expanded.contains(node.path)) {
       return collapse(node.path);
-    } else {
-      _triggerExpand(node.path);
-      return null;
     }
+    return expand(node.path);
   }
 
   Cmd? _handleConfirm() {
     final node = cursorNode;
     if (node == null) return null;
-    return TreeActionCmd<T>(this, node.path, node);
+    return TreeActionCmd<T>(id, node.path, node);
   }
 }
 

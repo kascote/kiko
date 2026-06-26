@@ -3,7 +3,7 @@
 // Shows how to:
 // - Filter a list based on text input
 // - Handle focus between search and list using FocusGroup
-// - Update dataSource when filter changes
+// - Swap the list's data view when the filter changes
 // - Select items with Enter via ListConfirmCmd
 
 import 'package:kiko/kiko.dart';
@@ -62,7 +62,7 @@ const allItems = [
 class AppModel with ThemeSwitcher {
   final search = TextInputModel(placeholder: 'Type to filter...');
   late final list = ListViewModel<String, String>(
-    dataSource: ListDataSource.fromList(allItems),
+    dataView: DataView.fromList(allItems),
   );
 
   String _lastQuery = '';
@@ -84,8 +84,8 @@ class AppModel with ThemeSwitcher {
     if (query == _lastQuery) return;
     _lastQuery = query;
 
-    // Update dataSource - this resets cursor to 0
-    list.dataSource = ListDataSource.fromList(filteredItems);
+    // Swap the whole backing in — a synchronous client-side filter, not a load.
+    list.dataView = DataView.fromList(filteredItems);
   }
 }
 

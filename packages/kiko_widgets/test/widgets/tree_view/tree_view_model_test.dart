@@ -35,7 +35,7 @@ void main() {
         expect(model.cursorNode, isNull);
         expect(model.focused, isFalse);
         expect(model.isLoaded, isFalse);
-        expect(model.isLoading, isFalse);
+        expect(model.isLoading(), isFalse);
       });
 
       test('config fields', () {
@@ -70,12 +70,13 @@ void main() {
         expect(model.flatNodes[1].path, equals('/b'));
       });
 
-      test('clears the roots-loading flag', () {
-        final model = TreeViewModel<String>()
-          ..isLoading = true
-          ..applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+      test('clears the roots-loading slot', () {
+        final model = TreeViewModel<String>()..loadRoots();
+        expect(model.isLoading(const RootsKey()), isTrue);
 
-        expect(model.isLoading, isFalse);
+        model.applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+
+        expect(model.isLoading(const RootsKey()), isFalse);
         expect(model.isLoaded, isTrue);
       });
     });
@@ -96,11 +97,17 @@ void main() {
         ]);
       });
 
-      test('expand requests a load for uncached children', () {
+      test('expand on uncached children batches an expand event + load request', () {
         final cmd = model.expand('/a');
 
-        expect(cmd, isA<TreeExpandCmd<String>>());
-        expect((cmd! as TreeExpandCmd).path, equals('/a'));
+        // Cache miss → the expansion event AND a load request, wrapped together.
+        expect(cmd, isA<Batch>());
+        final cmds = (cmd! as Batch).cmds;
+        expect(cmds, hasLength(2));
+        expect(cmds[0], isA<TreeExpandCmd<String>>());
+        expect((cmds[0] as TreeExpandCmd).path, equals('/a'));
+        expect(cmds[1], equals(LoadRequest(model.id, key: const PathKey('/a'))));
+
         expect(model.isExpanded('/a'), isTrue);
         expect(model.isPathLoading('/a'), isTrue);
       });
@@ -110,7 +117,7 @@ void main() {
 
         // The model fetched nothing: a loading placeholder shows, but the real
         // children are absent until the app delivers them. Proves the model
-        // never mutates outside the loop (A3).
+        // never performs I/O or mutates outside the update loop.
         expect(model.isPathLoading('/a'), isTrue);
         expect(model.flatNodes.any((n) => n.path == '/a/1'), isFalse);
         expect(model.flatNodes.any((n) => n.path == '/a/2'), isFalse);
@@ -131,13 +138,15 @@ void main() {
         expect(model.flatNodes[2].path, equals('/a/2'));
       });
 
-      test('re-expanding cached children does not request a load', () {
+      test('re-expanding cached children emits an expand event but no load request', () {
         expandLoaded(model, '/a', children['/a']!);
         model.collapse('/a');
 
         final cmd = model.expand('/a');
 
-        expect(cmd, isNull);
+        // Cache hit → a bare expansion event, never a Batch with a load request.
+        expect(cmd, isA<TreeExpandCmd<String>>());
+        expect(cmd, isNot(isA<Batch>()));
         expect(model.isExpanded('/a'), isTrue);
         expect(model.flatNodes.length, equals(4));
       });
@@ -173,6 +182,107 @@ void main() {
 
         expect(model.isExpanded('/a'), isFalse);
         expect(model.flatNodes.length, equals(2));
+      });
+    });
+
+    group('load lifecycle', () {
+      TreeViewModel<String> rootedAt(String path) => modelWith([TreeNode(path: path, label: Line(path))]);
+
+      LoadResult<List<TreeNode<String>>> childError(TreeViewModel<String> m, String path, Object error) =>
+          LoadResult<List<TreeNode<String>>>(m.id, key: PathKey(path), error: error);
+
+      group('roots', () {
+        test('loadRoots marks the roots slot loading and requests a fetch', () {
+          final model = TreeViewModel<String>();
+          final req = model.loadRoots();
+
+          expect(req, equals(LoadRequest(model.id, key: const RootsKey())));
+          expect(model.isLoading(const RootsKey()), isTrue);
+          expect(model.isLoading(), isTrue); // any slot
+          expect(model.isLoaded, isFalse);
+        });
+
+        test('a failed roots load records the error and stays unloaded', () {
+          final model = TreeViewModel<String>()..loadRoots();
+          model.applyLoad(LoadResult<List<TreeNode<String>>>(model.id, key: const RootsKey(), error: 'no net'));
+
+          expect(model.isLoading(const RootsKey()), isFalse);
+          expect(model.errorFor(const RootsKey()), equals('no net'));
+          expect(model.isLoaded, isFalse);
+        });
+      });
+
+      test('isLoading() reports any in-flight child; keyed isolates each', () {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/b', label: Line('B')),
+        ])..expand('/a');
+
+        expect(model.isLoading(), isTrue);
+        expect(model.isLoading(const PathKey('/a')), isTrue);
+        expect(model.isLoading(const PathKey('/b')), isFalse);
+        expect(model.isLoading(const RootsKey()), isFalse); // roots already done
+      });
+
+      test('failed child load shows an error placeholder, not an eternal spinner', () {
+        final model = rootedAt('/a')..expand('/a');
+        expect(model.isPathLoading('/a'), isTrue);
+
+        model.applyLoad(childError(model, '/a', 'network down'));
+
+        expect(model.isPathLoading('/a'), isFalse); // stopped spinning
+        expect(model.errorFor(const PathKey('/a')), equals('network down'));
+        expect(model.flatNodes.any((n) => n.path == '/a/_error'), isTrue);
+        expect(model.flatNodes.any((n) => n.path == '/a/_loading'), isFalse);
+      });
+
+      test('a result for a non-loading path is dropped (staleness guard)', () {
+        // No expand → slot idle. A stray result must not install.
+        final model = rootedAt('/a')..applyChildren('/a', [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)]);
+
+        expect(model.flatNodes.any((n) => n.path == '/a/x'), isFalse);
+        // Nothing cached: expanding now starts a fresh load.
+        expect(model.expand('/a'), isA<Batch>());
+        expect(model.isPathLoading('/a'), isTrue);
+      });
+
+      test('a result addressed to another model is ignored', () {
+        final model = rootedAt('/a')
+          ..expand('/a')
+          ..applyLoad(
+            LoadResult<List<TreeNode<String>>>(
+              'someone-else',
+              key: const PathKey('/a'),
+              data: [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)],
+            ),
+          );
+
+        expect(model.isPathLoading('/a'), isTrue); // still waiting
+        expect(model.flatNodes.any((n) => n.path == '/a/x'), isFalse);
+      });
+
+      test('collapse cancels a pending load; a late result is dropped', () {
+        final model = rootedAt('/a')..expand('/a');
+        expect(model.isPathLoading('/a'), isTrue);
+
+        model.collapse('/a');
+        expect(model.isPathLoading('/a'), isFalse); // cancelled
+
+        // The original fetch resolves late — dropped, nothing cached.
+        model.applyChildren('/a', [TreeNode(path: '/a/late', label: Line('Late'), isLeaf: true)]);
+        expect(model.expand('/a'), isA<Batch>()); // re-expand refetches
+      });
+
+      test('collapse clears a failed load so re-expand retries', () {
+        final model = rootedAt('/a')..expand('/a');
+        model.applyLoad(childError(model, '/a', 'boom'));
+        expect(model.errorFor(const PathKey('/a')), equals('boom'));
+
+        model.collapse('/a');
+        expect(model.errorFor(const PathKey('/a')), isNull); // cleared
+
+        expect(model.expand('/a'), isA<Batch>()); // fresh retry
+        expect(model.isPathLoading('/a'), isTrue);
       });
     });
 
@@ -272,7 +382,8 @@ void main() {
 
       test('right requests expand', () {
         final cmd = model.update(keyMsg('right'));
-        expect(cmd, isA<TreeExpandCmd<String>>());
+        // Uncached → Batch(expand event + load request).
+        expect(cmd, isA<Batch>());
         expect(model.isExpanded('/a'), isTrue);
       });
 
@@ -312,12 +423,16 @@ void main() {
 
     group('expandPath', () {
       test('expands cached ancestors and scrolls to node', () {
-        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])
-          // Pre-load the subtree the app would have fetched.
-          ..applyChildren('/a', [TreeNode(path: '/a/b', label: Line('B'))])
-          ..applyChildren('/a/b', [
-            TreeNode(path: '/a/b/c', label: Line('C'), isLeaf: true),
-          ])
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
+        // Load the subtree the way an app would — each load is started by expand.
+        expandLoaded(model, '/a', [TreeNode(path: '/a/b', label: Line('B'))]);
+        expandLoaded(model, '/a/b', [
+          TreeNode(path: '/a/b/c', label: Line('C'), isLeaf: true),
+        ]);
+
+        // Collapse everything, then reveal the deep node from the cache.
+        model
+          ..collapseAll()
           ..expandPath('/a/b/c');
 
         expect(model.isExpanded('/a'), isTrue);

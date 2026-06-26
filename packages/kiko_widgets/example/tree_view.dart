@@ -41,26 +41,6 @@ List<TreeNode<void>> buildFileTree() => [
 ];
 
 // ═══════════════════════════════════════════════════════════
-// MESSAGES
-// ═══════════════════════════════════════════════════════════
-
-// Async fetch results carry the owning tree's id so the app routes each result
-// back to the right instance (§3.4 of a2.1-id-addressing). The app owns the
-// data source and drives every fetch — the widget never performs I/O.
-class TreeRootsLoadedMsg extends Msg {
-  final String id;
-  final List<TreeNode<void>> roots;
-  TreeRootsLoadedMsg(this.id, this.roots);
-}
-
-class TreeChildrenLoadedMsg extends Msg {
-  final String id;
-  final String path;
-  final List<TreeNode<void>> children;
-  TreeChildrenLoadedMsg(this.id, this.path, this.children);
-}
-
-// ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
@@ -73,56 +53,66 @@ class AppModel with ThemeSwitcher {
 }
 
 // ═══════════════════════════════════════════════════════════
+// LOAD PLUMBING (one shape for roots and children)
+// ═══════════════════════════════════════════════════════════
+
+/// Flattens a possible [Batch] of widget commands into a list.
+List<Cmd> flattenCmd(Cmd? cmd) => switch (cmd) {
+  null => const [],
+  Batch(:final cmds) => cmds,
+  _ => [cmd],
+};
+
+/// Turns a [LoadRequest] into the fetch that resolves it, routing the outcome
+/// home as a [LoadResult] (data on success, error on failure).
+Cmd fetchFor(AppModel model, LoadRequest req) {
+  final key = req.key;
+  return Task<List<TreeNode<void>>>(
+    () => switch (key) {
+      RootsKey() => model.treeData.getRoots(),
+      PathKey(:final path) => model.treeData.getChildren(path),
+      _ => Future.value(<TreeNode<void>>[]),
+    },
+    onSuccess: (data) => LoadResult<List<TreeNode<void>>>(req.id, key: key, data: data),
+    onError: (e) => LoadResult<List<TreeNode<void>>>(req.id, key: key, error: e),
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Initialize on first message — the app drives the root fetch.
+  // Load results route home by id, then install generically — one line for
+  // roots and children alike.
+  if (msg case final LoadResult<Object?> r) {
+    if (r.id == model.tree.id) model.tree.applyLoad(r);
+    return (model, null);
+  }
+
+  // Kick off the root load once.
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
-    model.tree.isLoading = true;
-    return (
-      model,
-      Task(
-        model.treeData.getRoots,
-        onSuccess: (roots) => TreeRootsLoadedMsg(model.tree.id, roots),
-      ),
-    );
+    return (model, fetchFor(model, model.tree.loadRoots()));
   }
 
-  // Fetch results resolve home by id (single instance: a guard).
-  if (msg case TreeRootsLoadedMsg(:final id, :final roots)) {
-    if (id == model.tree.id) model.tree.applyRoots(roots);
-    return (model, null);
-  }
-  if (msg case TreeChildrenLoadedMsg(:final id, :final path, :final children)) {
-    if (id == model.tree.id) model.tree.applyChildren(path, children);
-    return (model, null);
-  }
-
+  // Widget update may return an expand event, a load request, or both (Batch).
   final cmd = model.tree.update(msg);
-
-  // Expand load request → app drives the children fetch.
-  if (cmd case TreeExpandCmd(:final id, :final path)) {
-    if (id != model.tree.id) return (model, null);
-    return (
-      model,
-      Task(
-        () => model.treeData.getChildren(path),
-        onSuccess: (children) => TreeChildrenLoadedMsg(id, path, children),
-      ),
-    );
+  Cmd? effect;
+  for (final c in flattenCmd(cmd)) {
+    switch (c) {
+      case final LoadRequest r when r.id == model.tree.id:
+        effect = fetchFor(model, r);
+      case TreeActionCmd(:final path):
+        model.selectedPath = path;
+      case _:
+        break; // expand/collapse events need no app effect here
+    }
   }
-
-  // Handle confirm
-  if (cmd case TreeActionCmd(:final path)) {
-    model.selectedPath = path;
-    return (model, null);
-  }
-
-  if (cmd is! Unhandled) return (model, cmd);
+  if (effect != null) return (model, effect);
+  if (cmd is! Unhandled) return (model, null);
 
   // Quit
   if (msg case KeyMsg(:final key)) {

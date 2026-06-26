@@ -97,19 +97,6 @@ enum TableViewAction {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LOAD DIRECTION
-// ═══════════════════════════════════════════════════════════
-
-/// Direction for loading more data.
-enum LoadDirection {
-  /// Load next page (cursor near end).
-  forward,
-
-  /// Load previous page (cursor near start).
-  backward,
-}
-
-// ═══════════════════════════════════════════════════════════
 // SCROLL STATE
 // ═══════════════════════════════════════════════════════════
 
@@ -170,29 +157,6 @@ class TableViewStyle {
 // ═══════════════════════════════════════════════════════════
 // COMMANDS
 // ═══════════════════════════════════════════════════════════
-
-/// Emitted when cursor nears edge of loaded data.
-@immutable
-class TableLoadMoreCmd extends Cmd {
-  /// Id of the table view model that needs more data.
-  final String id;
-
-  /// Direction to load (forward/backward).
-  final LoadDirection direction;
-
-  /// Creates a TableLoadMoreCmd.
-  const TableLoadMoreCmd(this.id, {required this.direction});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is TableLoadMoreCmd && other.id == id && other.direction == direction;
-
-  @override
-  int get hashCode => Object.hash(id, direction);
-
-  @override
-  String toString() => 'TableLoadMoreCmd($id, direction: ${direction.name})';
-}
 
 /// Emitted when an action is triggered on the table.
 ///

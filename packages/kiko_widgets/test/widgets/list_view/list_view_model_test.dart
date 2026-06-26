@@ -10,18 +10,18 @@ void main() {
     group('initialization', () {
       test('default state', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+          dataView: DataView.fromList(['a', 'b', 'c']),
         );
         expect(model.cursor, equals(0));
         expect(model.getSelectedKeys(), isEmpty);
         expect(model.focused, isFalse);
-        expect(model.dataSource.length, equals(3));
+        expect(model.dataView.length, equals(3));
         expect(model.cursorItem, equals('a'));
       });
 
       test('config fields', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
           itemHeight: 2,
           multiSelect: true,
           loadMoreThreshold: 10,
@@ -36,7 +36,7 @@ void main() {
       test('custom itemKey', () {
         final model =
             ListViewModel<Map<String, dynamic>, String>(
-                dataSource: ListDataSource.fromList([
+                dataView: DataView.fromList([
                   {'id': 'a', 'name': 'Alice'},
                   {'id': 'b', 'name': 'Bob'},
                 ]),
@@ -57,7 +57,7 @@ void main() {
 
       setUp(() {
         model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+          dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
           focused: true,
         )..setVisibleCount(3);
       });
@@ -135,7 +135,7 @@ void main() {
 
       setUp(() {
         model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(
+          dataView: DataView.fromList(
             List.generate(20, (i) => 'item$i'),
           ),
           focused: true,
@@ -174,7 +174,7 @@ void main() {
       group('single select disabled by default', () {
         test('space does nothing without multiSelect', () {
           final model = ListViewModel<String, String>(
-            dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+            dataView: DataView.fromList(['a', 'b', 'c']),
             focused: true,
           )..update(keyMsg('space'));
           expect(model.getSelectedKeys(), isEmpty);
@@ -186,7 +186,7 @@ void main() {
 
         setUp(() {
           model = ListViewModel<String, String>(
-            dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+            dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
             multiSelect: true,
             focused: true,
           )..setVisibleCount(5);
@@ -222,7 +222,7 @@ void main() {
 
         setUp(() {
           model = ListViewModel<String, String>(
-            dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+            dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
             multiSelect: true,
             focused: true,
           )..setVisibleCount(5);
@@ -286,7 +286,7 @@ void main() {
 
           // Shrink data source - anchor (4) now stale
           model
-            ..dataSource = ListDataSource.fromList(['a', 'b'])
+            ..dataView = DataView.fromList(['a', 'b'])
             // Range select should not crash with stale anchor
             // Loop iterates anchor..cursor but _safeItemAt returns null for invalid
             ..update(keyMsg('shift+up'));
@@ -299,7 +299,7 @@ void main() {
         test('disabled items cannot be checked', () {
           final model =
               ListViewModel<String, String>(
-                  dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+                  dataView: DataView.fromList(['a', 'b', 'c']),
                   multiSelect: true,
                   isDisabled: (i) => i == 1,
                   focused: true,
@@ -313,7 +313,7 @@ void main() {
         test('range select skips disabled', () {
           final model =
               ListViewModel<String, String>(
-                  dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd']),
+                  dataView: DataView.fromList(['a', 'b', 'c', 'd']),
                   multiSelect: true,
                   isDisabled: (i) => i == 1,
                   focused: true,
@@ -330,7 +330,7 @@ void main() {
     group('commands', () {
       test('enter returns ListConfirmCmd', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b']),
+          dataView: DataView.fromList(['a', 'b']),
           focused: true,
         );
         final cmd = model.update(keyMsg('enter'));
@@ -340,7 +340,7 @@ void main() {
 
       test('unhandled key returns Unhandled', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
           focused: true,
         );
         final cmd = model.update(keyMsg('tab'));
@@ -349,7 +349,7 @@ void main() {
 
       test('unfocused returns Unhandled', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
         );
         final cmd = model.update(keyMsg('down'));
         expect(cmd, isA<Unhandled>());
@@ -357,7 +357,7 @@ void main() {
 
       test('non-key message returns null', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
           focused: true,
         );
         final cmd = model.update(const NoneMsg());
@@ -365,29 +365,40 @@ void main() {
       });
     });
 
-    group('LoadMoreCmd', () {
-      test('emitted when near end with hasMore', () {
-        final source = _PaginatedSource(['a', 'b', 'c', 'd', 'e']);
-        final model =
-            ListViewModel<String, String>(
-                dataSource: source,
-                loadMoreThreshold: 2,
-                focused: true,
-              )
-              ..setVisibleCount(5)
-              // Move to index 3 (2 from end)
-              ..update(keyMsg('down'))
-              ..update(keyMsg('down'))
-              ..update(keyMsg('down'));
+    group('load requests', () {
+      ListViewModel<String, String> paginated() => ListViewModel<String, String>(
+        dataView: DataBuffer<String>(['a', 'b', 'c', 'd', 'e'])..hasMore = true,
+        loadMoreThreshold: 2,
+        focused: true,
+      )..setVisibleCount(5);
+
+      test('returns a LoadRequest when the cursor nears the end', () {
+        final model = paginated()
+          ..update(keyMsg('down')) // cursor 1
+          ..update(keyMsg('down')); // cursor 2
+
+        final cmd = model.update(keyMsg('down')); // cursor 3 — within threshold
+        expect(cmd, isA<LoadRequest>());
+        expect((cmd! as LoadRequest).id, equals(model.id));
+        expect((cmd as LoadRequest).key, equals(ListLoadKey.self));
+        expect(model.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
+      });
+
+      test('does not re-request while a load is already in flight (self-dedup)', () {
+        final model = paginated()
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down')); // first request emitted, slot now loading
+        expect(model.isLoading(), isTrue);
 
         final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<ListLoadMoreCmd>());
+        expect(cmd, isNull, reason: 'the slot is already loading');
       });
 
       test('not emitted when hasMore is false', () {
         final model =
             ListViewModel<String, String>(
-                dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+                dataView: DataView.fromList(['a', 'b', 'c']),
                 loadMoreThreshold: 2,
                 focused: true,
               )
@@ -396,26 +407,91 @@ void main() {
               ..update(keyMsg('down'));
 
         final cmd = model.update(keyMsg('down'));
-        // fromList has hasMore = false, so no LoadMoreCmd
+        // A static fromList view has hasMore = false, so no request.
         expect(cmd, isNull);
+      });
+    });
+
+    group('load lifecycle', () {
+      ListViewModel<String, String> paginated() => ListViewModel<String, String>(
+        dataView: DataBuffer<String>(['a', 'b']),
+        pageSize: 2,
+        focused: true,
+      )..setVisibleCount(5);
+
+      test('loadFirstPage marks the slot loading and returns a request', () {
+        final model = ListViewModel<String, String>(
+          dataView: DataBuffer<String>(),
+          pageSize: 2,
+          focused: true,
+        );
+        final req = model.loadFirstPage();
+        expect(req.id, equals(model.id));
+        expect(req.key, equals(ListLoadKey.self));
+        expect(model.isLoading(), isTrue);
+      });
+
+      test('applyLoad appends the page and clears the slot', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['c', 'd']));
+
+        expect(model.dataView.length, equals(4));
+        expect(model.cursorItem, equals('a'));
+        expect(model.isLoading(), isFalse);
+        expect(model.dataView.hasMore, isTrue, reason: 'a full page means more may remain');
+      });
+
+      test('a short page ends pagination', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['c']));
+
+        expect(model.dataView.length, equals(3));
+        expect(model.dataView.hasMore, isFalse);
+      });
+
+      test('a failed load records the error and is retryable', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, error: 'boom'));
+
+        expect(model.isLoading(), isFalse);
+        expect(model.errorFor(ListLoadKey.self), equals('boom'));
+      });
+
+      test('a result for an idle slot is dropped (staleness guard)', () {
+        final model = paginated();
+        // No loadFirstPage — the slot is idle, so this is a stale arrival.
+        model.applyLoad(LoadResult<List<String>>(model.id, key: ListLoadKey.self, data: const ['x']));
+        expect(model.dataView.length, equals(2), reason: 'a stale result must not append');
+      });
+
+      test('a result for another id is ignored', () {
+        final model = paginated()
+          ..loadFirstPage()
+          ..applyLoad(const LoadResult<List<String>>('other', key: ListLoadKey.self, data: ['x']));
+
+        expect(model.dataView.length, equals(2));
+        expect(model.isLoading(), isTrue, reason: 'still waiting for its own result');
       });
     });
 
     group('empty list', () {
       test('handles empty data source', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList([]),
+          dataView: DataView.fromList([]),
           focused: true,
         );
         expect(model.cursor, equals(0));
         expect(model.cursorItem, isNull);
-        expect(model.dataSource.length, equals(0));
+        expect(model.dataView.length, equals(0));
       });
 
       test('navigation on empty list is safe', () {
         final model =
             ListViewModel<String, String>(
-                dataSource: ListDataSource.fromList([]),
+                dataView: DataView.fromList([]),
                 focused: true,
               )
               ..setVisibleCount(5)
@@ -427,16 +503,6 @@ void main() {
 
         expect(model.cursor, equals(0));
       });
-    });
-  });
-
-  group('ListDataSource', () {
-    test('fromList creates adapter', () {
-      final source = ListDataSource.fromList(['a', 'b', 'c']);
-      expect(source.length, equals(3));
-      expect(source.itemAt(0), equals('a'));
-      expect(source.itemAt(2), equals('c'));
-      expect(source.hasMore, isFalse);
     });
   });
 
@@ -466,19 +532,4 @@ void main() {
       expect(state.thumbSize, equals(0.1));
     });
   });
-}
-
-/// Test data source with hasMore = true.
-class _PaginatedSource implements ListDataSource<String> {
-  final List<String> _items;
-  _PaginatedSource(this._items);
-
-  @override
-  int get length => _items.length;
-
-  @override
-  String itemAt(int index) => _items[index];
-
-  @override
-  bool get hasMore => true;
 }

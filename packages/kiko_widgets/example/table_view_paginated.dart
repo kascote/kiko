@@ -2,10 +2,10 @@
 //
 // Shows:
 // - Custom TableDataSource for async pagination
-// - LoadPageCmd handling for infinite scroll
+// - LoadRequest / LoadResult handling for infinite scroll (forward + backward)
 // - Sliding window (keeps windowSize rows in memory)
 // - Loading state indicator
-// - Total count fetching
+// - Total count as a benign one-shot
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -82,21 +82,8 @@ class ProductApiDataSource implements TableDataSource {
 // MESSAGES
 // ═══════════════════════════════════════════════════════════
 
-// Async results carry the id of the table they belong to, so the app routes
-// each result back to the right instance.
-class DataLoadedMsg extends Msg {
-  final String id;
-  final List<Map<String, Object?>> rows;
-  final int pageNum;
-  DataLoadedMsg(this.id, this.rows, this.pageNum);
-}
-
-class DataLoadErrorMsg extends Msg {
-  final String id;
-  final Object error;
-  DataLoadErrorMsg(this.id, this.error);
-}
-
+// Pages route home through the generic LoadResult; the only table-specific
+// message left is the total count, a benign one-shot that is not a tracked load.
 class CountLoadedMsg extends Msg {
   final String id;
   final int count;
@@ -180,6 +167,22 @@ class AppModel with ThemeSwitcher {
   );
 
   String? error;
+  bool initialized = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD PLUMBING (one shape for the first page and each near-edge page)
+// ═══════════════════════════════════════════════════════════
+
+/// Turns a table [LoadRequest] into the page fetch that resolves it, routing the
+/// outcome home as a [LoadResult] (rows on success, error on failure).
+Cmd fetchPage(AppModel model, LoadRequest req) {
+  final page = model.table.pendingPage(req.key! as TableLoadKey)!;
+  return Task<List<Map<String, Object?>>>(
+    () => model.dataSource.getPage(page, model.table.pageSize),
+    onSuccess: (rows) => LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, data: rows),
+    onError: (e) => LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, error: e),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -189,78 +192,43 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Initial load on startup
-  if (msg is InitMsg) {
-    model.table.isLoading = true;
-    return (
-      model,
-      Batch([
-        // Fetch total count
-        Task(
-          model.dataSource.fetchCount,
-          onSuccess: (count) => CountLoadedMsg(model.table.id, count),
-          onError: (e) => DataLoadErrorMsg(model.table.id, e),
-        ),
-        // Load first page
-        Task(
-          () => model.dataSource.getPage(0, model.table.pageSize),
-          onSuccess: (rows) => DataLoadedMsg(model.table.id, rows, 0),
-          onError: (e) => DataLoadErrorMsg(model.table.id, e),
-        ),
-      ]),
-    );
+  // Page results route home by id, then install generically — applyLoad clears
+  // the slot on success or records the error on failure.
+  if (msg case final LoadResult<Object?> r) {
+    if (r.id == model.table.id) {
+      model.table.applyLoad(r);
+      model.error = r.ok ? null : 'Failed to load: ${r.error}';
+    }
+    return (model, null);
   }
 
-  // Handle count loaded — resolve home by id (single instance: a guard)
+  // Total count is a benign one-shot, not a tracked load — a missing count just
+  // leaves the scrollbar indeterminate.
   if (msg is CountLoadedMsg) {
     if (msg.id == model.table.id) model.table.totalCount = msg.count;
     return (model, null);
   }
 
-  // Handle data loaded — resolve home by id
-  if (msg is DataLoadedMsg) {
-    if (msg.id == model.table.id) {
-      model.table
-        ..insertRows(msg.rows, msg.pageNum)
-        ..isLoading = false;
-      model.error = null;
-    }
-    return (model, null);
-  }
-
-  // Handle error — resolve home by id
-  if (msg is DataLoadErrorMsg) {
-    if (msg.id == model.table.id) {
-      model.table.isLoading = false;
-      model.error = 'Failed to load: ${msg.error}';
-    }
-    return (model, null);
-  }
-
-  // Route to table
-  final cmd = model.table.update(msg);
-
-  // Handle load page command
-  if (cmd case TableLoadMoreCmd(:final id, :final direction)) {
-    if (id == model.table.id && !model.table.isLoading) {
-      model.table.isLoading = true;
-      final pageNum = direction == LoadDirection.forward ? model.table.nextPageNum : model.table.prevPageNum;
-
-      if (pageNum < 0) {
-        model.table.isLoading = false;
-        return (model, null);
-      }
-
-      return (
-        model,
+  // Kick off the first page and the count once.
+  if (msg is InitMsg && !model.initialized) {
+    model.initialized = true;
+    return (
+      model,
+      Batch([
+        fetchPage(model, model.table.loadFirstPage()),
         Task(
-          () => model.dataSource.getPage(pageNum, model.table.pageSize),
-          onSuccess: (rows) => DataLoadedMsg(id, rows, pageNum),
-          onError: (e) => DataLoadErrorMsg(id, e),
+          model.dataSource.fetchCount,
+          onSuccess: (count) => CountLoadedMsg(model.table.id, count),
+          onError: (_) => const NoneMsg(),
         ),
-      );
-    }
-    return (model, null);
+      ]),
+    );
+  }
+
+  // A near-edge navigation may request the next or previous page.
+  final cmd = model.table.update(msg);
+  if (cmd case final LoadRequest r when r.id == model.table.id) {
+    return (model, fetchPage(model, r));
   }
 
   if (cmd is! Unhandled) return (model, cmd);
@@ -289,14 +257,16 @@ void appView(AppModel model, Frame frame) {
   final countStr = table.totalCount != null ? '${table.totalCount}' : '?';
   final titleText = 'Products ($countStr total, ${table.cachedRowCount} cached)';
 
+  final loading = table.isLoading();
+
   final tableWidget = Block(
     borders: Borders.all,
-    borderStyle: table.isLoading ? theme.warning : theme.focus,
+    borderStyle: loading ? theme.warning : theme.focus,
     child: TableView(model: table, theme: theme),
-  ).titleTop(Line(titleText, style: table.isLoading ? theme.warning : theme.focus));
+  ).titleTop(Line(titleText, style: loading ? theme.warning : theme.focus));
 
   // Status
-  final status = table.isLoading ? 'Loading...' : model.error ?? 'Ready';
+  final status = loading ? 'Loading...' : model.error ?? 'Ready';
 
   final statusBox = Fixed(
     3,
@@ -304,7 +274,7 @@ void appView(AppModel model, Frame frame) {
       borders: Borders.all,
       borderStyle: model.error != null
           ? theme.error
-          : table.isLoading
+          : loading
           ? theme.warning
           : theme.success,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -313,7 +283,7 @@ void appView(AppModel model, Frame frame) {
         style: Style(
           fg: model.error != null
               ? theme.error.fg
-              : table.isLoading
+              : loading
               ? theme.warning.fg
               : theme.success.fg,
         ),

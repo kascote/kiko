@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
-import 'data_source.dart';
+import '../../load/data_view.dart';
+import '../../load/load.dart';
 import 'types.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -9,26 +10,49 @@ import 'types.dart';
 
 /// Model for ListView state and behavior.
 ///
-/// Holds cursor position, selection state, and scroll offset.
-/// Implements [Component] for focus management and id addressing.
+/// Holds cursor position, selection state, scroll offset, and the load state of
+/// its one pending fetch. Implements [Component] (stable [id] + [update]) for
+/// addressing and focus, and [Loadable] so the app can install fetched pages
+/// with [applyLoad].
+///
+/// The model performs no I/O. It renders through a read-only [DataView]; when the
+/// cursor nears the end and more data can be loaded, [update] returns a
+/// [LoadRequest] instead of fetching anything itself. The app turns the request
+/// into a runtime `Task` and hands the page back through [applyLoad], which
+/// appends it to the buffer.
 ///
 /// ```dart
+/// // Static list — synchronous, never loads:
 /// final listModel = ListViewModel<String, String>(
-///   dataSource: ListDataSource.fromList(['Apple', 'Banana', 'Cherry']),
+///   dataView: DataView.fromList(['Apple', 'Banana', 'Cherry']),
+///   focused: true,
+/// );
+///
+/// // Paginated — app calls loadFirstPage() on init, then feeds applyLoad:
+/// final listModel = ListViewModel<User, String>(
+///   dataView: DataBuffer<User>(),
+///   itemKey: (u) => u.id,
+///   pageSize: 20,
 ///   focused: true,
 /// );
 /// ```
-class ListViewModel<T, K> implements Component {
+class ListViewModel<T, K> implements Component, Loadable {
   /// Stable address for this model, carried by value in the widget→app commands
-  /// it emits ([ListActionCmd], [ListLoadMoreCmd]).
+  /// it emits ([ListActionCmd]) and the [LoadRequest] it returns when more data
+  /// is needed.
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
   /// or to disambiguate multiple instances.
   @override
   final String id;
 
-  /// The data source providing items.
-  ListDataSource<T> dataSource;
+  /// The items this list renders.
+  ///
+  /// Read-only by contract: the model renders through it and grows it only
+  /// through [applyLoad]. For a paginated list this is a [DataBuffer] the model
+  /// appends pages to; a static [DataView.fromList] never loads. Reassign it to
+  /// swap the whole backing (e.g. a client-side filter rebuilding its results).
+  DataView<T> dataView;
 
   // ─────────────────────────────────────────────
   // State
@@ -40,8 +64,7 @@ class ListViewModel<T, K> implements Component {
   int? _selectionAnchor;
   int _visibleCount = 0;
 
-  /// Whether data is currently loading (user manages this externally).
-  bool isLoading = false;
+  final _loads = LoadTracker<ListLoadKey>();
 
   /// Whether the list is focused.
   @override
@@ -57,8 +80,15 @@ class ListViewModel<T, K> implements Component {
   /// Whether multiple items can be selected.
   final bool multiSelect;
 
-  /// Emit [ListLoadMoreCmd] when cursor is within this many items from end.
+  /// Return a [LoadRequest] when the cursor is within this many items of the end.
   final int loadMoreThreshold;
+
+  /// Items expected per page, used to tell when the last page has arrived.
+  ///
+  /// After a page is applied, the list keeps [DataView.hasMore] true only while
+  /// the page came back full; a short page means there is no more to load. Has no
+  /// effect on a static list, which never loads.
+  final int pageSize;
 
   /// Returns true if item at index is disabled (can't be selected).
   final bool Function(int index)? isDisabled;
@@ -77,12 +107,13 @@ class ListViewModel<T, K> implements Component {
   ///
   /// Pass a custom [keyBinding] to override default key bindings.
   ListViewModel({
-    required this.dataSource,
+    required this.dataView,
     String? id,
     K Function(T item)? itemKey,
     this.itemHeight = 1,
     this.multiSelect = false,
     this.loadMoreThreshold = 5,
+    this.pageSize = 20,
     this.focused = false,
     this.isDisabled,
     KeyBinding<ListViewAction>? keyBinding,
@@ -130,8 +161,60 @@ class ListViewModel<T, K> implements Component {
   ScrollState getScrollState() => ScrollState(
     offset: _scrollOffset,
     visible: _visibleCount,
-    total: dataSource.length,
+    total: dataView.length,
   );
+
+  // ─────────────────────────────────────────────
+  // Load lifecycle
+  // ─────────────────────────────────────────────
+
+  /// Whether the list's page fetch is in flight.
+  ///
+  /// Pass [ListLoadKey.self] or nothing — the list has a single load slot.
+  bool isLoading([ListLoadKey? key]) => _loads.isLoading(key);
+
+  /// The error from a failed load, or null if the last load didn't fail.
+  Object? errorFor(ListLoadKey key) => _loads.errorFor(key);
+
+  /// Starts the initial page load: marks the slot loading and returns the
+  /// [LoadRequest] for the app to fetch.
+  ///
+  /// The app calls this once (e.g. on init), turns the request into a page fetch,
+  /// and installs the result via [applyLoad]. Until then `isLoading()` is true.
+  LoadRequest loadFirstPage() {
+    _loads.begin(ListLoadKey.self);
+    return LoadRequest(id, key: ListLoadKey.self);
+  }
+
+  /// Installs the outcome of a page load and clears (or fails) the slot.
+  ///
+  /// This is the app's single entry point for delivering a fetched page. A result
+  /// for another model (by id), a non-list key, or a slot that is no longer
+  /// loading (e.g. after the backing was swapped) is dropped rather than
+  /// appending to the wrong list.
+  ///
+  /// On success the items are appended to the buffer, and [DataView.hasMore] is
+  /// kept true only while the page came back full (a short page is the last). On
+  /// failure the slot records the error; a later near-edge navigation retries it.
+  @override
+  void applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return;
+    if (result.key != ListLoadKey.self) return;
+    // Staleness guard: only a slot still in flight accepts a result.
+    if (!_loads.isLoading(ListLoadKey.self)) return;
+    if (result.ok) {
+      final items = (result.data as List<T>?) ?? <T>[];
+      final buffer = dataView;
+      if (buffer is DataBuffer<T>) {
+        buffer
+          ..append(items)
+          ..hasMore = items.length >= pageSize;
+      }
+      _loads.complete(ListLoadKey.self);
+    } else {
+      _loads.fail(ListLoadKey.self, result.error!);
+    }
+  }
 
   // ─────────────────────────────────────────────
   // Update
@@ -158,7 +241,7 @@ class ListViewModel<T, K> implements Component {
           _adjustScrollToCursor();
           _selectionAnchor = null;
         case ListViewAction.last:
-          final len = dataSource.length;
+          final len = dataView.length;
           if (len != null && len > 0) _cursor = len - 1;
           _adjustScrollToCursor();
           _selectionAnchor = null;
@@ -178,13 +261,7 @@ class ListViewModel<T, K> implements Component {
           if (multiSelect) _rangeSelect(1);
       }
 
-      // Check if need to load more
-      final len = dataSource.length;
-      if (dataSource.hasMore && len != null) {
-        if (_cursor >= len - loadMoreThreshold) {
-          return ListLoadMoreCmd(id);
-        }
-      }
+      return _checkLoadThreshold();
     }
 
     return null;
@@ -194,15 +271,28 @@ class ListViewModel<T, K> implements Component {
   // Private helpers
   // ─────────────────────────────────────────────
 
+  /// Returns a [LoadRequest] when the cursor nears the end and more data can be
+  /// loaded, marking the slot loading so the same page isn't asked for twice.
+  Cmd? _checkLoadThreshold() {
+    final len = dataView.length;
+    if (dataView.hasMore && len != null && !_loads.isLoading(ListLoadKey.self)) {
+      if (_cursor >= len - loadMoreThreshold) {
+        _loads.begin(ListLoadKey.self);
+        return LoadRequest(id, key: ListLoadKey.self);
+      }
+    }
+    return null;
+  }
+
   T? _safeItemAt(int index) {
     if (index < 0) return null;
-    final len = dataSource.length;
+    final len = dataView.length;
     if (len != null && index >= len) return null;
-    return dataSource.itemAt(index);
+    return dataView.itemAt(index);
   }
 
   void _moveCursor(int delta) {
-    final len = dataSource.length;
+    final len = dataView.length;
     final maxIndex = len != null ? len - 1 : _cursor + delta.abs();
     _cursor = (_cursor + delta).clamp(0, maxIndex.clamp(0, 999999));
     _adjustScrollToCursor();

@@ -10,7 +10,7 @@ void main() {
     group('basic rendering', () {
       test('renders items', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['Apple', 'Banana', 'Cherry']),
+          dataView: DataView.fromList(['Apple', 'Banana', 'Cherry']),
           focused: true,
         );
 
@@ -30,7 +30,7 @@ void main() {
 
       test('updates visibleCount on model', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+          dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
         );
 
         final listView = ListView<String, String>(
@@ -47,7 +47,7 @@ void main() {
 
       test('respects itemHeight', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+          dataView: DataView.fromList(['a', 'b', 'c']),
           itemHeight: 2,
         );
 
@@ -72,7 +72,7 @@ void main() {
     group('empty state', () {
       test('renders nothing when empty and no placeholder', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList([]),
+          dataView: DataView.fromList([]),
         );
 
         final listView = ListView<String, String>(
@@ -90,7 +90,7 @@ void main() {
 
       test('renders placeholder when empty', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList([]),
+          dataView: DataView.fromList([]),
         );
 
         final listView = ListView<String, String>(
@@ -111,7 +111,7 @@ void main() {
     group('separator', () {
       test('renders separators between items', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+          dataView: DataView.fromList(['a', 'b', 'c']),
         );
 
         final listView = ListView<String, String>(
@@ -135,7 +135,7 @@ void main() {
 
       test('calculates visibleCount with separator', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+          dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
         );
 
         final listView = ListView<String, String>(
@@ -157,7 +157,7 @@ void main() {
     group('itemBuilder parameters', () {
       test('passes correct focused state', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+          dataView: DataView.fromList(['a', 'b', 'c']),
           focused: true,
         );
 
@@ -181,7 +181,7 @@ void main() {
       test('passes correct checked state', () {
         final model =
             ListViewModel<String, String>(
-                dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+                dataView: DataView.fromList(['a', 'b', 'c']),
                 multiSelect: true,
                 focused: true,
               )
@@ -206,7 +206,7 @@ void main() {
 
       test('passes correct disabled state', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a', 'b', 'c']),
+          dataView: DataView.fromList(['a', 'b', 'c']),
           isDisabled: (i) => i == 1,
         );
 
@@ -231,7 +231,7 @@ void main() {
       test('renders from scrollOffset', () {
         final model =
             ListViewModel<String, String>(
-                dataSource: ListDataSource.fromList(['a', 'b', 'c', 'd', 'e']),
+                dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
                 focused: true,
               )
               ..setVisibleCount(2)
@@ -257,7 +257,7 @@ void main() {
     group('edge cases', () {
       test('handles empty area', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
         );
 
         final listView = ListView<String, String>(
@@ -273,7 +273,7 @@ void main() {
 
       test('handles height less than itemHeight', () {
         final model = ListViewModel<String, String>(
-          dataSource: ListDataSource.fromList(['a']),
+          dataView: DataView.fromList(['a']),
           itemHeight: 3,
         );
 

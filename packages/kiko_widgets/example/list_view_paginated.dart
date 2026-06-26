@@ -1,10 +1,10 @@
 // Paginated ListView with simulated API loading.
 //
 // Shows:
-// - Custom ListDataSource for accumulating data
-// - LoadMoreCmd handling for infinite scroll
-// - Loading state indicator
-// - Async data fetching with AsyncCmd
+// - A widget-owned DataBuffer the model appends pages into
+// - LoadRequest / LoadResult handling for infinite scroll
+// - Loading + error state via the LoadTracker (no app-managed flag)
+// - The app owns the fetcher closure; the widget never awaits
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -12,7 +12,7 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 import 'shared/theme_switcher.dart';
 
 // ═══════════════════════════════════════════════════════════
-// DATA SOURCE
+// DATA
 // ═══════════════════════════════════════════════════════════
 
 class User {
@@ -23,37 +23,21 @@ class User {
   const User(this.id, this.name, this.role);
 }
 
-/// Simulated API data source that loads pages of users.
-class UserApiDataSource implements ListDataSource<User> {
-  final List<User> _users = [];
-  bool _hasMore = true;
-  static const _pageSize = 10;
+/// Simulated API — a pure fetcher the app owns. It returns one page at a given
+/// offset; it holds no list state (the widget's buffer does that now).
+class UserApi {
+  static const pageSize = 10;
   static const _totalUsers = 50;
 
-  @override
-  int get length => _users.length;
-
-  @override
-  User itemAt(int index) => _users[index];
-
-  @override
-  bool get hasMore => _hasMore;
-
-  /// Simulates API call with delay.
-  Future<void> loadMore() async {
-    // Simulate network delay
+  /// Simulates an API call with a delay, returning the page at [offset].
+  Future<List<User>> fetchPage(int offset) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
-    final offset = _users.length;
     final remaining = _totalUsers - offset;
-    final count = remaining.clamp(0, _pageSize);
-
-    for (var i = 0; i < count; i++) {
-      final n = offset + i + 1;
-      _users.add(User('u$n', 'User $n', _roleFor(n)));
-    }
-
-    _hasMore = _users.length < _totalUsers;
+    final count = remaining.clamp(0, pageSize);
+    return [
+      for (var i = 0; i < count; i++) User('u${offset + i + 1}', 'User ${offset + i + 1}', _roleFor(offset + i + 1)),
+    ];
   }
 
   String _roleFor(int n) {
@@ -64,36 +48,37 @@ class UserApiDataSource implements ListDataSource<User> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// MESSAGES
-// ═══════════════════════════════════════════════════════════
-
-// Async results carry the id of the list they belong to, so the app routes
-// each result back to the right instance (§3.4 of a2.1-id-addressing).
-class UsersLoadedMsg extends Msg {
-  final String id;
-  UsersLoadedMsg(this.id);
-}
-
-class UsersLoadErrorMsg extends Msg {
-  final String id;
-  final Object error;
-  UsersLoadErrorMsg(this.id, this.error);
-}
-
-// ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  final dataSource = UserApiDataSource();
+  final api = UserApi();
   late final list = ListViewModel<User, String>(
-    dataSource: dataSource,
+    dataView: DataBuffer<User>(),
     itemKey: (u) => u.id,
     itemHeight: 2,
+    pageSize: UserApi.pageSize,
     focused: true,
   );
 
   String? error;
+  bool initialized = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD PLUMBING (one shape for the first page and each near-edge page)
+// ═══════════════════════════════════════════════════════════
+
+/// Turns a list [LoadRequest] into the page fetch that resolves it, routing the
+/// outcome home as a [LoadResult] (users on success, error on failure). The next
+/// page starts where the buffer currently ends.
+Cmd fetchUsers(AppModel model, LoadRequest req) {
+  final offset = model.list.dataView.length ?? 0;
+  return Task<List<User>>(
+    () => model.api.fetchPage(offset),
+    onSuccess: (users) => LoadResult<List<User>>(req.id, key: req.key, data: users),
+    onError: (e) => LoadResult<List<User>>(req.id, key: req.key, error: e),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -103,54 +88,26 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Initial load on startup
-  if (msg is InitMsg) {
-    model.list.isLoading = true;
-    return (
-      model,
-      Task(
-        model.dataSource.loadMore,
-        onSuccess: (_) => UsersLoadedMsg(model.list.id),
-        onError: (e) => UsersLoadErrorMsg(model.list.id, e),
-      ),
-    );
-  }
-
-  // Handle load completion — resolve home by id (single instance: a guard)
-  if (msg is UsersLoadedMsg) {
-    if (msg.id == model.list.id) {
-      model
-        ..list.isLoading = false
-        ..error = null;
-    }
-    return (model, null);
-  }
-  if (msg is UsersLoadErrorMsg) {
-    if (msg.id == model.list.id) {
-      model
-        ..list.isLoading = false
-        ..error = 'Failed to load: ${msg.error}';
+  // Page results route home by id, then install generically — applyLoad appends
+  // the page and clears the slot on success, or records the error on failure.
+  if (msg case final LoadResult<Object?> r) {
+    if (r.id == model.list.id) {
+      model.list.applyLoad(r);
+      model.error = r.ok ? null : 'Failed to load: ${r.error}';
     }
     return (model, null);
   }
 
-  // Route to list
+  // Kick off the first page once.
+  if (msg is InitMsg && !model.initialized) {
+    model.initialized = true;
+    return (model, fetchUsers(model, model.list.loadFirstPage()));
+  }
+
+  // A near-edge navigation may request the next page.
   final cmd = model.list.update(msg);
-
-  // Handle load more
-  if (cmd case ListLoadMoreCmd(:final id)) {
-    if (id == model.list.id && !model.list.isLoading) {
-      model.list.isLoading = true;
-      return (
-        model,
-        Task(
-          model.dataSource.loadMore,
-          onSuccess: (_) => UsersLoadedMsg(id),
-          onError: (e) => UsersLoadErrorMsg(id, e),
-        ),
-      );
-    }
-    return (model, null);
+  if (cmd case final LoadRequest r when r.id == model.list.id) {
+    return (model, fetchUsers(model, r));
   }
 
   if (cmd is! Unhandled) return (model, cmd);
@@ -173,8 +130,10 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
+  final loading = model.list.isLoading();
+
   // Status indicator
-  final status = model.list.isLoading ? 'Loading...' : model.error ?? 'Loaded ${model.list.dataSource.length} users';
+  final status = loading ? 'Loading...' : model.error ?? 'Loaded ${model.list.dataView.length} users';
 
   final listWidget = Block(
     borders: Borders.all,
@@ -202,7 +161,7 @@ void appView(AppModel model, Frame frame) {
       },
       separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: theme.border)]),
       emptyPlaceholder: Text.raw(
-        model.list.isLoading ? 'Loading...' : 'No users',
+        loading ? 'Loading...' : 'No users',
         style: theme.muted,
       ),
     ),
@@ -214,7 +173,7 @@ void appView(AppModel model, Frame frame) {
       borders: Borders.all,
       borderStyle: model.error != null
           ? theme.error
-          : model.list.isLoading
+          : loading
           ? theme.warning
           : theme.success,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -223,7 +182,7 @@ void appView(AppModel model, Frame frame) {
         style: Style(
           fg: model.error != null
               ? theme.error.fg
-              : model.list.isLoading
+              : loading
               ? theme.warning.fg
               : theme.success.fg,
         ),

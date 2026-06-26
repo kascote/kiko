@@ -1,26 +1,28 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
 import 'tree_node.dart';
 import 'types.dart';
 
 /// Model for TreeView state and behavior.
 ///
-/// Holds expansion state and cursor position. Implements [Component] (stable
-/// [id] + [update]) for addressing and focus.
+/// Holds expansion state, cursor position, and the load state of each pending
+/// fetch. Implements [Component] (stable [id] + [update]) for addressing and
+/// focus, and [Loadable] so the app can install fetched data with [applyLoad].
 ///
-/// The model performs **no** I/O: the app owns the data source and drives every
-/// fetch via a runtime `Task`, then installs the result with [applyRoots] /
-/// [applyChildren]. [expand] returns a [TreeExpandCmd] as a *load request* when a
-/// node's children are not yet cached.
+/// The model performs no I/O. The app owns the data source and drives every
+/// fetch: it calls [loadRoots] once to start, and [expand] returns a
+/// [LoadRequest] when a node's children aren't loaded yet. The app turns each
+/// request into a runtime `Task` and hands the outcome back through [applyLoad].
 ///
 /// ```dart
-/// final treeModel = TreeViewModel<FileInfo>(focused: true);
-/// // app, on init: Task(treeData.getRoots, onSuccess: (r) => RootsLoaded(treeModel.id, r))
-/// // app, on result: treeModel.applyRoots(roots);
+/// final tree = TreeViewModel<FileInfo>(focused: true);
+/// // app, on init:   final req = tree.loadRoots();  // → fetch getRoots()
+/// // app, on result: tree.applyLoad(LoadResult(tree.id, key: req.key, data: roots));
 /// ```
-class TreeViewModel<T> implements Component {
+class TreeViewModel<T> implements Component, Loadable {
   /// Stable address for this model, carried by value in the widget→app commands
-  /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd]).
+  /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd], [LoadRequest]).
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
   /// or to disambiguate multiple instances.
@@ -32,7 +34,7 @@ class TreeViewModel<T> implements Component {
   // ─────────────────────────────────────────────
 
   final Set<String> _expanded = {};
-  final Set<String> _loading = {};
+  final _loads = LoadTracker<TreeLoadKey>();
   final Map<String, List<TreeNode<T>>> _childrenCache = {};
   List<TreeNode<T>> _flatNodes = [];
   List<TreeNode<T>>? _roots;
@@ -44,13 +46,6 @@ class TreeViewModel<T> implements Component {
   /// Whether the tree is focused.
   @override
   bool focused;
-
-  /// Whether the initial root load is in flight.
-  ///
-  /// The app sets this when it fires the `getRoots` task; [applyRoots] clears it
-  /// on completion (mirrors `TableViewModel.isLoading`). Per-node child loads are
-  /// tracked separately — see [isPathLoading].
-  bool isLoading = false;
 
   // ─────────────────────────────────────────────
   // Config
@@ -71,8 +66,11 @@ class TreeViewModel<T> implements Component {
   /// Whether nodes display icons.
   final bool showIcons;
 
-  /// Loading indicator label.
+  /// Placeholder shown beneath a node while its children load.
   final Line loadingIndicator;
+
+  /// Placeholder shown beneath a node whose child load failed.
+  final Line errorIndicator;
 
   /// Key bindings for tree actions.
   late final KeyBinding<TreeViewAction> keyBinding;
@@ -86,10 +84,12 @@ class TreeViewModel<T> implements Component {
     this.indicatorStyle,
     this.showIcons = false,
     Line? loadingIndicator,
+    Line? errorIndicator,
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
   }) : id = id ?? autoId('treeview'),
-       loadingIndicator = loadingIndicator ?? Line('Loading...') {
+       loadingIndicator = loadingIndicator ?? Line('Loading...'),
+       errorIndicator = errorIndicator ?? Line('Failed to load') {
     this.keyBinding = keyBinding ?? defaultTreeViewBindings.copy();
   }
 
@@ -115,8 +115,16 @@ class TreeViewModel<T> implements Component {
   /// Whether roots have been loaded.
   bool get isLoaded => _rootsLoaded;
 
-  /// Whether a specific path is loading children.
-  bool isPathLoading(String path) => _loading.contains(path);
+  /// Whether a fetch is in flight — for [key] if given, otherwise for any slot
+  /// (the roots or any node's children). Pass `const RootsKey()` for the roots
+  /// load specifically.
+  bool isLoading([TreeLoadKey? key]) => _loads.isLoading(key);
+
+  /// Whether the node at [path] is loading its children.
+  bool isPathLoading(String path) => _loads.isLoading(PathKey(path));
+
+  /// The error from a failed load for [key], or null if it didn't fail.
+  Object? errorFor(TreeLoadKey key) => _loads.errorFor(key);
 
   /// Whether a node is expanded.
   bool isExpanded(String path) => _expanded.contains(path);
@@ -136,34 +144,84 @@ class TreeViewModel<T> implements Component {
   // Public API - Programmatic control
   // ─────────────────────────────────────────────
 
-  /// Installs fetched root nodes, completing the initial load.
+  /// Starts the initial root load: marks the roots slot loading and returns the
+  /// [LoadRequest] for the app to fetch.
   ///
-  /// Called by the app in response to its `getRoots` task — the app drives the
-  /// fetch, the widget never performs I/O. Mutates inside the MVU loop.
-  void applyRoots(List<TreeNode<T>> roots) {
-    _roots = roots;
-    _rootsLoaded = true;
-    isLoading = false;
+  /// The app calls this once (e.g. on init), turns the request into a `getRoots`
+  /// fetch, and installs the result via [applyLoad]/[applyRoots]. Until then,
+  /// `isLoading(const RootsKey())` is true.
+  LoadRequest loadRoots() {
+    _loads.begin(const RootsKey());
+    return LoadRequest(id, key: const RootsKey());
+  }
+
+  /// Installs the outcome of a load and clears (or fails) its slot.
+  ///
+  /// This is the app's single entry point for delivering fetched data, keyed by
+  /// [LoadResult.key]: [RootsKey] installs roots, [PathKey] installs one node's
+  /// children. A result for another model (by id) or an unknown key is ignored.
+  ///
+  /// Child results are guarded: only a node whose load is still in flight accepts
+  /// one, so a late reply for a collapsed or already-loaded node is dropped rather
+  /// than corrupting the tree. Roots have no such guard — they load once.
+  @override
+  void applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return;
+    switch (result.key) {
+      case RootsKey():
+        _installRoots(result);
+      case PathKey(:final path):
+        _installChildren(path, result);
+      default:
+        // Unknown key — nothing to install.
+        return;
+    }
+  }
+
+  /// Installs fetched root [roots]. Typed shorthand for [applyLoad] with a
+  /// [RootsKey].
+  void applyRoots(List<TreeNode<T>> roots) =>
+      applyLoad(LoadResult<List<TreeNode<T>>>(id, key: const RootsKey(), data: roots));
+
+  /// Installs fetched [children] for [path]. Typed shorthand for [applyLoad] with
+  /// a [PathKey].
+  ///
+  /// Subject to the staleness guard: the node's load must be in flight (started
+  /// by [expand]); a result for a collapsed or idle path is dropped.
+  void applyChildren(String path, List<TreeNode<T>> children) =>
+      applyLoad(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
+
+  void _installRoots(LoadResult<Object?> result) {
+    if (result.ok) {
+      _roots = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
+      _rootsLoaded = true;
+      _loads.complete(const RootsKey());
+    } else {
+      _loads.fail(const RootsKey(), result.error!);
+    }
     _rebuildFlatNodes();
   }
 
-  /// Installs fetched [children] for [path], completing a load that [expand]
-  /// requested (by returning a [TreeExpandCmd]).
-  ///
-  /// Called by the app in response to its `getChildren` task. Mutates inside the
-  /// MVU loop and clears the per-node loading state.
-  void applyChildren(String path, List<TreeNode<T>> children) {
-    _childrenCache[path] = children;
-    _loading.remove(path);
+  void _installChildren(String path, LoadResult<Object?> result) {
+    // Staleness guard: drop results for nodes that are no longer loading
+    // (collapsed, already loaded, or never requested).
+    if (!_loads.stateFor(PathKey(path)).isLoading) return;
+    if (result.ok) {
+      _childrenCache[path] = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
+      _loads.complete(PathKey(path));
+    } else {
+      _loads.fail(PathKey(path), result.error!);
+    }
     _rebuildFlatNodes();
   }
 
   /// Expand a node.
   ///
-  /// If the node's children are already cached (or a load is in flight), expands
-  /// immediately and returns `null`. Otherwise marks the node loading and returns
-  /// a [TreeExpandCmd] as a *load request*: the app drives `getChildren` and
-  /// installs the result with [applyChildren]. The widget never performs I/O.
+  /// Returns `null` if the node can't expand (leaf, missing, or already open).
+  /// Otherwise emits a [TreeExpandCmd] event on every expansion. When the node's
+  /// children aren't loaded yet, it also emits a [LoadRequest] (the two wrapped in
+  /// a [Batch]) and shows a loading placeholder; the app drives the fetch and
+  /// installs the result with [applyLoad]. The widget never performs I/O.
   Cmd? expand(String path) {
     if (_expanded.contains(path)) return null;
 
@@ -171,17 +229,19 @@ class TreeViewModel<T> implements Component {
     if (node == null || node.isLeaf) return null;
 
     _expanded.add(path);
+    final event = TreeExpandCmd<T>(id, path, node);
 
-    // Children already loaded, or a load is already in flight — just show them.
-    if (_childrenCache.containsKey(path) || _loading.contains(path)) {
+    // Children already cached, or a load already in flight: just the event.
+    if (_childrenCache.containsKey(path) || _loads.isLoading(PathKey(path))) {
       _rebuildFlatNodes();
-      return null;
+      return event;
     }
 
-    // Children not cached: request a load and show the loading placeholder.
-    _loading.add(path);
+    // Children not loaded: event + load request; mark the slot so we don't ask
+    // twice.
+    _loads.begin(PathKey(path));
     _rebuildFlatNodes();
-    return TreeExpandCmd<T>(id, path, node);
+    return Batch([event, LoadRequest(id, key: PathKey(path))]);
   }
 
   /// Collapse a node.
@@ -192,6 +252,9 @@ class TreeViewModel<T> implements Component {
     if (node == null) return null;
 
     _expanded.remove(path);
+    // Cancel any pending or failed load: a late result must not resurrect a
+    // collapsed subtree, and re-expanding should retry from scratch.
+    _loads.complete(PathKey(path));
     _rebuildFlatNodes();
 
     // Adjust cursor if it was in collapsed subtree
@@ -204,8 +267,8 @@ class TreeViewModel<T> implements Component {
 
   /// Toggle expand/collapse.
   ///
-  /// Returns a [TreeExpandCmd] load request when expanding an uncached node (see
-  /// [expand]); a [TreeCollapseCmd] when collapsing; otherwise `null`.
+  /// When expanding an uncached node, returns the [Batch] load request from
+  /// [expand]; when collapsing, a [TreeCollapseCmd]; otherwise the expand event.
   Cmd? toggle(String path) {
     if (_expanded.contains(path)) {
       return collapse(path);
@@ -217,7 +280,7 @@ class TreeViewModel<T> implements Component {
   ///
   /// Best-effort over already-loaded data: ancestors whose children are not yet
   /// cached cannot be revealed here (the widget performs no I/O). Load the needed
-  /// subtree first (drive `getChildren` + [applyChildren]), then call this.
+  /// subtree first (via [expand] + [applyLoad]), then call this.
   void expandPath(String path) {
     // Build list of ancestors
     final ancestors = <String>[];
@@ -337,29 +400,25 @@ class TreeViewModel<T> implements Component {
     void addNodes(List<TreeNode<T>> nodes) {
       for (final node in nodes) {
         _flatNodes.add(node);
+        if (!_expanded.contains(node.path)) continue;
 
-        if (_expanded.contains(node.path)) {
-          if (_loading.contains(node.path)) {
-            // Show loading placeholder
-            _flatNodes.add(
-              TreeNode<T>(
-                path: '${node.path}/_loading',
-                label: loadingIndicator,
-                isLeaf: true,
-              ),
-            );
-          } else {
-            final children = _childrenCache[node.path];
-            if (children != null) {
-              addNodes(children);
-            }
-          }
+        final state = _loads.stateFor(PathKey(node.path));
+        if (state.isLoading) {
+          _flatNodes.add(_placeholder(node.path, '_loading', loadingIndicator));
+        } else if (state.failed) {
+          _flatNodes.add(_placeholder(node.path, '_error', errorIndicator));
+        } else {
+          final children = _childrenCache[node.path];
+          if (children != null) addNodes(children);
         }
       }
     }
 
     addNodes(_roots!);
   }
+
+  TreeNode<T> _placeholder(String parentPath, String suffix, Line label) =>
+      TreeNode<T>(path: '$parentPath/$suffix', label: label, isLeaf: true);
 
   TreeNode<T>? _findNode(String path) {
     // Check flat nodes first
@@ -416,8 +475,8 @@ class TreeViewModel<T> implements Component {
       return null;
     }
 
-    // Request expansion — returns a TreeExpandCmd load request when the node's
-    // children aren't cached yet (the app drives the fetch).
+    // Request expansion — returns a Batch (expand event + load request) when the
+    // node's children aren't cached yet (the app drives the fetch).
     return expand(node.path);
   }
 

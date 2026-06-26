@@ -38,22 +38,6 @@ void main() {
       });
     });
 
-    group('ListLoadMoreCmd (address: id)', () {
-      test('equal iff id matches', () {
-        expect(ListLoadMoreCmd(v('l')), equals(ListLoadMoreCmd(v('l'))));
-        expect(ListLoadMoreCmd(v('l')).hashCode, equals(ListLoadMoreCmd(v('l')).hashCode));
-        expect(ListLoadMoreCmd(v('l')), isNot(equals(ListLoadMoreCmd(v('m')))));
-      });
-
-      test('toString shows the address', () {
-        expect(ListLoadMoreCmd(v('l')).toString(), equals('ListLoadMoreCmd(l)'));
-      });
-
-      test('distinct from ListActionCmd with the same id', () {
-        expect(ListLoadMoreCmd(v('l')), isNot(equals(ListActionCmd(v('l')))));
-      });
-    });
-
     group('TableActionCmd (address: id + action)', () {
       test('equal iff id and action match', () {
         expect(TableActionCmd(v('t'), v('primary')), equals(TableActionCmd(v('t'), v('primary'))));
@@ -67,34 +51,6 @@ void main() {
 
       test('toString shows id and action', () {
         expect(TableActionCmd(v('t'), v('primary')).toString(), equals('TableActionCmd(t, primary)'));
-      });
-    });
-
-    group('TableLoadMoreCmd (address: id + direction)', () {
-      test('equal iff id and direction match', () {
-        expect(
-          TableLoadMoreCmd(v('t'), direction: LoadDirection.forward),
-          equals(TableLoadMoreCmd(v('t'), direction: LoadDirection.forward)),
-        );
-        expect(
-          TableLoadMoreCmd(v('t'), direction: LoadDirection.forward).hashCode,
-          equals(TableLoadMoreCmd(v('t'), direction: LoadDirection.forward).hashCode),
-        );
-        expect(
-          TableLoadMoreCmd(v('t'), direction: LoadDirection.forward),
-          isNot(equals(TableLoadMoreCmd(v('t'), direction: LoadDirection.backward))),
-        );
-        expect(
-          TableLoadMoreCmd(v('t'), direction: LoadDirection.forward),
-          isNot(equals(TableLoadMoreCmd(v('u'), direction: LoadDirection.forward))),
-        );
-      });
-
-      test('toString shows id and direction', () {
-        expect(
-          TableLoadMoreCmd(v('t'), direction: LoadDirection.forward).toString(),
-          equals('TableLoadMoreCmd(t, direction: forward)'),
-        );
       });
     });
 

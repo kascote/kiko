@@ -53,7 +53,7 @@ class ListView<T, K> extends Widget {
   /// When defined, effective row height = itemHeight + 1.
   final Line Function()? separatorBuilder;
 
-  /// Shown when dataSource is empty.
+  /// Shown when the data view is empty.
   final Widget? emptyPlaceholder;
 
   /// Creates a ListView widget.
@@ -74,8 +74,8 @@ class ListView<T, K> extends Widget {
     if (renderArea.isEmpty) return;
 
     final m = model;
-    final dataSource = m.dataSource;
-    final itemCount = dataSource.length ?? 0;
+    final dataView = m.dataView;
+    final itemCount = dataView.length ?? 0;
 
     // 1. If empty, render placeholder and return
     if (itemCount == 0) {
@@ -110,7 +110,7 @@ class ListView<T, K> extends Widget {
     var y = renderArea.y;
 
     for (var i = startIndex; i < endIndex; i++) {
-      final item = dataSource.itemAt(i);
+      final item = dataView.itemAt(i);
       final isFocused = i == m.cursor;
       final isChecked = m.isSelected(i);
       final isDisabled = m.isDisabled?.call(i) ?? false;

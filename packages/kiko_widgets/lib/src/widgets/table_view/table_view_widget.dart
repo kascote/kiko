@@ -58,7 +58,7 @@ class TableView extends Widget {
 
     // 2. Check for empty state
     final (loadedStart, loadedEnd) = model.loadedRange;
-    if (loadedStart == loadedEnd && !model.isLoading) {
+    if (loadedStart == loadedEnd && !model.isLoading()) {
       if (model.emptyPlaceholder != null) {
         final emptyArea = Rect.create(
           x: renderArea.x,

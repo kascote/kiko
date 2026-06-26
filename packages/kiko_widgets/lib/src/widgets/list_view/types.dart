@@ -99,25 +99,6 @@ typedef ItemState = ({bool checked, bool focused, bool disabled});
 // COMMANDS
 // ═══════════════════════════════════════════════════════════
 
-/// Emitted when cursor nears end and dataSource.hasMore is true.
-@immutable
-class ListLoadMoreCmd extends Cmd {
-  /// Id of the list view model that needs more data.
-  final String id;
-
-  /// Creates a ListLoadMoreCmd.
-  const ListLoadMoreCmd(this.id);
-
-  @override
-  bool operator ==(Object other) => identical(this, other) || other is ListLoadMoreCmd && other.id == id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() => 'ListLoadMoreCmd($id)';
-}
-
 /// Emitted when execute an action in the current item
 @immutable
 class ListActionCmd extends Cmd {

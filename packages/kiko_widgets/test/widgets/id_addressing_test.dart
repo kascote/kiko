@@ -31,14 +31,6 @@ TableViewModel table({String? id, int n = 5, bool focused = true, int loadThresh
       ..setVisibleDimensions(5, 2)
       ..insertRows(rows(n), 0);
 
-/// App-authored result message that carries the owner's id home (a2.1 §3.4).
-class _RowsLoadedMsg extends Msg {
-  final String id;
-  final List<Map<String, Object?>> rows;
-  final int pageNum;
-  const _RowsLoadedMsg(this.id, this.rows, this.pageNum);
-}
-
 /// A two-instance app that resolves commands/results to their owner by id.
 /// A miss is **logged and dropped** — the observable failure references could
 /// not give you (a2.1 §3.3, §8).
@@ -129,37 +121,38 @@ void main() {
             ..insertRows(rows(10), 0);
       final app = _TwoTables(a, b);
 
-      // Drive A's cursor toward the end until it requests more data.
-      TableLoadMoreCmd? request;
+      // Drive A's cursor toward the end until it requests more data. The widget
+      // marks its own forward slot loading as it emits the request.
+      LoadRequest? request;
       for (var i = 0; i < 12 && request == null; i++) {
         final cmd = a.update(keyMsg('down'));
-        if (cmd is TableLoadMoreCmd) request = cmd;
+        if (cmd is LoadRequest) request = cmd;
       }
       expect(request, isNotNull, reason: 'expected a load request near the end');
       final id = request!.id;
       expect(id, equals('A'));
+      expect(a.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
 
-      // The app turns the request into a Task whose result carries the id home.
-      final owner = app.resolve(id)!..isLoading = true;
-      final pageNum = owner.nextPageNum;
+      // The app turns the request into a Task whose result carries the id (and
+      // the slot key) home. The page to fetch is the one the model reserved.
+      final owner = app.resolve(id)!;
+      final page = owner.pendingPage(request.key! as TableLoadKey)!;
       final task = Task<List<Map<String, Object?>>>(
-        () => srcA.getPage(pageNum, owner.pageSize),
-        onSuccess: (loaded) => _RowsLoadedMsg(id, loaded, pageNum),
+        () => srcA.getPage(page, owner.pageSize),
+        onSuccess: (loaded) => LoadResult<List<Map<String, Object?>>>(id, key: request!.key, data: loaded),
       );
 
-      final msg = await task.execute() as _RowsLoadedMsg;
+      final msg = await task.execute() as LoadResult<List<Map<String, Object?>>>;
       expect(msg.id, equals('A'));
 
       // On receipt, resolve home by id and install — only A is touched.
-      final dest = app.resolve(msg.id)!
-        ..insertRows(msg.rows, msg.pageNum)
-        ..isLoading = false;
+      final dest = app.resolve(msg.id)!..applyLoad(msg);
       expect(dest, same(a));
 
       expect(a.cachedRowCount, greaterThan(10));
-      expect(a.isLoading, isFalse);
+      expect(a.isLoading(), isFalse);
       expect(b.cachedRowCount, equals(10), reason: 'sibling must be untouched');
-      expect(b.isLoading, isFalse);
+      expect(b.isLoading(), isFalse);
     });
 
     test('a result whose id resolves to no owner is dropped and logged', () {
@@ -169,13 +162,9 @@ void main() {
 
       // A result addressed to an instance that no longer exists (row deleted,
       // tab closed, list rebuilt) — exactly the orphan case references hid.
-      final orphan = _RowsLoadedMsg('ghost', rows(3), 0);
+      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: TableLoadKey.forward, data: rows(3));
       final dest = app.resolve(orphan.id);
-      if (dest != null) {
-        dest
-          ..insertRows(orphan.rows, orphan.pageNum)
-          ..isLoading = false;
-      }
+      dest?.applyLoad(orphan);
 
       expect(dest, isNull);
       expect(app.log, contains('dropped: no owner for id "ghost"'));

@@ -47,7 +47,7 @@ final contacts = [
 
 class AppModel with ThemeSwitcher {
   late final list = ListViewModel<Contact, String>(
-    dataSource: ListDataSource.fromList(contacts),
+    dataView: DataView.fromList(contacts),
     itemKey: (c) => c.id, // use ID for selection tracking
     itemHeight: 2, // 2 lines per item
     multiSelect: true,
@@ -90,7 +90,7 @@ void appView(AppModel model, Frame frame) {
       model: model.list,
       theme: theme,
       itemBuilder: (contact, index, state) {
-        final checkbox = state.checked ? '✅' : '⬜';
+        final checkbox = state.checked ? '●' : '○';
         final archivedTag = state.disabled ? ' (archived)' : '';
 
         return Column(

@@ -1,7 +1,7 @@
 // Simple ListView example with string items.
 //
 // Shows:
-// - Basic list setup with ListDataSource.fromList()
+// - Basic list setup with DataView.fromList()
 // - Cursor navigation (arrows, j/k, pageUp/pageDown)
 // - Item rendering via itemBuilder
 // - Confirm action (Enter)
@@ -62,7 +62,7 @@ const fruits = [
 class AppModel with ThemeSwitcher {
   // Simple case: no itemKey needed, strings are their own keys
   final list = ListViewModel<String, String>(
-    dataSource: ListDataSource.fromList(fruits),
+    dataView: DataView.fromList(fruits),
     focused: true,
   );
 

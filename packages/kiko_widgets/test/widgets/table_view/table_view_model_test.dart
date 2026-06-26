@@ -31,7 +31,7 @@ void main() {
         expect(model.cursorCol, equals(0));
         expect(model.getSelectedKeys(), isEmpty);
         expect(model.focused, isFalse);
-        expect(model.isLoading, isFalse);
+        expect(model.isLoading(), isFalse);
       });
 
       test('config fields', () {
@@ -548,28 +548,34 @@ void main() {
         expect(cmd, isNull);
       });
 
-      test('loading state ignores input', () async {
-        final source = TableDataSource.fromList(sampleRows());
+      test('navigation continues while a page is loading', () {
+        // The blanket input-freeze is gone: a load in flight no longer stops the
+        // cursor from moving.
         final model =
             TableViewModel(
-                dataSource: source,
+                dataSource: _PaginatedSource(sampleRows(120)),
                 keyField: 'id',
                 columns: sampleColumns(),
+                pageSize: 10,
+                loadThreshold: 8,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
-              ..isLoading = true;
+              ..setVisibleDimensions(5, 2)
+              ..insertRows(sampleRows(10), 0);
 
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
+        // Reach the end to start a forward load.
+        final cmd = model.update(keyMsg('end'));
+        expect(cmd, isA<LoadRequest>());
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
 
-        final cmd = model.update(keyMsg('down'));
-        expect(cmd, isNull);
-        expect(model.cursorRow, equals(0)); // Didn't move
+        final rowBefore = model.cursorRow;
+        model.update(keyMsg('up'));
+        expect(model.cursorRow, equals(rowBefore - 1));
+        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'load still in flight');
       });
     });
 
-    group('LoadPageCmd', () {
+    group('LoadRequest', () {
       test('emitted when near end with hasMore', () async {
         final source = _PaginatedSource(sampleRows(20));
         final model = TableViewModel(
@@ -584,14 +590,42 @@ void main() {
         final page = await source.getPage(0, 10);
         model.insertRows(page, 0);
 
-        // Move cursor near end of loaded data
-        for (var i = 0; i < 6; i++) {
+        // Move the cursor to just before the threshold (distToEnd == 5).
+        for (var i = 0; i < 5; i++) {
           model.update(keyMsg('down'));
         }
 
+        // This step crosses the threshold and requests the next page.
         final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<TableLoadMoreCmd>());
-        expect((cmd! as TableLoadMoreCmd).direction, equals(LoadDirection.forward));
+        expect(cmd, isA<LoadRequest>());
+        final req = cmd! as LoadRequest;
+        expect(req.id, equals(model.id));
+        expect(req.key, equals(TableLoadKey.forward));
+        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'self-marks on emit');
+      });
+
+      test('not emitted again while the same direction is loading', () async {
+        final source = _PaginatedSource(sampleRows(40));
+        final model = TableViewModel(
+          dataSource: source,
+          keyField: 'id',
+          columns: sampleColumns(),
+          loadThreshold: 5,
+          pageSize: 10,
+          focused: true,
+        )..setVisibleDimensions(5, 3);
+
+        final page = await source.getPage(0, 10);
+        model.insertRows(page, 0);
+
+        for (var i = 0; i < 5; i++) {
+          model.update(keyMsg('down'));
+        }
+        // First threshold crossing requests a forward page.
+        expect(model.update(keyMsg('down')), isA<LoadRequest>());
+        // Further near-end keypresses do not re-request while it is in flight.
+        expect(model.update(keyMsg('down')), isNull);
+        expect(model.update(keyMsg('up')), isNull);
       });
 
       test('not emitted when hasMore is false', () async {
@@ -636,6 +670,149 @@ void main() {
         model.insertRows(page1, 1);
 
         expect(model.nextPageNum, equals(2));
+      });
+    });
+
+    group('load lifecycle', () {
+      TableViewModel paginated({int loadThreshold = 8}) => TableViewModel(
+        dataSource: _PaginatedSource(sampleRows(120)),
+        keyField: 'id',
+        columns: sampleColumns(),
+        pageSize: 10,
+        loadThreshold: loadThreshold,
+        focused: true,
+      )..setVisibleDimensions(5, 2);
+
+      test('loadFirstPage begins the forward slot and requests page 0', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+
+        expect(req.id, equals(model.id));
+        expect(req.key, equals(TableLoadKey.forward));
+        expect(model.pendingPage(TableLoadKey.forward), equals(0));
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
+
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
+
+        expect(model.cachedRowCount, equals(10));
+        expect(model.loadedRange, equals((0, 10)));
+        expect(model.isLoading(TableLoadKey.forward), isFalse);
+      });
+
+      test('applyLoad installs a forward page at its reserved offset', () {
+        final model = paginated()..insertRows(sampleRows(10), 0);
+
+        final req = model.update(keyMsg('end'))! as LoadRequest;
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
+
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
+
+        expect(model.isLoading(TableLoadKey.forward), isFalse);
+        expect(model.cachedRowCount, equals(20));
+        expect(model.loadedRange, equals((0, 20)));
+      });
+
+      test('applyLoad records an error, leaving the slot retryable', () {
+        final model = paginated()..insertRows(sampleRows(10), 0);
+
+        final req = model.update(keyMsg('end'))! as LoadRequest;
+        final boom = StateError('boom');
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, error: boom));
+
+        expect(model.isLoading(TableLoadKey.forward), isFalse);
+        expect(model.errorFor(TableLoadKey.forward), same(boom));
+        expect(model.cachedRowCount, equals(10), reason: 'nothing installed on failure');
+
+        // The slot is no longer loading, so navigating near the edge retries it.
+        final retry = model.update(keyMsg('end'));
+        expect(retry, isA<LoadRequest>());
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        expect(model.errorFor(TableLoadKey.forward), isNull, reason: 'retry clears the error');
+      });
+
+      test('applyLoad drops a result for a slot that is not loading', () {
+        final model = paginated()..insertRows(sampleRows(10), 0);
+
+        // No forward load was started, so a forward result is stale.
+        model.applyLoad(
+          LoadResult<List<Map<String, Object?>>>(model.id, key: TableLoadKey.forward, data: sampleRows(10)),
+        );
+
+        expect(model.cachedRowCount, equals(10));
+        expect(model.isLoading(TableLoadKey.forward), isFalse);
+      });
+
+      test('applyLoad ignores a result for another model', () {
+        final model = paginated()
+          ..insertRows(sampleRows(10), 0)
+          ..update(keyMsg('end'))
+          ..applyLoad(LoadResult<List<Map<String, Object?>>>('other', key: TableLoadKey.forward, data: sampleRows(10)));
+
+        expect(model.cachedRowCount, equals(10));
+        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'slot untouched');
+      });
+
+      test('forward and backward pages load at once', () {
+        // Rows 10..29 loaded, so the cursor can sit near both edges.
+        final model = paginated()
+          ..insertRows(sampleRows(10), 1)
+          ..insertRows(sampleRows(10), 2);
+
+        // End → forward; the cursor near the end pulls the next page.
+        final fwd = model.update(keyMsg('end'))! as LoadRequest;
+        expect(fwd.key, equals(TableLoadKey.forward));
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
+
+        // Home → backward, while the forward page is still in flight.
+        final back = model.update(keyMsg('home'))! as LoadRequest;
+        expect(back.key, equals(TableLoadKey.backward));
+        expect(model.isLoading(TableLoadKey.backward), isTrue);
+
+        // Both slots in flight at the same time — the new slot-aware behavior.
+        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        expect(model.isLoading(), isTrue);
+        expect(model.pendingPage(TableLoadKey.forward), equals(3));
+        expect(model.pendingPage(TableLoadKey.backward), equals(0));
+      });
+
+      test('reset clears in-flight load slots', () {
+        final model = paginated()
+          ..insertRows(sampleRows(10), 0)
+          ..update(keyMsg('end'));
+        expect(model.isLoading(), isTrue);
+
+        model.reset();
+
+        expect(model.isLoading(), isFalse);
+        expect(model.pendingPage(TableLoadKey.forward), isNull);
+      });
+    });
+
+    group('dataView', () {
+      test('exposes total count, hasMore, and cached rows', () {
+        final model = TableViewModel(
+          dataSource: _PaginatedSource(sampleRows(120)),
+          keyField: 'id',
+          columns: sampleColumns(),
+          pageSize: 10,
+        )..insertRows(sampleRows(10), 0);
+
+        final view = model.dataView;
+        expect(view.length, equals(120)); // total count
+        expect(view.hasMore, isTrue); // seeded from a paginated source
+        expect(view.itemAt(0)['id'], equals('row0'));
+      });
+
+      test('itemAt throws for an unloaded row; static source has no more', () {
+        final model = TableViewModel(
+          dataSource: TableDataSource.fromList(sampleRows(10)),
+          keyField: 'id',
+          columns: sampleColumns(),
+          pageSize: 10,
+        );
+
+        expect(model.dataView.hasMore, isFalse);
+        expect(() => model.dataView.itemAt(0), throwsStateError);
       });
     });
 

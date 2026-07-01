@@ -1,5 +1,6 @@
 import '../geometry/box_constraints.dart';
 import '../geometry/size.dart';
+import '../render/layout_context.dart';
 import '../render/render_node.dart';
 
 /// A leaf that occupies a fixed box and draws nothing.
@@ -17,5 +18,5 @@ class SizedBox<S> extends RenderNode<S> {
   final int height;
 
   @override
-  Size performLayout(BoxConstraints constraints) => constraints.constrain(Size(width, height));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(width, height));
 }

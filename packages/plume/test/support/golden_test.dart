@@ -14,9 +14,9 @@ class _Group<S> extends RenderNode<S> {
   List<RenderNode<S>> get children => _children;
 
   @override
-  Size performLayout(BoxConstraints constraints) {
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
     for (var i = 0; i < _children.length; i++) {
-      _children[i].layout(constraints.loosen());
+      _children[i].layout(constraints.loosen(), context);
       _children[i].offset = _offsets[i];
     }
     return constraints.biggest;
@@ -32,7 +32,7 @@ class _Dot<S> extends RenderNode<S> {
   final int h;
 
   @override
-  Size performLayout(BoxConstraints constraints) => constraints.constrain(Size(w, h));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
   void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);

@@ -13,5 +13,7 @@ export 'src/painting/draw_intent.dart';
 export 'src/painting/recording_surface.dart';
 export 'src/painting/surface.dart';
 export 'src/painting/text_measurer.dart';
+export 'src/render/layout_context.dart';
 export 'src/render/render_node.dart';
 export 'src/widgets/sized_box.dart';
+export 'src/widgets/text.dart';

@@ -1,6 +1,8 @@
 import 'package:plume/plume.dart';
 import 'package:test/test.dart';
 
+const _context = LayoutContext(measurer: MonospaceMeasurer());
+
 /// A minimal multi-child container used to exercise the base protocol: it lays
 /// each child out loosely, parks it at a fixed offset, and fills its own
 /// constraints.
@@ -14,9 +16,9 @@ class _Group<S> extends RenderNode<S> {
   List<RenderNode<S>> get children => _children;
 
   @override
-  Size performLayout(BoxConstraints constraints) {
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
     for (var i = 0; i < _children.length; i++) {
-      _children[i].layout(constraints.loosen());
+      _children[i].layout(constraints.loosen(), context);
       _children[i].offset = _offsets[i];
     }
     return constraints.biggest;
@@ -27,20 +29,20 @@ void main() {
   group('RenderNode', () {
     test('a leaf reports its size, clamped to constraints', () {
       final box = SizedBox<Object>(width: 4, height: 2);
-      expect(box.layout(BoxConstraints.loose(const Size(10, 10))), const Size(4, 2));
+      expect(box.layout(BoxConstraints.loose(const Size(10, 10)), _context), const Size(4, 2));
       expect(box.size, const Size(4, 2));
     });
 
     test('a leaf is clamped when it exceeds the maximum', () {
       final box = SizedBox<Object>(width: 40, height: 2);
-      expect(box.layout(BoxConstraints.loose(const Size(10, 10))), const Size(10, 2));
+      expect(box.layout(BoxConstraints.loose(const Size(10, 10)), _context), const Size(10, 2));
     });
 
     test('place fixes absolute rects from parent offsets', () {
       final a = SizedBox<Object>(width: 2, height: 1);
       final b = SizedBox<Object>(width: 3, height: 2);
       final group = _Group<Object>([a, b], const [Offset(1, 1), Offset(4, 0)])
-        ..layout(BoxConstraints.tight(const Size(10, 5)))
+        ..layout(BoxConstraints.tight(const Size(10, 5)), _context)
         ..place(Offset.zero);
 
       expect(group.rect, const Rect(0, 0, 10, 5));
@@ -52,7 +54,7 @@ void main() {
       final leaf = SizedBox<Object>(width: 1, height: 1);
       final inner = _Group<Object>([leaf], const [Offset(2, 3)]);
       final outer = _Group<Object>([inner], const [Offset(5, 1)])
-        ..layout(BoxConstraints.tight(const Size(20, 20)))
+        ..layout(BoxConstraints.tight(const Size(20, 20)), _context)
         ..place(Offset.zero);
 
       expect(outer.rect, const Rect(0, 0, 20, 20));
@@ -69,7 +71,7 @@ void main() {
         a = SizedBox<Object>(width: 2, height: 2);
         b = SizedBox<Object>(width: 2, height: 2);
         group = _Group<Object>([a, b], const [Offset.zero, Offset(4, 0)])
-          ..layout(BoxConstraints.tight(const Size(10, 5)))
+          ..layout(BoxConstraints.tight(const Size(10, 5)), _context)
           ..place(Offset.zero);
       });
 
@@ -92,7 +94,7 @@ void main() {
       final over = SizedBox<Object>(width: 4, height: 4);
       // Both at the origin; `over` is later in paint order, so it wins.
       final group = _Group<Object>([under, over], const [Offset.zero, Offset.zero])
-        ..layout(BoxConstraints.tight(const Size(4, 4)))
+        ..layout(BoxConstraints.tight(const Size(4, 4)), _context)
         ..place(Offset.zero);
 
       expect(group.hitTest(const Offset(1, 1)), same(over));

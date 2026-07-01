@@ -1,12 +1,13 @@
 import 'package:plume/plume.dart';
 
-/// Lays [root] out tightly at [size], places it at the origin, and returns a
-/// text dump of every node's type and absolute rect, indented by depth.
+/// Lays [root] out tightly at [size] (measuring with [measurer]), places it at
+/// the origin, and returns a text dump of every node's type and absolute rect,
+/// indented by depth.
 ///
 /// This is a layout golden: readable, diff-friendly, and terminal-free.
-String layoutGolden<S>(RenderNode<S> root, Size size) {
+String layoutGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
   root
-    ..layout(BoxConstraints.tight(size))
+    ..layout(BoxConstraints.tight(size), LayoutContext(measurer: measurer))
     ..place(Offset.zero);
 
   final buffer = StringBuffer();
@@ -20,14 +21,15 @@ String layoutGolden<S>(RenderNode<S> root, Size size) {
   return buffer.toString().trimRight();
 }
 
-/// Lays [root] out tightly at [size], paints it into a [RecordingSurface], and
-/// returns the draw intents it emitted, one string per line.
+/// Lays [root] out tightly at [size] (measuring with [measurer]), paints it into
+/// a [RecordingSurface], and returns the draw intents it emitted, one string per
+/// line.
 ///
 /// This is a paint golden.
-List<String> paintGolden<S>(RenderNode<S> root, Size size) {
+List<String> paintGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
   final surface = RecordingSurface<S>();
   root
-    ..layout(BoxConstraints.tight(size))
+    ..layout(BoxConstraints.tight(size), LayoutContext(measurer: measurer))
     ..place(Offset.zero)
     ..paint(surface);
   return surface.intents.map((intent) => intent.toString()).toList();

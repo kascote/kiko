@@ -5,6 +5,7 @@ import '../geometry/offset.dart';
 import '../geometry/rect.dart';
 import '../geometry/size.dart';
 import '../painting/surface.dart';
+import 'layout_context.dart';
 
 /// The base of every node in a Plume layout tree.
 ///
@@ -47,12 +48,13 @@ abstract class RenderNode<S> {
   /// Subclasses implement [performLayout]; this wrapper guarantees [size] is
   /// always recorded.
   @nonVirtual
-  Size layout(BoxConstraints constraints) => size = performLayout(constraints);
+  Size layout(BoxConstraints constraints, LayoutContext context) => size = performLayout(constraints, context);
 
   /// Computes this node's size under [constraints], laying out and offsetting
-  /// any children along the way.
+  /// any children along the way. [context] carries ambient inputs such as the
+  /// text measurer.
   @protected
-  Size performLayout(BoxConstraints constraints);
+  Size performLayout(BoxConstraints constraints, LayoutContext context);
 
   /// Fixes this node's absolute [rect] with its top-left at [origin], then
   /// places each child at `origin + child.offset`.

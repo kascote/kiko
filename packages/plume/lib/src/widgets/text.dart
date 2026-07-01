@@ -97,11 +97,19 @@ class Text<S> extends RenderNode<S> {
   /// What happens to a line wider than the box.
   final TextOverflow overflow;
 
+  /// The string appended to a truncated line under [TextOverflow.ellipsis].
+  static const String _ellipsisIndicator = '…';
+
   List<List<_Cluster<S>>> _lines = <List<_Cluster<S>>>[];
+
+  // Cell width of [_ellipsisIndicator], measured once during layout so paint
+  // never assumes the indicator is one cell wide.
+  int _indicatorWidth = 1;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     final maxW = constraints.maxW;
+    _indicatorWidth = context.measurer.widthOf(_ellipsisIndicator);
     _lines = _layoutLines(context.measurer, maxW);
 
     var natural = 0;
@@ -289,15 +297,18 @@ class Text<S> extends RenderNode<S> {
     }
     final out = <_Cluster<S>>[];
     var width = 0;
+    // Reserve room for the indicator using its measured width, not a hardcoded
+    // 1, so the reservation and the appended glyph always agree.
+    final budget = available - _indicatorWidth;
     for (final cluster in line) {
-      if (width + cluster.width > available - 1) {
+      if (width + cluster.width > budget) {
         break;
       }
       out.add(cluster);
       width += cluster.width;
     }
     final style = out.isNotEmpty ? out.last.style : line.first.style;
-    out.add(_Cluster('…', style, 1));
+    out.add(_Cluster(_ellipsisIndicator, style, _indicatorWidth));
     return out;
   }
 

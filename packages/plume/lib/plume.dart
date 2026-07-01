@@ -21,6 +21,7 @@ export 'src/widgets/align.dart';
 export 'src/widgets/alignment.dart';
 export 'src/widgets/constrained_box.dart';
 export 'src/widgets/container.dart';
+export 'src/widgets/flex.dart';
 export 'src/widgets/padding.dart';
 export 'src/widgets/sized_box.dart';
 export 'src/widgets/text.dart';

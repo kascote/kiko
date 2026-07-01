@@ -25,7 +25,10 @@ void main() {
       final filler = SizedBox<String>(width: 10, height: 6);
       final anchored = SizedBox<String>(width: 2, height: 2);
       final stack = Stack<String>(
-        children: [filler, Positioned<String>(left: 5, top: 3, child: anchored)],
+        children: [
+          filler,
+          Positioned<String>(left: 5, top: 3, child: anchored),
+        ],
       );
       _layout(stack, const Size(10, 6));
       expect(stack.hitTest(const Offset(5, 3)), same(anchored));

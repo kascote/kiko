@@ -114,14 +114,15 @@ void main() {
     });
 
     test('a positioned child does not affect the stack size', () {
-      final stack = Stack<String>(
-        children: [
-          _Fill('a', 4, 2),
-          Positioned<String>(left: 20, top: 20, child: SizedBox<String>(width: 5, height: 5)),
-        ],
-      )
-        ..layout(BoxConstraints.loose(const Size(40, 40)), _ctx)
-        ..place(Offset.zero);
+      final stack =
+          Stack<String>(
+              children: [
+                _Fill('a', 4, 2),
+                Positioned<String>(left: 20, top: 20, child: SizedBox<String>(width: 5, height: 5)),
+              ],
+            )
+            ..layout(BoxConstraints.loose(const Size(40, 40)), _ctx)
+            ..place(Offset.zero);
       expect(stack.size, const Size(4, 2));
     });
   });

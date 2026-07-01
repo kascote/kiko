@@ -33,6 +33,14 @@ abstract class RenderNode<S> {
   @protected
   List<RenderNode<S>> get children => <RenderNode<S>>[];
 
+  /// Calls [visit] for each child, in paint order.
+  ///
+  /// Lets tooling (goldens, custom traversals) walk the tree without touching
+  /// the child list directly.
+  void visitChildren(void Function(RenderNode<S> child) visit) {
+    children.forEach(visit);
+  }
+
   /// Sizes this node under [constraints], stores the result in [size], and
   /// returns it.
   ///

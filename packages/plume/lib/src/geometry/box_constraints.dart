@@ -49,6 +49,37 @@ class BoxConstraints {
   /// Whether only a single height is allowed ([minH] equals [maxH]).
   bool get hasTightHeight => maxH == minH;
 
+  /// Whether these constraints are well-formed.
+  ///
+  /// Well-formed means no negative bound and each maximum at least as large as
+  /// its minimum, so clamping a size into them always lands in a real range.
+  /// The layout pass asserts this on entry, so an inverted or negative
+  /// constraint is caught at the node it reaches rather than surfacing later as
+  /// a wrong size.
+  bool get isNormalized {
+    final hiW = maxW;
+    final hiH = maxH;
+    return minW >= 0 && minH >= 0 && (hiW == null || hiW >= minW) && (hiH == null || hiH >= minH);
+  }
+
+  /// Returns the nearest well-formed constraints.
+  ///
+  /// Negative minimums and maximums are clamped up to zero, then each maximum
+  /// is raised to at least its minimum. Use this at call sites that derive
+  /// bounds arithmetically and could produce an inverted or negative range.
+  BoxConstraints normalize() {
+    final loW = minW < 0 ? 0 : minW;
+    final loH = minH < 0 ? 0 : minH;
+    final hiW = maxW;
+    final hiH = maxH;
+    return BoxConstraints(
+      minW: loW,
+      maxW: hiW == null ? null : (hiW < loW ? loW : hiW),
+      minH: loH,
+      maxH: hiH == null ? null : (hiH < loH ? loH : hiH),
+    );
+  }
+
   /// The largest size these constraints allow.
   ///
   /// An unbounded axis falls back to its minimum, so this is only meaningful

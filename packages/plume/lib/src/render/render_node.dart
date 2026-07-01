@@ -46,9 +46,18 @@ abstract class RenderNode<S> {
   /// returns it.
   ///
   /// Subclasses implement [performLayout]; this wrapper guarantees [size] is
-  /// always recorded.
+  /// always recorded. Every incoming constraint is asserted well-formed here,
+  /// the single funnel every node passes through, so an inverted or negative
+  /// constraint fails loudly in debug at zero release cost.
   @nonVirtual
-  Size layout(BoxConstraints constraints, LayoutContext context) => size = performLayout(constraints, context);
+  Size layout(BoxConstraints constraints, LayoutContext context) {
+    assert(
+      constraints.isNormalized,
+      'RenderNode.layout received un-normalized constraints: $constraints. '
+      'Minimums must be non-negative and no larger than their maximums.',
+    );
+    return size = performLayout(constraints, context);
+  }
 
   /// Computes this node's size under [constraints], laying out and offsetting
   /// any children along the way. [context] carries ambient inputs such as the

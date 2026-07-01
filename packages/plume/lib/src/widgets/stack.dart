@@ -115,6 +115,15 @@ class Stack<S> extends RenderNode<S> {
         height = childSize.h;
       }
     }
+    // With no non-positioned child, the stack sizes to the incoming
+    // constraints. An unbounded axis has no extent to fill, so it would collapse
+    // to its minimum (typically zero) — almost always a mistake, so fail loudly.
+    assert(
+      hasNonPositioned || (constraints.hasBoundedWidth && constraints.hasBoundedHeight),
+      'A Stack whose children are all Positioned needs a bounded constraint to '
+      'size itself; under an unbounded axis it collapses to its minimum. '
+      'Constraints: $constraints.',
+    );
     final size = hasNonPositioned ? constraints.constrain(Size(width, height)) : constraints.biggest;
 
     // Pass 2: place every child within the resolved size.

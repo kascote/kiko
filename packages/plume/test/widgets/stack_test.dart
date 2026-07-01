@@ -55,6 +55,14 @@ void main() {
       expect(stack.size, const Size(9, 5));
     });
 
+    test('asserts when every child is positioned under an unbounded axis', () {
+      final stack = Stack<String>(children: [Positioned<String>(left: 1, top: 1, child: SizedBox<String>(width: 2))]);
+      expect(
+        () => stack.layout(const BoxConstraints(maxH: 5), _ctx),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
     test('paints children front-to-back in list order', () {
       expect(
         paintGolden(

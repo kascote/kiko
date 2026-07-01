@@ -38,6 +38,14 @@ void main() {
       expect(box.layout(BoxConstraints.loose(const Size(10, 10)), _context), const Size(10, 2));
     });
 
+    test('layout asserts against un-normalized constraints', () {
+      final box = SizedBox<Object>(width: 4, height: 2);
+      expect(
+        () => box.layout(const BoxConstraints(minW: 5, maxW: 3), _context),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
     test('place fixes absolute rects from parent offsets', () {
       final a = SizedBox<Object>(width: 2, height: 1);
       final b = SizedBox<Object>(width: 3, height: 2);

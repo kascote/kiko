@@ -99,5 +99,53 @@ void main() {
     test('toString shows ranges and unbounded axes', () {
       expect(const BoxConstraints(minW: 1, maxW: 4, minH: 2).toString(), 'BoxConstraints(w: 1..4, h: 2..∞)');
     });
+
+    group('isNormalized', () {
+      test('is true for a well-formed bounded constraint', () {
+        expect(const BoxConstraints(minW: 2, maxW: 6, minH: 1, maxH: 4).isNormalized, isTrue);
+      });
+
+      test('is true for an unbounded axis', () {
+        expect(const BoxConstraints(minW: 3, minH: 2).isNormalized, isTrue);
+      });
+
+      test('is false when a minimum exceeds its maximum', () {
+        expect(const BoxConstraints(minW: 5, maxW: 3).isNormalized, isFalse);
+        expect(const BoxConstraints(minH: 5, maxH: 3).isNormalized, isFalse);
+      });
+
+      test('is false for a negative bound', () {
+        expect(const BoxConstraints(minW: -1).isNormalized, isFalse);
+        expect(const BoxConstraints(maxH: -1).isNormalized, isFalse);
+      });
+    });
+
+    group('normalize', () {
+      test('leaves a well-formed constraint untouched', () {
+        const c = BoxConstraints(minW: 2, maxW: 6, minH: 1, maxH: 4);
+        expect(c.normalize(), c);
+      });
+
+      test('raises an inverted maximum up to its minimum', () {
+        const c = BoxConstraints(minW: 5, maxW: 3, minH: 5, maxH: 3);
+        expect(c.normalize(), const BoxConstraints(minW: 5, maxW: 5, minH: 5, maxH: 5));
+      });
+
+      test('clamps negatives to zero', () {
+        const c = BoxConstraints(minW: -2, maxW: -1, minH: -3, maxH: 4);
+        expect(c.normalize(), const BoxConstraints(maxW: 0, maxH: 4));
+      });
+
+      test('keeps an unbounded axis unbounded', () {
+        const c = BoxConstraints(minW: 2);
+        expect(c.normalize().hasBoundedWidth, isFalse);
+        expect(c.normalize().minW, 2);
+      });
+
+      test('produces a normalized result from an inverted one', () {
+        const c = BoxConstraints(minW: 5, maxW: 3);
+        expect(c.normalize().isNormalized, isTrue);
+      });
+    });
   });
 }

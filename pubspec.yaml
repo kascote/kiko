@@ -8,3 +8,4 @@ workspace:
   - packages/kiko_core
   - packages/kiko_log
   - packages/kiko_widgets
+  - packages/plume

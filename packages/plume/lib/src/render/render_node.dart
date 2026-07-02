@@ -76,11 +76,18 @@ abstract class RenderNode<S> {
   }
 
   /// Emits this node's own draw intents, then paints its children on top.
+  ///
+  /// This node's [rect] is pushed as the active clip before painting and popped
+  /// after, so a node — or any descendant — only affects cells inside the box
+  /// layout assigned it (intersected with every ancestor's rect). Clipping is a
+  /// paint-only guarantee: [hitTest] is deliberately not clipped.
   void paint(Surface<S> surface) {
+    surface.pushClip(rect);
     paintSelf(surface);
     for (final child in children) {
       child.paint(surface);
     }
+    surface.popClip();
   }
 
   /// Emits the draw intents for this node alone, not its children.
@@ -91,6 +98,10 @@ abstract class RenderNode<S> {
 
   /// Returns the top-most node whose [rect] contains [point], searching
   /// children front-to-back. Returns `null` when [point] is outside this node.
+  ///
+  /// Hit testing is not clipped: a child whose rect spills past this node's is
+  /// still hit where it was placed. Clipping is a paint-only guarantee (see
+  /// [paint]).
   RenderNode<S>? hitTest(Offset point) {
     if (!_rect.contains(point)) {
       return null;

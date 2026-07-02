@@ -25,6 +25,21 @@ class _Group<S> extends RenderNode<S> {
   }
 }
 
+/// A leaf that fills its own rect, so its paint records as a [FillIntent].
+class _Fill<S> extends RenderNode<S> {
+  _Fill(this.style, this.w, this.h);
+
+  final S style;
+  final int w;
+  final int h;
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
+
+  @override
+  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+}
+
 void main() {
   group('RenderNode', () {
     test('a leaf reports its size, clamped to constraints', () {
@@ -56,6 +71,28 @@ void main() {
       expect(group.rect, const Rect(0, 0, 10, 5));
       expect(a.rect, const Rect(1, 1, 2, 1));
       expect(b.rect, const Rect(4, 0, 3, 2));
+    });
+
+    test('paint clips a child that overflows its parent', () {
+      final leaf = _Fill<String>('x', 4, 4);
+      final group = _Group<String>([leaf], const [Offset(2, 2)])
+        ..layout(BoxConstraints.tight(const Size(4, 4)), _context)
+        ..place(Offset.zero);
+      final surface = RecordingSurface<String>();
+      group.paint(surface);
+      // The leaf's rect (2,2,4,4) spills past the 4x4 group; the paint walk
+      // carries the effective clip (2,2,2,2) so the backend trims it.
+      expect(surface.intents, const [FillIntent<String>(Rect(2, 2, 4, 4), 'x', clip: Rect(2, 2, 2, 2))]);
+    });
+
+    test('paint carries no clip for a child fully inside its parent', () {
+      final leaf = _Fill<String>('x', 2, 2);
+      final group = _Group<String>([leaf], const [Offset(1, 1)])
+        ..layout(BoxConstraints.tight(const Size(6, 6)), _context)
+        ..place(Offset.zero);
+      final surface = RecordingSurface<String>();
+      group.paint(surface);
+      expect(surface.intents, const [FillIntent<String>(Rect(1, 1, 2, 2), 'x')]);
     });
 
     test('nested groups accumulate offsets down the tree', () {

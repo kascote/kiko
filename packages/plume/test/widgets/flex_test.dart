@@ -159,6 +159,91 @@ void main() {
     });
   });
 
+  group('flex validation', () {
+    test('rejects a zero or negative flex factor', () {
+      expect(() => Flexible<String>(flex: 0, child: _box(1, 1)), throwsA(isA<AssertionError>()));
+      expect(() => Flexible<String>(flex: -1, child: _box(1, 1)), throwsA(isA<AssertionError>()));
+    });
+
+    test('asserts a flexible child under an unbounded main axis', () {
+      final row = Row<String>(children: [Expanded<String>(child: _box(0, 1))]);
+      expect(() => row.layout(const BoxConstraints(maxH: 5), _ctx), throwsA(isA<AssertionError>()));
+    });
+
+    test('an unbounded main axis is fine when no child is flexible', () {
+      final golden = _golden(
+        Row<String>(mainAxisSize: MainAxisSize.min, children: [_box(2, 1), _box(3, 1)]),
+        const BoxConstraints(maxH: 5),
+      );
+      expect(
+        golden,
+        [
+          'Row Rect(0, 0, 5, 1)',
+          '  SizedBox Rect(0, 0, 2, 1)',
+          '  SizedBox Rect(2, 0, 3, 1)',
+        ].join('\n'),
+      );
+    });
+
+    test('mixes a flexible child with inflexible ones under a bounded axis', () {
+      final golden = _golden(
+        Row<String>(
+          children: [
+            _box(3, 1),
+            Expanded<String>(child: _box(0, 1)),
+            _box(2, 1),
+          ],
+        ),
+        const BoxConstraints(maxW: 10, maxH: 1),
+      );
+      expect(
+        golden,
+        [
+          'Row Rect(0, 0, 10, 1)',
+          '  SizedBox Rect(0, 0, 3, 1)',
+          '  Expanded Rect(3, 0, 5, 1)',
+          '    SizedBox Rect(3, 0, 5, 1)',
+          '  SizedBox Rect(8, 0, 2, 1)',
+        ].join('\n'),
+      );
+    });
+  });
+
+  group('space distribution remainder', () {
+    // Three unit-wide children in a 14-wide row leave free = 11, an odd split
+    // for every space-* mode. The remainder goes to the leading gaps, so the
+    // last child reaches the trailing edge exactly.
+    List<int> childXs(MainAxisAlignment alignment) {
+      final children = [_box(1, 1), _box(1, 1), _box(1, 1)];
+      Row<String>(mainAxisAlignment: alignment, children: children)
+        ..layout(const BoxConstraints(maxW: 14, maxH: 1), _ctx)
+        ..place(Offset.zero);
+      return [for (final child in children) child.rect.x];
+    }
+
+    test('spaceBetween biases the remainder to the leading gap', () {
+      // gaps [6, 5]: last child at 13 ends flush against the 14-wide edge.
+      expect(childXs(MainAxisAlignment.spaceBetween), [0, 7, 13]);
+    });
+
+    test('spaceAround biases the remainder to the leading half-gaps', () {
+      expect(childXs(MainAxisAlignment.spaceAround), [2, 7, 12]);
+    });
+
+    test('spaceEvenly biases the remainder to the leading gaps', () {
+      expect(childXs(MainAxisAlignment.spaceEvenly), [3, 7, 11]);
+    });
+
+    test('an even split leaves no remainder to bias', () {
+      // free = 12 over the same three children divides cleanly for spaceBetween.
+      final children = [_box(1, 1), _box(1, 1), _box(1, 1)];
+      Row<String>(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: children)
+        ..layout(const BoxConstraints(maxW: 15, maxH: 1), _ctx)
+        ..place(Offset.zero);
+      expect([for (final child in children) child.rect.x], [0, 7, 14]);
+    });
+  });
+
   group('grow-to-fit modal (0037 worked example)', () {
     Center<String> buildModal() => Center<String>(
       child: ConstrainedBox<String>(

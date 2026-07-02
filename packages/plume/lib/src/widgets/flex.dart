@@ -72,7 +72,13 @@ enum FlexFit {
 /// main-axis space proportional to [flex].
 class Flexible<S> extends SingleChildNode<S> {
   /// Gives [child] a [flex] share, filled according to [fit].
-  Flexible({required this.flex, required RenderNode<S> child, this.fit = FlexFit.loose}) : super(child);
+  ///
+  /// [flex] must be positive: a zero or negative factor has no meaning in the
+  /// two-pass share-out and would put the child in an inconsistent state
+  /// between the passes.
+  Flexible({required this.flex, required RenderNode<S> child, this.fit = FlexFit.loose})
+    : assert(flex > 0, 'Flexible.flex must be positive; got $flex.'),
+      super(child);
 
   /// This child's share of the free space, relative to its siblings.
   final int flex;
@@ -181,6 +187,17 @@ class Flex<S> extends RenderNode<S> {
       }
     }
 
+    // A flexible child divides the leftover main-axis space, but an unbounded
+    // main axis has no leftover to divide — the child would silently collapse
+    // to zero. That is almost always an author mistake, so fail loudly.
+    assert(
+      maxMain != null || totalFlex == 0,
+      'A flexible child cannot be laid out along an unbounded $direction main '
+      'axis: it has no bounded space to take a share of and would collapse to '
+      'zero. Give the flex a bounded main-axis constraint, or make the child '
+      'inflexible.',
+    );
+
     // Pass 2: share the leftover main-axis space among flexible children.
     final free = (maxMain == null || maxMain - allocatedMain < 0) ? 0 : maxMain - allocatedMain;
     var distributed = 0;
@@ -211,7 +228,7 @@ class Flex<S> extends RenderNode<S> {
     final crossExtent = _cross(size);
 
     final freeMain = mainExtent - totalChildrenMain < 0 ? 0 : mainExtent - totalChildrenMain;
-    final (leading, between) = _distribute(freeMain, n);
+    final (leading, betweens) = _distribute(freeMain, n);
 
     var mainPos = leading;
     for (var i = 0; i < n; i++) {
@@ -222,20 +239,64 @@ class Flex<S> extends RenderNode<S> {
         CrossAxisAlignment.end => crossFree,
       };
       _children[i].offset = _offsetOf(mainPos, crossPos);
-      mainPos += childMain[i] + between;
+      mainPos += childMain[i];
+      if (i < betweens.length) {
+        mainPos += betweens[i];
+      }
     }
 
     return size;
   }
 
-  (int, int) _distribute(int freeMain, int count) => switch (mainAxisAlignment) {
-    MainAxisAlignment.start => (0, 0),
-    MainAxisAlignment.end => (freeMain, 0),
-    MainAxisAlignment.center => (freeMain ~/ 2, 0),
-    MainAxisAlignment.spaceBetween => (0, count > 1 ? freeMain ~/ (count - 1) : 0),
-    MainAxisAlignment.spaceAround => (count > 0 ? (freeMain ~/ count) ~/ 2 : 0, count > 0 ? freeMain ~/ count : 0),
-    MainAxisAlignment.spaceEvenly => (count > 0 ? freeMain ~/ (count + 1) : 0, count > 0 ? freeMain ~/ (count + 1) : 0),
-  };
+  /// Splits [freeMain] into a leading offset and the gap after each child (a
+  /// list of length `count - 1`), consuming every cell of the free space.
+  ///
+  /// Cells cannot be split, so an uneven division leaves an integer remainder.
+  /// The policy is explicit: hand the remainder out one cell at a time to the
+  /// leading gaps. So the fill modes ([MainAxisAlignment.spaceBetween],
+  /// [MainAxisAlignment.spaceAround], [MainAxisAlignment.spaceEvenly]) reach the
+  /// trailing edge exactly — the earliest gaps are one cell wider rather than
+  /// the slack piling up unused at the end.
+  (int, List<int>) _distribute(int freeMain, int count) {
+    if (count <= 0) {
+      return (0, const <int>[]);
+    }
+    switch (mainAxisAlignment) {
+      case MainAxisAlignment.start:
+        return (0, _zeros(count - 1));
+      case MainAxisAlignment.end:
+        return (freeMain, _zeros(count - 1));
+      case MainAxisAlignment.center:
+        return (freeMain ~/ 2, _zeros(count - 1));
+      case MainAxisAlignment.spaceBetween:
+        // Gaps sit only between children; the ends touch the edges.
+        return (0, _spread(freeMain, count - 1));
+      case MainAxisAlignment.spaceEvenly:
+        // Equal gaps between children and at both ends.
+        final gaps = _spread(freeMain, count + 1);
+        return (gaps.first, gaps.sublist(1, count));
+      case MainAxisAlignment.spaceAround:
+        // Each child gets a half-gap on each side, so the ends are half the
+        // between-child gap. Spread over half-slots, then fold pairs back into
+        // the between-child gaps.
+        final halves = _spread(freeMain, count * 2);
+        final betweens = <int>[for (var i = 0; i < count - 1; i++) halves[2 * i + 1] + halves[2 * i + 2]];
+        return (halves.first, betweens);
+    }
+  }
+
+  /// Splits [total] into [slots] non-negative gaps summing to exactly [total],
+  /// giving the first `total % slots` gaps one extra cell.
+  static List<int> _spread(int total, int slots) {
+    if (slots <= 0) {
+      return const <int>[];
+    }
+    final base = total ~/ slots;
+    final remainder = total % slots;
+    return <int>[for (var i = 0; i < slots; i++) base + (i < remainder ? 1 : 0)];
+  }
+
+  static List<int> _zeros(int count) => count <= 0 ? const <int>[] : List<int>.filled(count, 0);
 }
 
 /// A horizontal [Flex].

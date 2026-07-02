@@ -21,6 +21,8 @@ export 'src/mvu/cmd.dart';
 export 'src/mvu/focus.dart';
 export 'src/mvu/msg.dart';
 export 'src/mvu/mvu_runtime.dart';
+export 'src/plume/buffer_surface.dart';
+export 'src/plume/term_unicode_measurer.dart';
 export 'src/style.dart';
 export 'src/style_resolver.dart';
 export 'src/terminal/application.dart';

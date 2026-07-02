@@ -22,15 +22,15 @@ enum TextAlign {
 
 /// What a [Text] does with a line too wide for its box (only reachable when
 /// [Text.softWrap] is off).
+///
+/// Neither option paints outside the box: paint-side clipping bounds every node
+/// to its assigned rect, so these choose only how the visible portion ends.
 enum TextOverflow {
   /// Drop whatever spills past the right edge.
   clip,
 
-  /// Replace the overflowing tail with a single ellipsis cell.
+  /// Replace the overflowing tail with an ellipsis indicator.
   ellipsis,
-
-  /// Emit the whole line, letting it spill past the box.
-  visible,
 }
 
 /// A run of graphemes sharing one opaque style token.
@@ -251,12 +251,32 @@ class Text<S> extends RenderNode<S> {
 
   @override
   void paintSelf(Surface<S> surface) {
-    for (var i = 0; i < _lines.length; i++) {
+    // Cap at the box height: a text with more lines than its assigned rect
+    // never emits the doomed rows below its box. Rows outside a narrower
+    // ancestor clip are dropped by the surface.
+    final rows = _lines.length < rect.height ? _lines.length : rect.height;
+    for (var i = 0; i < rows; i++) {
       _paintLine(surface, _lines[i], rect.y + i);
     }
   }
 
   void _paintLine(Surface<S> surface, List<_Cluster<S>> line, int y) {
+    final (clusters, startX) = _resolveLine(line);
+    // Trim horizontally to the effective clip (this rect intersected with every
+    // ancestor's), so a line whose rect exceeds an ancestor is cut at glyph
+    // boundaries rather than relying on the surface backstop.
+    final clip = surface.clipRect;
+    if (clip == null) {
+      _emitRuns(surface, clusters, startX, y);
+      return;
+    }
+    final (trimmed, trimmedStart) = _trimToClip(clusters, startX, clip.left, clip.right);
+    _emitRuns(surface, trimmed, trimmedStart, y);
+  }
+
+  /// Aligns [line] within the box width, or applies the [overflow] policy when
+  /// it is too wide, returning the clusters to draw and the column to start at.
+  (List<_Cluster<S>>, int) _resolveLine(List<_Cluster<S>> line) {
     final available = rect.width;
     final lineWidth = _lineWidth(line);
     if (lineWidth <= available) {
@@ -265,17 +285,38 @@ class Text<S> extends RenderNode<S> {
         TextAlign.center => (available - lineWidth) ~/ 2,
         TextAlign.end => available - lineWidth,
       };
-      _emitRuns(surface, line, rect.x + shift, y);
-      return;
+      return (line, rect.x + shift);
     }
-    switch (overflow) {
-      case TextOverflow.visible:
-        _emitRuns(surface, line, rect.x, y);
-      case TextOverflow.clip:
-        _emitRuns(surface, _clip(line, available), rect.x, y);
-      case TextOverflow.ellipsis:
-        _emitRuns(surface, _ellipsize(line, available), rect.x, y);
+    return switch (overflow) {
+      TextOverflow.clip => (_clip(line, available), rect.x),
+      TextOverflow.ellipsis => (_ellipsize(line, available), rect.x),
+    };
+  }
+
+  /// Drops the clusters of [clusters] (starting at column [startX]) that fall
+  /// outside the horizontal span `[clipLeft, clipRight)`, cutting only on whole
+  /// clusters. Returns the surviving clusters and the column the first survivor
+  /// starts at.
+  (List<_Cluster<S>>, int) _trimToClip(List<_Cluster<S>> clusters, int startX, int clipLeft, int clipRight) {
+    final out = <_Cluster<S>>[];
+    var x = startX;
+    var firstX = startX;
+    var started = false;
+    for (final cluster in clusters) {
+      final end = x + cluster.width;
+      if (x >= clipLeft && end <= clipRight) {
+        if (!started) {
+          firstX = x;
+          started = true;
+        }
+        out.add(cluster);
+      } else if (x >= clipLeft) {
+        // Reached (or straddled) the right edge — nothing further fits.
+        break;
+      }
+      x += cluster.width;
     }
+    return (out, firstX);
   }
 
   List<_Cluster<S>> _clip(List<_Cluster<S>> line, int available) {

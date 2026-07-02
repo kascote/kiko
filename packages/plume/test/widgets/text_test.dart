@@ -92,5 +92,25 @@ void main() {
       );
       expect(intents, ['drawText(0, 0, "he…", x)']);
     });
+
+    test('caps rows at the box height, dropping doomed lines', () {
+      // Three lines forced into a height-2 box: only the in-box rows are drawn.
+      final intents = _paint(
+        Text<String>([const TextRun('a\nb\nc', 'x')]),
+        BoxConstraints.tight(const Size(1, 2)),
+      );
+      expect(intents, ['drawText(0, 0, "a", x)', 'drawText(0, 1, "b", x)']);
+    });
+
+    test('trims a line to a narrower ancestor clip at glyph boundaries', () {
+      final text = Text<String>([const TextRun('hello', 'x')])
+        ..layout(BoxConstraints.tight(const Size(5, 1)), _context)
+        ..place(Offset.zero);
+      // An ancestor only 3 cells wide clips the 5-wide line down to "hel".
+      final surface = RecordingSurface<String>()..pushClip(const Rect(0, 0, 3, 1));
+      text.paint(surface);
+      surface.popClip();
+      expect(surface.intents.map((intent) => '$intent').toList(), ['drawText(0, 0, "hel", x)']);
+    });
   });
 }

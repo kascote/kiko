@@ -92,14 +92,6 @@ void main() {
       ]);
     });
 
-    test('emits a width-2 glyph that overflows a width-1 box under visible', () {
-      final intents = _paint(
-        Text<String>([const TextRun('字', 'x')], softWrap: true, overflow: TextOverflow.visible),
-        const BoxConstraints(maxW: 1, maxH: 100),
-      );
-      expect(intents, ['drawText(0, 0, "字", x)']);
-    });
-
     test('drops a width-2 glyph that overflows a width-1 box under clip', () {
       final intents = _paint(
         Text<String>([const TextRun('字', 'x')], softWrap: true),

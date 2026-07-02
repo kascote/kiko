@@ -10,6 +10,7 @@ export 'src/geometry/edge_insets.dart';
 export 'src/geometry/offset.dart';
 export 'src/geometry/rect.dart';
 export 'src/geometry/size.dart';
+export 'src/painting/clipping_surface.dart';
 export 'src/painting/draw_intent.dart';
 export 'src/painting/recording_surface.dart';
 export 'src/painting/surface.dart';

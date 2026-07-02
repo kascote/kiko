@@ -8,6 +8,12 @@ import '../geometry/rect.dart';
 ///
 /// [S] is the opaque style token carried from the widgets. The surface is the
 /// one place it is interpreted — the layout core never looks inside it.
+///
+/// The surface also owns the paint-side clip. The paint walk pushes a node's
+/// rect before painting it and pops it after, so [clipRect] is always the
+/// intersection of the node's rect with every ancestor's. Draw calls landing
+/// outside that region are trimmed or dropped, so a node paints only within the
+/// box layout assigned it.
 abstract class Surface<S> {
   /// Draws the run of graphemes [run] starting at cell ([x], [y]), styled by
   /// [style].
@@ -18,4 +24,17 @@ abstract class Surface<S> {
 
   /// Draws a border around the edge of [rect], styled by [style].
   void drawBorder(Rect rect, S style);
+
+  /// Pushes [rect] as the active clip, intersected with the current clip.
+  ///
+  /// Every draw call between this and the matching [popClip] is confined to the
+  /// pushed region.
+  void pushClip(Rect rect);
+
+  /// Removes the clip added by the matching [pushClip].
+  void popClip();
+
+  /// The active clip — the intersection of every pushed rect — or `null` when
+  /// nothing is pushed (an unclipped surface).
+  Rect? get clipRect;
 }

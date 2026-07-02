@@ -16,6 +16,7 @@ export 'src/painting/recording_surface.dart';
 export 'src/painting/surface.dart';
 export 'src/painting/text_measurer.dart';
 export 'src/render/layout_context.dart';
+export 'src/render/render_frame.dart';
 export 'src/render/render_node.dart';
 export 'src/render/single_child_node.dart';
 export 'src/widgets/align.dart';

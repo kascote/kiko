@@ -13,7 +13,9 @@ import '../geometry/rect.dart';
 /// rect before painting it and pops it after, so [clipRect] is always the
 /// intersection of the node's rect with every ancestor's. Draw calls landing
 /// outside that region are trimmed or dropped, so a node paints only within the
-/// box layout assigned it.
+/// box layout assigned it. Concrete surfaces extend `ClippingSurface`, which
+/// owns the clip stack and the trim/drop rules, so a leaf drawing through the
+/// three draw methods cannot escape the clip.
 abstract class Surface<S> {
   /// Draws the run of graphemes [run] starting at cell ([x], [y]), styled by
   /// [style].

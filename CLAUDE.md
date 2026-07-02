@@ -130,3 +130,22 @@ External: cassowary (layout solver)
 - If a request leads to a workaround, pause and discuss
 - Explain what pattern is being violated
 - Propose root-cause fixes, not band-aids
+
+<!-- mikos:start -->
+## Task tracking — mikos
+
+This project tracks specs, plans, notes, and tasks in **mikos**. Start a session with
+`mikos context` to orient (`mikos context --json` for the machine view), and
+`mikos next` for the next actionable task.
+
+A mikos **task** is a durable, tracked work item (it has a status and lineage) — not
+your ephemeral session to-do list. When the user says "the task," they mean a mikos
+item. Create durable work with `mikos new` / `mikos capture` and move it with the
+status verbs (`ready` / `start` / `done` / `drop` / `block`).
+
+The CLI is your **only** interface to mikos, and the `id` is your only handle. Make no
+assumptions about — and never read, probe, or modify — where or how mikos stores things
+(paths, file layout, version control); that is the tool's private business. If the CLI
+can't do something you need — or you hit a rough edge — report it as a gap to fix in the
+CLI rather than reaching for the files.
+<!-- mikos:end -->

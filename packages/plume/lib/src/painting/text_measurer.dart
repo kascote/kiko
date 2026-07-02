@@ -18,10 +18,12 @@ abstract class TextMeasurer {
   ///
   /// Must be additive over grapheme clusters: the width of a string equals the
   /// sum of the widths of its clusters (as split by `text.characters`). The
-  /// `Text` widget measures one cluster at a time and sums the results, so a
-  /// measurer whose whole-string width disagreed with the per-cluster total
-  /// would make text mis-measure lines while the whole-string width still
-  /// looked right.
+  /// `Text` widget measures one cluster at a time, sums the results, and trims a
+  /// line to its box on that per-cluster total. A measurer whose whole-string
+  /// width *exceeds* the per-cluster sum can therefore emit a run that paints
+  /// past the box: additivity is a precondition here, not something the paint
+  /// path re-checks. (A measurer that *under*-counts the whole string only makes
+  /// `Text` over-reserve space, which is harmless.)
   int widthOf(String text);
 }
 

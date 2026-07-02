@@ -34,3 +34,24 @@ List<String> paintGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measure
     ..paint(surface);
   return surface.intents.map((intent) => intent.toString()).toList();
 }
+
+/// Asserts every intent in [intents] paints only inside [frame].
+///
+/// Each intent's painted region is its rect trimmed to the clip it carries, or
+/// its full rect when it carries none; a text run's width is measured with
+/// [measurer]. Throws a [StateError] naming the first intent whose region
+/// escapes [frame]. A correctly clipped paint never overflows the frame the
+/// root pushed, so this is the overflow-suite invariant.
+void noOverflow<S>(List<DrawIntent<S>> intents, Rect frame, {TextMeasurer measurer = const MonospaceMeasurer()}) {
+  for (final intent in intents) {
+    final (footprint, clip) = switch (intent) {
+      FillIntent<S>(:final rect, :final clip) => (rect, clip),
+      BorderIntent<S>(:final rect, :final clip) => (rect, clip),
+      TextIntent<S>(:final x, :final y, :final run, :final clip) => (Rect(x, y, measurer.widthOf(run), 1), clip),
+    };
+    final region = clip == null ? footprint : footprint.intersect(clip);
+    if (!region.isEmpty && !frame.containsRect(region)) {
+      throw StateError('intent paints outside frame $frame: $intent (region $region)');
+    }
+  }
+}

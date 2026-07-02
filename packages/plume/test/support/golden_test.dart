@@ -66,4 +66,25 @@ void main() {
       expect(paintGolden(SizedBox<String>(width: 3, height: 1), const Size(3, 1)), isEmpty);
     });
   });
+
+  group('noOverflow', () {
+    test('accepts intents whose clipped region stays inside the frame', () {
+      const intents = [
+        FillIntent<String>(Rect(0, 0, 2, 2), 'a'),
+        FillIntent<String>(Rect(2, 2, 10, 10), 'b', clip: Rect(2, 2, 2, 2)),
+        TextIntent<String>(1, 3, 'ok', 'c'),
+      ];
+      expect(() => noOverflow(intents, const Rect(0, 0, 6, 6)), returnsNormally);
+    });
+
+    test('throws on a fill that escapes the frame with no clip', () {
+      const intents = [FillIntent<String>(Rect(0, 0, 10, 10), 'a')];
+      expect(() => noOverflow(intents, const Rect(0, 0, 6, 6)), throwsStateError);
+    });
+
+    test('throws on a text run measured past the frame', () {
+      const intents = [TextIntent<String>(4, 0, 'toolong', 'a')];
+      expect(() => noOverflow(intents, const Rect(0, 0, 6, 1)), throwsStateError);
+    });
+  });
 }

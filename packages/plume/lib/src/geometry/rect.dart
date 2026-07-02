@@ -58,6 +58,35 @@ class Rect {
   /// exclusive.
   bool contains(Offset point) => point.dx >= x && point.dx < right && point.dy >= y && point.dy < bottom;
 
+  /// Whether this rect covers no cells.
+  ///
+  /// True when either dimension is zero or negative, so an intersection that
+  /// found no overlap reads as empty rather than as a stray zero-area rect.
+  bool get isEmpty => width <= 0 || height <= 0;
+
+  /// The region covered by both this rect and [other].
+  ///
+  /// The overlap is the higher of the two left/top edges to the lower of the
+  /// two right/bottom edges. A disjoint or edge-touching pair has no overlap,
+  /// so the result is clamped to a non-negative, [isEmpty] rect rather than a
+  /// negative one.
+  Rect intersect(Rect other) {
+    final l = x > other.x ? x : other.x;
+    final t = y > other.y ? y : other.y;
+    final r = right < other.right ? right : other.right;
+    final b = bottom < other.bottom ? bottom : other.bottom;
+    final w = r - l;
+    final h = b - t;
+    return Rect(l, t, w < 0 ? 0 : w, h < 0 ? 0 : h);
+  }
+
+  /// Whether [other] lies entirely within this rect.
+  ///
+  /// Uses the same half-open bounds as [contains]: [other]'s right and bottom
+  /// edges may reach this rect's right and bottom edges. An empty [other] is
+  /// contained as long as its origin falls within these bounds.
+  bool containsRect(Rect other) => other.x >= x && other.y >= y && other.right <= right && other.bottom <= bottom;
+
   @override
   bool operator ==(Object other) =>
       other is Rect && other.x == x && other.y == y && other.width == width && other.height == height;

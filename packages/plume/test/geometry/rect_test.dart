@@ -46,6 +46,55 @@ void main() {
       });
     });
 
+    group('isEmpty', () {
+      test('is false for a positive rect', () {
+        expect(const Rect(0, 0, 3, 2).isEmpty, isFalse);
+      });
+
+      test('is true when either dimension is zero', () {
+        expect(const Rect(0, 0, 0, 2).isEmpty, isTrue);
+        expect(const Rect(0, 0, 3, 0).isEmpty, isTrue);
+      });
+    });
+
+    group('intersect', () {
+      test('overlapping rects yield their shared region', () {
+        expect(const Rect(0, 0, 4, 4).intersect(const Rect(2, 1, 4, 4)), const Rect(2, 1, 2, 3));
+      });
+
+      test('a nested rect is its own intersection with the outer', () {
+        const outer = Rect(0, 0, 10, 10);
+        const inner = Rect(2, 2, 3, 3);
+        expect(outer.intersect(inner), inner);
+      });
+
+      test('disjoint rects intersect to an empty rect', () {
+        expect(const Rect(0, 0, 2, 2).intersect(const Rect(5, 5, 2, 2)).isEmpty, isTrue);
+      });
+
+      test('edge-touching rects share no cells (half-open bounds)', () {
+        // The first ends at column 2 (exclusive); the second starts at 2.
+        expect(const Rect(0, 0, 2, 2).intersect(const Rect(2, 0, 2, 2)).isEmpty, isTrue);
+      });
+    });
+
+    group('containsRect', () {
+      const outer = Rect(0, 0, 10, 10);
+
+      test('a fully nested rect is contained', () {
+        expect(outer.containsRect(const Rect(2, 2, 3, 3)), isTrue);
+      });
+
+      test('a rect reaching the right/bottom edge is contained', () {
+        expect(outer.containsRect(const Rect(6, 6, 4, 4)), isTrue);
+      });
+
+      test('a rect spilling past an edge is not contained', () {
+        expect(outer.containsRect(const Rect(8, 8, 4, 4)), isFalse);
+        expect(outer.containsRect(const Rect(-1, 0, 2, 2)), isFalse);
+      });
+    });
+
     test('equal rects are equal and share a hashCode', () {
       expect(const Rect(1, 2, 3, 4), const Rect(1, 2, 3, 4));
       expect(const Rect(1, 2, 3, 4).hashCode, const Rect(1, 2, 3, 4).hashCode);

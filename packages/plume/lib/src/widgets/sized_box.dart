@@ -7,7 +7,7 @@ import '../render/render_node.dart';
 ///
 /// Handy as a spacer or a minimum-size placeholder. Its size is the requested
 /// [width] × [height] clamped to the incoming constraints.
-class SizedBox<S> extends RenderNode<S> {
+class SizedBox<T> extends RenderNode<T> {
   /// Creates a box [width] cells wide and [height] cells tall.
   SizedBox({this.width = 0, this.height = 0});
 

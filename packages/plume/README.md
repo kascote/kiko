@@ -31,8 +31,8 @@ Two things are injected so the engine never touches a terminal:
 - a **`Surface`** — the sink draw intents go to (`RecordingSurface` for tests, a
   buffer-backed one for a real terminal).
 
-Styles are **opaque tokens** (`S`) carried straight through to the surface; the
-engine never looks inside them.
+Appearance (style, color, charset) rides in an **opaque paint token** (`T`)
+carried straight through to the surface; the engine never looks inside it.
 
 ## A minimal frame
 
@@ -43,8 +43,8 @@ example (`example/main.dart`):
 import 'package:plume/plume.dart';
 
 void main() {
-  // Styles are opaque tokens the engine carries but never inspects — here plain
-  // strings; a terminal backend would use its own style type.
+  // The paint token is opaque — the engine carries it but never inspects it;
+  // here plain strings; a terminal backend would use its own token type.
   final tree = Container<String>(
     border: 'grey',
     child: Column<String>(

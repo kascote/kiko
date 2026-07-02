@@ -5,13 +5,13 @@ import 'package:plume/plume.dart';
 /// indented by depth.
 ///
 /// This is a layout golden: readable, diff-friendly, and terminal-free.
-String layoutGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
+String layoutGolden<T>(RenderNode<T> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
   root
     ..layout(BoxConstraints.tight(size), LayoutContext(measurer: measurer))
     ..place(Offset.zero);
 
   final buffer = StringBuffer();
-  void walk(RenderNode<S> node, int depth) {
+  void walk(RenderNode<T> node, int depth) {
     final name = node.runtimeType.toString().split('<').first;
     buffer.writeln('${'  ' * depth}$name ${node.rect}');
     node.visitChildren((child) => walk(child, depth + 1));
@@ -26,8 +26,8 @@ String layoutGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measurer = c
 /// line.
 ///
 /// This is a paint golden.
-List<String> paintGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
-  final surface = RecordingSurface<S>();
+List<String> paintGolden<T>(RenderNode<T> root, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
+  final surface = RecordingSurface<T>();
   root
     ..layout(BoxConstraints.tight(size), LayoutContext(measurer: measurer))
     ..place(Offset.zero)
@@ -42,12 +42,12 @@ List<String> paintGolden<S>(RenderNode<S> root, Size size, {TextMeasurer measure
 /// [measurer]. Throws a [StateError] naming the first intent whose region
 /// escapes [frame]. A correctly clipped paint never overflows the frame the
 /// root pushed, so this is the overflow-suite invariant.
-void noOverflow<S>(List<DrawIntent<S>> intents, Rect frame, {TextMeasurer measurer = const MonospaceMeasurer()}) {
+void noOverflow<T>(List<DrawIntent<T>> intents, Rect frame, {TextMeasurer measurer = const MonospaceMeasurer()}) {
   for (final intent in intents) {
     final (footprint, clip) = switch (intent) {
-      FillIntent<S>(:final rect, :final clip) => (rect, clip),
-      BorderIntent<S>(:final rect, :final clip) => (rect, clip),
-      TextIntent<S>(:final x, :final y, :final run, :final clip) => (Rect(x, y, measurer.widthOf(run), 1), clip),
+      FillIntent<T>(:final rect, :final clip) => (rect, clip),
+      BorderIntent<T>(:final rect, :final clip) => (rect, clip),
+      TextIntent<T>(:final x, :final y, :final run, :final clip) => (Rect(x, y, measurer.widthOf(run), 1), clip),
     };
     final region = clip == null ? footprint : footprint.intersect(clip);
     if (!region.isEmpty && !frame.containsRect(region)) {

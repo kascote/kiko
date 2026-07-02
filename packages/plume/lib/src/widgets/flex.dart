@@ -70,13 +70,13 @@ enum FlexFit {
 
 /// Marks its child as flexible within a [Flex], taking a share of the free
 /// main-axis space proportional to [flex].
-class Flexible<S> extends SingleChildNode<S> {
+class Flexible<T> extends SingleChildNode<T> {
   /// Gives [child] a [flex] share, filled according to [fit].
   ///
   /// [flex] must be positive: a zero or negative factor has no meaning in the
   /// two-pass share-out and would put the child in an inconsistent state
   /// between the passes.
-  Flexible({required this.flex, required RenderNode<S> child, this.fit = FlexFit.loose})
+  Flexible({required this.flex, required RenderNode<T> child, this.fit = FlexFit.loose})
     : assert(flex > 0, 'Flexible.flex must be positive; got $flex.'),
       super(child);
 
@@ -95,7 +95,7 @@ class Flexible<S> extends SingleChildNode<S> {
 }
 
 /// A [Flexible] child that fills its whole share of the main axis.
-class Expanded<S> extends Flexible<S> {
+class Expanded<T> extends Flexible<T> {
   /// Expands [child] with the given [flex] share.
   Expanded({required super.child, super.flex = 1}) : super(fit: FlexFit.tight);
 }
@@ -107,11 +107,11 @@ class Expanded<S> extends Flexible<S> {
 /// [mainAxisAlignment] distributes any remaining space, [crossAxisAlignment]
 /// positions or stretches children on the cross axis, and [mainAxisSize]
 /// decides whether the line fills the main axis or shrink-wraps its children.
-class Flex<S> extends RenderNode<S> {
+class Flex<T> extends RenderNode<T> {
   /// Creates a flex line along [direction].
   Flex({
     required this.direction,
-    required List<RenderNode<S>> children,
+    required List<RenderNode<T>> children,
     this.mainAxisAlignment = MainAxisAlignment.start,
     this.crossAxisAlignment = CrossAxisAlignment.start,
     this.mainAxisSize = MainAxisSize.max,
@@ -129,10 +129,10 @@ class Flex<S> extends RenderNode<S> {
   /// Whether the line fills the main axis or shrink-wraps.
   final MainAxisSize mainAxisSize;
 
-  final List<RenderNode<S>> _children;
+  final List<RenderNode<T>> _children;
 
   @override
-  List<RenderNode<S>> get children => _children;
+  List<RenderNode<T>> get children => _children;
 
   int? _mainMax(BoxConstraints c) => direction == Axis.horizontal ? c.maxW : c.maxH;
 
@@ -146,9 +146,9 @@ class Flex<S> extends RenderNode<S> {
 
   Offset _offsetOf(int main, int cross) => direction == Axis.horizontal ? Offset(main, cross) : Offset(cross, main);
 
-  int _flexOf(RenderNode<S> child) => child is Flexible<S> ? child.flex : 0;
+  int _flexOf(RenderNode<T> child) => child is Flexible<T> ? child.flex : 0;
 
-  FlexFit _fitOf(RenderNode<S> child) => child is Flexible<S> ? child.fit : FlexFit.loose;
+  FlexFit _fitOf(RenderNode<T> child) => child is Flexible<T> ? child.fit : FlexFit.loose;
 
   BoxConstraints _childConstraints({required int mainMin, required int? mainMax, required int? maxCross}) {
     final crossMin = (crossAxisAlignment == CrossAxisAlignment.stretch && maxCross != null) ? maxCross : 0;
@@ -300,7 +300,7 @@ class Flex<S> extends RenderNode<S> {
 }
 
 /// A horizontal [Flex].
-class Row<S> extends Flex<S> {
+class Row<T> extends Flex<T> {
   /// Lays [children] out left to right.
   Row({
     required super.children,
@@ -311,7 +311,7 @@ class Row<S> extends Flex<S> {
 }
 
 /// A vertical [Flex].
-class Column<S> extends Flex<S> {
+class Column<T> extends Flex<T> {
   /// Lays [children] out top to bottom.
   Column({
     required super.children,

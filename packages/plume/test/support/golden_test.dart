@@ -4,14 +4,14 @@ import 'package:test/test.dart';
 import 'golden.dart';
 
 /// A container that parks each child at a fixed offset and fills its space.
-class _Group<S> extends RenderNode<S> {
+class _Group<T> extends RenderNode<T> {
   _Group(this._children, this._offsets);
 
-  final List<RenderNode<S>> _children;
+  final List<RenderNode<T>> _children;
   final List<Offset> _offsets;
 
   @override
-  List<RenderNode<S>> get children => _children;
+  List<RenderNode<T>> get children => _children;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -24,10 +24,10 @@ class _Group<S> extends RenderNode<S> {
 }
 
 /// A leaf that fills its rect, so it emits a paint intent.
-class _Dot<S> extends RenderNode<S> {
-  _Dot(this.style, {this.w = 1, this.h = 1});
+class _Dot<T> extends RenderNode<T> {
+  _Dot(this.token, {this.w = 1, this.h = 1});
 
-  final S style;
+  final T token;
   final int w;
   final int h;
 
@@ -35,7 +35,7 @@ class _Dot<S> extends RenderNode<S> {
   Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
-  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+  void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
 _Group<String> _tree() => _Group<String>(

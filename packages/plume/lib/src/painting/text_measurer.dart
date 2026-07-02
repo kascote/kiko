@@ -6,7 +6,7 @@ import 'package:characters/characters.dart';
 /// occupies. Backends inject a real measurer (a terminal one accounts for wide
 /// glyphs); tests use [MonospaceMeasurer]. Width is the only backend-specific
 /// primitive: line breaking lives in the `Text` widget, which needs the
-/// per-cluster style tokens that a plain-string wrapper cannot carry.
+/// per-cluster paint tokens that a plain-string wrapper cannot carry.
 // A single abstract member is intentional: this is the injection seam backends
 // implement, not a candidate for a plain function typedef.
 // ignore: one_member_abstracts

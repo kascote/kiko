@@ -5,10 +5,10 @@ import '../support/fake_wide_measurer.dart';
 import '../support/golden.dart';
 
 /// A leaf that fills its own rect, so its paint records as a [FillIntent].
-class _Fill<S> extends RenderNode<S> {
-  _Fill(this.style, this.w, this.h);
+class _Fill<T> extends RenderNode<T> {
+  _Fill(this.token, this.w, this.h);
 
-  final S style;
+  final T token;
   final int w;
   final int h;
 
@@ -16,13 +16,13 @@ class _Fill<S> extends RenderNode<S> {
   Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
-  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+  void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
 /// Lays [node] out tightly at [size], places it, and paints it, returning the
 /// recording surface so the caller can read both the intents and their clips.
-RecordingSurface<S> _paint<S>(RenderNode<S> node, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
-  final surface = RecordingSurface<S>();
+RecordingSurface<T> _paint<T>(RenderNode<T> node, Size size, {TextMeasurer measurer = const MonospaceMeasurer()}) {
+  final surface = RecordingSurface<T>();
   node
     ..layout(BoxConstraints.tight(size), LayoutContext(measurer: measurer))
     ..place(Offset.zero)
@@ -30,7 +30,7 @@ RecordingSurface<S> _paint<S>(RenderNode<S> node, Size size, {TextMeasurer measu
   return surface;
 }
 
-List<String> _lines<S>(RecordingSurface<S> surface) => surface.intents.map((intent) => '$intent').toList();
+List<String> _lines<T>(RecordingSurface<T> surface) => surface.intents.map((intent) => '$intent').toList();
 
 void main() {
   group('clip', () {

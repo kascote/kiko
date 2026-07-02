@@ -9,9 +9,9 @@ import 'alignment.dart';
 /// Sizes to the available space on each bounded axis and positions its child
 /// within it according to [alignment]; shrinks to the child on an unbounded
 /// axis.
-class Align<S> extends SingleChildNode<S> {
+class Align<T> extends SingleChildNode<T> {
   /// Aligns [child] within this box using [alignment].
-  Align({required this.alignment, required RenderNode<S> child}) : super(child);
+  Align({required this.alignment, required RenderNode<T> child}) : super(child);
 
   /// Where the child sits within the extra space.
   final Alignment alignment;
@@ -28,7 +28,7 @@ class Align<S> extends SingleChildNode<S> {
 }
 
 /// Centers its child within the available space.
-class Center<S> extends Align<S> {
+class Center<T> extends Align<T> {
   /// Centers [child].
   Center({required super.child}) : super(alignment: Alignment.center);
 }

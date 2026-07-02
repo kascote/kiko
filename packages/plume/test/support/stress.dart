@@ -17,13 +17,13 @@ import 'package:plume/plume.dart';
 ///
 /// Gives a generated tree visible, clip-checkable paint output without pulling in
 /// a real widget's styling.
-class FillBox<S> extends RenderNode<S> {
-  /// Fills [style] into a box that wants to be [w] by [h] cells, clamped to the
+class FillBox<T> extends RenderNode<T> {
+  /// Fills [token] into a box that wants to be [w] by [h] cells, clamped to the
   /// incoming constraints.
-  FillBox(this.style, this.w, this.h);
+  FillBox(this.token, this.w, this.h);
 
-  /// The opaque style token painted into the rect.
-  final S style;
+  /// The opaque paint token painted into the rect.
+  final T token;
 
   /// The requested width in cells, before constraints.
   final int w;
@@ -35,7 +35,7 @@ class FillBox<S> extends RenderNode<S> {
   Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
-  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+  void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
 /// Grapheme clusters mixed into generated [Text], each stressing a different

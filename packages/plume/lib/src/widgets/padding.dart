@@ -7,9 +7,9 @@ import '../render/render_node.dart';
 import '../render/single_child_node.dart';
 
 /// Insets its child by [insets], reporting a size that includes the padding.
-class Padding<S> extends SingleChildNode<S> {
+class Padding<T> extends SingleChildNode<T> {
   /// Pads [child] by [insets].
-  Padding({required this.insets, required RenderNode<S> child}) : super(child);
+  Padding({required this.insets, required RenderNode<T> child}) : super(child);
 
   /// The cell insets around the child.
   final EdgeInsets insets;

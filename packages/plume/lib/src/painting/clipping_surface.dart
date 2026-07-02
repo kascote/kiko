@@ -22,7 +22,7 @@ import 'surface.dart';
 ///
 /// A carried clip is `null` whenever the clip fully contains the footprint, so
 /// an unclipped draw records exactly as it did before clipping existed.
-abstract class ClippingSurface<S> implements Surface<S> {
+abstract class ClippingSurface<T> implements Surface<T> {
   final List<Rect> _clips = <Rect>[];
 
   @override
@@ -40,36 +40,36 @@ abstract class ClippingSurface<S> implements Surface<S> {
   }
 
   @override
-  void fillRect(Rect rect, S style) {
+  void fillRect(Rect rect, T token) {
     final clip = clipRect;
     if (clip == null) {
-      rawFillRect(rect, style, null);
+      rawFillRect(rect, token, null);
       return;
     }
     if (clip.intersect(rect).isEmpty) {
       return;
     }
-    rawFillRect(rect, style, clip.containsRect(rect) ? null : clip);
+    rawFillRect(rect, token, clip.containsRect(rect) ? null : clip);
   }
 
   @override
-  void drawBorder(Rect rect, S style) {
+  void drawBorder(Rect rect, T token) {
     final clip = clipRect;
     if (clip == null) {
-      rawDrawBorder(rect, style, null);
+      rawDrawBorder(rect, token, null);
       return;
     }
     if (clip.intersect(rect).isEmpty) {
       return;
     }
-    rawDrawBorder(rect, style, clip.containsRect(rect) ? null : clip);
+    rawDrawBorder(rect, token, clip.containsRect(rect) ? null : clip);
   }
 
   @override
-  void drawText(int x, int y, String run, S style) {
+  void drawText(int x, int y, String run, T token) {
     final clip = clipRect;
     if (clip == null) {
-      rawDrawText(x, y, run, style, null);
+      rawDrawText(x, y, run, token, null);
       return;
     }
     // A run occupies a single row, so a row outside the clip drops with no
@@ -81,15 +81,15 @@ abstract class ClippingSurface<S> implements Surface<S> {
     // A run starting inside the clip is trusted to have been trimmed by the
     // leaf (which has the glyph widths); a run starting left of the clip
     // carries it as a backstop.
-    rawDrawText(x, y, run, style, x < clip.left ? clip : null);
+    rawDrawText(x, y, run, token, x < clip.left ? clip : null);
   }
 
-  /// Fills [rect] with [style], honoring [clip] if non-null.
-  void rawFillRect(Rect rect, S style, Rect? clip);
+  /// Fills [rect] with [token], honoring [clip] if non-null.
+  void rawFillRect(Rect rect, T token, Rect? clip);
 
-  /// Draws a border around [rect] with [style], honoring [clip] if non-null.
-  void rawDrawBorder(Rect rect, S style, Rect? clip);
+  /// Draws a border around [rect] with [token], honoring [clip] if non-null.
+  void rawDrawBorder(Rect rect, T token, Rect? clip);
 
-  /// Draws [run] at ([x], [y]) with [style], honoring [clip] if non-null.
-  void rawDrawText(int x, int y, String run, S style, Rect? clip);
+  /// Draws [run] at ([x], [y]) with [token], honoring [clip] if non-null.
+  void rawDrawText(int x, int y, String run, T token, Rect? clip);
 }

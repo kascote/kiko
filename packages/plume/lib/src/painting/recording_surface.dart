@@ -10,17 +10,17 @@ import 'draw_intent.dart';
 /// terminal required. The clip stack is enforced by the base class, so an
 /// intent that overflowed its box carries the clip it should have been trimmed
 /// to.
-class RecordingSurface<S> extends ClippingSurface<S> {
+class RecordingSurface<T> extends ClippingSurface<T> {
   /// The draw calls received so far, in the order they arrived.
-  final List<DrawIntent<S>> intents = <DrawIntent<S>>[];
+  final List<DrawIntent<T>> intents = <DrawIntent<T>>[];
 
   @override
-  void rawDrawText(int x, int y, String run, S style, Rect? clip) =>
-      intents.add(TextIntent<S>(x, y, run, style, clip: clip));
+  void rawDrawText(int x, int y, String run, T token, Rect? clip) =>
+      intents.add(TextIntent<T>(x, y, run, token, clip: clip));
 
   @override
-  void rawFillRect(Rect rect, S style, Rect? clip) => intents.add(FillIntent<S>(rect, style, clip: clip));
+  void rawFillRect(Rect rect, T token, Rect? clip) => intents.add(FillIntent<T>(rect, token, clip: clip));
 
   @override
-  void rawDrawBorder(Rect rect, S style, Rect? clip) => intents.add(BorderIntent<S>(rect, style, clip: clip));
+  void rawDrawBorder(Rect rect, T token, Rect? clip) => intents.add(BorderIntent<T>(rect, token, clip: clip));
 }

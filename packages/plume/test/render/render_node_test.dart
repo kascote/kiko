@@ -6,14 +6,14 @@ const _context = LayoutContext(measurer: MonospaceMeasurer());
 /// A minimal multi-child container used to exercise the base protocol: it lays
 /// each child out loosely, parks it at a fixed offset, and fills its own
 /// constraints.
-class _Group<S> extends RenderNode<S> {
+class _Group<T> extends RenderNode<T> {
   _Group(this._children, this._offsets);
 
-  final List<RenderNode<S>> _children;
+  final List<RenderNode<T>> _children;
   final List<Offset> _offsets;
 
   @override
-  List<RenderNode<S>> get children => _children;
+  List<RenderNode<T>> get children => _children;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -26,10 +26,10 @@ class _Group<S> extends RenderNode<S> {
 }
 
 /// A leaf that fills its own rect, so its paint records as a [FillIntent].
-class _Fill<S> extends RenderNode<S> {
-  _Fill(this.style, this.w, this.h);
+class _Fill<T> extends RenderNode<T> {
+  _Fill(this.token, this.w, this.h);
 
-  final S style;
+  final T token;
   final int w;
   final int h;
 
@@ -37,7 +37,7 @@ class _Fill<S> extends RenderNode<S> {
   Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
-  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+  void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
 void main() {

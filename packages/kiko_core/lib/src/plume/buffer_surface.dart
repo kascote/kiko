@@ -7,28 +7,31 @@ import 'package:termunicode/termunicode.dart';
 import '../buffer.dart';
 import '../cell.dart';
 import '../style.dart';
+import 'paint_token.dart';
 
 /// Paints a laid-out plume tree into a kiko [Buffer].
 ///
 /// This is the production [plume.Surface]; plume's own tests paint into a
-/// `RecordingSurface` instead. It is the one place the opaque style token is
+/// `RecordingSurface` instead. It is the one place the opaque paint token is
 /// decoded: plume is generic over a token type and never looks inside it, so
-/// kiko binds that type to its own [Style] and redeems it here — every
-/// [drawText]/[fillRect] call turns a carried [Style] into real [Buffer] cells.
+/// kiko binds that type to its own [PaintToken] and redeems it here — every
+/// draw call turns a carried token into real [Buffer] cells, reading
+/// `token.style` for colors and `token.border` for a box border.
 ///
 /// Clipping is inherited from [plume.ClippingSurface]: the paint walk pushes
 /// each node's rect and the base class trims draws to the active clip, handing
 /// this class only the raw sinks below. Every write is additionally clamped to
 /// the buffer's own bounds, so a draw that escaped its box is dropped rather
 /// than throwing a [RangeError].
-class BufferSurface extends plume.ClippingSurface<Style> {
+class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// Creates a surface that paints into [_buffer].
   BufferSurface(this._buffer);
 
   final Buffer _buffer;
 
   @override
-  void rawDrawText(int x, int y, String run, Style style, plume.Rect? clip) {
+  void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {
+    final style = token.style;
     final area = _buffer.area;
     // A run occupies one row: drop it whole when that row is off the buffer.
     if (y < area.top || y >= area.bottom) return;
@@ -54,8 +57,7 @@ class BufferSurface extends plume.ClippingSurface<Style> {
       if (w == 0) {
         final prev = cx - 1;
         if (prev >= left && prev < right) {
-          _buffer[(x: prev, y: y)] =
-              _buffer[(x: prev, y: y)].appendSymbol(char: cluster, style: style);
+          _buffer[(x: prev, y: y)] = _buffer[(x: prev, y: y)].appendSymbol(char: cluster, style: style);
         }
         continue;
       }
@@ -74,8 +76,7 @@ class BufferSurface extends plume.ClippingSurface<Style> {
         cx = nextX;
         continue;
       }
-      _buffer[(x: cx, y: y)] =
-          _buffer[(x: cx, y: y)].setCell(char: cluster, style: style);
+      _buffer[(x: cx, y: y)] = _buffer[(x: cx, y: y)].setCell(char: cluster, style: style);
       // A wide glyph hides the cells it spans: mark them skipped so the buffer
       // diff leaves them alone rather than emitting a space over the glyph.
       for (var i = cx + 1; i < nextX; i++) {
@@ -86,30 +87,57 @@ class BufferSurface extends plume.ClippingSurface<Style> {
   }
 
   @override
-  void rawFillRect(plume.Rect rect, Style style, plume.Rect? clip) {
+  void rawFillRect(plume.Rect rect, PaintToken token, plume.Rect? clip) {
+    final style = token.style;
     final region = _clampToBuffer(clip == null ? rect : rect.intersect(clip));
     for (var yy = region.top; yy < region.bottom; yy++) {
       for (var xx = region.left; xx < region.right; xx++) {
-        _buffer[(x: xx, y: yy)] =
-            _buffer[(x: xx, y: yy)].setCell(char: ' ', style: style);
+        _buffer[(x: xx, y: yy)] = _buffer[(x: xx, y: yy)].setCell(char: ' ', style: style);
       }
     }
   }
 
   @override
-  void rawDrawBorder(plume.Rect rect, Style style, plume.Rect? clip) {
-    // Deferred to the Block/Container port. The border charset (single /
-    // rounded / double / thick) has to travel in the style token, which
-    // kiko.Style does not yet carry — so a faithful border cannot be drawn from
-    // a bare Style, and hardcoding one charset here would quietly contradict the
-    // locked "charset rides in the token" design (spec 0037). The layout-example
-    // pilot paints no borders, so this stays unimplemented until a bordered
-    // widget is ported and the token shape is decided.
-    throw UnimplementedError(
-      'BufferSurface.drawBorder is deferred to the Block/Container port: the '
-      'border charset must travel in the style token, which kiko.Style does '
-      'not yet carry.',
-    );
+  void rawDrawBorder(plume.Rect rect, PaintToken token, plume.Rect? clip) {
+    // The border charset rides in the token (spec 0074): a bordered box carries
+    // a BorderSet, and the surface decodes it here.
+    final glyphs = token.border;
+    assert(glyphs != null, 'drawBorder needs a border glyph set on the token');
+    if (glyphs == null || rect.width <= 0 || rect.height <= 0) return;
+
+    final style = token.style;
+    final left = rect.left;
+    final right = rect.right - 1;
+    final top = rect.top;
+    final bottom = rect.bottom - 1;
+
+    // Edges first, then corners on top, so a corner always wins its cell.
+    for (var x = left; x <= right; x++) {
+      _setBorderCell(x, top, glyphs.top, style, clip);
+      _setBorderCell(x, bottom, glyphs.bottom, style, clip);
+    }
+    for (var y = top; y <= bottom; y++) {
+      _setBorderCell(left, y, glyphs.left, style, clip);
+      _setBorderCell(right, y, glyphs.right, style, clip);
+    }
+    _setBorderCell(left, top, glyphs.topLeft, style, clip);
+    _setBorderCell(right, top, glyphs.topRight, style, clip);
+    _setBorderCell(left, bottom, glyphs.bottomLeft, style, clip);
+    _setBorderCell(right, bottom, glyphs.bottomRight, style, clip);
+  }
+
+  /// Writes [glyph] styled by [style] at ([x], [y]), dropping it when the cell
+  /// is off the buffer or outside the carried [clip] (the base surface passes a
+  /// border's original rect, so trimming the stray perimeter cells is left here).
+  void _setBorderCell(int x, int y, String glyph, Style style, plume.Rect? clip) {
+    final area = _buffer.area;
+    if (x < area.left || x >= area.right || y < area.top || y >= area.bottom) {
+      return;
+    }
+    if (clip != null && (x < clip.left || x >= clip.right || y < clip.top || y >= clip.bottom)) {
+      return;
+    }
+    _buffer[(x: x, y: y)] = _buffer[(x: x, y: y)].setCell(char: glyph, style: style);
   }
 
   /// Intersects [r] with the buffer's own area, returned as a non-negative rect.

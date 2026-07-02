@@ -6,10 +6,10 @@ import '../support/golden.dart';
 const _ctx = LayoutContext(measurer: MonospaceMeasurer());
 
 /// A fixed-size leaf that fills its rect, so it appears in paint goldens.
-class _Fill<S> extends RenderNode<S> {
-  _Fill(this.style, this.w, this.h);
+class _Fill<T> extends RenderNode<T> {
+  _Fill(this.token, this.w, this.h);
 
-  final S style;
+  final T token;
   final int w;
   final int h;
 
@@ -17,7 +17,7 @@ class _Fill<S> extends RenderNode<S> {
   Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
 
   @override
-  void paintSelf(Surface<S> surface) => surface.fillRect(rect, style);
+  void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
 void main() {

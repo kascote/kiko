@@ -40,8 +40,7 @@ void main() {
         'mix 日本語 🦀 text',
       ]) {
         test('holds for "$text"', () {
-          final sumOfClusters = text.characters
-              .fold<int>(0, (total, cluster) => total + measurer.widthOf(cluster));
+          final sumOfClusters = text.characters.fold<int>(0, (total, cluster) => total + measurer.widthOf(cluster));
           expect(measurer.widthOf(text), sumOfClusters);
         });
       }

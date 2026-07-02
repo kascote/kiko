@@ -14,10 +14,10 @@ import 'render_node.dart';
 ///
 /// Hit testing is left to the caller (`node.hitTest(point)`): it runs per input
 /// event, not per frame.
-void renderFrame<S>(
-  RenderNode<S> node,
+void renderFrame<T>(
+  RenderNode<T> node,
   Rect area,
-  Surface<S> surface, {
+  Surface<T> surface, {
   TextMeasurer measurer = const MonospaceMeasurer(),
 }) {
   node

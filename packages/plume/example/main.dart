@@ -7,8 +7,8 @@ import 'package:plume/plume.dart';
 /// draw intents it emits. A real backend would draw into a terminal buffer
 /// instead of recording.
 void main() {
-  // Styles are opaque tokens the engine carries but never inspects. Here they
-  // are plain strings; a terminal backend would use its own style type.
+  // The paint token is opaque — the engine carries it but never inspects it.
+  // Here they are plain strings; a terminal backend would use its own token type.
   final tree = Container<String>(
     border: 'grey',
     child: Column<String>(

@@ -11,12 +11,12 @@ import '../render/single_child_node.dart';
 /// background and border.
 ///
 /// A [border] is one cell thick and insets the child by one on every side (on
-/// top of any [padding]). The [background] and [border] carry opaque style
+/// top of any [padding]). The [background] and [border] carry opaque token
 /// tokens; the fill is painted first, then the border, then the child on top.
-class Container<S> extends SingleChildNode<S> {
+class Container<T> extends SingleChildNode<T> {
   /// Wraps [child] with optional sizing and decoration.
   Container({
-    required RenderNode<S> child,
+    required RenderNode<T> child,
     this.padding = EdgeInsets.zero,
     this.width,
     this.height,
@@ -33,11 +33,11 @@ class Container<S> extends SingleChildNode<S> {
   /// A fixed height in cells, or `null` to size to the child.
   final int? height;
 
-  /// The fill style token, or `null` for no fill.
-  final S? background;
+  /// The fill paint token, or `null` for no fill.
+  final T? background;
 
-  /// The border style token, or `null` for no border.
-  final S? border;
+  /// The border paint token, or `null` for no border.
+  final T? border;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -65,7 +65,7 @@ class Container<S> extends SingleChildNode<S> {
   }
 
   @override
-  void paintSelf(Surface<S> surface) {
+  void paintSelf(Surface<T> surface) {
     final bg = background;
     if (bg != null) {
       surface.fillRect(rect, bg);

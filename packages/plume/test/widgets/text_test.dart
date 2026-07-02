@@ -42,7 +42,7 @@ void main() {
   });
 
   group('Text paint', () {
-    test('wraps a run across lines, keeping its style token', () {
+    test('wraps a run across lines, keeping its paint token', () {
       final intents = _paint(
         Text<String>([const TextRun('aaaa bbbb', 'red')], softWrap: true),
         const BoxConstraints(maxW: 4, maxH: 100),
@@ -53,7 +53,7 @@ void main() {
       ]);
     });
 
-    test('splits adjacent runs by style on one line', () {
+    test('splits adjacent runs by token on one line', () {
       final intents = _paint(
         Text<String>([const TextRun('ab', 'red'), const TextRun('cd', 'blue')]),
         BoxConstraints.tight(const Size(4, 1)),

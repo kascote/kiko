@@ -5,19 +5,19 @@ import '../geometry/rect.dart';
 /// A single recorded paint operation.
 ///
 /// A `RecordingSurface` turns each `Surface` call into one of these, giving
-/// tests an inspectable, diff-friendly list — the paint golden. [S] is the
-/// opaque style token carried straight through from the widgets.
+/// tests an inspectable, diff-friendly list — the paint golden. [T] is the
+/// opaque paint token carried straight through from the widgets.
 @immutable
-sealed class DrawIntent<S> {
+sealed class DrawIntent<T> {
   const DrawIntent();
 }
 
 /// A run of text drawn at a cell position.
 @immutable
-class TextIntent<S> extends DrawIntent<S> {
-  /// Records drawing [run] at cell ([x], [y]) with [style], optionally clipped
+class TextIntent<T> extends DrawIntent<T> {
+  /// Records drawing [run] at cell ([x], [y]) with [token], optionally clipped
   /// to [clip].
-  const TextIntent(this.x, this.y, this.run, this.style, {this.clip});
+  const TextIntent(this.x, this.y, this.run, this.token, {this.clip});
 
   /// The column the run starts at.
   final int x;
@@ -28,8 +28,8 @@ class TextIntent<S> extends DrawIntent<S> {
   /// The graphemes drawn.
   final String run;
 
-  /// The opaque style token for the run.
-  final S style;
+  /// The opaque paint token for the run.
+  final T token;
 
   /// The active clip the backend must honor, or `null` when the clip fully
   /// contained the run so no trimming is needed.
@@ -37,31 +37,31 @@ class TextIntent<S> extends DrawIntent<S> {
 
   @override
   bool operator ==(Object other) =>
-      other is TextIntent<S> &&
+      other is TextIntent<T> &&
       other.x == x &&
       other.y == y &&
       other.run == run &&
-      other.style == style &&
+      other.token == token &&
       other.clip == clip;
 
   @override
-  int get hashCode => Object.hash(x, y, run, style, clip);
+  int get hashCode => Object.hash(x, y, run, token, clip);
 
   @override
-  String toString() => 'drawText($x, $y, "$run", $style${_clipSuffix(clip)})';
+  String toString() => 'drawText($x, $y, "$run", $token${_clipSuffix(clip)})';
 }
 
 /// A filled rectangle.
 @immutable
-class FillIntent<S> extends DrawIntent<S> {
-  /// Records filling [rect] with [style], optionally clipped to [clip].
-  const FillIntent(this.rect, this.style, {this.clip});
+class FillIntent<T> extends DrawIntent<T> {
+  /// Records filling [rect] with [token], optionally clipped to [clip].
+  const FillIntent(this.rect, this.token, {this.clip});
 
   /// The filled region.
   final Rect rect;
 
-  /// The opaque style token for the fill.
-  final S style;
+  /// The opaque paint token for the fill.
+  final T token;
 
   /// The active clip the backend must honor, or `null` when the clip fully
   /// contained the fill.
@@ -69,27 +69,27 @@ class FillIntent<S> extends DrawIntent<S> {
 
   @override
   bool operator ==(Object other) =>
-      other is FillIntent<S> && other.rect == rect && other.style == style && other.clip == clip;
+      other is FillIntent<T> && other.rect == rect && other.token == token && other.clip == clip;
 
   @override
-  int get hashCode => Object.hash(rect, style, clip);
+  int get hashCode => Object.hash(rect, token, clip);
 
   @override
-  String toString() => 'fillRect($rect, $style${_clipSuffix(clip)})';
+  String toString() => 'fillRect($rect, $token${_clipSuffix(clip)})';
 }
 
 /// A border drawn around a rectangle.
 @immutable
-class BorderIntent<S> extends DrawIntent<S> {
-  /// Records drawing a border around [rect] with [style], optionally clipped to
+class BorderIntent<T> extends DrawIntent<T> {
+  /// Records drawing a border around [rect] with [token], optionally clipped to
   /// [clip].
-  const BorderIntent(this.rect, this.style, {this.clip});
+  const BorderIntent(this.rect, this.token, {this.clip});
 
   /// The bordered region.
   final Rect rect;
 
-  /// The opaque style token for the border.
-  final S style;
+  /// The opaque paint token for the border.
+  final T token;
 
   /// The active clip the backend must honor, or `null` when the clip fully
   /// contained the border. The border is always recorded around the original
@@ -100,13 +100,13 @@ class BorderIntent<S> extends DrawIntent<S> {
 
   @override
   bool operator ==(Object other) =>
-      other is BorderIntent<S> && other.rect == rect && other.style == style && other.clip == clip;
+      other is BorderIntent<T> && other.rect == rect && other.token == token && other.clip == clip;
 
   @override
-  int get hashCode => Object.hash(rect, style, clip);
+  int get hashCode => Object.hash(rect, token, clip);
 
   @override
-  String toString() => 'drawBorder($rect, $style${_clipSuffix(clip)})';
+  String toString() => 'drawBorder($rect, $token${_clipSuffix(clip)})';
 }
 
 /// Renders the trailing `, clip: ...` a draw intent shows only when it carries

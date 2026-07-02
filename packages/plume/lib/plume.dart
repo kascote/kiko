@@ -1,4 +1,4 @@
-/// Plume — a Flutter-style, solver-free layout engine for cell grids (TUI).
+/// Plume — a Flutter-token, solver-free layout engine for cell grids (TUI).
 ///
 /// The engine owns geometry only: it lays out a tree of nodes (constraints flow
 /// down, sizes flow up) and emits draw intents against an injected surface, with

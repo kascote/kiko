@@ -15,9 +15,9 @@ import 'layout_context.dart';
 /// the top-most node under a point. Containers override [children] and size
 /// them in [performLayout]; leaves override [paintSelf] to draw.
 ///
-/// [S] is the opaque style token carried through to the [Surface]; Plume never
+/// [T] is the opaque paint token carried through to the [Surface]; Plume never
 /// inspects it.
-abstract class RenderNode<S> {
+abstract class RenderNode<T> {
   /// This node's size, chosen during [layout].
   Size size = Size.zero;
 
@@ -32,13 +32,13 @@ abstract class RenderNode<S> {
 
   /// The child nodes, in paint order (front-most last). Empty for leaves.
   @protected
-  List<RenderNode<S>> get children => <RenderNode<S>>[];
+  List<RenderNode<T>> get children => <RenderNode<T>>[];
 
   /// Calls [visit] for each child, in paint order.
   ///
   /// Lets tooling (goldens, custom traversals) walk the tree without touching
   /// the child list directly.
-  void visitChildren(void Function(RenderNode<S> child) visit) {
+  void visitChildren(void Function(RenderNode<T> child) visit) {
     children.forEach(visit);
   }
 
@@ -81,7 +81,7 @@ abstract class RenderNode<S> {
   /// after, so a node — or any descendant — only affects cells inside the box
   /// layout assigned it (intersected with every ancestor's rect). Clipping is a
   /// paint-only guarantee: [hitTest] is deliberately not clipped.
-  void paint(Surface<S> surface) {
+  void paint(Surface<T> surface) {
     surface.pushClip(rect);
     paintSelf(surface);
     for (final child in children) {
@@ -94,7 +94,7 @@ abstract class RenderNode<S> {
   ///
   /// Leaves override this; the default draws nothing.
   @protected
-  void paintSelf(Surface<S> surface) {}
+  void paintSelf(Surface<T> surface) {}
 
   /// Returns the top-most node whose [rect] contains [point], searching
   /// children front-to-back. Returns `null` when [point] is outside this node.
@@ -102,7 +102,7 @@ abstract class RenderNode<S> {
   /// Hit testing is not clipped: a child whose rect spills past this node's is
   /// still hit where it was placed. Clipping is a paint-only guarantee (see
   /// [paint]).
-  RenderNode<S>? hitTest(Offset point) {
+  RenderNode<T>? hitTest(Offset point) {
     if (!_rect.contains(point)) {
       return null;
     }

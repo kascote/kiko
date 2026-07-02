@@ -9,9 +9,9 @@ import '../render/single_child_node.dart';
 ///
 /// The extra constraints are clamped into what the parent allows, so this can
 /// tighten a child but never escape the parent's bounds.
-class ConstrainedBox<S> extends SingleChildNode<S> {
+class ConstrainedBox<T> extends SingleChildNode<T> {
   /// Constrains [child] further with [additionalConstraints].
-  ConstrainedBox({required this.additionalConstraints, required RenderNode<S> child}) : super(child);
+  ConstrainedBox({required this.additionalConstraints, required RenderNode<T> child}) : super(child);
 
   /// The extra bounds to impose on the child.
   final BoxConstraints additionalConstraints;

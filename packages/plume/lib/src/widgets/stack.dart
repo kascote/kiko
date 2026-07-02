@@ -26,11 +26,11 @@ enum StackFit {
 /// This is a marker the parent [Stack] reads, much like a flexible child of a
 /// row or column: its own layout just passes the incoming constraints straight
 /// through to the child.
-class Positioned<S> extends SingleChildNode<S> {
+class Positioned<T> extends SingleChildNode<T> {
   /// Positions [child] using any mix of edges ([left]/[top]/[right]/[bottom])
   /// and an explicit [width]/[height].
   Positioned({
-    required RenderNode<S> child,
+    required RenderNode<T> child,
     this.left,
     this.top,
     this.right,
@@ -72,10 +72,10 @@ class Positioned<S> extends SingleChildNode<S> {
 /// stack sizes itself to its largest non-positioned child, or fills the incoming
 /// constraints when every child is positioned. Children paint front-to-back in
 /// list order and hit-test back-to-front, so the last child wins an overlap.
-class Stack<S> extends RenderNode<S> {
+class Stack<T> extends RenderNode<T> {
   /// Creates a stack of [children], aligned by [alignment] and sized per [fit].
   Stack({
-    required List<RenderNode<S>> children,
+    required List<RenderNode<T>> children,
     this.alignment = Alignment.topLeft,
     this.fit = StackFit.loose,
   }) : _children = children;
@@ -86,10 +86,10 @@ class Stack<S> extends RenderNode<S> {
   /// How non-positioned children are sized.
   final StackFit fit;
 
-  final List<RenderNode<S>> _children;
+  final List<RenderNode<T>> _children;
 
   @override
-  List<RenderNode<S>> get children => _children;
+  List<RenderNode<T>> get children => _children;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -103,7 +103,7 @@ class Stack<S> extends RenderNode<S> {
     var width = constraints.minW;
     var height = constraints.minH;
     for (final child in _children) {
-      if (child is Positioned<S>) {
+      if (child is Positioned<T>) {
         continue;
       }
       hasNonPositioned = true;
@@ -128,7 +128,7 @@ class Stack<S> extends RenderNode<S> {
 
     // Pass 2: place every child within the resolved size.
     for (final child in _children) {
-      if (child is Positioned<S>) {
+      if (child is Positioned<T>) {
         _placePositioned(child, size, context);
       } else {
         child.offset = Offset(alignment.alignX(size.w - child.size.w), alignment.alignY(size.h - child.size.h));
@@ -137,7 +137,7 @@ class Stack<S> extends RenderNode<S> {
     return size;
   }
 
-  void _placePositioned(Positioned<S> child, Size size, LayoutContext context) {
+  void _placePositioned(Positioned<T> child, Size size, LayoutContext context) {
     final left = child.left;
     final top = child.top;
     final right = child.right;

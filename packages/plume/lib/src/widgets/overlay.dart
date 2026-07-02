@@ -11,8 +11,8 @@ import 'stack.dart';
 /// the layers front-to-back before the base, so a click lands on the top-most
 /// layer under it. This is the real paint-order model that replaces ad-hoc
 /// redraw ordering.
-class Overlay<S> extends Stack<S> {
+class Overlay<T> extends Stack<T> {
   /// Composites [base] under the given [overlays], the last painted on top.
-  Overlay({required RenderNode<S> base, List<RenderNode<S>>? overlays})
-    : super(children: <RenderNode<S>>[base, ...?overlays], fit: StackFit.expand);
+  Overlay({required RenderNode<T> base, List<RenderNode<T>>? overlays})
+    : super(children: <RenderNode<T>>[base, ...?overlays], fit: StackFit.expand);
 }

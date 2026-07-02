@@ -6,8 +6,8 @@ import '../support/golden.dart';
 const _ctx = LayoutContext(measurer: MonospaceMeasurer());
 
 /// A container that paints a solid fill, so it shows up in paint goldens.
-Container<String> _panel(String style, {int? width, int? height}) =>
-    Container<String>(background: style, width: width, height: height, child: SizedBox<String>());
+Container<String> _panel(String token, {int? width, int? height}) =>
+    Container<String>(background: token, width: width, height: height, child: SizedBox<String>());
 
 void main() {
   group('Overlay', () {

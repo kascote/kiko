@@ -6,7 +6,7 @@ import '../geometry/rect.dart';
 /// each call is a *draw intent*. Backends implement it to render for real (for
 /// example into a terminal buffer), and tests implement it to record the calls.
 ///
-/// [S] is the opaque style token carried from the widgets. The surface is the
+/// [T] is the opaque paint token carried from the widgets. The surface is the
 /// one place it is interpreted — the layout core never looks inside it.
 ///
 /// The surface also owns the paint-side clip. The paint walk pushes a node's
@@ -16,16 +16,16 @@ import '../geometry/rect.dart';
 /// box layout assigned it. Concrete surfaces extend `ClippingSurface`, which
 /// owns the clip stack and the trim/drop rules, so a leaf drawing through the
 /// three draw methods cannot escape the clip.
-abstract class Surface<S> {
+abstract class Surface<T> {
   /// Draws the run of graphemes [run] starting at cell ([x], [y]), styled by
-  /// [style].
-  void drawText(int x, int y, String run, S style);
+  /// [token].
+  void drawText(int x, int y, String run, T token);
 
-  /// Fills every cell of [rect], styled by [style].
-  void fillRect(Rect rect, S style);
+  /// Fills every cell of [rect], styled by [token].
+  void fillRect(Rect rect, T token);
 
-  /// Draws a border around the edge of [rect], styled by [style].
-  void drawBorder(Rect rect, S style);
+  /// Draws a border around the edge of [rect], styled by [token].
+  void drawBorder(Rect rect, T token);
 
   /// Pushes [rect] as the active clip, intersected with the current clip.
   ///

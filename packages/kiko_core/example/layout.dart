@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 Future<void> main() async {
   await Application(
@@ -18,53 +19,15 @@ Future<void> main() async {
   );
 }
 
+// Cell sizes for the example grid, in cells.
+const _cellWidth = 14;
+const _cellHeight = 9;
+
 void draw(Frame frame) {
-  final vertical = Layout.vertical(const [
-    ConstraintLength(4), //text
-    ConstraintLength(50), //examples
-    ConstraintMin(0), // fills remaining space
-  ]);
-
-  final [textArea, examplesArea, _] = vertical.areas(frame.area);
-
-  frame.renderWidget(
-    Text.fromLines([
-      Line(
-        'Horizontal layout example',
-        style: const Style(fg: Color.darkGray),
-        alignment: Alignment.center,
-      ),
-      Line('Each line has 2 constraints, plus Min(0) to fill the remaining space.'),
-      Line('E.g. the second line of the Len/Min box is [Length(2), Min(2), Min(0)]'),
-      Line("Note: constraint labels that don't fit are truncated"),
-    ]),
-    textArea,
-  );
-
-  final vertRows = Layout.vertical(const [
-    ConstraintLength(9),
-    ConstraintLength(9),
-    ConstraintLength(9),
-    ConstraintLength(9),
-    ConstraintLength(9),
-    ConstraintMin(0), // fills remaining space
-  ]);
-  final exampleRows = vertRows.split(examplesArea);
-
-  final exampleAreas = exampleRows
-      .map(
-        (area) => Layout.horizontal(const [
-          ConstraintLength(14),
-          ConstraintLength(14),
-          ConstraintLength(14),
-          ConstraintLength(14),
-          ConstraintLength(14),
-          ConstraintMin(0), // fills remaining space
-        ]).split(area).take(5),
-      )
-      .expand((a) => a)
-      .toList();
-
+  // The screen is a plume tree now: a stretched column of a header, five rows
+  // of example cells, and a spacer that eats the rest of the height. Each cell
+  // and the header are still drawn by the un-ported kiko widgets below, wrapped
+  // as LegacyLeaf so only the outer layout moved to plume.
   final examples = [
     (
       'Len',
@@ -123,12 +86,63 @@ void draw(Frame frame) {
     ),
   ];
 
-  for (final ((a, b), area) in examples.cartesianProduct(examples).zip(exampleAreas)) {
-    final (nameA, exampleA) = a;
-    final (nameB, exampleB) = b;
-    final constraints = exampleA.zip(exampleB);
-    renderExampleCombination(frame, area, '$nameA/$nameB', constraints);
+  final rows = <plume.RenderNode<PaintToken>>[];
+  for (final (nameA, exampleA) in examples) {
+    final cells = <plume.RenderNode<PaintToken>>[];
+    for (final (nameB, exampleB) in examples) {
+      final constraints = exampleA.zip(exampleB).toList();
+      cells.add(
+        LegacyLeaf(
+          _FnWidget((area, frame) => renderExampleCombination(frame, area, '$nameA/$nameB', constraints)),
+          width: _cellWidth,
+          height: _cellHeight,
+        ),
+      );
+    }
+    cells.add(_fill());
+    rows.add(plume.Row<PaintToken>(children: cells));
   }
+
+  final header = Text.fromLines([
+    Line(
+      'Horizontal layout example',
+      style: const Style(fg: Color.darkGray),
+      alignment: Alignment.center,
+    ),
+    Line('Each line has 2 constraints, plus Min(0) to fill the remaining space.'),
+    Line('E.g. the second line of the Len/Min box is [Length(2), Min(2), Min(0)]'),
+    Line("Note: constraint labels that don't fit are truncated"),
+  ]);
+
+  frame.renderNode(
+    plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+      children: [
+        LegacyLeaf(
+          _FnWidget((area, frame) => frame.renderWidget(header, area)),
+          width: 0,
+          height: 4,
+        ),
+        ...rows,
+        _fill(),
+      ],
+    ),
+  );
+}
+
+/// A flexible spacer that soaks up leftover space, matching the old
+/// `ConstraintMin(0)` fill regions.
+plume.Expanded<PaintToken> _fill() => plume.Expanded<PaintToken>(child: plume.SizedBox<PaintToken>());
+
+/// Adapts a `render(Rect, Frame)` closure into a kiko [Widget] so an un-ported
+/// bit of drawing can ride inside a [LegacyLeaf].
+class _FnWidget implements Widget {
+  _FnWidget(this._render);
+
+  final void Function(Rect area, Frame frame) _render;
+
+  @override
+  void render(Rect area, Frame frame) => _render(area, frame);
 }
 
 void renderExampleCombination(

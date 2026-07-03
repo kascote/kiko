@@ -1,10 +1,15 @@
 // coverage:ignore-file
 //
+import 'package:plume/plume.dart' as plume;
+
 import '../buffer.dart';
 import '../cell.dart';
 import '../layout/constraint.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
+import '../plume/buffer_surface.dart';
+import '../plume/paint_token.dart';
+import '../plume/term_unicode_measurer.dart';
 
 /// A widget that can be rendered in a frame.
 // ignore: one_member_abstracts
@@ -45,6 +50,28 @@ class Frame {
   /// Renders a widget in the given area of the frame.
   void renderWidget(Widget widget, Rect area) {
     widget.render(area, this);
+  }
+
+  /// Renders a Plume layout [node] tree into this frame.
+  ///
+  /// Pass the root of a Plume tree whose leaves carry kiko [PaintToken]s. The
+  /// tree is laid out tight to [area], its text measured the way kiko paints
+  /// it, and the result written into this frame's [buffer]. Reach for this to
+  /// render a Plume-built screen from a kiko [Widget] without going through the
+  /// constraint layout.
+  ///
+  /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
+  /// as [measurer] when ambiguous-width glyphs should count as two cells.
+  void renderNode(
+    plume.RenderNode<PaintToken> node, {
+    plume.TextMeasurer measurer = const TermUnicodeMeasurer(),
+  }) {
+    plume.renderFrame(
+      node,
+      plume.Rect(area.x, area.y, area.width, area.height),
+      BufferSurface(buffer),
+      measurer: measurer,
+    );
   }
 
   /// Renders a widget centered in the frame with the given size constraints.

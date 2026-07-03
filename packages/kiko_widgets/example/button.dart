@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -161,28 +162,28 @@ void appView(AppModel model, Frame frame) {
   // Fill background
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = Column(
+  final ui = plume.Column<PaintToken>(
+    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
     children: [
       // Top row: Basic + Styled
-      Expanded(
-        child: Row(
+      plume.Expanded<PaintToken>(
+        child: plume.Row<PaintToken>(
+          crossAxisAlignment: plume.CrossAxisAlignment.stretch,
           children: [
             // Pane 1: Basic buttons (theme-derived styles)
-            Expanded(
+            plume.Expanded<PaintToken>(
               child: _buildPane(
                 theme,
                 '1. Basic (themed)',
-                model.basicGroup,
                 model.focusedPane == 0,
                 _buildHorizontalButtons(model.basicGroup, gap: 2, theme: theme),
               ),
             ),
             // Pane 2: Styled buttons (overrides demo)
-            Expanded(
+            plume.Expanded<PaintToken>(
               child: _buildPane(
                 theme,
                 '2. Styled',
-                model.styledGroup,
                 model.focusedPane == 1,
                 _buildStyledButtons(model.styledGroup, theme: theme),
               ),
@@ -191,25 +192,24 @@ void appView(AppModel model, Frame frame) {
         ),
       ),
       // Bottom row: Vertical + States
-      Expanded(
-        child: Row(
+      plume.Expanded<PaintToken>(
+        child: plume.Row<PaintToken>(
+          crossAxisAlignment: plume.CrossAxisAlignment.stretch,
           children: [
             // Pane 3: Vertical layout (theme-derived)
-            Expanded(
+            plume.Expanded<PaintToken>(
               child: _buildPane(
                 theme,
                 '3. Vertical (wrap)',
-                model.verticalGroup,
                 model.focusedPane == 2,
                 _buildVerticalButtons(model.verticalGroup, theme: theme),
               ),
             ),
             // Pane 4: States (theme-derived)
-            Expanded(
+            plume.Expanded<PaintToken>(
               child: _buildPane(
                 theme,
                 '4. States',
-                model.statesGroup,
                 model.focusedPane == 3,
                 _buildHorizontalButtons(model.statesGroup, gap: 2, theme: theme),
               ),
@@ -218,113 +218,105 @@ void appView(AppModel model, Frame frame) {
         ),
       ),
       // Status bar
-      Fixed(
-        1,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text.raw(
+      plume.Row<PaintToken>(
+        children: [
+          plume.Expanded<PaintToken>(
+            child: lineNode(
+              Line(
                 model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
                 style: Style(fg: theme.accent.fg),
               ),
             ),
-            Fixed(25, child: themeIndicator(model)),
-            Fixed(
-              30,
-              child: Text.raw(
-                'Tab: pane | Esc: quit',
-                style: theme.muted,
-                alignment: Alignment.right,
-              ),
+          ),
+          plume.ConstrainedBox<PaintToken>(
+            additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+            child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+          ),
+          plume.ConstrainedBox<PaintToken>(
+            additionalConstraints: const plume.BoxConstraints(minW: 30, maxW: 30),
+            child: lineNode(
+              Line('Tab: pane | Esc: quit', style: theme.muted, alignment: Alignment.right),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ],
   );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
-Widget _buildPane(
+plume.RenderNode<PaintToken> _buildPane(
   Theme theme,
   String title,
-  ButtonGroupModel group,
   bool focused,
-  Widget buttons,
+  plume.RenderNode<PaintToken> buttons,
 ) {
   final borderStyle = focused ? theme.focus : theme.border;
   final titleStyle = focused ? theme.focus : theme.muted;
-  return Block(
-    borders: Borders.all,
+  return box(
+    border: BorderType.plain,
     borderStyle: borderStyle,
-    padding: const EdgeInsets.all(1),
-    child: Column(
+    padding: const plume.EdgeInsets.all(1),
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Fixed(1, child: Line(title, style: titleStyle)),
-        Fixed(1, child: const Span('')), // Spacer
-        Expanded(child: buttons),
+        lineNode(Line(title, style: titleStyle)),
+        plume.SizedBox<PaintToken>(height: 1), // Spacer
+        plume.Expanded<PaintToken>(child: buttons),
       ],
     ),
   );
 }
 
 /// Build horizontal button layout with custom gap.
-Widget _buildHorizontalButtons(
+plume.RenderNode<PaintToken> _buildHorizontalButtons(
   ButtonGroupModel group, {
   required Theme theme,
   int gap = 1,
 }) {
-  final children = <LayoutChild>[];
+  final children = <plume.RenderNode<PaintToken>>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
-      children.add(Fixed(gap, child: Text.raw('')));
+      children.add(plume.SizedBox<PaintToken>(width: gap, height: 1));
     }
-    final button = group.buttons[i];
-    children.add(Fixed(button.width, child: Button(button, theme: theme)));
+    children.add(button(group.buttons[i], theme));
   }
-  return Row(children: children);
+  return plume.Row<PaintToken>(children: children);
 }
 
 /// Build styled buttons with per-button overrides.
-Widget _buildStyledButtons(
+plume.RenderNode<PaintToken> _buildStyledButtons(
   ButtonGroupModel group, {
   required Theme theme,
 }) {
-  final children = <LayoutChild>[];
+  final children = <plume.RenderNode<PaintToken>>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0) {
-      children.add(Fixed(1, child: Text.raw('')));
+      children.add(plume.SizedBox<PaintToken>(width: 1, height: 1));
     }
-    final button = group.buttons[i];
+    final btnModel = group.buttons[i];
     children.add(
-      Fixed(
-        button.width,
-        child: Button(
-          button,
-          theme: theme,
-          styleOverrides: _styledOverrides[button.id],
-        ),
-      ),
+      button(btnModel, theme, styleOverrides: _styledOverrides[btnModel.id]),
     );
   }
-  return Row(children: children);
+  return plume.Row<PaintToken>(children: children);
 }
 
 /// Build vertical button layout with gap.
-Widget _buildVerticalButtons(
+plume.RenderNode<PaintToken> _buildVerticalButtons(
   ButtonGroupModel group, {
   required Theme theme,
   int gap = 1,
 }) {
-  final children = <LayoutChild>[];
+  final children = <plume.RenderNode<PaintToken>>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
-      children.add(Fixed(gap, child: Text.raw('')));
+      children.add(plume.SizedBox<PaintToken>(height: gap));
     }
-    children.add(Fixed(1, child: Button(group.buttons[i], theme: theme)));
+    children.add(button(group.buttons[i], theme));
   }
-  return Column(children: children);
+  return plume.Column<PaintToken>(children: children);
 }
 
 // ═══════════════════════════════════════════════════════════

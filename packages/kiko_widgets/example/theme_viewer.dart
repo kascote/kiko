@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -42,49 +43,46 @@ void view(Model model, Frame frame) {
   // Fill background with theme color
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = Column(
+  final ui = plume.Column<PaintToken>(
+    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
     children: [
       // Header
-      Fixed(
-        3,
-        child: Block(
-          borders: Borders.all,
-          borderStyle: theme.border,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text.raw(
+      box(
+        border: BorderType.plain,
+        borderStyle: theme.border,
+        child: plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(
+                Line(
                   ' Theme: ${model.themeName}',
                   style: Style(fg: theme.primary.fg, addModifier: Modifier.bold),
                 ),
               ),
-              Fixed(
-                30,
-                child: Text.raw(
-                  '←/→: switch  q: quit ',
-                  style: theme.muted,
-                  alignment: Alignment.right,
-                ),
-              ),
-            ],
-          ),
+            ),
+            _col(
+              30,
+              lineNode(Line('←/→: switch  q: quit ', style: theme.muted, alignment: Alignment.right)),
+            ),
+          ],
         ),
       ),
       // Content
-      Expanded(
-        child: Row(
+      plume.Expanded<PaintToken>(
+        child: plume.Row<PaintToken>(
+          crossAxisAlignment: plume.CrossAxisAlignment.stretch,
           children: [
             // Palette styles
-            Expanded(child: _StyleSection(theme, 'Palette Styles', _paletteStyles(theme))),
+            plume.Expanded<PaintToken>(child: _styleSection(theme, 'Palette Styles', _paletteStyles(theme))),
             // Semantic styles
-            Expanded(child: _StyleSection(theme, 'Semantic Styles', _semanticStyles(theme))),
+            plume.Expanded<PaintToken>(child: _styleSection(theme, 'Semantic Styles', _semanticStyles(theme))),
           ],
         ),
       ),
     ],
   );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 List<(String, Style)> _paletteStyles(Theme t) => [
@@ -106,95 +104,54 @@ List<(String, Style)> _semanticStyles(Theme t) => [
   ('highlight', t.highlight),
 ];
 
-class _StyleSection implements Widget {
-  final Theme theme;
-  final String title;
-  final List<(String, Style)> styles;
-
-  const _StyleSection(this.theme, this.title, this.styles);
-
-  @override
-  void render(Rect area, Frame frame) {
-    final block = Block(
-      borders: Borders.all,
-      borderStyle: theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-    ).titleTop(Line(title, style: theme.focus));
-    final inner = block.inner(area);
-    frame.renderWidget(block, area);
-
-    final children = <LayoutChild>[Fixed(1, child: _HeaderRow(theme))];
-    for (final (name, style) in styles) {
-      children.add(Fixed(1, child: _StyleRow(theme, name, style)));
-    }
-    Column(children: children).render(inner, frame);
+plume.RenderNode<PaintToken> _styleSection(Theme theme, String title, List<(String, Style)> styles) {
+  final rows = <plume.RenderNode<PaintToken>>[_headerRow(theme)];
+  for (final (name, style) in styles) {
+    rows.add(_styleRow(theme, name, style));
   }
+  return box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+    topTitles: [Line(title, style: theme.focus)],
+    child: plume.Column<PaintToken>(children: rows),
+  );
 }
 
-class _HeaderRow implements Widget {
-  final Theme theme;
-  const _HeaderRow(this.theme);
+plume.RenderNode<PaintToken> _headerRow(Theme theme) => plume.Row<PaintToken>(
+  children: [
+    _col(12, lineNode(Line('Name', style: theme.muted))),
+    _col(10, lineNode(Line('fg', style: theme.muted))),
+    _col(10, lineNode(Line('bg', style: theme.muted))),
+    _col(8, lineNode(Line('Normal', style: theme.muted))),
+    _col(10, lineNode(Line('Inverted', style: theme.muted))),
+  ],
+);
 
-  @override
-  void render(Rect area, Frame frame) {
-    Row(
-      children: [
-        Fixed(12, child: Text.raw('Name', style: theme.muted)),
-        Fixed(10, child: Text.raw('fg', style: theme.muted)),
-        Fixed(10, child: Text.raw('bg', style: theme.muted)),
-        Fixed(8, child: Text.raw('Normal', style: theme.muted)),
-        Fixed(10, child: Text.raw('Inverted', style: theme.muted)),
-      ],
-    ).render(area, frame);
-  }
-}
+plume.RenderNode<PaintToken> _styleRow(Theme theme, String name, Style style) => plume.Row<PaintToken>(
+  children: [
+    // Name column
+    _col(12, lineNode(Line(name, style: Style(fg: theme.background.fg)))),
+    // fg hex
+    _col(10, lineNode(Line(_colorHex(style.fg), style: Style(fg: style.fg)))),
+    // bg hex
+    _col(10, lineNode(Line(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.fg)))),
+    // Normal swatch
+    _swatch(8, style, 'Abc'),
+    // Inverted swatch
+    _swatch(10, style.inverted, 'Abc'),
+  ],
+);
 
-class _StyleRow implements Widget {
-  final Theme theme;
-  final String name;
-  final Style style;
+/// Pins [child] to an exact [width], one visual row tall.
+plume.RenderNode<PaintToken> _col(int width, plume.RenderNode<PaintToken> child) =>
+    plume.ConstrainedBox<PaintToken>(additionalConstraints: plume.BoxConstraints(minW: width, maxW: width), child: child);
 
-  const _StyleRow(this.theme, this.name, this.style);
-
-  @override
-  void render(Rect area, Frame frame) {
-    Row(
-      children: [
-        // Name column
-        Fixed(
-          12,
-          child: Text.raw(name, style: Style(fg: theme.background.fg)),
-        ),
-        // fg hex
-        Fixed(
-          10,
-          child: Text.raw(_colorHex(style.fg), style: Style(fg: style.fg)),
-        ),
-        // bg hex
-        Fixed(
-          10,
-          child: Text.raw(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.fg)),
-        ),
-        // Normal swatch
-        Fixed(8, child: _Swatch(style, 'Abc')),
-        // Inverted swatch
-        Fixed(10, child: _Swatch(style.inverted, 'Abc')),
-      ],
-    ).render(area, frame);
-  }
-}
-
-class _Swatch implements Widget {
-  final Style style;
-  final String label;
-
-  const _Swatch(this.style, this.label);
-
-  @override
-  void render(Rect area, Frame frame) {
-    Text.raw(' $label ', style: style).render(area, frame);
-  }
-}
+/// A color chip: [width] cells of [style]'s background with [label] over it.
+plume.RenderNode<PaintToken> _swatch(int width, Style style, String label) => plume.ConstrainedBox<PaintToken>(
+  additionalConstraints: plume.BoxConstraints(minW: width, maxW: width),
+  child: box(background: style, child: lineNode(Line(' $label ', style: style))),
+);
 
 /// Format color as hex string.
 String _colorHex(Color? color) {

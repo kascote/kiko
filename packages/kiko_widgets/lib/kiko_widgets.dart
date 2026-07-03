@@ -3,7 +3,6 @@ export 'src/load/load.dart';
 export 'src/widgets/button/button_group_model.dart';
 export 'src/widgets/button/button_model.dart';
 export 'src/widgets/button/button_view.dart';
-export 'src/widgets/button/button_widget.dart';
 export 'src/widgets/button/types.dart';
 export 'src/widgets/list_view/list_view_model.dart';
 export 'src/widgets/list_view/list_view_view.dart';

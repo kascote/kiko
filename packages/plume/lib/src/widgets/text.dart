@@ -1,4 +1,3 @@
-import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 
 import '../geometry/box_constraints.dart';
@@ -7,6 +6,7 @@ import '../painting/surface.dart';
 import '../painting/text_measurer.dart';
 import '../render/layout_context.dart';
 import '../render/render_node.dart';
+import 'line_painter.dart';
 
 /// How the lines of a [Text] are aligned horizontally within its width.
 enum TextAlign {
@@ -55,15 +55,6 @@ class TextRun<T> {
   String toString() => 'TextRun("$text", $token)';
 }
 
-/// One grapheme cluster with its token and measured width.
-class _Cluster<T> {
-  const _Cluster(this.grapheme, this.token, this.width);
-
-  final String grapheme;
-  final T token;
-  final int width;
-}
-
 /// A leaf that lays out and paints styled text.
 ///
 /// The input is already flattened to a list of [TextRun]s (kiko's `Line`/`Span`
@@ -97,24 +88,21 @@ class Text<T> extends RenderNode<T> {
   /// What happens to a line wider than the box.
   final TextOverflow overflow;
 
-  /// The string appended to a truncated line under [TextOverflow.ellipsis].
-  static const String _ellipsisIndicator = '…';
+  List<List<TextCluster<T>>> _lines = <List<TextCluster<T>>>[];
 
-  List<List<_Cluster<T>>> _lines = <List<_Cluster<T>>>[];
-
-  // Cell width of [_ellipsisIndicator], measured once during layout so paint
+  // Cell width of the ellipsis glyph, measured once during layout so paint
   // never assumes the indicator is one cell wide.
   int _indicatorWidth = 1;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     final maxW = constraints.maxW;
-    _indicatorWidth = context.measurer.widthOf(_ellipsisIndicator);
+    _indicatorWidth = context.measurer.widthOf(ellipsisIndicator);
     _lines = _layoutLines(context.measurer, maxW);
 
     var natural = 0;
     for (final line in _lines) {
-      final w = _lineWidth(line);
+      final w = clusterLineWidth(line);
       if (w > natural) {
         natural = w;
       }
@@ -127,9 +115,9 @@ class Text<T> extends RenderNode<T> {
     return Size(width, height);
   }
 
-  List<List<_Cluster<T>>> _layoutLines(TextMeasurer measurer, int? maxWidth) {
-    final lines = <List<_Cluster<T>>>[];
-    for (final paragraph in _splitParagraphs(_flatten(measurer))) {
+  List<List<TextCluster<T>>> _layoutLines(TextMeasurer measurer, int? maxWidth) {
+    final lines = <List<TextCluster<T>>>[];
+    for (final paragraph in _splitParagraphs(clusterRuns(runs, measurer))) {
       if (!softWrap || maxWidth == null || maxWidth <= 0) {
         lines.add(paragraph);
       } else {
@@ -143,24 +131,13 @@ class Text<T> extends RenderNode<T> {
     return lines;
   }
 
-  List<_Cluster<T>> _flatten(TextMeasurer measurer) {
-    final out = <_Cluster<T>>[];
-    for (final run in runs) {
-      for (final grapheme in run.text.characters) {
-        final width = grapheme == '\n' ? 0 : measurer.widthOf(grapheme);
-        out.add(_Cluster(grapheme, run.token, width));
-      }
-    }
-    return out;
-  }
-
-  List<List<_Cluster<T>>> _splitParagraphs(List<_Cluster<T>> clusters) {
-    final paragraphs = <List<_Cluster<T>>>[];
-    var current = <_Cluster<T>>[];
+  List<List<TextCluster<T>>> _splitParagraphs(List<TextCluster<T>> clusters) {
+    final paragraphs = <List<TextCluster<T>>>[];
+    var current = <TextCluster<T>>[];
     for (final cluster in clusters) {
       if (cluster.grapheme == '\n') {
         paragraphs.add(current);
-        current = <_Cluster<T>>[];
+        current = <TextCluster<T>>[];
       } else {
         current.add(cluster);
       }
@@ -169,11 +146,11 @@ class Text<T> extends RenderNode<T> {
     return paragraphs;
   }
 
-  List<List<_Cluster<T>>> _wrap(List<_Cluster<T>> paragraph, int maxWidth) {
-    final lines = <List<_Cluster<T>>>[];
-    var line = <_Cluster<T>>[];
+  List<List<TextCluster<T>>> _wrap(List<TextCluster<T>> paragraph, int maxWidth) {
+    final lines = <List<TextCluster<T>>>[];
+    var line = <TextCluster<T>>[];
     var lineWidth = 0;
-    _Cluster<T>? pendingSpace;
+    TextCluster<T>? pendingSpace;
     var i = 0;
     while (i < paragraph.length) {
       if (paragraph[i].grapheme == ' ') {
@@ -181,7 +158,7 @@ class Text<T> extends RenderNode<T> {
         i++;
         continue;
       }
-      final word = <_Cluster<T>>[];
+      final word = <TextCluster<T>>[];
       var wordWidth = 0;
       while (i < paragraph.length && paragraph[i].grapheme != ' ') {
         word.add(paragraph[i]);
@@ -191,14 +168,14 @@ class Text<T> extends RenderNode<T> {
       final spaceWidth = (pendingSpace != null && line.isNotEmpty) ? pendingSpace.width : 0;
       if (line.isNotEmpty && lineWidth + spaceWidth + wordWidth > maxWidth) {
         lines.add(line);
-        line = <_Cluster<T>>[];
+        line = <TextCluster<T>>[];
         lineWidth = 0;
         pendingSpace = null;
       }
       if (wordWidth > maxWidth) {
         if (line.isNotEmpty) {
           lines.add(line);
-          line = <_Cluster<T>>[];
+          line = <TextCluster<T>>[];
           lineWidth = 0;
         }
         final chunks = _hardBreak(word, maxWidth);
@@ -206,7 +183,7 @@ class Text<T> extends RenderNode<T> {
           lines.add(chunks[k]);
         }
         line = chunks.last;
-        lineWidth = _lineWidth(line);
+        lineWidth = clusterLineWidth(line);
         pendingSpace = null;
       } else {
         if (line.isNotEmpty && pendingSpace != null) {
@@ -222,14 +199,14 @@ class Text<T> extends RenderNode<T> {
     return lines;
   }
 
-  List<List<_Cluster<T>>> _hardBreak(List<_Cluster<T>> word, int maxWidth) {
-    final chunks = <List<_Cluster<T>>>[];
-    var chunk = <_Cluster<T>>[];
+  List<List<TextCluster<T>>> _hardBreak(List<TextCluster<T>> word, int maxWidth) {
+    final chunks = <List<TextCluster<T>>>[];
+    var chunk = <TextCluster<T>>[];
     var width = 0;
     for (final cluster in word) {
       if (chunk.isNotEmpty && width + cluster.width > maxWidth) {
         chunks.add(chunk);
-        chunk = <_Cluster<T>>[];
+        chunk = <TextCluster<T>>[];
         width = 0;
       }
       chunk.add(cluster);
@@ -241,14 +218,6 @@ class Text<T> extends RenderNode<T> {
     return chunks;
   }
 
-  int _lineWidth(List<_Cluster<T>> line) {
-    var total = 0;
-    for (final cluster in line) {
-      total += cluster.width;
-    }
-    return total;
-  }
-
   @override
   void paintSelf(Surface<T> surface) {
     // Cap at the box height: a text with more lines than its assigned rect
@@ -256,123 +225,15 @@ class Text<T> extends RenderNode<T> {
     // ancestor clip are dropped by the surface.
     final rows = _lines.length < rect.height ? _lines.length : rect.height;
     for (var i = 0; i < rows; i++) {
-      _paintLine(surface, _lines[i], rect.y + i);
-    }
-  }
-
-  void _paintLine(Surface<T> surface, List<_Cluster<T>> line, int y) {
-    final (clusters, startX) = _resolveLine(line);
-    // Trim horizontally to the effective clip (this rect intersected with every
-    // ancestor's), so a line whose rect exceeds an ancestor is cut at glyph
-    // boundaries rather than relying on the surface backstop.
-    final clip = surface.clipRect;
-    if (clip == null) {
-      _emitRuns(surface, clusters, startX, y);
-      return;
-    }
-    final (trimmed, trimmedStart) = _trimToClip(clusters, startX, clip.left, clip.right);
-    _emitRuns(surface, trimmed, trimmedStart, y);
-  }
-
-  /// Aligns [line] within the box width, or applies the [overflow] policy when
-  /// it is too wide, returning the clusters to draw and the column to start at.
-  (List<_Cluster<T>>, int) _resolveLine(List<_Cluster<T>> line) {
-    final available = rect.width;
-    final lineWidth = _lineWidth(line);
-    if (lineWidth <= available) {
-      final shift = switch (align) {
-        TextAlign.start => 0,
-        TextAlign.center => (available - lineWidth) ~/ 2,
-        TextAlign.end => available - lineWidth,
-      };
-      return (line, rect.x + shift);
-    }
-    return switch (overflow) {
-      TextOverflow.clip => (_clip(line, available), rect.x),
-      TextOverflow.ellipsis => (_ellipsize(line, available), rect.x),
-    };
-  }
-
-  /// Drops the clusters of [clusters] (starting at column [startX]) that fall
-  /// outside the horizontal span `[clipLeft, clipRight)`, cutting only on whole
-  /// clusters. Returns the surviving clusters and the column the first survivor
-  /// starts at.
-  (List<_Cluster<T>>, int) _trimToClip(List<_Cluster<T>> clusters, int startX, int clipLeft, int clipRight) {
-    final out = <_Cluster<T>>[];
-    var x = startX;
-    var firstX = startX;
-    var started = false;
-    for (final cluster in clusters) {
-      final end = x + cluster.width;
-      if (x >= clipLeft && end <= clipRight) {
-        if (!started) {
-          firstX = x;
-          started = true;
-        }
-        out.add(cluster);
-      } else if (x >= clipLeft) {
-        // Reached (or straddled) the right edge — nothing further fits.
-        break;
-      }
-      x += cluster.width;
-    }
-    return (out, firstX);
-  }
-
-  List<_Cluster<T>> _clip(List<_Cluster<T>> line, int available) {
-    final out = <_Cluster<T>>[];
-    var width = 0;
-    for (final cluster in line) {
-      if (width + cluster.width > available) {
-        break;
-      }
-      out.add(cluster);
-      width += cluster.width;
-    }
-    return out;
-  }
-
-  List<_Cluster<T>> _ellipsize(List<_Cluster<T>> line, int available) {
-    if (available <= 0) {
-      return <_Cluster<T>>[];
-    }
-    final out = <_Cluster<T>>[];
-    var width = 0;
-    // Reserve room for the indicator using its measured width, not a hardcoded
-    // 1, so the reservation and the appended glyph always agree.
-    final budget = available - _indicatorWidth;
-    for (final cluster in line) {
-      if (width + cluster.width > budget) {
-        break;
-      }
-      out.add(cluster);
-      width += cluster.width;
-    }
-    final token = out.isNotEmpty ? out.last.token : line.first.token;
-    out.add(_Cluster(_ellipsisIndicator, token, _indicatorWidth));
-    return out;
-  }
-
-  void _emitRuns(Surface<T> surface, List<_Cluster<T>> clusters, int startX, int y) {
-    if (clusters.isEmpty) {
-      return;
-    }
-    var x = startX;
-    var runStart = startX;
-    var currentToken = clusters.first.token;
-    final buffer = StringBuffer();
-    for (final cluster in clusters) {
-      if (cluster.token != currentToken && buffer.isNotEmpty) {
-        surface.drawText(runStart, y, buffer.toString(), currentToken);
-        buffer.clear();
-        runStart = x;
-        currentToken = cluster.token;
-      }
-      buffer.write(cluster.grapheme);
-      x += cluster.width;
-    }
-    if (buffer.isNotEmpty) {
-      surface.drawText(runStart, y, buffer.toString(), currentToken);
+      final (resolved, startX) = resolveAlign(
+        _lines[i],
+        boxX: rect.x,
+        width: rect.width,
+        align: align,
+        overflow: overflow,
+        indicatorWidth: _indicatorWidth,
+      );
+      paintClusterLine(surface, resolved, x: startX, y: rect.y + i);
     }
   }
 }

@@ -30,6 +30,15 @@ abstract class RenderNode<T> {
   /// This node's absolute rectangle on the grid, fixed during [place].
   Rect get rect => _rect;
 
+  /// An opaque handle that makes this node addressable, or `null` for an
+  /// anonymous node.
+  ///
+  /// Set by whoever builds the tree — kiko stamps a widget's stable id here —
+  /// and never interpreted by the engine, only compared by equality the way a
+  /// map key is. [tagAt] resolves one from a point and [nodeForTag] finds the
+  /// node that carries it.
+  Object? tag;
+
   /// The child nodes, in paint order (front-most last). Empty for leaves.
   @protected
   List<RenderNode<T>> get children => <RenderNode<T>>[];
@@ -113,5 +122,48 @@ abstract class RenderNode<T> {
       }
     }
     return this;
+  }
+
+  /// Returns the [tag] of the innermost tagged node enclosing [point], or `null`
+  /// when no tagged node covers it.
+  ///
+  /// Like [hitTest] this descends children front-to-back, so a node drawn on top
+  /// of an overlap wins; unlike [hitTest] it reports a *tag*, returning the
+  /// deepest descendant that carries one and only falling back to this node's
+  /// own [tag] when nothing below it is tagged. That fallback is the point: the
+  /// node physically under a point is usually an untagged leaf, so
+  /// `hitTest(point)?.tag` would miss the enclosing widget this finds.
+  ///
+  /// Not clipped, matching [hitTest]: a child placed past this node's rect is
+  /// still found where it sits.
+  Object? tagAt(Offset point) {
+    if (!_rect.contains(point)) {
+      return null;
+    }
+    for (final child in children.reversed) {
+      final found = child.tagAt(point);
+      if (found != null) {
+        return found;
+      }
+    }
+    return tag;
+  }
+
+  /// Returns the node whose [tag] equals [target], searched depth-first from
+  /// this node, or `null` when none carries it.
+  ///
+  /// Tags are assumed unique, so the first match is the only match. Read the
+  /// returned node's [rect] to anchor, measure, or scroll a widget into view.
+  RenderNode<T>? nodeForTag(Object target) {
+    if (tag == target) {
+      return this;
+    }
+    for (final child in children) {
+      final found = child.nodeForTag(target);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
   }
 }

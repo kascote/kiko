@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
 import 'table_column.dart';
@@ -34,18 +35,38 @@ class TableView extends Widget {
   TableView({required this.model, required this.theme, this.styleOverrides});
 
   @override
-  void render(Rect area, Frame frame) {
+  void render(Rect area, Frame frame) =>
+      TableRenderer(model, theme, styleOverrides).paint(area, BufferSurface(frame.buffer));
+}
+
+/// Paints a [TableViewModel] through a plume [plume.Surface].
+///
+/// The rendering — visible columns, sticky header, windowed rows, per-cell
+/// truncation, alignment, and state styling — lives here so both the [TableView]
+/// widget and the plume `tableView` viewport draw a table the same way.
+class TableRenderer {
+  /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
+  TableRenderer(this.model, this.theme, this.styleOverrides);
+
+  /// The model containing table state.
+  final TableViewModel model;
+
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  final Map<WidgetState, Style>? styleOverrides;
+
+  /// Paints the table into [area] of [surface].
+  void paint(Rect area, plume.Surface<PaintToken> surface) {
     if (area.isEmpty) return;
 
-    final renderArea = area.intersection(frame.buffer.area);
-    if (renderArea.isEmpty) return;
-
     // Calculate visible columns that fit in area width
-    final visibleCols = _getVisibleColumns(renderArea.width);
+    final visibleCols = _getVisibleColumns(area.width);
     if (visibleCols.isEmpty) return;
 
     final headerHeight = model.stickyHeader ? 1 : 0;
-    final dataHeight = renderArea.height - headerHeight;
+    final dataHeight = area.height - headerHeight;
     if (dataHeight <= 0) return;
 
     // Update model's visible dimensions
@@ -53,20 +74,15 @@ class TableView extends Widget {
 
     // 1. Render header (if sticky)
     if (model.stickyHeader) {
-      _renderHeader(frame, renderArea, visibleCols);
+      _renderHeader(surface, area, visibleCols);
     }
 
     // 2. Check for empty state
     final (loadedStart, loadedEnd) = model.loadedRange;
     if (loadedStart == loadedEnd && !model.isLoading()) {
-      if (model.emptyPlaceholder != null) {
-        final emptyArea = Rect.create(
-          x: renderArea.x,
-          y: renderArea.y + headerHeight,
-          width: renderArea.width,
-          height: dataHeight,
-        );
-        model.emptyPlaceholder!.render(emptyArea, frame);
+      final placeholder = model.emptyPlaceholder;
+      if (placeholder != null) {
+        paintLine(surface, placeholder, x: area.x, y: area.y + headerHeight, width: area.width);
       }
       return;
     }
@@ -77,16 +93,16 @@ class TableView extends Widget {
 
     for (var rowIdx = scrollRow; rowIdx < endRow; rowIdx++) {
       final row = model.getRow(rowIdx);
-      final screenY = renderArea.y + headerHeight + (rowIdx - scrollRow);
+      final screenY = area.y + headerHeight + (rowIdx - scrollRow);
 
       if (row == null) {
         // Render loading placeholder for missing row
         _renderLoadingRow(
-          frame,
+          surface,
           Rect.create(
-            x: renderArea.x,
+            x: area.x,
             y: screenY,
-            width: renderArea.width,
+            width: area.width,
             height: 1,
           ),
         );
@@ -97,11 +113,11 @@ class TableView extends Widget {
       final isSelected = model.isSelected(rowIdx);
 
       _renderRow(
-        frame,
+        surface,
         Rect.create(
-          x: renderArea.x,
+          x: area.x,
           y: screenY,
-          width: renderArea.width,
+          width: area.width,
           height: 1,
         ),
         row,
@@ -134,7 +150,7 @@ class TableView extends Widget {
   }
 
   /// Renders the header row.
-  void _renderHeader(Frame frame, Rect area, List<TableColumn> visibleCols) {
+  void _renderHeader(plume.Surface<PaintToken> surface, Rect area, List<TableColumn> visibleCols) {
     var x = area.x;
     final y = area.y;
     final sep = model.columnSeparator;
@@ -143,13 +159,11 @@ class TableView extends Widget {
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
       if (i > 0 && sepWidth > 0) {
-        final sepArea = Rect.create(x: x, y: y, width: sepWidth, height: 1);
-        Line.fromSpans([sep]).render(sepArea, frame);
+        paintLine(surface, Line.fromSpans([sep]), x: x, y: y, width: sepWidth);
         x += sepWidth;
       }
 
       final col = visibleCols[i];
-      final cellArea = Rect.create(x: x, y: y, width: col.width, height: 1);
 
       // Determine header style
       final style =
@@ -162,20 +176,20 @@ class TableView extends Widget {
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
       final aligned = _alignLine(line, col.width, col.alignment);
-      aligned.patchStyle(style).render(cellArea, frame);
+      paintLine(surface, aligned.patchStyle(style), x: x, y: y, width: col.width);
 
       x += col.width;
     }
   }
 
   /// Renders a loading placeholder row.
-  void _renderLoadingRow(Frame frame, Rect area) {
-    (model.loadingIndicator ?? Line('Loading...')).render(area, frame);
+  void _renderLoadingRow(plume.Surface<PaintToken> surface, Rect area) {
+    paintLine(surface, model.loadingIndicator ?? Line('Loading...'), x: area.x, y: area.y, width: area.width);
   }
 
   /// Renders a data row.
   void _renderRow(
-    Frame frame,
+    plume.Surface<PaintToken> surface,
     Rect area,
     Map<String, Object?> row,
     int rowIndex,
@@ -191,14 +205,12 @@ class TableView extends Widget {
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
       if (colIdx > 0 && sepWidth > 0) {
-        final sepArea = Rect.create(x: x, y: area.y, width: sepWidth, height: 1);
-        Line.fromSpans([sep]).render(sepArea, frame);
+        paintLine(surface, Line.fromSpans([sep]), x: x, y: area.y, width: sepWidth);
         x += sepWidth;
       }
 
       final col = visibleCols[colIdx];
       final value = row[col.field];
-      final cellArea = Rect.create(x: x, y: area.y, width: col.width, height: 1);
 
       // Resolve row style via StyleResolver
       final states = <WidgetState>{
@@ -235,7 +247,7 @@ class TableView extends Widget {
       final line = col.render?.call(ctx) ?? _defaultRender(value, col);
       final truncated = _truncateLine(line, col.width, model.ellipsis);
       final aligned = _alignLine(truncated, col.width, col.alignment);
-      aligned.patchStyle(style).render(cellArea, frame);
+      paintLine(surface, aligned.patchStyle(style), x: x, y: area.y, width: col.width);
 
       x += col.width;
     }

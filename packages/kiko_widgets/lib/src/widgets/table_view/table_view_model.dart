@@ -75,7 +75,7 @@ class TableViewModel implements Component, Loadable {
   final Line? loadingIndicator;
 
   /// Shown when no data.
-  final Widget? emptyPlaceholder;
+  final Line? emptyPlaceholder;
 
   /// Style configuration.
   final TableViewStyle styles;

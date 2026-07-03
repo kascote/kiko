@@ -68,6 +68,12 @@ class TextInputModel implements Focusable {
   int _cursor;
   int _scrollOffset;
 
+  /// Stable identity for this input.
+  ///
+  /// A plume view stamps it on the field so a click resolves back through
+  /// [Frame.hitId]; pass an explicit id when addressing must survive a restart.
+  final String id;
+
   /// Whether the input is focused.
   @override
   bool focused;
@@ -107,6 +113,7 @@ class TextInputModel implements Focusable {
   ///
   /// Pass a custom [keyBinding] to override default key bindings.
   TextInputModel({
+    String? id,
     String initial = '',
     this.placeholder = '',
     this.maxLength,
@@ -117,7 +124,8 @@ class TextInputModel implements Focusable {
     this.focused = false,
     this.style,
     KeyBinding<TextInputAction>? keyBinding,
-  }) : _text = Characters(initial),
+  }) : id = id ?? autoId('textinput'),
+       _text = Characters(initial),
        _cursor = initial.characters.length,
        _scrollOffset = 0 {
     this.keyBinding = keyBinding ?? defaultTextInputBindings.copy();
@@ -136,6 +144,16 @@ class TextInputModel implements Focusable {
   int get cursor => _cursor;
   @visibleForTesting
   set cursor(int value) => _cursor = value;
+
+  /// The cursor's display column: the rendered width of the text before it.
+  ///
+  /// Counts obscure characters when [obscureText] is set, so the column lines up
+  /// with what is drawn. A view adds this to the field's left edge to place the
+  /// terminal cursor.
+  int get cursorColumn {
+    final displayText = obscureText ? Characters(obscureChar * length) : _text;
+    return _widthUpTo(displayText, _cursor);
+  }
 
   /// Updates the model based on the message.
   ///

@@ -1,5 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
 import 'selection.dart';
@@ -26,12 +27,41 @@ class TextArea extends Widget {
   /// Optional per-state style overrides.
   final Map<WidgetState, Style>? styleOverrides;
 
+  /// Creates a TextArea widget.
+  TextArea(this.model, {required this.theme, this.styleOverrides});
+
+  @override
+  void render(Rect area, Frame frame) {
+    final surface = BufferSurface(frame.buffer);
+    final cursor = TextAreaRenderer(model, theme, styleOverrides).paint(area, surface);
+    if (cursor != null) frame.cursorPosition = cursor;
+  }
+}
+
+/// Paints a [TextAreaModel] through a plume [plume.Surface].
+///
+/// The rendering — wrapped lines, the line-number gutter, selection
+/// highlighting, vertical scroll, and the placeholder — lives here so both the
+/// [TextArea] widget and the plume `textArea` viewport draw an editor the same
+/// way. [paint] returns where the terminal cursor belongs when the model is
+/// focused, or `null` — plume's `Surface` has no cursor concept of its own (no
+/// terminal to blink one in), so reporting it back is the caller's job.
+class TextAreaRenderer {
+  /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
+  TextAreaRenderer(this.model, this.theme, this.styleOverrides)
+    : _regionStyle = TextAreaStyle.fromTheme(theme).merge(model.style);
+
+  /// The model containing state and config.
+  final TextAreaModel model;
+
+  /// Theme for deriving styles.
+  final Theme theme;
+
+  /// Optional per-state style overrides.
+  final Map<WidgetState, Style>? styleOverrides;
+
   /// Region styles resolved at construction.
   final TextAreaStyle _regionStyle;
-
-  /// Creates a TextArea widget.
-  TextArea(this.model, {required this.theme, this.styleOverrides})
-    : _regionStyle = TextAreaStyle.fromTheme(theme).merge(model.style);
 
   /// Resolves the base text style from theme + model state.
   Style _resolveStyle() {
@@ -46,62 +76,63 @@ class TextArea extends Widget {
     );
   }
 
-  @override
-  void render(Rect area, Frame frame) {
-    if (area.isEmpty) return;
-
-    final renderArea = area.intersection(frame.buffer.area);
-    if (renderArea.isEmpty) return;
+  /// Paints the editor into [area] of [surface], returning where the
+  /// terminal cursor belongs when the model is focused, or `null`.
+  Position? paint(Rect area, plume.Surface<PaintToken> surface) {
+    if (area.isEmpty) return null;
 
     final m = model;
     final ta = m.textArea;
 
     // Calculate line number gutter width
     final gutterWidth = m.showLineNumbers ? _gutterWidth(ta.lineCount) : 0;
-    final textAreaWidth = renderArea.width - gutterWidth;
+    final textAreaWidth = area.width - gutterWidth;
 
-    if (textAreaWidth <= 0) return;
+    if (textAreaWidth <= 0) return null;
 
     // Update visual width to match widget width (enables dynamic wrapping)
     ta.visualWidth = textAreaWidth;
 
     // Adjust scroll to keep cursor visible
-    m.adjustScroll(renderArea.height);
+    m.adjustScroll(area.height);
 
     // Show placeholder if empty
     if (ta.length() == 0 && m.placeholder.isNotEmpty) {
-      _renderPlaceholder(renderArea, frame, gutterWidth);
-      return;
+      return _renderPlaceholder(area, surface, gutterWidth);
     }
 
     // Render content
-    _renderContent(renderArea, frame, gutterWidth, textAreaWidth);
+    return _renderContent(area, surface, gutterWidth, textAreaWidth);
   }
 
-  void _renderPlaceholder(Rect area, Frame frame, int gutterWidth) {
+  Position? _renderPlaceholder(Rect area, plume.Surface<PaintToken> surface, int gutterWidth) {
     final textArea = area.copyWith(
       x: area.x + gutterWidth,
       width: area.width - gutterWidth,
     );
-    Span(model.placeholder, style: _regionStyle.placeholder).render(textArea, frame);
+    paintLine(
+      surface,
+      Line(model.placeholder, style: _regionStyle.placeholder),
+      x: textArea.x,
+      y: textArea.y,
+      width: textArea.width,
+    );
 
-    if (model.focused) {
-      frame.cursorPosition = Position(textArea.x, textArea.y);
-    }
+    return model.focused ? Position(textArea.x, textArea.y) : null;
   }
 
-  void _renderContent(
+  Position? _renderContent(
     Rect area,
-    Frame frame,
+    plume.Surface<PaintToken> surface,
     int gutterWidth,
     int textAreaWidth,
   ) {
     final m = model;
     final ta = m.textArea;
-    final buf = frame.buffer;
 
     var visualRow = 0; // tracks visual row across all buffer lines
     var screenY = 0; // current screen Y position
+    Position? cursor;
 
     // Iterate through buffer lines
     for (var bufferRow = 0; bufferRow < ta.lineCount; bufferRow++) {
@@ -123,7 +154,7 @@ class TextArea extends Widget {
         // Render line number (only on first wrap of each buffer line)
         if (m.showLineNumbers) {
           _renderLineNumber(
-            buf,
+            surface,
             area.x,
             y,
             gutterWidth,
@@ -133,11 +164,10 @@ class TextArea extends Widget {
 
         // Render text content
         final textX = area.x + gutterWidth;
-        final textRect = Rect.create(x: textX, y: y, width: textAreaWidth, height: 1);
 
         _renderLine(
-          frame,
-          textRect,
+          surface,
+          Rect.create(x: textX, y: y, width: textAreaWidth, height: 1),
           line,
           bufferRow,
           wrapOffset,
@@ -147,7 +177,7 @@ class TextArea extends Widget {
         if (m.focused && bufferRow == ta.row && wrapOffset == m.currentLineInfo.rowOffset) {
           final cursorX = textX + m.currentLineInfo.visualOffset;
           if (cursorX < textX + textAreaWidth) {
-            frame.cursorPosition = Position(cursorX, y);
+            cursor = Position(cursorX, y);
           }
         }
 
@@ -157,26 +187,29 @@ class TextArea extends Widget {
 
       if (screenY >= area.height) break;
     }
+
+    return cursor;
   }
 
   void _renderLineNumber(
-    Buffer buf,
+    plume.Surface<PaintToken> surface,
     int x,
     int y,
     int gutterWidth,
     int? lineNum,
   ) {
     final text = lineNum != null ? lineNum.toString().padLeft(gutterWidth - 1) : ' ' * (gutterWidth - 1);
-
-    final lineRect = Rect.create(x: x, y: y, width: gutterWidth, height: 1);
-    Span('$text ', style: _regionStyle.lineNumber).render(
-      lineRect,
-      Frame(lineRect, buf, 0),
+    paintLine(
+      surface,
+      Line('$text ', style: _regionStyle.lineNumber),
+      x: x,
+      y: y,
+      width: gutterWidth,
     );
   }
 
   void _renderLine(
-    Frame frame,
+    plume.Surface<PaintToken> surface,
     Rect area,
     Characters line,
     int bufferRow,
@@ -189,7 +222,13 @@ class TextArea extends Widget {
 
     if (parts == null || parts.isEmpty) {
       // No selection, render plain
-      _renderSpan(frame, area, line.string, textStyle);
+      paintLine(
+        surface,
+        Line(line.string, style: textStyle),
+        x: area.x,
+        y: area.y,
+        width: area.width,
+      );
       return;
     }
 
@@ -200,15 +239,16 @@ class TextArea extends Widget {
 
       final style = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
       final partWidth = widthChars(part.part);
-      final partRect = Rect.create(x: x, y: area.y, width: partWidth, height: 1);
 
-      _renderSpan(frame, partRect, part.part.string, style);
+      paintLine(
+        surface,
+        Line(part.part.string, style: style),
+        x: x,
+        y: area.y,
+        width: partWidth,
+      );
       x += partWidth;
     }
-  }
-
-  void _renderSpan(Frame frame, Rect area, String text, Style style) {
-    Span(text, style: style).render(area, frame);
   }
 
   int _gutterWidth(int lineCount) {

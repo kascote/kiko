@@ -75,6 +75,12 @@ class TextAreaModel implements Focusable {
   /// The underlying text area buffer.
   final TextAreaComponent textArea;
 
+  /// Stable identity for this text area.
+  ///
+  /// A plume view stamps it on the field so a click resolves back through
+  /// [Frame.hitId]; pass an explicit id when addressing must survive a restart.
+  final String id;
+
   /// Whether the text area is focused.
   @override
   bool focused;
@@ -107,6 +113,7 @@ class TextAreaModel implements Focusable {
   /// The wrap width is set dynamically by the widget based on render area.
   /// Pass a custom [keyBinding] to override default key bindings.
   TextAreaModel({
+    String? id,
     String initial = '',
     this.placeholder = '',
     this.focused = false,
@@ -117,7 +124,8 @@ class TextAreaModel implements Focusable {
     int maxLines = 0,
     int maxColumns = 0,
     KeyBinding<TextAreaAction>? keyBinding,
-  }) : textArea = TextAreaComponent(
+  }) : id = id ?? autoId('textarea'),
+       textArea = TextAreaComponent(
          maxCharacters: maxCharacters,
          maxLines: maxLines,
          maxColumns: maxColumns,

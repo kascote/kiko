@@ -17,6 +17,9 @@ typedef CacheStats = ({int hits, int misses, double ratio});
 /// The cache is implemented as a map with a queue to track the order of access.
 class LineCache<T extends CacheItem, V> {
   /// The maximum number of items that can be stored in the cache.
+  ///
+  /// A value of `0` or less means unbounded — nothing is ever evicted. This is
+  /// what a text area with no line limit uses, so its wrapped lines are all kept.
   final int capacity;
   final Map<String, V> _cache = {};
   final Queue<String> _eviction = Queue<String>();
@@ -57,7 +60,7 @@ class LineCache<T extends CacheItem, V> {
       _eviction.remove(keyHash);
     }
 
-    if (_eviction.length >= capacity) {
+    if (capacity > 0 && _eviction.length >= capacity) {
       final last = _eviction.removeLast();
       _cache.remove(last);
     }

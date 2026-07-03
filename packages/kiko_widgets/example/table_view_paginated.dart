@@ -160,10 +160,7 @@ class AppModel with ThemeSwitcher {
     loadingIndicator: Line.fromSpans(const [
       Span('Loading...', style: Style(fg: Color.yellow)),
     ]),
-    emptyPlaceholder: Text.raw(
-      'No products found',
-      style: const Style(fg: Color.darkGray),
-    ),
+    emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
   );
 
   String? error;

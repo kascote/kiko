@@ -44,6 +44,13 @@ class Frame {
   /// The frame count indicating the sequence number of this frame
   final int count;
 
+  /// The Plume trees rendered into this frame, in paint order.
+  ///
+  /// [renderNode] appends each laid-out root here so [hitId] and [rectOf] can
+  /// address it after the fact; later roots paint on top, so they are searched
+  /// first.
+  final List<plume.RenderNode<PaintToken>> _nodeRoots = <plume.RenderNode<PaintToken>>[];
+
   /// Creates a new frame with the given area and buffer.
   Frame(this.area, this.buffer, this.count);
 
@@ -62,16 +69,58 @@ class Frame {
   ///
   /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
   /// as [measurer] when ambiguous-width glyphs should count as two cells.
+  ///
+  /// The laid-out tree is retained so [hitId] and [rectOf] can address any node
+  /// that carries a `tag` after this returns.
   void renderNode(
     plume.RenderNode<PaintToken> node, {
     plume.TextMeasurer measurer = const TermUnicodeMeasurer(),
   }) {
+    final surface = BufferSurface(buffer);
     plume.renderFrame(
       node,
       plume.Rect(area.x, area.y, area.width, area.height),
-      BufferSurface(buffer),
+      surface,
       measurer: measurer,
     );
+    _nodeRoots.add(node);
+    // A focused text field painted through the surface reports where the cursor
+    // belongs; carry it up to this frame.
+    final cursor = surface.cursor;
+    if (cursor != null) cursorPosition = cursor;
+  }
+
+  /// Returns the id of the innermost tagged widget at cell ([x], [y]), or `null`
+  /// when nothing addressable sits there.
+  ///
+  /// This resolves a point — usually a mouse position — to the stable id a
+  /// widget stamped on its Plume subtree, so an event can be routed to its
+  /// owner. Trees rendered later win an overlap, matching what the viewer sees.
+  String? hitId(int x, int y) {
+    final point = plume.Offset(x, y);
+    for (final root in _nodeRoots.reversed) {
+      final tag = root.tagAt(point);
+      if (tag is String) {
+        return tag;
+      }
+    }
+    return null;
+  }
+
+  /// Returns the on-screen rect of the widget stamped with [id], or `null` when
+  /// no widget carries it this frame.
+  ///
+  /// This is the reverse of [hitId]: it locates a widget by its stable id to
+  /// anchor an overlay, place a tooltip, or scroll it into view.
+  Rect? rectOf(String id) {
+    for (final root in _nodeRoots.reversed) {
+      final node = root.nodeForTag(id);
+      if (node != null) {
+        final r = node.rect;
+        return Rect.create(x: r.x, y: r.y, width: r.width, height: r.height);
+      }
+    }
+    return null;
   }
 
   /// Renders a widget centered in the frame with the given size constraints.

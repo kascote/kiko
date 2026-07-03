@@ -6,6 +6,7 @@ import 'package:termunicode/termunicode.dart';
 
 import '../buffer.dart';
 import '../cell.dart';
+import '../layout/position.dart';
 import '../style.dart';
 import 'paint_token.dart';
 
@@ -35,6 +36,13 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// over these same cells and let it render itself, instead of going through
   /// the draw-intent methods.
   Buffer get buffer => _buffer;
+
+  /// Where a painted node asked the terminal cursor to go, or `null` for none.
+  ///
+  /// A node that draws a focused text field through [buffer] sets this so the
+  /// cursor position survives back to the frame driving the paint; other nodes
+  /// leave it null and the terminal cursor stays put.
+  Position? cursor;
 
   @override
   void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {

@@ -29,6 +29,13 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
 
   final Buffer _buffer;
 
+  /// The buffer this surface paints into.
+  ///
+  /// Exposed so a legacy-widget leaf can hand an un-ported kiko widget a frame
+  /// over these same cells and let it render itself, instead of going through
+  /// the draw-intent methods.
+  Buffer get buffer => _buffer;
+
   @override
   void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {
     final style = token.style;

@@ -22,6 +22,7 @@ export 'src/mvu/focus.dart';
 export 'src/mvu/msg.dart';
 export 'src/mvu/mvu_runtime.dart';
 export 'src/plume/buffer_surface.dart';
+export 'src/plume/legacy_leaf.dart';
 export 'src/plume/paint_token.dart';
 export 'src/plume/term_unicode_measurer.dart';
 export 'src/style.dart';

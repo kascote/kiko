@@ -22,7 +22,17 @@ List<String> _paint(
   int skipColumns = 0,
 }) {
   final surface = RecordingSurface<String>();
-  paintRuns(surface, runs, measurer, x: x, y: y, width: width, align: align, overflow: overflow, skipColumns: skipColumns);
+  paintRuns(
+    surface,
+    runs,
+    measurer,
+    x: x,
+    y: y,
+    width: width,
+    align: align,
+    overflow: overflow,
+    skipColumns: skipColumns,
+  );
   return surface.intents.map((intent) => '$intent').toList();
 }
 

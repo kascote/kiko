@@ -55,14 +55,15 @@ void main() {
     test('resolves the front-most tag in an overlap', () {
       final back = SizedBox<String>(width: 4, height: 2)..tag = 'back';
       final front = SizedBox<String>(width: 4, height: 2)..tag = 'front';
-      final stack = Stack<String>(
-        children: <RenderNode<String>>[
-          Positioned<String>(left: 0, top: 0, child: back),
-          Positioned<String>(left: 0, top: 0, child: front),
-        ],
-      )
-        ..layout(BoxConstraints.tight(const Size(4, 2)), _ctx)
-        ..place(Offset.zero);
+      final stack =
+          Stack<String>(
+              children: <RenderNode<String>>[
+                Positioned<String>(left: 0, top: 0, child: back),
+                Positioned<String>(left: 0, top: 0, child: front),
+              ],
+            )
+            ..layout(BoxConstraints.tight(const Size(4, 2)), _ctx)
+            ..place(Offset.zero);
       // The last child paints on top, so it wins the tag too.
       expect(stack.tagAt(const Offset(1, 1)), 'front');
     });

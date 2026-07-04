@@ -95,6 +95,7 @@ plume.RenderNode<PaintToken> _crossAxisDemo(plume.CrossAxisAlignment alignment) 
 
 /// Two Expanded swatches sharing the row's width by an [a]:[b] flex ratio.
 plume.RenderNode<PaintToken> _flexDemo(int a, int b) => plume.Row<PaintToken>(
+  crossAxisAlignment: plume.CrossAxisAlignment.stretch,
   children: [
     plume.Expanded<PaintToken>(flex: a, child: _fill(Color.red)),
     plume.Expanded<PaintToken>(flex: b, child: _fill(Color.blue)),

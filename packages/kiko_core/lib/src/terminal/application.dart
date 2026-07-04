@@ -31,7 +31,7 @@ typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 typedef Update<M> = (M, Cmd?) Function(M model, Msg msg);
 
 /// View function for MVU: render model to frame.
-typedef View<M> = void Function(M model, Frame frame);
+typedef Render<M> = void Function(M model, Frame frame);
 
 const _baseError = 128;
 const int _sigInt = _baseError + 2;
@@ -148,7 +148,7 @@ class Application {
   Future<int> run<M>({
     required M init,
     required Update<M> update,
-    required View<M> view,
+    required Render<M> view,
   }) async {
     // Create logger
     final log = logPath != null
@@ -198,7 +198,7 @@ class Application {
   /// [view] renders to frame. Model param is always null, use `_` to ignore.
   Future<int> runStateless({
     required Update<Null> update,
-    required View<Null> view,
+    required Render<Null> view,
   }) {
     return run<Null>(
       init: null,
@@ -207,7 +207,7 @@ class Application {
     );
   }
 
-  Future<int> _runLoop<M>(M init, Update<M> update, View<M> view) async {
+  Future<int> _runLoop<M>(M init, Update<M> update, Render<M> view) async {
     final terminal = _terminal!;
     final runtime = _runtime = MvuRuntime()
       ..reset()

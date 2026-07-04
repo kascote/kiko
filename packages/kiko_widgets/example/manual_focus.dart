@@ -7,6 +7,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -82,49 +83,61 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  LayoutChild inputField(TextInputModel input, String label) => Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: input.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(input, theme: theme),
-    ).titleTop(Line(label)),
-  );
-
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    topTitles: [Line('Manual Focus Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        inputField(model.name, 'Name'),
-        inputField(model.email, 'Email'),
-        inputField(model.phone, 'Phone'),
+        _field(model.name, 'Name', theme),
+        _field(model.email, 'Email', theme),
+        _field(model.phone, 'Phone', theme),
         // Status
-        Expanded(
-          child: Text.raw(
-            'Focus index: ${model.focusIndex}\n'
-            'Focused field: ${['Name', 'Email', 'Phone'][model.focusIndex]}\n\n'
-            'Name: "${model.name.value}"\n'
-            'Email: "${model.email.value}"\n'
-            'Phone: "${model.phone.value}"',
-            style: Style(fg: theme.background.fg),
+        plume.Expanded<PaintToken>(
+          child: textNode(
+            Text.raw(
+              'Focus index: ${model.focusIndex}\n'
+              'Focused field: ${['Name', 'Email', 'Phone'][model.focusIndex]}\n\n'
+              'Name: "${model.name.value}"\n'
+              'Email: "${model.email.value}"\n'
+              'Phone: "${model.phone.value}"',
+              style: Style(fg: theme.background.fg),
+            ),
           ),
         ),
         // Help
-        Fixed(
-          1,
-          child: Row(
-            children: [
-              Expanded(child: Text.raw('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted)),
-              Fixed(25, child: themeIndicator(model)),
-            ],
-          ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(
+                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              ),
+            ),
+          ],
         ),
       ],
     ),
-  ).titleTop(Line('Manual Focus Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
+
+/// A bordered, titled field wrapping a fixed-height [textInput].
+plume.RenderNode<PaintToken> _field(TextInputModel input, String label, Theme theme) => box(
+  border: BorderType.plain,
+  borderStyle: input.focused ? theme.focus : theme.border,
+  padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+  topTitles: [Line(label)],
+  child: plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+    child: textInput(input, theme),
+  ),
+);
 
 // ═══════════════════════════════════════════════════════════
 // MAIN

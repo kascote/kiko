@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -60,18 +61,19 @@ void appView(AppModel model, Frame frame) {
   final time = '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   final status = model.running ? 'RUNNING' : 'STOPPED';
 
-  final ui = Row(
+  final ui = plume.Row<PaintToken>(
+    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
     children: [
       // Timer pane (left)
-      Expanded(
-        child: Block(
-          borders: Borders.all,
-          child: Column(
+      plume.Expanded<PaintToken>(
+        child: box(
+          border: BorderType.plain,
+          topTitles: [Line('Timer (space/r)')],
+          child: plume.Column<PaintToken>(
             children: [
-              Expanded(child: Text.raw(time, alignment: Alignment.center)),
-              Fixed(
-                1,
-                child: Text.raw(
+              plume.Expanded<PaintToken>(child: lineNode(Line(time, alignment: Alignment.center))),
+              lineNode(
+                Line(
                   status,
                   alignment: Alignment.center,
                   style: Style(fg: model.running ? Color.green : Color.red),
@@ -79,20 +81,21 @@ void appView(AppModel model, Frame frame) {
               ),
             ],
           ),
-        ).titleTop(Line('Timer (space/r)')),
+        ),
       ),
       // Counter pane (right)
-      Expanded(
-        child: Block(
-          borders: Borders.all,
-          child: Text.raw('Count: ${model.counter}', alignment: Alignment.center),
-        ).titleTop(Line('Counter (↑/↓)')),
+      plume.Expanded<PaintToken>(
+        child: box(
+          border: BorderType.plain,
+          topTitles: [Line('Counter (↑/↓)')],
+          child: lineNode(Line('Count: ${model.counter}', alignment: Alignment.center)),
+        ),
       ),
     ],
   );
 
-  final outer = Block(borders: Borders.all, child: ui).titleTop(Line('q=quit'));
-  frame.renderWidget(outer, frame.area);
+  final outer = box(border: BorderType.plain, topTitles: [Line('q=quit')], child: ui);
+  frame.renderNode(outer);
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -43,7 +43,10 @@ void main() {
 
     test('a non-empty style becomes the background fill', () {
       final node =
-          box(background: const Style(bg: Color.blue), child: plume.SizedBox<PaintToken>(width: 1, height: 1))
+          box(
+                background: const Style(bg: Color.blue),
+                child: plume.SizedBox<PaintToken>(width: 1, height: 1),
+              )
               as plume.BorderBox<PaintToken>;
       expect(node.background, const PaintToken(Style(bg: Color.blue)));
     });

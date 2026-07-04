@@ -9,6 +9,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -145,11 +146,13 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final tableWidget = Block(
-    borders: Borders.all,
+  final tableWidget = tableView(
+    model: model.table,
+    theme: theme,
+    border: BorderType.plain,
     borderStyle: theme.focus,
-    child: TableView(model: model.table, theme: theme),
-  ).titleTop(Line('Employees (${employees.length})', style: theme.focus));
+    topTitles: [Line('Employees (${employees.length})', style: theme.focus)],
+  );
 
   // Selected rows info
   final selectedKeys = model.table.getSelectedKeys();
@@ -158,60 +161,70 @@ void appView(AppModel model, Frame frame) {
       ? 'Selected: $selectedCount rows (${selectedKeys.join(", ")})'
       : 'No rows selected';
 
-  final selectedBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
+  final selectedBox = plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+    child: box(
+      border: BorderType.plain,
       borderStyle: selectedCount > 0 ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        selectedInfo,
-        style: selectedCount > 0 ? Style(fg: theme.success.fg) : theme.muted,
+      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line('Selection')],
+      child: lineNode(
+        Line(
+          selectedInfo,
+          style: selectedCount > 0 ? Style(fg: theme.success.fg) : theme.muted,
+        ),
       ),
-    ).titleTop(Line('Selection')),
+    ),
   );
 
   // Confirmed cell info
-  final confirmedBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
+  final confirmedBox = plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+    child: box(
+      border: BorderType.plain,
       borderStyle: model.confirmedCell != null ? theme.accent : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        model.confirmedCell ?? 'Press Enter to confirm cell',
-        style: model.confirmedCell != null ? Style(fg: theme.accent.fg) : theme.muted,
+      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line('Confirmed')],
+      child: lineNode(
+        Line(
+          model.confirmedCell ?? 'Press Enter to confirm cell',
+          style: model.confirmedCell != null ? Style(fg: theme.accent.fg) : theme.muted,
+        ),
       ),
-    ).titleTop(Line('Confirmed')),
+    ),
   );
 
-  final help = Fixed(
-    1,
-    child: Row(
-      children: [
-        Expanded(
-          child: Text.raw(
+  final help = plume.Row<PaintToken>(
+    children: [
+      plume.Expanded<PaintToken>(
+        child: lineNode(
+          Line(
             '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
             style: theme.muted,
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
-      ],
-    ),
+      ),
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+      ),
+    ],
   );
 
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    topTitles: [Line('TableView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: tableWidget),
+        plume.Expanded<PaintToken>(child: tableWidget),
         selectedBox,
         confirmedBox,
         help,
       ],
     ),
-  ).titleTop(Line('TableView Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

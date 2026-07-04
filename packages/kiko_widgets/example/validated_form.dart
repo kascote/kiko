@@ -8,6 +8,7 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -161,55 +162,21 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  LayoutChild fieldWithValidation(
-    TextInputModel input,
-    String label,
-    ValidationResult validation,
-  ) {
-    final (borderStyle, statusText, statusColor) = switch (validation) {
-      Valid() => (theme.success, '✓', theme.success.fg),
-      Invalid(:final message) => (theme.error, message, theme.error.fg),
-      Empty() => (theme.border, 'Required', theme.muted.fg),
-    };
-
-    final effectiveBorder = input.focused ? theme.focus : borderStyle;
-
-    return Fixed(
-      3,
-      child: Row(
-        children: [
-          Expanded(
-            child: Block(
-              borders: Borders.all,
-              borderStyle: effectiveBorder,
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: TextInput(input, theme: theme),
-            ).titleTop(Line(label)),
-          ),
-          Fixed(
-            25,
-            child: Padding(
-              padding: const EdgeInsets(left: 1, top: 1),
-              child: Text.raw(statusText, style: Style(fg: statusColor)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    topTitles: [Line('Validated Form Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        fieldWithValidation(model.username, 'Username', model.usernameValid),
-        fieldWithValidation(model.email, 'Email', model.emailValid),
-        fieldWithValidation(model.password, 'Password', model.passwordValid),
+        _fieldWithValidation(model.username, 'Username', model.usernameValid, theme),
+        _fieldWithValidation(model.email, 'Email', model.emailValid, theme),
+        _fieldWithValidation(model.password, 'Password', model.passwordValid, theme),
         // Submit status
-        Fixed(
-          2,
-          child: Padding(
-            padding: const EdgeInsets(top: 1),
-            child: Text.raw(
+        plume.Padding<PaintToken>(
+          insets: const plume.EdgeInsets.only(top: 1),
+          child: lineNode(
+            Line(
               model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
               style: Style(
                 fg: model.submitted
@@ -223,22 +190,67 @@ void appView(AppModel model, Frame frame) {
           ),
         ),
         // Spacer
-        Expanded(child: const Block()),
+        plume.Expanded<PaintToken>(child: plume.SizedBox<PaintToken>()),
         // Help
-        Fixed(
-          1,
-          child: Row(
-            children: [
-              Expanded(child: Text.raw('Tab to cycle | Enter submit | Esc quit', style: theme.muted)),
-              Fixed(25, child: themeIndicator(model)),
-            ],
-          ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(
+                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              ),
+            ),
+          ],
         ),
       ],
     ),
-  ).titleTop(Line('Validated Form Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
+}
+
+/// A bordered, titled field with a fixed-height [textInput] and a validation
+/// status column to its right.
+plume.RenderNode<PaintToken> _fieldWithValidation(
+  TextInputModel input,
+  String label,
+  ValidationResult validation,
+  Theme theme,
+) {
+  final (borderStyle, statusText, statusColor) = switch (validation) {
+    Valid() => (theme.success, '✓', theme.success.fg),
+    Invalid(:final message) => (theme.error, message, theme.error.fg),
+    Empty() => (theme.border, 'Required', theme.muted.fg),
+  };
+
+  final effectiveBorder = input.focused ? theme.focus : borderStyle;
+
+  return plume.Row<PaintToken>(
+    children: [
+      plume.Expanded<PaintToken>(
+        child: box(
+          border: BorderType.plain,
+          borderStyle: effectiveBorder,
+          padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+          topTitles: [Line(label)],
+          child: plume.ConstrainedBox<PaintToken>(
+            additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+            child: textInput(input, theme),
+          ),
+        ),
+      ),
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+        child: plume.Padding<PaintToken>(
+          insets: const plume.EdgeInsets.only(left: 1, top: 1),
+          child: lineNode(Line(statusText, style: Style(fg: statusColor))),
+        ),
+      ),
+    ],
+  );
 }
 
 // ═══════════════════════════════════════════════════════════

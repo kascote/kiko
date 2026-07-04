@@ -1,114 +1,109 @@
-import 'dart:io';
-
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 Future<void> main() async {
-  final app = App();
-
   await Application(
     title: 'Colors RGB Example',
-    onCleanup: (terminal) async {
-      stderr.writeln('layoutCache ${layoutCacheStats()}');
-    },
   ).runStateless(
     update: (_, msg) => switch (msg) {
       KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },
-    view: (_, frame) => frame.renderWidget(app, frame.area),
+    view: (_, frame) => frame.renderNode(_ui()),
   );
 }
 
-class App implements Widget {
-  final fpsWidget = FpsWidget();
-  final colorsWidget = ColorsWidget();
+final _fps = _FpsWidget();
+final _grid = _ColorGridWidget();
 
-  App();
+plume.RenderNode<PaintToken> _ui() => plume.Column<PaintToken>(
+  crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  children: [
+    plume.Row<PaintToken>(
+      children: [
+        plume.Expanded<PaintToken>(
+          child: lineNode(Line('colors_rgb example, Press q to quit', alignment: Alignment.center)),
+        ),
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minW: 8, maxW: 8),
+          child: _fps,
+        ),
+      ],
+    ),
+    plume.Expanded<PaintToken>(child: _grid),
+  ],
+);
+
+/// Right-aligned frames-per-second counter, redrawn every frame.
+class _FpsWidget extends plume.RenderNode<PaintToken> {
+  int _frameCount = 0;
+  DateTime _lastInstant = DateTime.now();
+  double _fps = 0;
 
   @override
-  void render(Rect area, Frame frame) {
-    final [top, colors] = Layout.vertical(const [ConstraintLength(1), ConstraintMin(0)]).areas(area);
-    final [title, fps] = Layout.horizontal(const [ConstraintMin(0), ConstraintLength(8)]).areas(top);
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) => constraints.biggest;
 
-    Text.raw(
-      'colors_rgb example, Press q to quit',
-      alignment: Alignment.center,
-    ).render(title, frame);
-
-    fpsWidget.render(fps, frame);
-    colorsWidget.render(colors, frame);
-  }
-}
-
-class FpsWidget implements Widget {
-  int frameCount = 0;
-  DateTime lastInstant = DateTime.now();
-  double fps = 0;
-
-  void calculateFps() {
-    frameCount++;
+  @override
+  void paintSelf(plume.Surface<PaintToken> surface) {
+    _frameCount++;
     final now = DateTime.now();
-    final elapsed = now.difference(lastInstant).inSeconds;
+    final elapsed = now.difference(_lastInstant).inSeconds;
     if (elapsed > 1) {
-      fps = frameCount / elapsed;
-      frameCount = 0;
-      lastInstant = now;
+      _fps = _frameCount / elapsed;
+      _frameCount = 0;
+      _lastInstant = now;
     }
-  }
-
-  @override
-  void render(Rect area, Frame frame) {
-    calculateFps();
-    Text.raw(
-      '${fps}fps',
-      alignment: Alignment.right,
-      style: const Style(fg: Color.white),
-    ).render(area, frame);
+    paintLine(
+      surface,
+      Line(
+        '${_fps}fps',
+        alignment: Alignment.right,
+        style: const Style(fg: Color.white),
+      ),
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+    );
   }
 }
 
-class ColorsWidget implements Widget {
-  List<List<Color>> colors = [];
-  int frameCount = 0;
+/// A scrolling HSV gradient painted two vertical pixels per cell via the `▀`
+/// half-block glyph — one raw `Surface.drawText` call per pixel.
+class _ColorGridWidget extends plume.RenderNode<PaintToken> {
+  List<List<Color>> _colors = [];
+  int _frameCount = 0;
 
-  void setupColors(Rect size) {
-    final width = size.width;
-    final height = size.height * 2;
+  @override
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) => constraints.biggest;
 
-    if (colors.length == height && colors[0].length == width) {
+  void _setupColors(int width, int pixelHeight) {
+    if (_colors.length == pixelHeight && (_colors.isEmpty || _colors[0].length == width)) {
       return;
     }
-    colors = List.generate(height, (y) {
-      return List.generate(width, (x) {
+    _colors = List.generate(
+      pixelHeight,
+      (y) => List.generate(width, (x) {
         final hue = x * 360.0 / width;
-        final value = (height - y) / height;
+        final value = (pixelHeight - y) / pixelHeight;
         const saturation = 1.0;
         return Color.fromHSV(hue, saturation, value);
-      });
-    });
+      }),
+    );
   }
 
   @override
-  void render(Rect area, Frame frame) {
-    setupColors(area);
-    final buffer = frame.buffer;
+  void paintSelf(plume.Surface<PaintToken> surface) {
+    if (rect.width <= 0 || rect.height <= 0) return;
+    _setupColors(rect.width, rect.height * 2);
 
-    for (final (xi, x) in enumerate(area.left, area.right)) {
-      final xii = (xi + frameCount) % area.width;
-      for (final (yi, y) in enumerate(area.top, area.bottom)) {
-        final fg = colors[yi * 2][xii];
-        final bg = colors[yi * 2 + 1][xii];
-        buffer[(x: x, y: y)] = Cell(char: '▀', fg: fg, bg: bg);
+    for (var xi = 0; xi < rect.width; xi++) {
+      final xii = (xi + _frameCount) % rect.width;
+      for (var yi = 0; yi < rect.height; yi++) {
+        final fg = _colors[yi * 2][xii];
+        final bg = _colors[yi * 2 + 1][xii];
+        surface.drawText(rect.x + xi, rect.y + yi, '▀', PaintToken(Style(fg: fg, bg: bg)));
       }
     }
-
-    frameCount++;
-  }
-}
-
-Iterable<(int, int)> enumerate(int from, int to) sync* {
-  var index = 0;
-  for (var i = from; i < to; i++) {
-    yield (index++, i);
+    _frameCount++;
   }
 }

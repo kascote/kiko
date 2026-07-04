@@ -58,6 +58,56 @@ void main() {
       expect(frame.cursorPosition, isNull);
     });
 
+    test('places the cursor mid-text when the model starts scrolled to the middle', () {
+      final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
+      final frame = _frame(20, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
+      expect(frame.buffer[(x: 4, y: 0)].symbol, equals('o'));
+      expect(frame.cursorPosition, equals(const Position(3, 0)));
+    });
+
+    test('keeps the cursor within the visible area as it moves left inside the scrolled field', () {
+      // Same model instance across renders to preserve scroll state.
+      final model = TextInputModel(initial: 'abcdefgh', focused: true);
+
+      // First render at cursor 8 (end) - scrolls to show "efgh".
+      _frame(5, 1).renderNode(textInput(model, Theme.dark));
+
+      // Move cursor left within the scrolled window.
+      model.cursor = 7;
+      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('e'));
+      expect(frame.cursorPosition, equals(const Position(3, 0)));
+    });
+
+    test('scrolls back to the start when the cursor moves to the beginning', () {
+      final model = TextInputModel(initial: 'abcdefgh', focused: true);
+
+      // First scroll right by rendering with the cursor at the end.
+      _frame(5, 1).renderNode(textInput(model, Theme.dark));
+
+      // Then jump to the beginning - should scroll back.
+      model.cursor = 0;
+      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(frame.cursorPosition, equals(Position.origin));
+    });
+
+    test('handles a wide grapheme (emoji) scrolled into view', () {
+      // "ab👋c" - 'ab' = 2 cols, '👋' = 2 cols, 'c' = 1 col, total 5 cols.
+      // cursor at end (pos 4), cursorDisplayPos = 5.
+      // scrollOffset = 5 - 4 + 1 = 2. Shows: "👋c" with cursor at col 4 (after 'c').
+      final model = TextInputModel(initial: 'ab👋c', focused: true);
+      final frame = _frame(4, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('👋'));
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('c'));
+      expect(frame.cursorPosition, equals(const Position(3, 0)));
+    });
+
     test('scrolls to keep the cursor in view when the value overflows the field', () {
       final model = TextInputModel(id: 'in', initial: 'hello world', focused: true);
       final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
@@ -94,36 +144,113 @@ void main() {
     });
   });
 
-  group('text input view / TextInput parity', () {
-    // The old buffer-bridge widget (TextInput.render, still using
-    // Line.renderWithOffset) and the new self-painting plume view must land
-    // identical cells and cursor for the same model — this is the seam 0097
-    // has to keep faithful before the old widget is deleted in 0088.
-    void expectParity(TextInputModel model, {required int width}) {
-      final legacyBuffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: 1));
-      final legacyFrame = Frame(legacyBuffer.area, legacyBuffer, 0);
-      TextInput(model, theme: Theme.dark).render(legacyBuffer.area, legacyFrame);
+  group('text input view / fill and style overrides', () {
+    test('fills remaining space after the placeholder', () {
+      final model = TextInputModel(placeholder: 'Hi', fillChar: '.');
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
 
-      final plumeFrame = _frame(width, 1)..renderNode(textInput(model, Theme.dark));
-
-      expect(_dump(plumeFrame.buffer), _dump(legacyBuffer));
-      expect(plumeFrame.cursorPosition, legacyFrame.cursorPosition);
-    }
-
-    test('a short value, no scroll needed', () {
-      expectParity(TextInputModel(initial: 'hi', focused: true), width: 5);
+      // 'Hi' takes 2 chars, fill 8 dots.
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('H'));
+      expect(frame.buffer[(x: 1, y: 0)].symbol, equals('i'));
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('.'));
+      expect(frame.buffer[(x: 9, y: 0)].symbol, equals('.'));
     });
 
-    test('a value scrolled to keep the end-of-text cursor in view', () {
-      expectParity(TextInputModel(initial: 'abcdefgh', focused: true), width: 5);
+    test('fills to maxLength, not the full field width, when maxLength is set', () {
+      final model = TextInputModel(initial: 'abc', maxLength: 10, fillChar: '_');
+      final frame = _frame(20, 1)..renderNode(textInput(model, Theme.dark));
+
+      // 'abc' takes 3 chars, fill to maxLength (10), so 7 underscores.
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('c'));
+      expect(frame.buffer[(x: 3, y: 0)].symbol, equals('_'));
+      expect(frame.buffer[(x: 9, y: 0)].symbol, equals('_'));
+      // Position 10+ should be empty (space).
+      expect(frame.buffer[(x: 10, y: 0)].symbol, equals(' '));
     });
 
-    test('a wide grapheme (emoji) scrolled into view', () {
-      expectParity(TextInputModel(initial: 'ab👋c', focused: true), width: 4);
+    test('applies style.fill to fill characters', () {
+      final model = TextInputModel(
+        initial: 'ab',
+        fillChar: '_',
+        style: const TextInputStyle(
+          fill: Style(fg: Color.red, bg: Color.blue),
+        ),
+      );
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      // Text cells should have default style.
+      expect(frame.buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
+
+      // Fill cells should have the style.fill.
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('_'));
+      expect(frame.buffer[(x: 2, y: 0)].fg, equals(Color.red));
+      expect(frame.buffer[(x: 2, y: 0)].bg, equals(Color.blue));
     });
 
-    test('fillChar padding after the value', () {
-      expectParity(TextInputModel(initial: 'ab', fillChar: '_'), width: 5);
+    test('applies theme fg to input text', () {
+      final model = TextInputModel(initial: 'hello');
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
+      // Text gets theme.background.fg.
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.fg));
+      expect(frame.buffer[(x: 4, y: 0)].symbol, equals('o'));
+    });
+
+    test('applies style.placeholder to placeholder text', () {
+      final model = TextInputModel(
+        placeholder: 'Type here',
+        style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
+      );
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('T'));
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Color.gray));
+    });
+
+    test('applies style.obscured to obscured text', () {
+      final model = TextInputModel(
+        initial: 'secret',
+        obscureText: true,
+        style: const TextInputStyle(obscured: Style(fg: Color.yellow)),
+      );
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      // Uses the obscured style, not the plain text style.
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('•'));
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Color.yellow));
+    });
+
+    test('no fill when the text already fills the entire maxLength', () {
+      final model = TextInputModel(initial: 'abcde', maxLength: 5, fillChar: '_');
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      expect(frame.buffer[(x: 4, y: 0)].symbol, equals('e'));
+      expect(frame.buffer[(x: 5, y: 0)].symbol, equals(' ')); // no fill
+    });
+
+    test('handles wide fill characters', () {
+      // Using a wide char like '＿' (fullwidth low line, 2 cols).
+      final model = TextInputModel(initial: 'ab', fillChar: '＿');
+      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+
+      // 'ab' = 2 cols, remaining 8 cols, wide char = 2 cols each, so 4 chars.
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(frame.buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('＿'));
+    });
+
+    test('maxLength is clamped to the visible width', () {
+      // maxLength 20 but only 5 visible.
+      final model = TextInputModel(initial: 'ab', maxLength: 20, fillChar: '_');
+      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+
+      // Should only fill up to the visible width (5), not maxLength (20).
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
+      expect(frame.buffer[(x: 1, y: 0)].symbol, equals('b'));
+      expect(frame.buffer[(x: 2, y: 0)].symbol, equals('_'));
+      expect(frame.buffer[(x: 4, y: 0)].symbol, equals('_'));
     });
   });
 

@@ -8,6 +8,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -132,55 +133,60 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final treeWidget = Block(
-    borders: Borders.all,
+  final treeWidget = treeView(
+    model: model.tree,
+    theme: theme,
+    border: BorderType.plain,
     borderStyle: theme.focus,
-    padding: const EdgeInsets.all(1),
-    child: TreeView(
-      model: model.tree,
-      theme: theme,
-    ),
-  ).titleTop(Line('File Browser', style: theme.focus));
-
-  final infoBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.selectedPath != null ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        model.selectedPath ?? 'Press Enter to select',
-        style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
-      ),
-    ).titleTop(Line('Selected')),
+    topTitles: [Line('File Browser', style: theme.focus)],
   );
 
-  final help = Fixed(
-    1,
-    child: Row(
-      children: [
-        Expanded(
-          child: Text.raw(
+  final infoBox = plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+    child: box(
+      border: BorderType.plain,
+      borderStyle: model.selectedPath != null ? theme.success : theme.border,
+      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line('Selected')],
+      child: lineNode(
+        Line(
+          model.selectedPath ?? 'Press Enter to select',
+          style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
+        ),
+      ),
+    ),
+  );
+
+  final help = plume.Row<PaintToken>(
+    children: [
+      plume.Expanded<PaintToken>(
+        child: lineNode(
+          Line(
             '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
             style: theme.muted,
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
-      ],
-    ),
+      ),
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+      ),
+    ],
   );
 
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    topTitles: [Line('TreeView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: treeWidget),
+        plume.Expanded<PaintToken>(child: treeWidget),
         infoBox,
         help,
       ],
     ),
-  ).titleTop(Line('TreeView Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

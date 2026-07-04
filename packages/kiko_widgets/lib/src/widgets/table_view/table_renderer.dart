@@ -6,44 +6,11 @@ import 'table_column.dart';
 import 'table_view_model.dart';
 import 'types.dart';
 
-/// A table widget with keyboard navigation, selection, and async loading.
-///
-/// Renders tabular data from a [TableViewModel] with:
-/// - Sticky or scrolling header
-/// - Cell-level focus and selection
-/// - Custom cell rendering per column
-/// - Truncation and alignment
-///
-/// Uses [StyleResolver] for row-level state styling (hover, selected).
-///
-/// ```dart
-/// TableView(model: tableModel, theme: theme).render(area, frame);
-/// ```
-class TableView extends Widget {
-  /// The model containing table state.
-  final TableViewModel model;
-
-  /// Theme for deriving styles.
-  final Theme theme;
-
-  /// Optional per-state style overrides.
-  ///
-  /// Fully replaces the default style for that [WidgetState].
-  final Map<WidgetState, Style>? styleOverrides;
-
-  /// Creates a TableView widget.
-  TableView({required this.model, required this.theme, this.styleOverrides});
-
-  @override
-  void render(Rect area, Frame frame) =>
-      TableRenderer(model, theme, styleOverrides).paint(area, BufferSurface(frame.buffer));
-}
-
 /// Paints a [TableViewModel] through a plume [plume.Surface].
 ///
 /// The rendering — visible columns, sticky header, windowed rows, per-cell
-/// truncation, alignment, and state styling — lives here so both the [TableView]
-/// widget and the plume `tableView` viewport draw a table the same way.
+/// truncation, alignment, and state styling — lives here so both the plume
+/// `tableView` viewport and any other caller draw a table the same way.
 class TableRenderer {
   /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
   TableRenderer(this.model, this.theme, this.styleOverrides);

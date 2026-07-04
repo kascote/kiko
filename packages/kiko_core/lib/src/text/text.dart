@@ -3,12 +3,9 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
-import '../extensions/iterator.dart';
 import '../extensions/string.dart';
 import '../layout/alignment.dart';
-import '../layout/rect.dart';
 import '../style.dart';
-import '../widgets/frame.dart';
 import 'line.dart';
 import 'span.dart';
 
@@ -19,7 +16,7 @@ import 'span.dart';
 /// rendered as a single line of text from top to bottom of the area. The text
 /// can be styled and aligned.
 @immutable
-class Text implements Widget {
+class Text {
   /// The lines of text.
   final Iterable<Line> _lines;
 
@@ -91,17 +88,6 @@ class Text implements Widget {
       return copyWith(lines: [Line.fromSpan(span)]);
     } else {
       return copyWith(lines: List.from(_lines)..last.add(span));
-    }
-  }
-
-  @override
-  void render(Rect area, Frame frame) {
-    final buf = frame.buffer;
-    final textArea = area.intersection(buf.area);
-    buf.setStyle(textArea, style);
-
-    for (final (line, lineArea) in _lines.zip(textArea.rows)) {
-      line.renderWidthAlignment(lineArea, frame, alignment);
     }
   }
 

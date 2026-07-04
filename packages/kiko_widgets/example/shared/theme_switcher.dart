@@ -55,11 +55,3 @@ mixin ThemeSwitcher {
     return false;
   }
 }
-
-/// Builds theme indicator widget for status bars.
-Widget themeIndicator(ThemeSwitcher switcher) {
-  return Text.raw(
-    'Theme: ${switcher.themeName} (F1/F2)',
-    style: switcher.theme.muted,
-  );
-}

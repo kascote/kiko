@@ -8,6 +8,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -106,55 +107,54 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final listWidget = Block(
-    borders: Borders.all,
-    borderStyle: theme.focus,
-    child: ListView(
-      model: model.list,
-      theme: theme,
-      itemBuilder: (item, index, _) => Text.raw(' $item'),
-    ),
-  ).titleTop(Line('Fruits (${fruits.length})', style: theme.focus));
-
-  final selectedBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.selected != null ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        model.selected ?? 'Press Enter to select',
-        style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
-      ),
-    ).titleTop(Line('Selected')),
-  );
-
-  final help = Fixed(
-    1,
-    child: Row(
+  final ui = box(
+    topTitles: [Line('ListView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text.raw(
-            '↑↓/jk navigate | Enter select | Esc quit',
-            style: theme.muted,
+        plume.Expanded<PaintToken>(
+          child: box(
+            border: BorderType.plain,
+            borderStyle: theme.focus,
+            topTitles: [Line('Fruits (${fruits.length})', style: theme.focus)],
+            child: listView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (item, index, _) => [Line(' $item')],
+            ),
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+          child: box(
+            border: BorderType.plain,
+            borderStyle: model.selected != null ? theme.success : theme.border,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Selected')],
+            child: lineNode(
+              Line(
+                model.selected ?? 'Press Enter to select',
+                style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
+              ),
+            ),
+          ),
+        ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+            ),
+          ],
+        ),
       ],
     ),
   );
 
-  final ui = Block(
-    child: Column(
-      children: [
-        Expanded(child: listWidget),
-        selectedBox,
-        help,
-      ],
-    ),
-  ).titleTop(Line('ListView Demo', style: theme.muted));
-
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

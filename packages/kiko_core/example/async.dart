@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -128,24 +129,23 @@ void appView(AppModel model, Frame frame) {
 
   final resultText = model.result != null ? 'Last result: ${model.result}' : 'No result yet';
 
-  final ui = Block(
-    borders: Borders.all,
-    child: Column(
+  final ui = box(
+    border: BorderType.plain,
+    topTitles: [Line('Async Task Demo')],
+    child: plume.Column<PaintToken>(
       children: [
-        Expanded(
-          child: Text.raw(
-            model.status,
-            alignment: Alignment.center,
-            style: Style(fg: statusColor),
+        plume.Expanded<PaintToken>(
+          child: lineNode(
+            Line(
+              model.status,
+              alignment: Alignment.center,
+              style: Style(fg: statusColor),
+            ),
           ),
         ),
-        Fixed(
-          1,
-          child: Text.raw(resultText, alignment: Alignment.center),
-        ),
-        Fixed(
-          1,
-          child: Text.raw(
+        lineNode(Line(resultText, alignment: Alignment.center)),
+        lineNode(
+          Line(
             model.loading ? '⏳ Loading...' : '(q=quit, enter=fetch)',
             alignment: Alignment.center,
             style: const Style(fg: Color.darkGray),
@@ -153,9 +153,9 @@ void appView(AppModel model, Frame frame) {
         ),
       ],
     ),
-  ).titleTop(Line('Async Task Demo'));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

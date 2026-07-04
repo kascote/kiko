@@ -10,6 +10,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -289,72 +290,74 @@ void appView(AppModel model, Frame frame) {
       ? '${model.tree.flatNodes.length} nodes'
       : 'Not loaded';
 
-  final treeWidget =
-      Block(
-        borders: Borders.all,
-        borderStyle: theme.focus,
-        padding: const EdgeInsets.all(1),
-        child: TreeView(
-          model: model.tree,
-          theme: theme,
-          emptyPlaceholder: Text.raw('Loading categories...', style: theme.muted),
-        ),
-      ).titleTop(
-        Line.fromSpans([
-          Span('Categories ', style: theme.focus),
-          Span('($loadingStatus)', style: theme.muted),
-        ]),
-      );
-
-  final infoBox = Fixed(
-    4,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.selectedPath != null ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Column(
-        children: [
-          Expanded(
-            child: Span(
-              model.selectedPath ?? 'Press Enter to select a category',
-              style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
-            ),
-          ),
-          Fixed(
-            1,
-            child: Span('Expansions: ${model.expandCount}', style: theme.muted),
-          ),
-        ],
-      ),
-    ).titleTop(Line('Selected')),
+  final treeWidget = treeView(
+    model: model.tree,
+    theme: theme,
+    emptyPlaceholder: Line('Loading categories...', style: theme.muted),
+    border: BorderType.plain,
+    borderStyle: theme.focus,
+    topTitles: [
+      Line.fromSpans([
+        Span('Categories ', style: theme.focus),
+        Span('($loadingStatus)', style: theme.muted),
+      ]),
+    ],
   );
 
-  final help = Fixed(
-    1,
-    child: Row(
-      children: [
-        Expanded(
-          child: Line(
+  final infoBox = plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 4, maxH: 4),
+    child: box(
+      border: BorderType.plain,
+      borderStyle: model.selectedPath != null ? theme.success : theme.border,
+      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line('Selected')],
+      child: plume.Column<PaintToken>(
+        crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+        children: [
+          plume.Expanded<PaintToken>(
+            child: lineNode(
+              Line(
+                model.selectedPath ?? 'Press Enter to select a category',
+                style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
+              ),
+            ),
+          ),
+          lineNode(Line('Expansions: ${model.expandCount}', style: theme.muted)),
+        ],
+      ),
+    ),
+  );
+
+  final help = plume.Row<PaintToken>(
+    children: [
+      plume.Expanded<PaintToken>(
+        child: lineNode(
+          Line(
             '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
             style: theme.muted,
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
-      ],
-    ),
+      ),
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+      ),
+    ],
   );
 
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    topTitles: [Line('Async TreeView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: treeWidget),
+        plume.Expanded<PaintToken>(child: treeWidget),
         infoBox,
         help,
       ],
     ),
-  ).titleTop(Line('Async TreeView Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

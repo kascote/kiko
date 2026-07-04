@@ -3,7 +3,7 @@ import 'package:plume/plume.dart' as plume;
 
 import 'tree_node.dart';
 import 'tree_view_model.dart';
-import 'tree_view_widget.dart';
+import 'types.dart';
 
 /// Builds a TreeView as a plume node — the plume-native view for
 /// [TreeViewModel].

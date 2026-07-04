@@ -7,6 +7,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -107,66 +108,66 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  LayoutChild inputField(TextInputModel input, String label) => Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: input.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(input, theme: theme),
-    ).titleTop(Line(label)),
-  );
-
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    topTitles: [Line('Custom Keybindings Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        inputField(model.normal, 'Normal bindings'),
-        inputField(model.vim, 'Vim bindings'),
+        _field(model.normal, 'Normal bindings', theme),
+        _field(model.vim, 'Vim bindings', theme),
         // Info
-        Expanded(
-          child: Column(
+        plume.Expanded<PaintToken>(
+          child: plume.Column<PaintToken>(
+            crossAxisAlignment: plume.CrossAxisAlignment.stretch,
             children: [
-              Fixed(
-                1,
-                child: Text.raw(
+              lineNode(
+                Line(
                   model.message.isNotEmpty ? model.message : 'Type in the fields above',
                   style: model.message.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
                 ),
               ),
-              Fixed(1, child: Text.raw('')),
-              Fixed(
-                1,
-                child: Text.raw(
-                  r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)',
-                  style: theme.muted,
-                ),
+              plume.SizedBox<PaintToken>(height: 1),
+              lineNode(
+                Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted),
               ),
-              Fixed(
-                1,
-                child: Text.raw(
-                  'App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)',
-                  style: theme.muted,
-                ),
-              ),
+              lineNode(Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted)),
             ],
           ),
         ),
         // Help
-        Fixed(
-          1,
-          child: Row(
-            children: [
-              Expanded(child: Text.raw('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted)),
-              Fixed(25, child: themeIndicator(model)),
-            ],
-          ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(
+                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              ),
+            ),
+          ],
         ),
       ],
     ),
-  ).titleTop(Line('Custom Keybindings Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
+
+/// A bordered, titled field wrapping a fixed-height [textInput].
+plume.RenderNode<PaintToken> _field(TextInputModel input, String label, Theme theme) => box(
+  border: BorderType.plain,
+  borderStyle: input.focused ? theme.focus : theme.border,
+  padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+  topTitles: [Line(label)],
+  child: plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+    child: textInput(input, theme),
+  ),
+);
 
 // ═══════════════════════════════════════════════════════════
 // EXTENSION

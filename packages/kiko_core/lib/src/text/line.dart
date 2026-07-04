@@ -1,20 +1,11 @@
-import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
 
-import '../extensions/characters.dart';
-import '../extensions/integer.dart';
 import '../extensions/string.dart';
 import '../layout/alignment.dart';
-import '../layout/rect.dart';
 import '../style.dart';
-import '../widgets/frame.dart';
 import 'span.dart';
 import 'styled_char.dart';
-
-/// Helper record
-typedef SpanRecord = (Span, int, int);
 
 /// A line of text, consisting of one or more [Span]s.
 ///
@@ -25,7 +16,7 @@ typedef SpanRecord = (Span, int, int);
 /// Any newlines in the content are removed when creating a [Line] using the
 /// constructor or conversion methods.
 @immutable
-class Line implements Widget {
+class Line {
   final Iterable<Span> _spans;
 
   /// The style of the line.
@@ -92,119 +83,6 @@ class Line implements Widget {
 
   /// Resets the style of this Line to the default style.
   Line resetStyle() => Line._(_spans, style.patch(const Style.reset()), alignment);
-
-  @override
-  void render(Rect area, Frame frame) => renderWidthAlignment(area, frame);
-
-  /// Renders the line to the frame, respecting the width of the area and the
-  /// alignment of the line.
-  void renderWidthAlignment(
-    Rect area,
-    Frame frame, [
-    Alignment? parentAlignment,
-  ]) {
-    final buf = frame.buffer;
-    final intArea = area.intersection(buf.area);
-    if (intArea.isEmpty) return;
-
-    final renderArea = intArea.copyWith(height: 1);
-    final lineWidth = width;
-    if (lineWidth == 0) return;
-
-    buf.setStyle(renderArea, style);
-    final areaWidth = renderArea.width;
-    final canRenderCompleteLine = lineWidth <= areaWidth;
-    final renderAlignment = alignment ?? parentAlignment;
-
-    if (canRenderCompleteLine) {
-      final indentWidth = switch (renderAlignment) {
-        Alignment.left || null => 0,
-        Alignment.center => areaWidth.saturatingSubU16(lineWidth) ~/ 2,
-        Alignment.right => areaWidth.saturatingSubU16(lineWidth),
-      };
-
-      final areaA = renderArea.indentX(indentWidth);
-      _renderSpans(areaA, frame, 0);
-    } else {
-      final skipWidth = switch (renderAlignment) {
-        Alignment.left || null => 0,
-        Alignment.center => lineWidth.saturatingSubU16(areaWidth) ~/ 2,
-        Alignment.right => lineWidth.saturatingSubU16(areaWidth),
-      };
-      _renderSpans(renderArea, frame, skipWidth);
-    }
-  }
-
-  /// Renders the line with a horizontal offset (scroll).
-  ///
-  /// Skips [offset] display-width columns from the start before rendering.
-  /// Useful for horizontal scrolling in text inputs, code viewers, etc.
-  void renderWithOffset(Rect area, Frame frame, int offset) {
-    final buf = frame.buffer;
-    final intArea = area.intersection(buf.area);
-    if (intArea.isEmpty) return;
-
-    final renderArea = intArea.copyWith(height: 1);
-    if (width == 0) return;
-
-    buf.setStyle(renderArea, style);
-    _renderSpans(renderArea, frame, offset);
-  }
-
-  void _renderSpans(Rect area, Frame frame, int spanSkipWidth) {
-    var spanArea = area.copyWith();
-    for (final (span, spanWidth, offset) in _spanAfterWidth(
-      _spans,
-      spanSkipWidth,
-    )) {
-      spanArea = spanArea.indentX(offset);
-      if (spanArea.isEmpty) break;
-
-      span.render(spanArea, frame);
-      spanArea = spanArea.indentX(spanWidth);
-    }
-  }
-
-  List<SpanRecord> _spanAfterWidth(Iterable<Span> spans, int skipWidth) {
-    final records = <SpanRecord>[];
-    var toSkip = skipWidth;
-
-    return spans.fold(records, (acc, span) {
-      final spanWidth = span.width;
-
-      // Ignore spans that are completely before the offset. Decrement `spanSkipWidth` by
-      // the span width until we find a span that is partially or completely visible.
-      if (toSkip >= spanWidth) {
-        toSkip = toSkip.saturatingSubU16(spanWidth);
-        return acc;
-      }
-
-      // Apply the skip from the start of the span, not the end as the end will be trimmed
-      // when rendering the span to the buffer
-      final availableWidth = spanWidth.saturatingSubU16(toSkip);
-      toSkip = 0; // ensure the next span is rendered in full
-
-      if (spanWidth <= availableWidth) {
-        // Span is fully visible.
-        acc.add((span, spanWidth, 0));
-        return acc;
-      }
-
-      // Span is only partially visible. As the end is truncated by the area width, only
-      // truncate the start of the span.
-      final contentTruncated = span.content.characters.truncateStart(
-        availableWidth,
-      );
-      final actualWidth = widthString(contentTruncated);
-      final firstOffset = availableWidth.saturatingSubU16(actualWidth);
-      acc.add((
-        Span(contentTruncated, style: span.style),
-        actualWidth,
-        firstOffset,
-      ));
-      return acc;
-    });
-  }
 
   /// Creates a copy of this Line but with the given fields replaced with the new values.
   Line copyWith({List<Span>? spans, Style? style, Alignment? alignment}) {

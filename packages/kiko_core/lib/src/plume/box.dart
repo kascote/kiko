@@ -3,7 +3,7 @@ import 'package:plume/plume.dart' as plume;
 import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
-import '../widgets/block/block.dart' show BorderType, BorderTypeUtils;
+import '../widgets/border_type.dart';
 import 'paint_token.dart';
 import 'text_flatten.dart';
 

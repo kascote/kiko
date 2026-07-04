@@ -1,7 +1,7 @@
 import 'package:meta/meta.dart';
 
 import '../style.dart';
-import '../widgets/block/block.dart' show BorderSet;
+import '../widgets/border_type.dart' show BorderSet;
 
 /// The opaque paint token kiko hands to a plume layout tree.
 ///

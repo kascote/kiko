@@ -7,11 +7,11 @@ import 'package:termunicode/termunicode.dart';
 // STYLE
 // ═══════════════════════════════════════════════════════════
 
-/// Region-based styles for [TextInput] widget.
+/// Region-based styles for the text input's plume view.
 ///
 /// These control specific regions of the input (placeholder, fill, obscured
 /// text). State-based styling (focused, disabled) is handled by
-/// [StyleResolver] in the widget.
+/// [StyleResolver] in the view.
 @immutable
 class TextInputStyle {
   /// Style for placeholder text.
@@ -294,115 +294,6 @@ class TextInputModel implements Focusable {
       i++;
     }
     return width;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// WIDGET
-// ═══════════════════════════════════════════════════════════
-
-/// A single-line text input widget.
-///
-/// Renders the state from [TextInputModel]. The model holds all state
-/// and config; this widget is stateless and just renders.
-///
-/// Uses [StyleResolver] for state-based styling (focused, disabled).
-/// Region styles (placeholder, fill, obscured) come from [TextInputStyle].
-class TextInput extends Widget {
-  /// The model containing state and config.
-  final TextInputModel model;
-
-  /// Theme for deriving styles.
-  final Theme theme;
-
-  /// Optional per-state style overrides.
-  final Map<WidgetState, Style>? styleOverrides;
-
-  /// Region styles resolved at construction.
-  final TextInputStyle _regionStyle;
-
-  /// Creates a TextInput widget.
-  TextInput(this.model, {required this.theme, this.styleOverrides})
-    : _regionStyle = TextInputStyle.fromTheme(theme).merge(model.style);
-
-  /// Resolves the text style from theme + model state.
-  Style _resolveStyle() {
-    final resolver = StyleResolver(theme);
-    final states = <WidgetState>{
-      if (model.focused) WidgetState.focused,
-    };
-    return resolver.resolve(
-      Style(fg: theme.background.fg),
-      states,
-      overrides: {...?styleOverrides},
-    );
-  }
-
-  @override
-  void render(Rect area, Frame frame) {
-    if (area.isEmpty) return;
-
-    final renderArea = area.intersection(frame.buffer.area);
-    if (renderArea.isEmpty) return;
-
-    final visibleWidth = renderArea.width;
-    final y = renderArea.y;
-    final m = model;
-
-    final showPlaceholder = m.length == 0 && m.placeholder.isNotEmpty;
-
-    int usedWidth;
-
-    if (showPlaceholder) {
-      Span(m.placeholder, style: _regionStyle.placeholder).render(
-        renderArea,
-        frame,
-      );
-      usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
-      if (m.focused) {
-        frame.cursorPosition = Position(renderArea.x, y);
-      }
-    } else {
-      final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
-
-      final textStyle = m.obscureText ? (_regionStyle.obscured ?? _resolveStyle()) : _resolveStyle();
-      Line(displayText.string, style: textStyle).renderWithOffset(
-        renderArea,
-        frame,
-        scrollOffset,
-      );
-
-      final totalTextWidth = widthChars(displayText);
-      usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
-
-      if (m.focused) {
-        final cursorX = renderArea.x + (cursorDisplayPos - scrollOffset);
-        frame.cursorPosition = Position(cursorX, y);
-      }
-    }
-
-    // Fill remaining space with fillChar
-    if (m.fillChar case final fillChar?) {
-      // If maxLength is set, fill up to maxLength; otherwise fill visible width
-      final targetWidth = m.maxLength != null ? m.maxLength!.clamp(0, visibleWidth) : visibleWidth;
-      final remainingWidth = targetWidth - usedWidth;
-      if (remainingWidth > 0) {
-        final charWidth = widthString(fillChar);
-        if (charWidth > 0) {
-          final fillCount = remainingWidth ~/ charWidth;
-          if (fillCount > 0) {
-            final fillText = fillChar * fillCount;
-            final fillArea = Rect.create(
-              x: renderArea.x + usedWidth,
-              y: y,
-              width: remainingWidth,
-              height: 1,
-            );
-            Span(fillText, style: _regionStyle.fill).render(fillArea, frame);
-          }
-        }
-      }
-    }
   }
 }
 

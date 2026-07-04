@@ -1,6 +1,7 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -63,54 +64,58 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    topTitles: [Line('TextInput Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        // Username input
-        Fixed(
-          3,
-          child: Block(
-            borders: Borders.all,
-            borderStyle: model.username.focused ? theme.focus : theme.border,
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: TextInput(model.username, theme: theme),
-          ).titleTop(Line('Username')),
-        ),
-        // Password input
-        Fixed(
-          3,
-          child: Block(
-            borders: Borders.all,
-            borderStyle: model.password.focused ? theme.focus : theme.border,
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: TextInput(model.password, theme: theme),
-          ).titleTop(Line('Password')),
-        ),
+        _field(model.username, 'Username', theme),
+        _field(model.password, 'Password', theme),
         // Debug info
-        Expanded(
-          child: Text.raw(
-            'Username: "${model.username.value}"\n'
-            'Password: "${model.password.value}" (${model.password.length} chars)\n'
-            'Focused: ${model.focus.index == 0 ? "username" : "password"}',
-            style: Style(fg: theme.background.fg),
+        plume.Expanded<PaintToken>(
+          child: textNode(
+            Text.raw(
+              'Username: "${model.username.value}"\n'
+              'Password: "${model.password.value}" (${model.password.length} chars)\n'
+              'Focused: ${model.focus.index == 0 ? "username" : "password"}',
+              style: Style(fg: theme.background.fg),
+            ),
           ),
         ),
         // Help
-        Fixed(
-          1,
-          child: Row(
-            children: [
-              Expanded(child: Text.raw('Tab to switch | Esc quit', style: theme.muted)),
-              Fixed(25, child: themeIndicator(model)),
-            ],
-          ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('Tab to switch | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(
+                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              ),
+            ),
+          ],
         ),
       ],
     ),
-  ).titleTop(Line('TextInput Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
+
+/// A bordered, titled field wrapping a fixed-height [textInput].
+plume.RenderNode<PaintToken> _field(TextInputModel input, String label, Theme theme) => box(
+  border: BorderType.plain,
+  borderStyle: input.focused ? theme.focus : theme.border,
+  padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+  topTitles: [Line(label)],
+  child: plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+    child: textInput(input, theme),
+  ),
+);
 
 // ═══════════════════════════════════════════════════════════
 // MAIN

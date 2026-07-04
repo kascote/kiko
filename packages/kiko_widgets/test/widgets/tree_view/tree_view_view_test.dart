@@ -48,6 +48,48 @@ void main() {
       expect(_dump(frame.buffer), '(empty)\n');
     });
 
+    test('draws three levels of nested expansion', () {
+      final model = TreeViewModel<String>()
+        ..setVisibleCount(10)
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))])
+        ..expand('/a')
+        ..applyChildren('/a', <TreeNode<String>>[TreeNode(path: '/a/b', label: Line('Level1'))])
+        ..expand('/a/b')
+        ..applyChildren('/a/b', <TreeNode<String>>[
+          TreeNode(path: '/a/b/c', label: Line('Level2'), isLeaf: true),
+        ]);
+
+      final frame = _frame(14, 3)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      expect(_dump(frame.buffer), '▼ Root\n  ▼ Level1\n      Level2\n');
+    });
+
+    test('shows icons before labels when showIcons is enabled', () {
+      final model = TreeViewModel<String>(showIcons: true)
+        ..setVisibleCount(10)
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Folder'), icon: '📁')])
+        ..expand('/a')
+        ..applyChildren('/a', <TreeNode<String>>[
+          TreeNode(path: '/a/f', label: Line('File'), icon: '📄', isLeaf: true),
+        ]);
+
+      final frame = _frame(20, 2)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      expect(_dump(frame.buffer), '▼ 📁 Folder\n     📄 File\n');
+    });
+
+    test('aligns leaf and branch children at the same indent', () {
+      final model = TreeViewModel<String>()
+        ..setVisibleCount(10)
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Parent'))])
+        ..expand('/a')
+        ..applyChildren('/a', <TreeNode<String>>[
+          TreeNode(path: '/a/branch', label: Line('Branch')),
+          TreeNode(path: '/a/leaf', label: Line('Leaf'), isLeaf: true),
+        ]);
+
+      final frame = _frame(12, 3)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      expect(_dump(frame.buffer), '▼ Parent\n  ▶ Branch\n    Leaf\n');
+    });
+
     test('paints real row content through a RecordingSurface, not a hole', () {
       // The row body used to gate on `surface is BufferSurface`, so a golden
       // taken through plume's own RecordingSurface saw a border and nothing

@@ -10,6 +10,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -83,77 +84,66 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final listWidget = Block(
-    borders: Borders.all,
-    borderStyle: theme.focus,
-    child: ListView(
-      model: model.list,
-      theme: theme,
-      itemBuilder: (contact, index, state) {
-        final checkbox = state.checked ? '●' : '○';
-        final archivedTag = state.disabled ? ' (archived)' : '';
-
-        return Column(
-          children: [
-            Fixed(
-              1,
-              child: Text.raw(
-                ' $checkbox ${contact.name}$archivedTag',
-                style: const Style(addModifier: Modifier.bold),
-              ),
-            ),
-            Fixed(1, child: Text.raw('      ${contact.email}', style: theme.muted)),
-          ],
-        );
-      },
-      separatorBuilder: () => Line.fromSpans([Span('─' * 40, style: theme.border)]),
-    ),
-  ).titleTop(Line('Contacts', style: theme.focus));
-
-  // Selection summary
   final selectedKeys = model.list.getSelectedKeys();
   final selectedNames = contacts.where((c) => selectedKeys.contains(c.id)).map((c) => c.name);
   final summary = selectedKeys.isEmpty ? 'No contacts checked' : 'Checked: ${selectedNames.join(', ')}';
 
-  final summaryBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: selectedKeys.isNotEmpty ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        summary,
-        style: selectedKeys.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
-      ),
-    ).titleTop(Line('Checked (${selectedKeys.length})')),
-  );
-
-  final help = Fixed(
-    1,
-    child: Row(
+  final ui = box(
+    topTitles: [Line('Multi-Select Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text.raw(
-            '↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit',
-            style: theme.muted,
+        plume.Expanded<PaintToken>(
+          child: box(
+            border: BorderType.plain,
+            borderStyle: theme.focus,
+            topTitles: [Line('Contacts', style: theme.focus)],
+            child: listView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (contact, index, state) {
+                final checkbox = state.checked ? '●' : '○';
+                final archivedTag = state.disabled ? ' (archived)' : '';
+                return [
+                  Line(
+                    ' $checkbox ${contact.name}$archivedTag',
+                    style: const Style(addModifier: Modifier.bold),
+                  ),
+                  Line('      ${contact.email}', style: theme.muted),
+                ];
+              },
+              separatorBuilder: () => Line.fromSpans([Span('─' * 40, style: theme.border)]),
+            ),
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+          child: box(
+            border: BorderType.plain,
+            borderStyle: selectedKeys.isNotEmpty ? theme.success : theme.border,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Checked (${selectedKeys.length})')],
+            child: lineNode(
+              Line(summary, style: selectedKeys.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted),
+            ),
+          ),
+        ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+            ),
+          ],
+        ),
       ],
     ),
   );
 
-  final ui = Block(
-    child: Column(
-      children: [
-        Expanded(child: listWidget),
-        summaryBox,
-        help,
-      ],
-    ),
-  ).titleTop(Line('Multi-Select Demo', style: theme.muted));
-
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

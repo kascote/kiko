@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -75,97 +76,73 @@ void appView(AppModel model, Frame frame) {
 
   final e = model.editor;
 
-  // Title input
-  final titleInput = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.title.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(model.title, theme: theme),
-    ).titleTop(Line('Title')),
-  );
-
-  // Author input
-  final authorInput = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.author.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(model.author, theme: theme),
-    ).titleTop(Line('Author')),
-  );
-
-  // Editor panel with border
-  final editorPanel = Expanded(
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.editor.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextArea(e, theme: theme),
-    ).titleTop(Line('Content')),
-  );
-
-  // Status bar
-  final statusBar = Fixed(
-    1,
-    child: Row(
+  final ui = box(
+    border: BorderType.plain,
+    borderStyle: theme.border,
+    topTitles: [Line('TextArea Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text.raw(
-            'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
-            '${e.lineCount} lines | '
-            '${e.length} chars | '
-            'Focus: ${_focusName(model.focus.index)}',
+        _field(model.title, 'Title', theme),
+        _field(model.author, 'Author', theme),
+        // Editor panel
+        plume.Expanded<PaintToken>(
+          child: box(
+            border: BorderType.plain,
+            borderStyle: model.editor.focused ? theme.focus : theme.border,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Content')],
+            child: textArea(model.editor, theme),
+          ),
+        ),
+        // Status bar
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(
+                Line(
+                  'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
+                  '${e.lineCount} lines | '
+                  '${e.length} chars | '
+                  'Focus: ${_focusName(model.focus.index)}',
+                  style: theme.muted,
+                ),
+              ),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(
+                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              ),
+            ),
+          ],
+        ),
+        // Help
+        lineNode(
+          Line(
+            'Tab/Shift+Tab to switch | Esc quit',
+            alignment: Alignment.center,
             style: theme.muted,
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
       ],
     ),
   );
 
-  // Help bar
-  final helpBar = Fixed(
-    1,
-    child: Text.raw(
-      'Tab/Shift+Tab to switch | Esc quit',
-      alignment: Alignment.center,
-      style: theme.muted,
-    ),
-  );
-
-  final ui = Row(
-    children: [
-      Expanded(child: const Block()), // left spacer
-      Percent(
-        70,
-        child: Column(
-          children: [
-            Expanded(child: const Block()), // top spacer
-            Percent(
-              80,
-              child: Column(
-                children: [
-                  titleInput,
-                  authorInput,
-                  editorPanel,
-                  statusBar,
-                  helpBar,
-                ],
-              ),
-            ),
-            Expanded(child: const Block()), // bottom spacer
-          ],
-        ),
-      ),
-      Expanded(child: const Block()), // right spacer
-    ],
-  );
-
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
+
+/// A bordered, titled field wrapping a fixed-height [textInput].
+plume.RenderNode<PaintToken> _field(TextInputModel input, String label, Theme theme) => box(
+  border: BorderType.plain,
+  borderStyle: input.focused ? theme.focus : theme.border,
+  padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+  topTitles: [Line(label)],
+  child: plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+    child: textInput(input, theme),
+  ),
+);
 
 String _focusName(int index) => switch (index) {
   0 => 'title',

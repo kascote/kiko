@@ -1,8 +1,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 
+import 'table_renderer.dart';
 import 'table_view_model.dart';
-import 'table_view_widget.dart';
 
 /// Builds a TableView as a plume node — the plume-native view for
 /// [TableViewModel].

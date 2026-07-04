@@ -9,6 +9,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -256,36 +257,41 @@ void appView(AppModel model, Frame frame) {
 
   final loading = table.isLoading();
 
-  final tableWidget = Block(
-    borders: Borders.all,
+  final tableWidget = tableView(
+    model: table,
+    theme: theme,
+    border: BorderType.plain,
     borderStyle: loading ? theme.warning : theme.focus,
-    child: TableView(model: table, theme: theme),
-  ).titleTop(Line(titleText, style: loading ? theme.warning : theme.focus));
+    topTitles: [Line(titleText, style: loading ? theme.warning : theme.focus)],
+  );
 
   // Status
   final status = loading ? 'Loading...' : model.error ?? 'Ready';
 
-  final statusBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
+  final statusBox = plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+    child: box(
+      border: BorderType.plain,
       borderStyle: model.error != null
           ? theme.error
           : loading
           ? theme.warning
           : theme.success,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        status,
-        style: Style(
-          fg: model.error != null
-              ? theme.error.fg
-              : loading
-              ? theme.warning.fg
-              : theme.success.fg,
+      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line('Status')],
+      child: lineNode(
+        Line(
+          status,
+          style: Style(
+            fg: model.error != null
+                ? theme.error.fg
+                : loading
+                ? theme.warning.fg
+                : theme.success.fg,
+          ),
         ),
       ),
-    ).titleTop(Line('Status')),
+    ),
   );
 
   // Scroll position
@@ -296,32 +302,36 @@ void appView(AppModel model, Frame frame) {
 
   final cursorInfo = 'Cell: ${table.cursorColField}';
 
-  final help = Fixed(
-    1,
-    child: Row(
-      children: [
-        Expanded(
-          child: Text.raw(
+  final help = plume.Row<PaintToken>(
+    children: [
+      plume.Expanded<PaintToken>(
+        child: lineNode(
+          Line(
             '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
             style: theme.muted,
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
-      ],
-    ),
+      ),
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+      ),
+    ],
   );
 
-  final ui = Block(
-    child: Column(
+  final ui = box(
+    topTitles: [Line('Paginated TableView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: tableWidget),
+        plume.Expanded<PaintToken>(child: tableWidget),
         statusBox,
         help,
       ],
     ),
-  ).titleTop(Line('Paginated TableView Demo', style: theme.muted));
+  );
 
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

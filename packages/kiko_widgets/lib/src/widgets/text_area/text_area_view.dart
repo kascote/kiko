@@ -1,8 +1,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 
-import 'text_area.dart';
 import 'text_area_model.dart';
+import 'text_area_renderer.dart';
 
 /// Builds a multi-line TextArea as a plume node — the plume-native view for
 /// [TextAreaModel].
@@ -11,8 +11,7 @@ import 'text_area_model.dart';
 /// titles. The scrolling body is a custom node that fills the inner area and
 /// paints the editor — wrapped lines, the line-number gutter, selection, and the
 /// placeholder — through the plume paint protocol. That rendering is the text
-/// area's own [TextAreaRenderer] and is reused here, so the plume port and the
-/// old widget draw identically. The terminal cursor the editor asks for is
+/// area's own [TextAreaRenderer]. The terminal cursor the editor asks for is
 /// carried back to the surface when painting through the real `BufferSurface`
 /// (plume itself has no cursor concept), and the subtree root is stamped with
 /// the model id so a click routes back through [Frame.hitId].

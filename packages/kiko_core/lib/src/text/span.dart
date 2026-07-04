@@ -2,13 +2,9 @@ import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
-import '../cell.dart';
-import '../extensions/integer.dart';
 import '../extensions/string.dart';
 import '../layout/alignment.dart';
-import '../layout/rect.dart';
 import '../style.dart';
-import '../widgets/frame.dart';
 import 'line.dart';
 import 'styled_char.dart';
 
@@ -19,7 +15,7 @@ import 'styled_char.dart';
 /// combined in the [Line] type to represent a line of text where each `Span`
 /// may have a different style
 @immutable
-class Span implements Widget {
+class Span {
   final String _content;
   final Style _style;
 
@@ -70,62 +66,6 @@ class Span implements Widget {
 
   /// Returns a [Line] from the Span, with the alignment set to [Alignment.right]
   Line rightAlignedLine() => Line.fromSpan(this, alignment: Alignment.right);
-
-  /// Renders the Span into the given frame, using the given area as the
-  /// bounding box.
-  @override
-  void render(Rect area, Frame frame) {
-    final buf = frame.buffer;
-    final spanArea = area.intersection(buf.area);
-    var x = spanArea.x;
-    final y = spanArea.y;
-
-    var n = 0;
-    for (final styledChar in styledChars(const Style())) {
-      final symbolWidth = widthChars(styledChar.char);
-      final nextX = x.saturatingAddU16(symbolWidth);
-      if (nextX > spanArea.right) break;
-
-      if (n == 0) {
-        // the first grapheme is always set on the cell
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(
-          char: styledChar.char.string,
-          style: styledChar.style,
-        );
-      } else if (x == area.x) {
-        // there is one or more zero-width graphemes in the first cell, so the first cell
-        // must be appended to.
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].appendSymbol(
-          char: styledChar.char.string,
-          style: styledChar.style,
-        );
-      } else if (symbolWidth == 0) {
-        // append zero-width graphemes to the previous cell
-        buf[(x: x - 1, y: y)] = buf[(x: x - 1, y: y)].appendSymbol(
-          char: styledChar.char.string,
-          style: styledChar.style,
-        );
-      } else {
-        // just a normal grapheme (not first, not zero-width, not overflowing the area)
-        buf[(x: x, y: y)] = buf[(x: x, y: y)].setCell(
-          char: styledChar.char.string,
-          style: styledChar.style,
-        );
-      }
-
-      // multi-width graphemes must clear the cells of characters that are hidden by the
-      // grapheme, otherwise the hidden characters will be re-rendered if the grapheme is
-      // overwritten.
-      for (var i = x + 1; i < nextX; i++) {
-        // sets the skip flag to true when the cell width is greater than 1
-        // this help on the buffer.diff method. the same behavior is in buffer.setStringLength
-        buf[(x: i, y: y)] = const Cell(skip: true); //buf[(x: i, y: y)].reset();
-      }
-      x = nextX;
-
-      n++;
-    }
-  }
 
   @override
   String toString() => 'Span(${_content.lines().join()}, $_style)';

@@ -3,20 +3,11 @@
 import 'package:plume/plume.dart' as plume;
 
 import '../buffer.dart';
-import '../cell.dart';
-import '../layout/constraint.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../plume/buffer_surface.dart';
 import '../plume/paint_token.dart';
 import '../plume/term_unicode_measurer.dart';
-
-/// A widget that can be rendered in a frame.
-// ignore: one_member_abstracts
-abstract class Widget {
-  /// Renders the widget in the given area of the frame.
-  void render(Rect area, Frame frame);
-}
 
 /// A consistent view into the terminal state for rendering a single frame.
 ///
@@ -54,18 +45,11 @@ class Frame {
   /// Creates a new frame with the given area and buffer.
   Frame(this.area, this.buffer, this.count);
 
-  /// Renders a widget in the given area of the frame.
-  void renderWidget(Widget widget, Rect area) {
-    widget.render(area, this);
-  }
-
   /// Renders a Plume layout [node] tree into this frame.
   ///
   /// Pass the root of a Plume tree whose leaves carry kiko [PaintToken]s. The
   /// tree is laid out tight to [area], its text measured the way kiko paints
-  /// it, and the result written into this frame's [buffer]. Reach for this to
-  /// render a Plume-built screen from a kiko [Widget] without going through the
-  /// constraint layout.
+  /// it, and the result written into this frame's [buffer].
   ///
   /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
   /// as [measurer] when ambiguous-width glyphs should count as two cells.
@@ -123,39 +107,6 @@ class Frame {
     return null;
   }
 
-  /// Renders a widget centered in the frame with the given size constraints.
-  ///
-  /// This is a helper for modal rendering. The caller should ensure the
-  /// backdrop is restored before calling this method.
-  void renderModal({
-    required Widget child,
-    required Constraint width,
-    required Constraint height,
-  }) {
-    final modalWidth = _resolveConstraint(width, area.width);
-    final modalHeight = _resolveConstraint(height, area.height);
-
-    // Center the modal in the frame
-    final x = area.x + (area.width - modalWidth) ~/ 2;
-    final y = area.y + (area.height - modalHeight) ~/ 2;
-
-    final modalArea = Rect.create(
-      x: x,
-      y: y,
-      width: modalWidth,
-      height: modalHeight,
-    );
-
-    // Clear the modal area to make it opaque
-    for (var py = modalArea.top; py < modalArea.bottom; py++) {
-      for (var px = modalArea.left; px < modalArea.right; px++) {
-        buffer[(x: px, y: py)] = Cell.empty();
-      }
-    }
-
-    renderWidget(child, modalArea);
-  }
-
   /// Dims all cell colors in the buffer toward black.
   ///
   /// Used to create a backdrop effect for modals.
@@ -174,18 +125,6 @@ class Frame {
       );
     }
   }
-}
-
-/// Resolves a constraint to an actual size given available space.
-int _resolveConstraint(Constraint constraint, int available) {
-  return switch (constraint) {
-    ConstraintLength(:final value) => value.clamp(0, available),
-    ConstraintPercent(:final value) => (available * value ~/ 100).clamp(0, available),
-    ConstraintRatio(:final numerator, :final denominator) => (available * numerator ~/ denominator).clamp(0, available),
-    ConstraintMin(:final value) => value.clamp(0, available),
-    ConstraintMax(:final value) => value.clamp(0, available),
-    ConstraintFill(:final value) => (available * value).clamp(0, available),
-  };
 }
 
 /// [CompletedFrame] represents the state of the terminal after all changes

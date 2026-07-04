@@ -8,6 +8,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -135,93 +136,79 @@ void appView(AppModel model, Frame frame) {
   // Status indicator
   final status = loading ? 'Loading...' : model.error ?? 'Loaded ${model.list.dataView.length} users';
 
-  final listWidget = Block(
-    borders: Borders.all,
-    borderStyle: theme.focus,
-    child: ListView(
-      model: model.list,
-      theme: theme,
-      itemBuilder: (user, index, state) {
-        final roleStyle = switch (user.role) {
-          'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
-          'Manager' => Style(fg: theme.warning.fg),
-          'Member' => Style(fg: theme.accent.fg),
-          _ => theme.muted,
-        };
-
-        return Column(
-          children: [
-            Fixed(
-              1,
-              child: Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
-            ),
-            Fixed(1, child: Line('  ${user.role} (${user.id})', style: roleStyle)),
-          ],
-        );
-      },
-      separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: theme.border)]),
-      emptyPlaceholder: Text.raw(
-        loading ? 'Loading...' : 'No users',
-        style: theme.muted,
-      ),
-    ),
-  ).titleTop(Line('Users', style: theme.focus));
-
-  final statusBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.error != null
-          ? theme.error
-          : loading
-          ? theme.warning
-          : theme.success,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        status,
-        style: Style(
-          fg: model.error != null
-              ? theme.error.fg
-              : loading
-              ? theme.warning.fg
-              : theme.success.fg,
-        ),
-      ),
-    ).titleTop(Line('Status')),
-  );
-
   // Scroll position
   final scroll = model.list.getScrollState();
   final scrollInfo = scroll.total != null
       ? 'Scroll: ${scroll.offset + 1}-${(scroll.offset + scroll.visible).clamp(0, scroll.total!)}/${scroll.total}'
       : '';
 
-  final help = Fixed(
-    1,
-    child: Row(
+  final statusBorder = model.error != null
+      ? theme.error
+      : loading
+      ? theme.warning
+      : theme.success;
+  final statusFg = model.error != null
+      ? theme.error.fg
+      : loading
+      ? theme.warning.fg
+      : theme.success.fg;
+
+  final ui = box(
+    topTitles: [Line('Paginated ListView Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text.raw(
-            '↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit',
-            style: theme.muted,
+        plume.Expanded<PaintToken>(
+          child: box(
+            border: BorderType.plain,
+            borderStyle: theme.focus,
+            topTitles: [Line('Users', style: theme.focus)],
+            child: listView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (user, index, state) {
+                final roleStyle = switch (user.role) {
+                  'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
+                  'Manager' => Style(fg: theme.warning.fg),
+                  'Member' => Style(fg: theme.accent.fg),
+                  _ => theme.muted,
+                };
+                return [
+                  Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
+                  Line('  ${user.role} (${user.id})', style: roleStyle),
+                ];
+              },
+              separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: theme.border)]),
+              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
+            ),
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+          child: box(
+            border: BorderType.plain,
+            borderStyle: statusBorder,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Status')],
+            child: lineNode(Line(status, style: Style(fg: statusFg))),
+          ),
+        ),
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted)),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+            ),
+          ],
+        ),
       ],
     ),
   );
 
-  final ui = Block(
-    child: Column(
-      children: [
-        Expanded(child: listWidget),
-        statusBox,
-        help,
-      ],
-    ),
-  ).titleTop(Line('Paginated ListView Demo', style: theme.muted));
-
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 void main() async {
   await Application(title: 'Kiko Example').runStateless(
@@ -7,29 +8,30 @@ void main() async {
       _ => (null, null),
     },
     view: (_, frame) {
-      final lines = [
-        const Span('Hello, ', style: Style(fg: Color.red)),
-        const Span(
+      final greeting = Line.fromSpans(const [
+        Span('Hello, ', style: Style(fg: Color.red)),
+        Span(
           'World',
           style: Style(fg: Color.black, bg: Color.yellow),
         ),
-        const Span('!', style: Style(bg: Color.blue)),
-      ];
-      frame
-        ..renderWidget(
-          Text.fromLines([Line.fromSpans(lines)]),
-          Rect.create(x: 30, y: 10, width: 13, height: 4),
-        )
-        ..renderWidget(
-          const Block(borders: Borders.all, borderType: BorderType.rounded).titleTop(
-            Line(
-              'Kiko',
-              style: const Style(fg: Color.green),
-              alignment: Alignment.left,
+        Span('!', style: Style(bg: Color.blue)),
+      ]);
+
+      final ui = plume.Column<PaintToken>(
+        children: [
+          plume.ConstrainedBox<PaintToken>(
+            additionalConstraints: const plume.BoxConstraints(minW: 20, maxW: 20),
+            child: box(
+              border: BorderType.rounded,
+              topTitles: [Line('Kiko', style: const Style(fg: Color.green))],
+              child: lineNode(greeting),
             ),
           ),
-          Rect.create(x: 0, y: 0, width: 20, height: 30),
-        );
+          plume.Expanded<PaintToken>(child: plume.SizedBox<PaintToken>()),
+        ],
+      );
+
+      frame.renderNode(ui);
     },
   );
 }

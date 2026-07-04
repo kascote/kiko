@@ -144,13 +144,18 @@ plume.RenderNode<PaintToken> _styleRow(Theme theme, String name, Style style) =>
 );
 
 /// Pins [child] to an exact [width], one visual row tall.
-plume.RenderNode<PaintToken> _col(int width, plume.RenderNode<PaintToken> child) =>
-    plume.ConstrainedBox<PaintToken>(additionalConstraints: plume.BoxConstraints(minW: width, maxW: width), child: child);
+plume.RenderNode<PaintToken> _col(int width, plume.RenderNode<PaintToken> child) => plume.ConstrainedBox<PaintToken>(
+  additionalConstraints: plume.BoxConstraints(minW: width, maxW: width),
+  child: child,
+);
 
 /// A color chip: [width] cells of [style]'s background with [label] over it.
 plume.RenderNode<PaintToken> _swatch(int width, Style style, String label) => plume.ConstrainedBox<PaintToken>(
   additionalConstraints: plume.BoxConstraints(minW: width, maxW: width),
-  child: box(background: style, child: lineNode(Line(' $label ', style: style))),
+  child: box(
+    background: style,
+    child: lineNode(Line(' $label ', style: style)),
+  ),
 );
 
 /// Format color as hex string.

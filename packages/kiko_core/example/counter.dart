@@ -33,12 +33,13 @@ class CounterModel {
 // VIEW
 // ═══════════════════════════════════════════════════════════
 void counterView(CounterModel model, Frame frame) {
-  final block = Block(
-    borders: Borders.all,
-    child: Text.raw('Count: ${model.count}', alignment: Alignment.center),
-  ).titleTop(Line('Counter (↑/↓ to change, q to quit)'));
+  final ui = box(
+    border: BorderType.plain,
+    topTitles: [Line('Counter (↑/↓ to change, q to quit)')],
+    child: lineNode(Line('Count: ${model.count}', alignment: Alignment.center)),
+  );
 
-  frame.renderWidget(block, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

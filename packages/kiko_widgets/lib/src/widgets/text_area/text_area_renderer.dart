@@ -6,43 +6,11 @@ import 'package:termunicode/termunicode.dart';
 import 'selection.dart';
 import 'text_area_model.dart';
 
-/// A multi-line text area widget with word wrapping.
-///
-/// Renders state from [TextAreaModel]. Supports:
-/// - Word-boundary soft wrapping
-/// - Optional line numbers
-/// - Selection highlighting
-/// - Vertical scrolling
-///
-/// Uses [StyleResolver] for state-based styling (focused, disabled) and
-/// [TextAreaStyle] for region-based styling (placeholder, selection, line
-/// numbers).
-class TextArea extends Widget {
-  /// The model containing state and config.
-  final TextAreaModel model;
-
-  /// Theme for deriving styles.
-  final Theme theme;
-
-  /// Optional per-state style overrides.
-  final Map<WidgetState, Style>? styleOverrides;
-
-  /// Creates a TextArea widget.
-  TextArea(this.model, {required this.theme, this.styleOverrides});
-
-  @override
-  void render(Rect area, Frame frame) {
-    final surface = BufferSurface(frame.buffer);
-    final cursor = TextAreaRenderer(model, theme, styleOverrides).paint(area, surface);
-    if (cursor != null) frame.cursorPosition = cursor;
-  }
-}
-
 /// Paints a [TextAreaModel] through a plume [plume.Surface].
 ///
 /// The rendering — wrapped lines, the line-number gutter, selection
 /// highlighting, vertical scroll, and the placeholder — lives here so both the
-/// [TextArea] widget and the plume `textArea` viewport draw an editor the same
+/// plume `textArea` viewport and any other caller draw an editor the same
 /// way. [paint] returns where the terminal cursor belongs when the model is
 /// focused, or `null` — plume's `Surface` has no cursor concept of its own (no
 /// terminal to blink one in), so reporting it back is the caller's job.

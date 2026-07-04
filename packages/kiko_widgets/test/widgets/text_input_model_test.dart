@@ -1,0 +1,345 @@
+import 'package:characters/characters.dart';
+import 'package:kiko/kiko.dart';
+import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:test/test.dart';
+
+/// Helper to create a KeyMsg for a character.
+KeyMsg charMsg(String c) => KeyMsg(c);
+
+/// Helper to create a KeyMsg for backspace.
+KeyMsg backspaceMsg() => const KeyMsg('backSpace');
+
+void main() {
+  group('TextInputModel', () {
+    test('default empty state', () {
+      final model = TextInputModel();
+      expect(model.value, isEmpty);
+      expect(model.cursor, equals(0));
+      expect(model.length, equals(0));
+    });
+
+    test('initializes with initial text', () {
+      final model = TextInputModel(initial: 'hello');
+      expect(model.value, equals('hello'));
+      expect(model.cursor, equals(5)); // cursor at end
+      expect(model.length, equals(5));
+    });
+
+    test('config fields are set', () {
+      final model = TextInputModel(
+        initial: 'test',
+        placeholder: 'Enter text',
+        maxLength: 10,
+        obscureText: true,
+        obscureChar: '*',
+      );
+      expect(model.placeholder, equals('Enter text'));
+      expect(model.maxLength, equals(10));
+      expect(model.obscureText, isTrue);
+      expect(model.obscureChar, equals('*'));
+    });
+
+    test('fillChar and style fields are set', () {
+      final model = TextInputModel(
+        fillChar: '_',
+        style: const TextInputStyle(fill: Style(fg: Color.red)),
+      );
+      expect(model.fillChar, equals('_'));
+      expect(model.style!.fill, equals(const Style(fg: Color.red)));
+    });
+  });
+
+  group('TextInputModel.update character input', () {
+    test('character input inserts at cursor', () {
+      final model = TextInputModel(focused: true);
+      final cmd = model.update(charMsg('a'));
+      expect(model.value, equals('a'));
+      expect(model.cursor, equals(1));
+      expect(cmd, isNull);
+    });
+
+    test('character input in middle', () {
+      final model = TextInputModel(initial: 'ac', focused: true)
+        ..cursor = 1
+        ..update(charMsg('b'));
+      expect(model.value, equals('abc'));
+      expect(model.cursor, equals(2));
+    });
+
+    test('emoji input works correctly', () {
+      final model = TextInputModel(focused: true)..update(charMsg('👋'));
+      expect(model.value, equals('👋'));
+      expect(model.cursor, equals(1));
+      expect(model.length, equals(1));
+
+      model.update(charMsg('🌍'));
+      expect(model.value, equals('👋🌍'));
+      expect(model.cursor, equals(2));
+      expect(model.length, equals(2));
+    });
+
+    test('respects maxLength', () {
+      final model = TextInputModel(initial: 'abc', maxLength: 5, focused: true)
+        ..update(charMsg('d'))
+        ..update(charMsg('e'));
+      expect(model.value, equals('abcde'));
+
+      model.update(charMsg('f')); // should be ignored
+      expect(model.value, equals('abcde'));
+      expect(model.length, equals(5));
+    });
+
+    test('unhandled message returns null cmd', () {
+      final model = TextInputModel(initial: 'abc', focused: true);
+      final cmd = model.update(const NoneMsg());
+      expect(cmd, isNull);
+      expect(model.value, equals('abc')); // unchanged
+    });
+
+    test('inputFilter rejects non-matching chars', () {
+      final model = TextInputModel(
+        inputFilter: (c) => Characters(c.where((g) => RegExp('[a-z]').hasMatch(g)).join()),
+        focused: true,
+      )..update(charMsg('a'));
+      expect(model.value, equals('a'));
+
+      model.update(charMsg('1')); // rejected
+      expect(model.value, equals('a'));
+
+      model.update(charMsg(' ')); // rejected
+      expect(model.value, equals('a'));
+
+      model.update(charMsg('b'));
+      expect(model.value, equals('ab'));
+    });
+
+    test('inputFilter can transform input', () {
+      final model = TextInputModel(
+        inputFilter: (c) => Characters(c.string.toUpperCase()),
+        focused: true,
+      );
+      for (final char in 'hello'.split('')) {
+        model.update(charMsg(char));
+      }
+      expect(model.value, equals('HELLO'));
+    });
+
+    test('inputFilter strips whitespace', () {
+      final model = TextInputModel(
+        inputFilter: (c) => Characters(c.where((g) => g.trim().isNotEmpty).join()),
+        focused: true,
+      );
+      for (final char in 'hello'.split('')) {
+        model.update(charMsg(char));
+      }
+      expect(model.value, equals('hello'));
+
+      model.update(const KeyMsg('space'));
+      expect(model.value, equals('hello'));
+    });
+  });
+
+  group('TextInputModel.update backspace', () {
+    test('backspace deletes before cursor', () {
+      final model = TextInputModel(initial: 'ab', focused: true);
+      final cmd = model.update(backspaceMsg());
+      expect(model.value, equals('a'));
+      expect(model.cursor, equals(1));
+      expect(cmd, isNull);
+    });
+
+    test('backspace at beginning does nothing', () {
+      final model = TextInputModel(initial: 'ab', focused: true)
+        ..cursor = 0
+        ..update(backspaceMsg());
+      expect(model.value, equals('ab'));
+      expect(model.cursor, equals(0));
+    });
+
+    test('backspace on empty does nothing', () {
+      final model = TextInputModel(focused: true)..update(backspaceMsg());
+      expect(model.value, isEmpty);
+      expect(model.cursor, equals(0));
+    });
+
+    test('backspace deletes single emoji', () {
+      final model = TextInputModel(initial: '👋🌍', focused: true)..update(backspaceMsg());
+      expect(model.value, equals('👋'));
+      expect(model.cursor, equals(1));
+    });
+  });
+
+  group('TextInputModel.update delete key', () {
+    KeyMsg deleteMsg() => const KeyMsg('delete');
+
+    test('delete removes char after cursor', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 1
+        ..update(deleteMsg());
+      expect(model.value, equals('ac'));
+      expect(model.cursor, equals(1));
+    });
+
+    test('delete at end does nothing', () {
+      final model = TextInputModel(initial: 'abc', focused: true)..update(deleteMsg());
+      expect(model.value, equals('abc'));
+      expect(model.cursor, equals(3));
+    });
+
+    test('delete on empty does nothing', () {
+      final model = TextInputModel(focused: true)..update(deleteMsg());
+      expect(model.value, isEmpty);
+      expect(model.cursor, equals(0));
+    });
+
+    test('delete removes single emoji', () {
+      final model = TextInputModel(initial: 'a👋b', focused: true)
+        ..cursor = 1
+        ..update(deleteMsg());
+      expect(model.value, equals('ab'));
+      expect(model.cursor, equals(1));
+    });
+  });
+
+  group('TextInputModel.update navigation', () {
+    KeyMsg leftMsg() => const KeyMsg('left');
+    KeyMsg rightMsg() => const KeyMsg('right');
+    KeyMsg homeMsg() => const KeyMsg('home');
+    KeyMsg endMsg() => const KeyMsg('end');
+
+    test('left arrow moves cursor left', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 2
+        ..update(leftMsg());
+      expect(model.cursor, equals(1));
+      expect(model.value, equals('abc'));
+    });
+
+    test('left arrow at start stays at start', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 0
+        ..update(leftMsg());
+      expect(model.cursor, equals(0));
+    });
+
+    test('right arrow moves cursor right', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 1
+        ..update(rightMsg());
+      expect(model.cursor, equals(2));
+      expect(model.value, equals('abc'));
+    });
+
+    test('right arrow at end stays at end', () {
+      final model = TextInputModel(initial: 'abc', focused: true)..update(rightMsg());
+      expect(model.cursor, equals(3));
+    });
+
+    test('home moves cursor to start', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 2
+        ..update(homeMsg());
+      expect(model.cursor, equals(0));
+    });
+
+    test('end moves cursor to end', () {
+      final model = TextInputModel(initial: 'abc', focused: true)
+        ..cursor = 1
+        ..update(endMsg());
+      expect(model.cursor, equals(3));
+    });
+
+    test('navigation with emoji preserves grapheme positions', () {
+      final model = TextInputModel(initial: 'a👋b', focused: true)
+        ..cursor = 2
+        ..update(leftMsg());
+      expect(model.cursor, equals(1)); // now at 👋
+
+      model.update(rightMsg());
+      expect(model.cursor, equals(2)); // back at b
+    });
+  });
+
+  group('TextInputModel.update Ctrl keybindings', () {
+    KeyMsg ctrlKey(String char) => KeyMsg('ctrl+$char');
+
+    KeyMsg ctrlLeft() => const KeyMsg('ctrl+left');
+
+    KeyMsg ctrlRight() => const KeyMsg('ctrl+right');
+
+    KeyMsg ctrlBackspace() => const KeyMsg('ctrl+backSpace');
+
+    KeyMsg ctrlDelete() => const KeyMsg('ctrl+delete');
+
+    test('Ctrl+A moves to start', () {
+      final model = TextInputModel(initial: 'hello', focused: true)
+        ..cursor = 3
+        ..update(ctrlKey('a'));
+      expect(model.cursor, equals(0));
+    });
+
+    test('Ctrl+E moves to end', () {
+      final model = TextInputModel(initial: 'hello', focused: true)
+        ..cursor = 2
+        ..update(ctrlKey('e'));
+      expect(model.cursor, equals(5));
+    });
+
+    test('Ctrl+K kills to end of line', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)
+        ..cursor = 5
+        ..update(ctrlKey('k'));
+      expect(model.value, equals('hello'));
+      expect(model.cursor, equals(5));
+    });
+
+    test('Ctrl+U deletes to line start', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)
+        ..cursor = 6
+        ..update(ctrlKey('u'));
+      expect(model.value, equals('world'));
+      expect(model.cursor, equals(0));
+    });
+
+    test('Ctrl+W deletes word left', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)..update(ctrlKey('w'));
+      expect(model.value, equals('hello '));
+      expect(model.cursor, equals(6));
+    });
+
+    test('Ctrl+Left jumps word left', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)
+        ..cursor = 8
+        ..update(ctrlLeft());
+      expect(model.cursor, equals(6));
+    });
+
+    test('Ctrl+Right jumps word right', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)
+        ..cursor = 0
+        ..update(ctrlRight());
+      expect(model.cursor, equals(6));
+    });
+
+    test('Ctrl+Backspace deletes word left', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)..update(ctrlBackspace());
+      expect(model.value, equals('hello '));
+      expect(model.cursor, equals(6));
+    });
+
+    test('Ctrl+Delete deletes word right', () {
+      final model = TextInputModel(initial: 'hello world', focused: true)
+        ..cursor = 0
+        ..update(ctrlDelete());
+      expect(model.value, equals('world'));
+      expect(model.cursor, equals(0));
+    });
+
+    test('Ctrl+char does not insert character', () {
+      final model = TextInputModel(initial: 'hello', focused: true)..update(ctrlKey('x'));
+      // Unknown Ctrl combo should not modify text
+      expect(model.value, equals('hello'));
+      expect(model.cursor, equals(5));
+    });
+  });
+}

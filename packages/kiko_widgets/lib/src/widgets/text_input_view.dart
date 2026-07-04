@@ -2,7 +2,7 @@ import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
-import 'text_input.dart';
+import 'text_input_model.dart';
 
 /// Builds a single-line text input as a plume node — the plume-native view for
 /// [TextInputModel].

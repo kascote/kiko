@@ -1,34 +1,32 @@
-import 'dart:io';
-
-import 'package:kiko/iterators.dart';
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 
 Future<void> main() async {
   await Application(
     title: 'Color Demo',
-    onCleanup: (terminal) async {
-      stdout.writeln('layoutCache ${layoutCacheStats()}');
-    },
   ).runStateless(
     update: (_, msg) => switch (msg) {
       KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },
-    view: (_, frame) {
-      final layout = Layout.vertical(const [
-        ConstraintLength(30),
-        ConstraintLength(17),
-        ConstraintMin(2),
-      ]).split(frame.area);
-
-      renderNamedColors(frame, layout[0]);
-      renderIndexedColors(frame, layout[1]);
-      renderIndexedGrayScale(frame, layout[2]);
-    },
+    view: (_, frame) => draw(frame),
   );
 }
 
-final List<Color> colors = [
+void draw(Frame frame) {
+  final ui = plume.Column<PaintToken>(
+    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    children: [
+      _namedColorsPanel(),
+      _indexedColorsPanel(),
+      plume.Expanded<PaintToken>(child: _grayScalePanel()),
+    ],
+  );
+
+  frame.renderNode(ui);
+}
+
+const List<Color> _colors = [
   Color.black,
   Color.red,
   Color.green,
@@ -47,7 +45,7 @@ final List<Color> colors = [
   Color.white,
 ];
 
-final colorNames = [
+const List<String> _colorNames = [
   'Black',
   'Red',
   'Green',
@@ -66,96 +64,93 @@ final colorNames = [
   'White',
 ];
 
-void renderNamedColors(Frame frame, Rect area) {
-  final layout = Layout.vertical(List.generate(10, (_) => const ConstraintLength(3))).split(area);
+/// A centered header line — the plume-native stand-in for the old
+/// top-border-only, titled `Block`; [box] only ever draws a uniform border on
+/// all four sides or none, so a single-edge rule is no longer expressible.
+plume.RenderNode<PaintToken> _sectionTitle(String title) => lineNode(Line(title, alignment: Alignment.center));
 
-  renderNamedColorFg(frame, 'reset', Color.reset, layout[0]);
-  renderNamedColorFg(frame, 'black', Color.black, layout[1]);
-  renderNamedColorFg(frame, 'darkGray', Color.darkGray, layout[2]);
-  renderNamedColorFg(frame, 'gray', Color.gray, layout[3]);
-  renderNamedColorFg(frame, 'white', Color.white, layout[4]);
+// ─── Named colors ────────────────────────────────────────────────────────
 
-  renderNamedColorBg(frame, 'reset', Color.reset, layout[5]);
-  renderNamedColorBg(frame, 'black', Color.black, layout[6]);
-  renderNamedColorBg(frame, 'darkGray', Color.darkGray, layout[7]);
-  renderNamedColorBg(frame, 'gray', Color.gray, layout[8]);
-  renderNamedColorBg(frame, 'white', Color.white, layout[9]);
+plume.RenderNode<PaintToken> _namedColorsPanel() => plume.Column<PaintToken>(
+  crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  children: [
+    _namedColorFgSection('reset', Color.reset),
+    _namedColorFgSection('black', Color.black),
+    _namedColorFgSection('darkGray', Color.darkGray),
+    _namedColorFgSection('gray', Color.gray),
+    _namedColorFgSection('white', Color.white),
+    _namedColorBgSection('reset', Color.reset),
+    _namedColorBgSection('black', Color.black),
+    _namedColorBgSection('darkGray', Color.darkGray),
+    _namedColorBgSection('gray', Color.gray),
+    _namedColorBgSection('white', Color.white),
+  ],
+);
+
+/// The 16 named colors as foreground, on a fixed [bg] background.
+plume.RenderNode<PaintToken> _namedColorFgSection(String nameCol, Color bg) =>
+    _namedColorGrid(title: 'Foreground colors on $nameCol background', fgAt: (i) => _colors[i], bgAt: (_) => bg);
+
+/// The 16 named colors as background, under a fixed [fg] foreground.
+plume.RenderNode<PaintToken> _namedColorBgSection(String nameCol, Color fg) =>
+    _namedColorGrid(title: 'Background colors with $nameCol foreground', fgAt: (_) => fg, bgAt: (i) => _colors[i]);
+
+plume.RenderNode<PaintToken> _namedColorGrid({
+  required String title,
+  required Color Function(int) fgAt,
+  required Color Function(int) bgAt,
+}) {
+  plume.RenderNode<PaintToken> row(int start) => plume.Row<PaintToken>(
+    children: [
+      for (var i = start; i < start + 8; i++)
+        plume.Expanded<PaintToken>(
+          child: lineNode(
+            Line(
+              _colorNames[i],
+              style: Style(fg: fgAt(i), bg: bgAt(i)),
+            ),
+          ),
+        ),
+    ],
+  );
+
+  return plume.Column<PaintToken>(
+    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    children: [_sectionTitle(title), row(0), row(8)],
+  );
 }
 
-void renderNamedColorFg(Frame frame, String nameCol, Color bg, Rect area) {
-  final block = titleBlock('Foreground colors on $nameCol background');
-  final inner = block.inner(area);
-  frame.renderWidget(block, area);
+// ─── Indexed colors (0-231) ──────────────────────────────────────────────
 
-  final layout = Layout.vertical(
-    List.generate(2, (_) => const ConstraintLength(1)),
-  ).split(inner);
-  final areas = layout
-      .map(
-        (area) => Layout.horizontal(
-          List.generate(8, (_) => const ConstraintRatio(1, 8)),
-        ).split(area),
-      )
-      .expand((x) => x);
+plume.RenderNode<PaintToken> _indexedColorsPanel() => plume.Column<PaintToken>(
+  crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  children: [
+    _sectionTitle('Indexed colors'),
+    _indexedRow16(),
+    plume.SizedBox<PaintToken>(height: 1),
+    _indexedColorBlock(16, 123),
+    plume.SizedBox<PaintToken>(height: 1),
+    _indexedColorBlock(124, 231),
+    plume.SizedBox<PaintToken>(height: 1),
+  ],
+);
 
-  for (final (index, fg, area) in colors.zipIndex(areas)) {
-    final colorName = colorNames[index];
-    final text = Text.raw(
-      colorName,
-      style: Style(fg: fg, bg: bg),
-    );
-    frame.renderWidget(text, area);
-  }
-}
+plume.RenderNode<PaintToken> _indexedRow16() => plume.Row<PaintToken>(
+  children: [
+    for (var i = 0; i < 16; i++)
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 5, maxW: 5),
+        child: _indexedCell16(i),
+      ),
+  ],
+);
 
-void renderNamedColorBg(Frame frame, String nameCol, Color fg, Rect area) {
-  final block = titleBlock('Background colors with $nameCol foreground');
-  final inner = block.inner(area);
-  frame.renderWidget(block, area);
-
-  final layout = Layout.vertical(
-    List.generate(2, (_) => const ConstraintLength(1)),
-  ).split(inner);
-  final areas = layout
-      .map(
-        (area) => Layout.horizontal(
-          List.generate(8, (_) => const ConstraintRatio(1, 8)),
-        ).split(area),
-      )
-      .expand((x) => x);
-
-  for (final (index, bg, area) in colors.zipIndex(areas)) {
-    final colorName = colorNames[index];
-    final text = Text.raw(
-      colorName,
-      style: Style(fg: fg, bg: bg),
-    );
-    frame.renderWidget(text, area);
-  }
-}
-
-void renderIndexedColors(Frame frame, Rect area) {
-  final block = titleBlock('Indexed colors');
-  final inner = block.inner(area);
-  frame.renderWidget(block, area);
-
-  final layout = Layout.vertical(const [
-    ConstraintLength(1), // 0 - 15
-    ConstraintLength(1), // blank
-    ConstraintMin(6), // 16-123
-    ConstraintLength(1), // blank
-    ConstraintMin(6), // 124-231
-    ConstraintLength(1),
-  ]).split(inner);
-
-  final colorLayout = Layout.horizontal(
-    List.generate(16, (_) => const ConstraintLength(5)),
-  ).split(layout[0]);
-  for (var i = 0; i < 16; i++) {
-    final color = Color.indexed(i);
-    final colorIndex = i.toString().padLeft(2, '0');
-    final bg = i < 1 ? Color.darkGray : Color.black;
-    final text = Line.fromSpans([
+plume.RenderNode<PaintToken> _indexedCell16(int index) {
+  final color = Color.indexed(index);
+  final colorIndex = index.toString().padLeft(2, '0');
+  final bg = index < 1 ? Color.darkGray : Color.black;
+  return lineNode(
+    Line.fromSpans([
       Span(
         colorIndex,
         style: Style(fg: color, bg: bg),
@@ -164,34 +159,39 @@ void renderIndexedColors(Frame frame, Rect area) {
         '  ',
         style: Style(fg: color, bg: color),
       ),
-    ]);
-    frame.renderWidget(text, colorLayout[i]);
+    ]),
+  );
+}
+
+/// Three side-by-side 27-column groups, each a 6×6 grid of indexed swatches.
+plume.RenderNode<PaintToken> _indexedColorBlock(int startIndex, int endIndex) {
+  final groups = <plume.RenderNode<PaintToken>>[];
+  var idx = startIndex;
+  for (var group = 0; group < 3 && idx <= endIndex; group++) {
+    final rows = <plume.RenderNode<PaintToken>>[];
+    for (var row = 0; row < 6 && idx <= endIndex; row++) {
+      final cells = <plume.RenderNode<PaintToken>>[];
+      for (var col = 0; col < 6 && idx <= endIndex; col++) {
+        cells.add(plume.Expanded<PaintToken>(child: _indexedCellSmall(idx)));
+        idx++;
+      }
+      rows.add(plume.Row<PaintToken>(children: cells));
+    }
+    groups.add(
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 27, maxW: 27),
+        child: plume.Column<PaintToken>(children: rows),
+      ),
+    );
   }
+  return plume.Row<PaintToken>(children: groups);
+}
 
-  final indexLayout = [layout[2], layout[4]]
-      .map(
-        (a) => Layout.horizontal(
-          List.generate(3, (_) => const ConstraintLength(27)),
-        ).split(a),
-      )
-      .expand((x) => x)
-      .map(
-        (a) => Layout.vertical(
-          List.generate(6, (_) => const ConstraintLength(1)),
-        ).split(a),
-      )
-      .expand((x) => x)
-      .map(
-        (a) => Layout.horizontal(
-          List.generate(6, (_) => const ConstraintMin(4)),
-        ).split(a),
-      )
-      .expand((x) => x);
-
-  for (var i = 16; i <= 231; i++) {
-    final color = Color.indexed(i);
-    final colorIndex = i.toString().padLeft(3, '0');
-    final text = Line.fromSpans([
+plume.RenderNode<PaintToken> _indexedCellSmall(int index) {
+  final color = Color.indexed(index);
+  final colorIndex = index.toString().padLeft(3, '0');
+  return lineNode(
+    Line.fromSpans([
       Span(
         colorIndex,
         style: Style(fg: color, bg: Color.reset),
@@ -200,33 +200,31 @@ void renderIndexedColors(Frame frame, Rect area) {
         '.',
         style: Style(fg: color, bg: color),
       ),
-      const Span('   '),
-      //const Span(content: '███'),
-    ]);
-    frame.renderWidget(text, indexLayout.elementAt(i - 16));
-  }
+    ]),
+  );
 }
 
-void renderIndexedGrayScale(Frame frame, Rect area) {
-  final layout =
-      Layout.vertical(const [
-            ConstraintLength(1), // 232-243
-            ConstraintLength(1), // 244-255
-          ])
-          .split(area)
-          .map(
-            (a) => Layout.horizontal(
-              List.generate(12, (_) => const ConstraintLength(6)),
-            ).split(a),
-          )
-          .expand((x) => x)
-          .toList();
+// ─── Grayscale (232-255) ─────────────────────────────────────────────────
 
-  for (var i = 232; i <= 255; i++) {
-    final color = Color.indexed(i);
-    final colorIndex = i.toString().padLeft(3, '0');
-    final bg = i < 244 ? Color.gray : Color.black;
-    final text = Line.fromSpans([
+plume.RenderNode<PaintToken> _grayScalePanel() =>
+    plume.Column<PaintToken>(children: [_grayScaleRow(232), _grayScaleRow(244)]);
+
+plume.RenderNode<PaintToken> _grayScaleRow(int startIndex) => plume.Row<PaintToken>(
+  children: [
+    for (var i = startIndex; i < startIndex + 12; i++)
+      plume.ConstrainedBox<PaintToken>(
+        additionalConstraints: const plume.BoxConstraints(minW: 6, maxW: 6),
+        child: _grayScaleCell(i),
+      ),
+  ],
+);
+
+plume.RenderNode<PaintToken> _grayScaleCell(int index) {
+  final color = Color.indexed(index);
+  final colorIndex = index.toString().padLeft(3, '0');
+  final bg = index < 244 ? Color.gray : Color.black;
+  return lineNode(
+    Line.fromSpans([
       Span(
         colorIndex,
         style: Style(fg: color, bg: bg),
@@ -236,15 +234,6 @@ void renderIndexedGrayScale(Frame frame, Rect area) {
         style: Style(fg: color, bg: color),
       ),
       const Span('       '),
-    ]);
-    frame.renderWidget(text, layout[i - 232]);
-  }
-}
-
-Block titleBlock(String title) {
-  return const Block(
-    borders: Borders.top,
-    borderStyle: Style(fg: Color.darkGray),
-    titlesStyle: Style(fg: Color.reset),
-  ).titleTop(Line(title, alignment: Alignment.center));
+    ]),
+  );
 }

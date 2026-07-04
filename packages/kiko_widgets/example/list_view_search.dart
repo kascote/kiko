@@ -8,6 +8,7 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -177,69 +178,77 @@ void appView(AppModel model, Frame frame) {
 
   final items = model.filteredItems;
 
-  // Search box
-  final searchBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.search.focused ? theme.focus : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: TextInput(model.search, theme: theme),
-    ).titleTop(Line('Search (${items.length}/${allItems.length})')),
-  );
-
-  // List area using ListView
-  final listBox = Expanded(
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.list.focused ? theme.focus : theme.border,
-      child: ListView(
-        model: model.list,
-        theme: theme,
-        itemBuilder: (item, index, _) {
-          final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
-          return Text.raw(' $item', style: style);
-        },
-        emptyPlaceholder: Text.raw('No matches', style: theme.muted),
-      ),
-    ).titleTop(Line('Results')),
-  );
-
-  // Selected item display
-  final selectedBox = Fixed(
-    3,
-    child: Block(
-      borders: Borders.all,
-      borderStyle: model.selected != null ? theme.success : theme.border,
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: Text.raw(
-        model.selected ?? 'Press Enter to select',
-        style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
-      ),
-    ).titleTop(Line('Selected')),
-  );
-
-  // Help
-  final help = Fixed(
-    1,
-    child: Row(
+  final ui = box(
+    topTitles: [Line('Searchable List Demo', style: theme.muted)],
+    child: plume.Column<PaintToken>(
+      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text.raw(
-            'Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit',
-            style: theme.muted,
+        // Search box
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+          child: box(
+            border: BorderType.plain,
+            borderStyle: model.search.focused ? theme.focus : theme.border,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Search (${items.length}/${allItems.length})')],
+            child: plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+              child: textInput(model.search, theme),
+            ),
           ),
         ),
-        Fixed(25, child: themeIndicator(model)),
+        // List area using ListView
+        plume.Expanded<PaintToken>(
+          child: box(
+            border: BorderType.plain,
+            borderStyle: model.list.focused ? theme.focus : theme.border,
+            topTitles: [Line('Results')],
+            child: listView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (item, index, _) {
+                final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
+                return [Line(' $item', style: style)];
+              },
+              emptyPlaceholder: Line('No matches', style: theme.muted),
+            ),
+          ),
+        ),
+        // Selected item display
+        plume.ConstrainedBox<PaintToken>(
+          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+          child: box(
+            border: BorderType.plain,
+            borderStyle: model.selected != null ? theme.success : theme.border,
+            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [Line('Selected')],
+            child: lineNode(
+              Line(
+                model.selected ?? 'Press Enter to select',
+                style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
+              ),
+            ),
+          ),
+        ),
+        // Help
+        plume.Row<PaintToken>(
+          children: [
+            plume.Expanded<PaintToken>(
+              child: lineNode(
+                Line('Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit', style: theme.muted),
+              ),
+            ),
+            plume.ConstrainedBox<PaintToken>(
+              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+            ),
+          ],
+        ),
       ],
     ),
   );
 
-  final ui = Block(
-    child: Column(children: [searchBox, listBox, selectedBox, help]),
-  ).titleTop(Line('Searchable List Demo', style: theme.muted));
-
-  frame.renderWidget(ui, frame.area);
+  frame.renderNode(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -49,10 +49,7 @@ const int _sigTerm = _baseError + 15;
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (model, Quit()),
 ///     _ => (model, null),
 ///   },
-///   view: (model, frame) => frame.renderWidget(
-///     myWidget(model),
-///     frame.area,
-///   ),
+///   view: (model, frame) => frame.renderNode(myWidget(model)),
 /// );
 /// ```
 ///
@@ -63,7 +60,7 @@ const int _sigTerm = _baseError + 15;
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, Quit()),
 ///     _ => (null, null),
 ///   },
-///   view: (_, frame) => frame.renderWidget(Text('Hello'), frame.area),
+///   view: (_, frame) => frame.renderNode(textNode(Text.raw('Hello'))),
 /// );
 /// ```
 class Application {

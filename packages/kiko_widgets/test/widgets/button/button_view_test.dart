@@ -53,8 +53,7 @@ void main() {
     test('a click resolves to the right button among several', () {
       final a = button(ButtonModel(id: 'a', label: Line('A')), Theme.dark);
       final b = button(ButtonModel(id: 'b', label: Line('B')), Theme.dark);
-      final frame = _frame(6, 1)
-        ..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
+      final frame = _frame(6, 1)..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
 
       expect(frame.hitId(1, 0), 'a');
       expect(frame.hitId(4, 0), 'b');

@@ -496,18 +496,16 @@ Buffer {
     });
 
     test('Span render wide then narrow includes all cells in diff', () {
-      // Full integration: use Span to render wide char, then narrow chars
+      // Full integration: paint a wide char, then narrow chars
       final area = Rect.create(x: 0, y: 0, width: 6, height: 1);
       final prev = Buffer.empty(area);
       final next = Buffer.empty(area);
 
-      // Render wide char '📁' (width 2) to prev buffer
-      final frame1 = Frame(area, prev, 0);
-      const Span('📁test').render(area, frame1);
+      // Paint wide char '📁' (width 2) to prev buffer
+      paintLine(BufferSurface(prev), Line('📁test'), x: 0, y: 0, width: area.width);
 
-      // Render narrow chars to next buffer (simulating redraw)
-      final frame2 = Frame(area, next, 0);
-      const Span('abcdef').render(area, frame2);
+      // Paint narrow chars to next buffer (simulating redraw)
+      paintLine(BufferSurface(next), Line('abcdef'), x: 0, y: 0, width: area.width);
 
       final diff = prev.diff(next).toList();
 
@@ -525,16 +523,14 @@ Buffer {
 
       // Cycle 1: narrow
       var buf = Buffer.empty(area);
-      var frame = Frame(area, buf, 0);
-      const Span('abcd').render(area, frame);
+      paintLine(BufferSurface(buf), Line('abcd'), x: 0, y: 0, width: area.width);
       for (var i = 0; i < 4; i++) {
         expect(buf.buf[i].skip, false, reason: 'Cycle 1: cell $i skip');
       }
 
       // Cycle 2: wide char
       buf = Buffer.empty(area);
-      frame = Frame(area, buf, 0);
-      const Span('称号').render(area, frame); // Two width-2 chars
+      paintLine(BufferSurface(buf), Line('称号'), x: 0, y: 0, width: area.width); // Two width-2 chars
       expect(buf.buf[0].skip, false);
       expect(buf.buf[1].skip, true, reason: 'Wide char overflow');
       expect(buf.buf[2].skip, false);
@@ -543,8 +539,7 @@ Buffer {
       // Cycle 3: back to narrow - this is where bug manifested
       final prevBuf = buf;
       buf = Buffer.empty(area);
-      frame = Frame(area, buf, 0);
-      const Span('wxyz').render(area, frame);
+      paintLine(BufferSurface(buf), Line('wxyz'), x: 0, y: 0, width: area.width);
 
       // All cells should be in diff
       final diff = prevBuf.diff(buf).toList();
@@ -560,9 +555,8 @@ Buffer {
       // When rendering wide char: main cell skip=false, overflow cell skip=true
       final area = Rect.create(x: 0, y: 0, width: 4, height: 1);
       final buf = Buffer.empty(area);
-      final frame = Frame(area, buf, 0);
 
-      const Span('称ab').render(area, frame); // wide char + 2 narrow
+      paintLine(BufferSurface(buf), Line('称ab'), x: 0, y: 0, width: area.width); // wide char + 2 narrow
 
       // Wide char at 0: skip=false (must appear in diff)
       expect(buf.buf[0].symbol, '称');
@@ -583,10 +577,10 @@ Buffer {
       // with another wide char
       final area = Rect.create(x: 0, y: 0, width: 6, height: 1);
       final buf = Buffer.empty(area);
-      final frame = Frame(area, buf, 0);
+      final surface = BufferSurface(buf);
 
       // First render: '称号xy' - two wide chars + two narrow
-      const Span('称号xy').render(area, frame);
+      paintLine(surface, Line('称号xy'), x: 0, y: 0, width: area.width);
       expect(buf.buf[0].skip, false); // 称
       expect(buf.buf[1].skip, true); // overflow
       expect(buf.buf[2].skip, false); // 号
@@ -596,7 +590,7 @@ Buffer {
 
       // Now overwrite with narrow→wide→narrow: 'a称bc'
       // This overwrites position 1 (was skip=true) with part of content
-      const Span('a称bc').render(area, frame);
+      paintLine(surface, Line('a称bc'), x: 0, y: 0, width: area.width);
 
       expect(buf.buf[0].symbol, 'a');
       expect(buf.buf[0].skip, false, reason: 'Narrow char must have skip=false');
@@ -620,12 +614,10 @@ Buffer {
       final next = Buffer.empty(area);
 
       // Previous: narrow chars
-      var frame = Frame(area, prev, 0);
-      const Span('abcd').render(area, frame);
+      paintLine(BufferSurface(prev), Line('abcd'), x: 0, y: 0, width: area.width);
 
       // Next: wide chars
-      frame = Frame(area, next, 0);
-      const Span('称号').render(area, frame);
+      paintLine(BufferSurface(next), Line('称号'), x: 0, y: 0, width: area.width);
 
       final diff = prev.diff(next).toList();
 

@@ -1,0 +1,76 @@
+import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
+
+import 'modal_model.dart';
+
+/// Frames [content] as a dialog: a bordered, backgrounded box tagged with
+/// [id] so a click inside it resolves back through [Frame.hitId].
+///
+/// This is the plume-native replacement for the old `Modal`'s chrome — it
+/// carries no behaviour of its own. Pass [ModalModel]'s id for the static
+/// confirm/cancel case, or any other widget model's id to frame a fully
+/// custom inner MVU the same way.
+plume.RenderNode<PaintToken> modalDialog({
+  required String id,
+  required plume.RenderNode<PaintToken> content,
+  required Theme theme,
+  BorderType border = BorderType.rounded,
+  Style? borderStyle,
+  Style? background,
+  List<Line> topTitles = const <Line>[],
+}) {
+  return box(
+    border: border,
+    borderStyle: borderStyle ?? theme.border,
+    background: background ?? theme.surface,
+    padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+    topTitles: topTitles,
+    child: content,
+  )..tag = id;
+}
+
+/// Centres [dialog] at a fixed [width]/[height] within [area], as a floating
+/// layer with nothing else composited under it.
+///
+/// [area] is the full viewport — pass [Frame.area]. Sizing is fixed rather
+/// than constraint-based (unlike the old cassowary `Constraint width/height`)
+/// because a dialog's whole point is a stable size regardless of what's
+/// behind it.
+plume.RenderNode<PaintToken> centeredOverlay({
+  required plume.RenderNode<PaintToken> dialog,
+  required Rect area,
+  required int width,
+  required int height,
+}) {
+  final left = ((area.width - width) / 2).round().clamp(0, area.width);
+  final top = ((area.height - height) / 2).round().clamp(0, area.height);
+  return plume.Stack<PaintToken>(
+    fit: plume.StackFit.expand,
+    children: <plume.RenderNode<PaintToken>>[
+      plume.Positioned<PaintToken>(left: left, top: top, width: width, height: height, child: dialog),
+    ],
+  );
+}
+
+/// Renders [base], then — when [dialog] is non-null — dims the painted
+/// backdrop and layers [dialog] centred over it at [width]x[height].
+///
+/// This is the two-pass render the old `Modal.render()` did procedurally
+/// (`dimBackdrop` then paint on top): [Frame.dimBackdrop] operates on the
+/// already-painted buffer, so it must run *between* two [Frame.renderNode]
+/// calls rather than inside one composed tree. Pass `dim: false` to skip the
+/// backdrop dim entirely.
+void renderModalOverlay(
+  Frame frame, {
+  required plume.RenderNode<PaintToken> base,
+  required int width,
+  required int height,
+  plume.RenderNode<PaintToken>? dialog,
+  bool dim = true,
+  double dimFactor = 0.3,
+}) {
+  frame.renderNode(base);
+  if (dialog == null) return;
+  if (dim) frame.dimBackdrop(factor: dimFactor);
+  frame.renderNode(centeredOverlay(dialog: dialog, area: frame.area, width: width, height: height));
+}

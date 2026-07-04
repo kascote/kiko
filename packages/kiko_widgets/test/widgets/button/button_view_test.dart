@@ -32,11 +32,11 @@ void main() {
       expect(frame.rectOf('ok'), Rect.create(x: 0, y: 0, width: 4, height: 1));
     });
 
-    test('centres the loading indicator in the label width', () {
+    test('keeps the label width while loading, indicator at the start', () {
       final model = ButtonModel(id: 'go', label: Line('HELLO'), loadingText: Line('.'), loading: true);
       final frame = _frame(7, 1)..renderNode(button(model, Theme.dark));
-      // width stays label+padding (7); "." is centred in the 5-cell content band.
-      expect(_dump(frame.buffer), '   .\n');
+      // width stays label+padding (7); "." sits at the start of the 5-cell content band.
+      expect(_dump(frame.buffer), ' .\n');
       expect(frame.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
     });
   });

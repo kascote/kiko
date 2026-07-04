@@ -3,19 +3,23 @@ import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
 import '../extensions/string.dart';
-import '../layout/alignment.dart';
+import '../plume/aliases.dart';
+import '../plume/text_flatten.dart';
+import '../plume/view.dart';
 import '../style.dart';
-import 'line.dart';
 import 'styled_char.dart';
 
-/// Represents a part of a line that is contiguous and where all characters
-/// share the same style.
+/// A styled run of text, and the smallest unit of text that can be styled.
 ///
-/// A [Text] is the smallest unit of text that can be styled. It is usually
-/// combined in the [Line] type to represent a line of text where each `Text`
-/// may have a different style
+/// A [Text] is a contiguous stretch of characters that all share one [style].
+/// It is usually grouped into a `Line` to build a row where each run may carry
+/// a different style, but a `Text` is also a view in its own right: standing
+/// alone it is a one-run line.
+///
+/// As a view it inflates to a fresh plume text node aligned at the start;
+/// where the run sits is decided by whatever lays it out.
 @immutable
-class Text {
+class Text implements View {
   final String _content;
   final Style _style;
 
@@ -58,14 +62,8 @@ class Text {
     return Text(content ?? _content, style: style ?? _style);
   }
 
-  /// Returns a [Line] from the Text, with the alignment set to [Alignment.left]
-  Line leftAlignedLine() => Line.fromSpan(this, alignment: Alignment.left);
-
-  /// Returns a [Line] from the Text, with the alignment set to [Alignment.center]
-  Line centerAlignedLine() => Line.fromSpan(this, alignment: Alignment.center);
-
-  /// Returns a [Line] from the Text, with the alignment set to [Alignment.right]
-  Line rightAlignedLine() => Line.fromSpan(this, alignment: Alignment.right);
+  @override
+  Node build() => textNode(this);
 
   @override
   String toString() => 'Text(${_content.lines().join()}, $_style)';

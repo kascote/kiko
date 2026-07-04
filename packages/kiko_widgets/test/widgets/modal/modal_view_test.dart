@@ -26,7 +26,7 @@ String _dump(Buffer buffer) {
 void main() {
   group('modalDialog', () {
     test('tags the dialog with the given id', () {
-      final dialog = modalDialog(id: 'confirm', content: lineNode(Line('Sure?')), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
       final frame = _frame(10, 3)..renderNode(dialog);
       expect(frame.rectOf('confirm'), isNotNull);
     });
@@ -34,7 +34,7 @@ void main() {
 
   group('centeredOverlay', () {
     test('centres a fixed-size dialog within the viewport', () {
-      final dialog = modalDialog(id: 'confirm', content: lineNode(Line('Hi')), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Hi').build(), theme: Theme.dark);
       final overlay = centeredOverlay(
         dialog: dialog,
         area: Rect.create(x: 0, y: 0, width: 20, height: 10),
@@ -48,7 +48,7 @@ void main() {
 
   group('renderModalOverlay', () {
     test('paints only the base when there is no dialog', () {
-      final base = lineNode(Line('base'));
+      final base = Line('base').build();
       final frame = _frame(10, 3);
       renderModalOverlay(frame, base: base, width: 4, height: 1);
       expect(_dump(frame.buffer), contains('base'));
@@ -59,7 +59,7 @@ void main() {
         background: const Style(bg: Color.rgb(0xC8C8C8)),
         child: plume.SizedBox<PaintToken>(width: 10, height: 3),
       );
-      final dialog = modalDialog(id: 'confirm', content: lineNode(Line('Sure?')), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
       final frame = _frame(10, 3);
       renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog);
 

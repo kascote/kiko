@@ -6,11 +6,9 @@ void main() {
     test('raw str', () {
       final line = Line('test content');
       expect(line.spans, [const Text('test content')]);
-      expect(line.alignment, isNull);
 
       final line2 = Line('a\nb');
       expect(line2.spans, [const Text('a'), const Text('b')]);
-      expect(line2.alignment, isNull);
     });
 
     test('styled str', () {
@@ -30,14 +28,6 @@ void main() {
     test('style', () {
       final line = Line('', style: const Style(fg: Color.red));
       expect(line.style, const Style(fg: Color.red));
-    });
-
-    test('alignment', () {
-      final line = Line('this is left', alignment: Alignment.right);
-      expect(line.alignment, Alignment.right);
-
-      final line2 = Line('this is default');
-      expect(line2.alignment, isNull);
     });
 
     test('width', () {
@@ -115,7 +105,6 @@ void main() {
         ),
       ]);
       expect(line.style, const Style(fg: Color.red));
-      expect(line.alignment, isNull);
     });
 
     test('styled graphemes', () {
@@ -152,15 +141,15 @@ void main() {
     });
 
     test('copyWith', () {
-      final line = Line('foo');
-      final copy = line.copyWith(alignment: Alignment.center);
-      expect(copy, Line('foo', alignment: Alignment.center));
-      final copy2 = line.copyWith(style: const Style(fg: Color.red));
+      final line = Line('foo', style: const Style(fg: Color.red));
+      final copy = line.copyWith(spans: [const Text('bar')]);
+      expect(copy, Line('bar', style: const Style(fg: Color.red)));
+      final copy2 = line.copyWith(style: const Style(fg: Color.blue));
       expect(
         copy2,
         Line(
           'foo',
-          style: const Style(fg: Color.red),
+          style: const Style(fg: Color.blue),
         ),
       );
     });
@@ -170,8 +159,7 @@ void main() {
       expect(line.toString(), '''
 Line(
   spans: (Text(foo, Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))),
-  style: Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)),
-  alignment: null
+  style: Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE))
 )
 ''');
     });

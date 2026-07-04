@@ -137,6 +137,6 @@ class _TreeViewport<T> extends Node {
       spans.add(Text('${node.icon!} '));
     }
     spans.addAll(node.label.spans);
-    return Line.fromSpans(spans, style: node.label.style, alignment: node.label.alignment);
+    return Line.fromSpans(spans, style: node.label.style);
   }
 }

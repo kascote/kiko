@@ -11,10 +11,10 @@ import 'text_flatten.dart';
 ///
 /// This is what a self-painting viewport (a data widget's visible row) calls
 /// to draw its content through the plume paint protocol — [plume.Surface] —
-/// instead of the retired `Widget.render` buffer bridge. The style chain and
-/// alignment resolve exactly as [lineNode] does: [base] ▸ the line's own
-/// style ▸ each span's style, and the line's own alignment falling back to
-/// [fallbackAlign] then to the left.
+/// instead of the retired `Widget.render` buffer bridge. The style chain
+/// resolves as [base] ▸ the line's own style ▸ each span's style. The viewport
+/// owns the row's rect, so it also owns placement: [align] positions the line
+/// within [width], defaulting to the left.
 ///
 /// [skipColumns] is a horizontal scroll offset (see plume's `paintRuns`) —
 /// meant for left-aligned, single-line scrolling content such as a text
@@ -26,11 +26,11 @@ void paintLine(
   required int y,
   required int width,
   Style base = const Style(),
-  Alignment? fallbackAlign,
+  Alignment align = Alignment.left,
   int skipColumns = 0,
   plume.TextMeasurer measurer = const TermUnicodeMeasurer(),
 }) {
-  final node = lineNode(line, base: base, fallbackAlign: fallbackAlign);
+  final node = lineNode(line, base: base);
   plume.paintRuns(
     surface,
     node.runs,
@@ -38,7 +38,7 @@ void paintLine(
     x: x,
     y: y,
     width: width,
-    align: node.align,
+    align: mapAlign(align),
     skipColumns: skipColumns,
   );
 }

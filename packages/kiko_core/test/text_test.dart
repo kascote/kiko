@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
 
 void main() {
@@ -68,31 +69,11 @@ void main() {
       );
     });
 
-    test('left alined', () {
-      const span = Text(
-        'hello',
-        style: Style(fg: Color.green),
-      );
-      final line = span.leftAlignedLine();
-      expect(line.alignment, Alignment.left);
-    });
-
-    test('center alined', () {
-      const span = Text(
-        'hello',
-        style: Style(fg: Color.green),
-      );
-      final line = span.centerAlignedLine();
-      expect(line.alignment, Alignment.center);
-    });
-
-    test('right alined', () {
-      const span = Text(
-        'hello',
-        style: Style(fg: Color.green),
-      );
-      final line = span.rightAlignedLine();
-      expect(line.alignment, Alignment.right);
+    test('build inflates to a single-run start-aligned text node', () {
+      const span = Text('hi', style: Style(fg: Color.green));
+      final node = span.build() as plume.Text<PaintToken>;
+      expect(node.align, plume.TextAlign.start);
+      expect(node.runs, [const plume.TextRun<PaintToken>('hi', PaintToken(Style(fg: Color.green)))]);
     });
   });
 }

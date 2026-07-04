@@ -1,6 +1,5 @@
 import 'package:plume/plume.dart' as plume;
 
-import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
 import '../widgets/border_type.dart';
@@ -15,10 +14,9 @@ import 'text_flatten.dart';
 /// its edge. Titles keep their multi-colour styling because every title flattens
 /// through [lineNode] into a real text node.
 ///
-/// A title's own [Line.alignment] decides where it sits along its edge; several
-/// titles sharing an edge and alignment pack together. The border is uniform —
-/// one type and colour for the whole box — matching how the ported widgets frame
-/// their content.
+/// Each title sits at the start of its edge; titles sharing an edge pack
+/// together. The border is uniform — one type and colour for the whole box —
+/// matching how the ported widgets frame their content.
 plume.RenderNode<PaintToken> box({
   required plume.RenderNode<PaintToken> child,
   BorderType border = BorderType.none,
@@ -44,15 +42,6 @@ plume.RenderNode<PaintToken> box({
   );
 }
 
-/// Wraps a title [line] as an edge label on [side], placed by the line's own
-/// alignment.
+/// Wraps a title [line] as an edge label at the start of [side].
 plume.EdgeLabel<PaintToken> _titleLabel(Line line, plume.EdgeSide side) =>
-    plume.EdgeLabel<PaintToken>(child: lineNode(line), side: side, align: _labelAlign(line.alignment));
-
-/// Maps a kiko [Alignment] onto the plume [plume.LabelAlign] a title uses to sit
-/// along its edge; no preference reads as the left corner.
-plume.LabelAlign _labelAlign(Alignment? alignment) => switch (alignment) {
-  Alignment.left || null => plume.LabelAlign.start,
-  Alignment.center => plume.LabelAlign.center,
-  Alignment.right => plume.LabelAlign.end,
-};
+    plume.EdgeLabel<PaintToken>(child: lineNode(line), side: side);

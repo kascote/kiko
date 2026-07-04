@@ -12,21 +12,19 @@ import 'button_model.dart';
 /// used; [styleOverrides] fully replaces the style for a given state.
 ///
 /// The content area is pinned to the label's width so the button keeps its size
-/// while loading, when the [ButtonModel.loadingText] indicator is centred in
-/// that same width instead of the label.
+/// while loading, when the [ButtonModel.loadingText] indicator sits in that same
+/// width instead of the label.
 Node button(ButtonModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) {
   final style = _resolveStyle(model, theme, styleOverrides);
   final labelWidth = model.label.width;
-  final content = model.loading
-      ? model.loadingText.patchStyle(style).copyWith(alignment: Alignment.center)
-      : model.label.patchStyle(style);
+  final content = model.loading ? model.loadingText.patchStyle(style) : model.label.patchStyle(style);
 
   return box(
     background: style,
     padding: EdgeInsets.symmetric(horizontal: model.padding),
     child: ConstrainedBox(
       additionalConstraints: BoxConstraints(minW: labelWidth, maxW: labelWidth, minH: 1, maxH: 1),
-      child: lineNode(content),
+      child: content.build(),
     ),
   )..tag = model.id;
 }

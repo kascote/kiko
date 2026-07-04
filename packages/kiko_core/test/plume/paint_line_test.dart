@@ -24,15 +24,15 @@ void main() {
       expect(surface.intents.map((i) => '$i').toList(), ['drawText(0, 0, "a", PaintToken($expectedStyle))']);
     });
 
-    test('centers when the line carries center alignment', () {
+    test('centers when given center alignment', () {
       final surface = plume.RecordingSurface<PaintToken>();
-      paintLine(surface, Line('hi', alignment: Alignment.center), x: 0, y: 0, width: 10);
+      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: Alignment.center);
       expect(surface.intents.map((i) => '$i').toList(), ['drawText(4, 0, "hi", ${const PaintToken(Style())})']);
     });
 
-    test('falls back to the given alignment when the line sets none', () {
+    test('right-aligns when given right alignment', () {
       final surface = plume.RecordingSurface<PaintToken>();
-      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, fallbackAlign: Alignment.right);
+      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: Alignment.right);
       expect(surface.intents.map((i) => '$i').toList(), ['drawText(8, 0, "hi", ${const PaintToken(Style())})']);
     });
 

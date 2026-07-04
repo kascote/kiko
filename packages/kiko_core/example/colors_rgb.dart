@@ -41,7 +41,8 @@ class _FpsWidget extends plume.RenderNode<PaintToken> {
   double _fps = 0;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) => constraints.biggest;
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
+      plume.Size(constraints.biggest.w, constraints.constrainHeight(1));
 
   @override
   void paintSelf(plume.Surface<PaintToken> surface) {

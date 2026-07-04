@@ -150,11 +150,11 @@ Node _indexedCell16(int index) {
   final bg = index < 1 ? Color.darkGray : Color.black;
   return lineNode(
     Line.fromSpans([
-      Span(
+      Text(
         colorIndex,
         style: Style(fg: color, bg: bg),
       ),
-      Span(
+      Text(
         '  ',
         style: Style(fg: color, bg: color),
       ),
@@ -191,11 +191,11 @@ Node _indexedCellSmall(int index) {
   final colorIndex = index.toString().padLeft(3, '0');
   return lineNode(
     Line.fromSpans([
-      Span(
+      Text(
         colorIndex,
         style: Style(fg: color, bg: Color.reset),
       ),
-      Span(
+      Text(
         '.',
         style: Style(fg: color, bg: color),
       ),
@@ -223,15 +223,15 @@ Node _grayScaleCell(int index) {
   final bg = index < 244 ? Color.gray : Color.black;
   return lineNode(
     Line.fromSpans([
-      Span(
+      Text(
         colorIndex,
         style: Style(fg: color, bg: bg),
       ),
-      Span(
+      Text(
         '  ',
         style: Style(fg: color, bg: color),
       ),
-      const Span('       '),
+      const Text('       '),
     ]),
   );
 }

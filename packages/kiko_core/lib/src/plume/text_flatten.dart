@@ -3,12 +3,12 @@ import 'package:plume/plume.dart' as plume;
 import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
-import '../text/span.dart';
+import '../text/text.dart';
 import 'paint_token.dart';
 
-/// Flattens kiko's `Span`/`Line` text into the plume nodes a layout tree draws.
+/// Flattens kiko's `Text`/`Line` text into the plume nodes a layout tree draws.
 ///
-/// kiko authors text as styled `Span`s grouped into `Line`s; plume lays out flat
+/// kiko authors text as styled `Text`s grouped into `Line`s; plume lays out flat
 /// runs of graphemes paired with an opaque paint token. These functions bridge
 /// the two, folding the kiko style chain into one [PaintToken] per run so the
 /// multi-colour authoring API survives into the plume tree.
@@ -18,7 +18,7 @@ import 'paint_token.dart';
 /// The run keeps the span's text verbatim; its token carries [base] overlaid
 /// with the span's own style, so a caller passes the surrounding style as [base]
 /// and the span's style wins where the two disagree.
-plume.TextRun<PaintToken> spanRun(Span span, {Style base = const Style()}) =>
+plume.TextRun<PaintToken> spanRun(Text span, {Style base = const Style()}) =>
     plume.TextRun(span.content, PaintToken(base.patch(span.style)));
 
 /// Turns one [line] into a single plume text node, one visual row of runs.

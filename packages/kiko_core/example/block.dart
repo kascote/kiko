@@ -103,11 +103,11 @@ Node _styledTitleContent() => box(
   border: BorderType.plain,
   topTitles: [
     Line.fromSpans([
-      Span(
+      Text(
         'Styled ',
         style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       ),
-      Span(
+      Text(
         'title content',
         style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
       ),

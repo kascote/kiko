@@ -177,7 +177,7 @@ void appView(AppModel model, Frame frame) {
                   Line('  ${user.role} (${user.id})', style: roleStyle),
                 ];
               },
-              separatorBuilder: () => Line.fromSpans([Span('─' * 30, style: theme.border)]),
+              separatorBuilder: () => Line.fromSpans([Text('─' * 30, style: theme.border)]),
               emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
             ),
           ),

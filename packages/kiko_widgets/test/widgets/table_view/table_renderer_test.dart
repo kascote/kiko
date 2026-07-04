@@ -66,7 +66,7 @@ void main() {
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           focused: true,
         );
         final page = await source.getPage(0, 5);
@@ -90,7 +90,7 @@ r2   Name 2    20''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 5);
         model.insertRows(page, 0);
@@ -108,7 +108,7 @@ r2   Name 2    20''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           stickyHeader: false,
         );
         final page = await source.getPage(0, 5);
@@ -139,7 +139,7 @@ r2   Name 2    20''',
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 3);
         model.insertRows(page, 0);
@@ -213,7 +213,7 @@ Value
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          // default separator is Span(' ')
+          // default separator is Text(' ')
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
@@ -242,7 +242,7 @@ X     Y''',
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(' | '),
+          columnSeparator: const Text(' | '),
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
@@ -271,7 +271,7 @@ X     | Y''',
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
@@ -323,7 +323,7 @@ X    Y''',
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(' | '),
+          columnSeparator: const Text(' | '),
           focused: true,
         )..setVisibleDimensions(1, 2);
         final page = await source.getPage(0, 1);
@@ -370,7 +370,7 @@ B0     | C0''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);
@@ -395,7 +395,7 @@ r0   VeryLongN…0''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           ellipsis: '...',
         );
         final page = await source.getPage(0, 1);
@@ -562,7 +562,7 @@ ID
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 2);
         model.insertRows(page, 0);
@@ -615,7 +615,7 @@ ID
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           focused: true,
         )..setVisibleDimensions(2, 2);
         final page = await source.getPage(0, 2);
@@ -762,7 +762,7 @@ ID
           dataSource: source,
           keyField: 'id',
           columns: columns,
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 2);
         model.insertRows(page, 0);
@@ -785,7 +785,7 @@ Bob       idle''',
           dataSource: TableDataSource.fromList([]),
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           emptyPlaceholder: Line('No data'),
         );
 
@@ -805,7 +805,7 @@ No data''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
           loadingIndicator: Line('...'),
         );
         // Only load first 2 rows
@@ -897,7 +897,7 @@ r1   Name 1    10''',
           dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
-          columnSeparator: const Span(''),
+          columnSeparator: const Text(''),
         );
         final page = await source.getPage(0, 1);
         model.insertRows(page, 0);

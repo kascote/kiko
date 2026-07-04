@@ -12,7 +12,7 @@ void main() {
 
     test('resolves the style chain base then line then span', () {
       final line = Line.fromSpans(
-        const <Span>[Span('a', style: Style(fg: Color.red))],
+        const <Text>[Text('a', style: Style(fg: Color.red))],
         style: const Style(bg: Color.green),
       );
       final surface = plume.RecordingSurface<PaintToken>();

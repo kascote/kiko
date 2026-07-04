@@ -6,7 +6,7 @@ void main() {
   group('spanRun', () {
     test('carries the span content and its style over the base', () {
       final run = spanRun(
-        const Span('hi', style: Style(fg: Color.red)),
+        const Text('hi', style: Style(fg: Color.red)),
         base: const Style(fg: Color.blue, bg: Color.green),
       );
 
@@ -16,7 +16,7 @@ void main() {
     });
 
     test('uses the span style alone when no base is given', () {
-      final run = spanRun(const Span('x', style: Style(fg: Color.red)));
+      final run = spanRun(const Text('x', style: Style(fg: Color.red)));
       expect(run.token, const PaintToken(Style(fg: Color.red)));
     });
   });
@@ -24,9 +24,9 @@ void main() {
   group('lineNode', () {
     test('resolves each run through base then line then span', () {
       final line = Line.fromSpans(
-        const <Span>[
-          Span('a', style: Style(fg: Color.red)),
-          Span('b', style: Style(addModifier: Modifier.bold)),
+        const <Text>[
+          Text('a', style: Style(fg: Color.red)),
+          Text('b', style: Style(addModifier: Modifier.bold)),
         ],
         style: const Style(bg: Color.green),
       );

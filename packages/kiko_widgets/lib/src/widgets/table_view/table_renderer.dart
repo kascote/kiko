@@ -235,7 +235,7 @@ class TableRenderer {
     }
 
     // Rebuild spans with truncation
-    final spans = <Span>[];
+    final spans = <Text>[];
     var remainingWidth = targetWidth;
 
     for (final span in line.spans) {
@@ -254,12 +254,12 @@ class TableRenderer {
     }
 
     // Add ellipsis
-    spans.add(Span(ellipsis));
+    spans.add(Text(ellipsis));
     return Line.fromSpans(spans, style: line.style);
   }
 
   /// Truncates a span to fit within [maxWidth].
-  Span? _truncateSpan(Span span, int maxWidth) {
+  Text? _truncateSpan(Text span, int maxWidth) {
     final content = span.content;
     final result = StringBuffer();
     var width = 0;
@@ -273,7 +273,7 @@ class TableRenderer {
 
     final truncated = result.toString();
     if (truncated.isEmpty) return null;
-    return Span(truncated, style: span.style);
+    return Text(truncated, style: span.style);
   }
 
   /// Aligns line content within [width].
@@ -288,10 +288,10 @@ class TableRenderer {
       Alignment.right => (padding, 0),
     };
 
-    final spans = <Span>[];
-    if (leftPad > 0) spans.add(Span(' ' * leftPad));
+    final spans = <Text>[];
+    if (leftPad > 0) spans.add(Text(' ' * leftPad));
     spans.addAll(line.spans);
-    if (rightPad > 0) spans.add(Span(' ' * rightPad));
+    if (rightPad > 0) spans.add(Text(' ' * rightPad));
 
     return Line.fromSpans(spans, style: line.style);
   }

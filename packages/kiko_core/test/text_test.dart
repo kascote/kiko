@@ -2,33 +2,33 @@ import 'package:kiko/kiko.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('Span', () {
+  group('Text', () {
     test('create', () {
-      const span = Span('');
+      const span = Text('');
       expect(span.content, '');
       expect(span.style, const Style());
     });
 
     test('create with content', () {
-      const span = Span('hello');
+      const span = Text('hello');
       expect(span.content, 'hello');
       expect(span.style, const Style());
     });
 
     test('create with Style', () {
-      const span = Span('', style: Style(fg: Color.red));
+      const span = Text('', style: Style(fg: Color.red));
       expect(span.content, '');
       expect(span.style, const Style(fg: Color.red));
     });
 
     test('copyWith', () {
-      final span = const Span('hello').copyWith(content: 'world');
+      final span = const Text('hello').copyWith(content: 'world');
       expect(span.content, 'world');
       expect(span.style, const Style());
     });
 
     test('patchStyle', () {
-      final span = const Span(
+      final span = const Text(
         'hello',
       ).patchStyle(const Style(fg: Color.red));
       expect(span.content, 'hello');
@@ -36,20 +36,20 @@ void main() {
     });
 
     test('width', () {
-      expect(const Span('').width, 0);
-      expect(const Span('test').width, 4);
-      expect(const Span('test content').width, 12);
-      expect(const Span('test\ncontent').width, 11);
+      expect(const Text('').width, 0);
+      expect(const Text('test').width, 4);
+      expect(const Text('test content').width, 12);
+      expect(const Text('test\ncontent').width, 11);
     });
 
     test('newline span', () {
-      const span = Span('hello\nworld');
+      const span = Text('hello\nworld');
       expect(span.width, 10);
       expect(span.toString(), contains('helloworld'));
     });
 
     test('reset style', () {
-      const span = Span(
+      const span = Text(
         'hello',
         style: Style(fg: Color.green),
       );
@@ -58,18 +58,18 @@ void main() {
     });
 
     test('styled span', () {
-      const span = Span(
+      const span = Text(
         'hello',
         style: Style(fg: Color.green),
       );
       expect(
         span.toString(),
-        'Span(hello, Style(fg: Color(2, ansi), bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))',
+        'Text(hello, Style(fg: Color(2, ansi), bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))',
       );
     });
 
     test('left alined', () {
-      const span = Span(
+      const span = Text(
         'hello',
         style: Style(fg: Color.green),
       );
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('center alined', () {
-      const span = Span(
+      const span = Text(
         'hello',
         style: Style(fg: Color.green),
       );
@@ -87,7 +87,7 @@ void main() {
     });
 
     test('right alined', () {
-      const span = Span(
+      const span = Text(
         'hello',
         style: Style(fg: Color.green),
       );

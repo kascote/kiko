@@ -8,12 +8,12 @@ void main() async {
     },
     view: (_, frame) {
       final greeting = Line.fromSpans(const [
-        Span('Hello, ', style: Style(fg: Color.red)),
-        Span(
+        Text('Hello, ', style: Style(fg: Color.red)),
+        Text(
           'World',
           style: Style(fg: Color.black, bg: Color.yellow),
         ),
-        Span('!', style: Style(bg: Color.blue)),
+        Text('!', style: Style(bg: Color.blue)),
       ]);
 
       final ui = Column(

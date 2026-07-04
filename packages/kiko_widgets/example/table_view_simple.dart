@@ -66,7 +66,7 @@ class AppModel with ThemeSwitcher {
             'HR' => Color.yellow,
             _ => Color.white,
           };
-          return Line.fromSpans([Span(dept, style: Style(fg: color))]);
+          return Line.fromSpans([Text(dept, style: Style(fg: color))]);
         },
       ),
       TableColumn(

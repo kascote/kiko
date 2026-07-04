@@ -126,7 +126,7 @@ class AppModel with ThemeSwitcher {
             'Garden' => Color.magenta,
             _ => Color.white,
           };
-          return Line.fromSpans([Span(cat, style: Style(fg: color))]);
+          return Line.fromSpans([Text(cat, style: Style(fg: color))]);
         },
       ),
       TableColumn(
@@ -151,14 +151,14 @@ class AppModel with ThemeSwitcher {
               : stock < 150
               ? Color.yellow
               : Color.green;
-          return Line.fromSpans([Span(stock.toString(), style: Style(fg: color))]);
+          return Line.fromSpans([Text(stock.toString(), style: Style(fg: color))]);
         },
       ),
     ],
     loadThreshold: 15,
     focused: true,
     loadingIndicator: Line.fromSpans(const [
-      Span('Loading...', style: Style(fg: Color.yellow)),
+      Text('Loading...', style: Style(fg: Color.yellow)),
     ]),
     emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
   );

@@ -4,20 +4,20 @@ import 'package:meta/meta.dart';
 import '../extensions/string.dart';
 import '../layout/alignment.dart';
 import '../style.dart';
-import 'span.dart';
 import 'styled_char.dart';
+import 'text.dart';
 
-/// A line of text, consisting of one or more [Span]s.
+/// A line of text, consisting of one or more [Text]s.
 ///
 /// [Line]s are used wherever text is displayed in the terminal and represent a
 /// single line of text. When a [Line] is rendered, it is rendered as a single
-/// line of text, with each [Span] being rendered in order (left to right).
+/// line of text, with each [Text] being rendered in order (left to right).
 ///
 /// Any newlines in the content are removed when creating a [Line] using the
 /// constructor or conversion methods.
 @immutable
 class Line {
-  final Iterable<Span> _spans;
+  final Iterable<Text> _spans;
 
   /// The style of the line.
   final Style style;
@@ -27,18 +27,18 @@ class Line {
 
   /// Creates a new [Line] with the given content, style, and alignment.
   Line(String? content, {Style? style, this.alignment})
-    : _spans = (content ?? '').lines().map<Span>(Span.new),
+    : _spans = (content ?? '').lines().map<Text>(Text.new),
       style = style ?? const Style();
 
-  /// Creates a new [Line] from a list of [Span]s
-  Line.fromSpans(List<Span> spans, {Style? style, this.alignment})
+  /// Creates a new [Line] from a list of [Text]s
+  Line.fromSpans(List<Text> spans, {Style? style, this.alignment})
     : _spans = List.from(spans),
       style = style ?? const Style();
 
   const Line._(this._spans, this.style, this.alignment);
 
-  /// Creates a new [Line] from a single [Span]
-  factory Line.fromSpan(Span span, {Style? style, Alignment? alignment}) => Line.fromSpans(
+  /// Creates a new [Line] from a single [Text]
+  factory Line.fromSpan(Text span, {Style? style, Alignment? alignment}) => Line.fromSpans(
     [span],
     style: style,
     alignment: alignment,
@@ -47,18 +47,18 @@ class Line {
   /// Creates an empty Line
   factory Line.empty({Style? style, Alignment? alignment}) => Line._(const [], style ?? const Style(), alignment);
 
-  /// Add a [Span] to the line
-  Line add(Span span) => Line._(_spans.toList()..add(span), style, alignment);
+  /// Add a [Text] to the line
+  Line add(Text span) => Line._(_spans.toList()..add(span), style, alignment);
 
   /// Returns the width of the line in `terminal` characters. This is the sum
-  /// of the widths of all the [Span]s in the line.
+  /// of the widths of all the [Text]s in the line.
   ///
   /// `Terminal characters` refers to that some characters could be wider than
   /// others, like emojis or CJK characters. The width of a character is
   /// determined by the Unicode standard.
   int get width => _spans.fold(0, (acc, span) => acc + span.width);
 
-  /// Returns an Iterator over the [Span]s in this line.
+  /// Returns an Iterator over the [Text]s in this line.
   Spans get spans => Spans(this);
 
   /// Returns an iterator over the graphemes held by this line.
@@ -85,7 +85,7 @@ class Line {
   Line resetStyle() => Line._(_spans, style.patch(const Style.reset()), alignment);
 
   /// Creates a copy of this Line but with the given fields replaced with the new values.
-  Line copyWith({List<Span>? spans, Style? style, Alignment? alignment}) {
+  Line copyWith({List<Text>? spans, Style? style, Alignment? alignment}) {
     return Line._(
       spans ?? List.from(_spans),
       style ?? this.style,
@@ -110,7 +110,7 @@ class Line {
 
     if (other is Line) {
       if (style == other.style && alignment == other.alignment && _spans.length == other.spans.length) {
-        return const IterableEquality<Span>().equals(_spans, other.spans);
+        return const IterableEquality<Text>().equals(_spans, other.spans);
       }
     }
 
@@ -122,7 +122,7 @@ class Line {
 }
 
 /// An iterator over the Line's spans.
-class Spans extends Iterable<Span> {
+class Spans extends Iterable<Text> {
   /// The line that this iterator is iterating over.
   final Line line;
 
@@ -130,5 +130,5 @@ class Spans extends Iterable<Span> {
   Spans(this.line);
 
   @override
-  Iterator<Span> get iterator => line._spans.iterator;
+  Iterator<Text> get iterator => line._spans.iterator;
 }

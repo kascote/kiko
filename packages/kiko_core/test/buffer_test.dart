@@ -27,9 +27,9 @@ Buffer {
 
     test('style', () {
       final buf = Buffer.fromLines([
-        Line.fromSpan(const Span('Hello World!', style: Style())),
+        Line.fromSpan(const Text('Hello World!', style: Style())),
         Line.fromSpan(
-          Span(
+          Text(
             "G'day World!",
             style: const Style(
               fg: Color.green,
@@ -321,7 +321,7 @@ Buffer {
       expect(skipped, [true, true, false, false, false, false]);
     });
 
-    // TODO(nelson): review and remove or move to Line or Span
+    // TODO(nelson): review and remove or move to Line or Text
     // test('with lines accept into lines', () {
     //   final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 2))
     //     ..setString(0, 0, 'foo', const Style(fg: Color.red))
@@ -330,8 +330,8 @@ Buffer {
     //   expect(
     //     buf.eq(
     //       Buffer.fromLines([
-    //         Line.fromSpan(const Span(content: 'foo', style: Style(fg: Color.red))),
-    //         Line.fromSpan(const Span(content: 'bar', style: Style(fg: Color.blue))),
+    //         Line.fromSpan(const Text(content: 'foo', style: Style(fg: Color.red))),
+    //         Line.fromSpan(const Text(content: 'bar', style: Style(fg: Color.blue))),
     //       ]),
     //     ),
     //     isTrue,
@@ -462,7 +462,7 @@ Buffer {
       // Cell 1 should be marked as skip by buffer's []= operator
       expect(buf[(x: 1, y: 0)].skip, false, reason: 'Buffer []= should clear skip on overflow cells');
 
-      // Now overwrite with narrow chars using setCell (as Span.render does)
+      // Now overwrite with narrow chars using setCell (as Text.render does)
       buf[(x: 0, y: 0)] = buf[(x: 0, y: 0)].setCell(char: 'a');
       buf[(x: 1, y: 0)] = buf[(x: 1, y: 0)].setCell(char: 'b');
 
@@ -495,7 +495,7 @@ Buffer {
       expect(diff.map((d) => d.cell.symbol), ['a', 'b', 'c', 'd']);
     });
 
-    test('Span render wide then narrow includes all cells in diff', () {
+    test('Text render wide then narrow includes all cells in diff', () {
       // Full integration: paint a wide char, then narrow chars
       final area = Rect.create(x: 0, y: 0, width: 6, height: 1);
       final prev = Buffer.empty(area);

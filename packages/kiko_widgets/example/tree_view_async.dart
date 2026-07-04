@@ -143,7 +143,7 @@ class AsyncCategorySource extends TreeDataSource<Category> {
 
       return TreeNode<Category>(
         path: path,
-        label: Line.fromSpans([Span(item.name, style: Style(fg: color))]),
+        label: Line.fromSpans([Text(item.name, style: Style(fg: color))]),
         icon: item.icon,
         isLeaf: !item.hasChildren,
         data: item,
@@ -183,13 +183,13 @@ class AppModel with ThemeSwitcher {
     showIcons: true,
     indicatorStyle: const Style(fg: Color.red),
     loadingIndicator: Line.fromSpans(const [
-      Span(
+      Text(
         'Loading...',
         style: Style(fg: Color.darkGray, addModifier: Modifier.dim),
       ),
     ]),
     errorIndicator: Line.fromSpans(const [
-      Span(
+      Text(
         '⚠ Failed to load — collapse + expand to retry',
         style: Style(fg: Color.red, addModifier: Modifier.dim),
       ),
@@ -297,8 +297,8 @@ void appView(AppModel model, Frame frame) {
     borderStyle: theme.focus,
     topTitles: [
       Line.fromSpans([
-        Span('Categories ', style: theme.focus),
-        Span('($loadingStatus)', style: theme.muted),
+        Text('Categories ', style: theme.focus),
+        Text('($loadingStatus)', style: theme.muted),
       ]),
     ],
   );

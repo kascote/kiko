@@ -69,7 +69,7 @@ class TableViewModel implements Component, Loadable {
   final String ellipsis;
 
   /// Separator between columns.
-  final Span columnSeparator;
+  final Text columnSeparator;
 
   /// Shown while loading.
   final Line? loadingIndicator;
@@ -121,7 +121,7 @@ class TableViewModel implements Component, Loadable {
     this.stickyHeader = true,
     this.selectionEnabled = false,
     this.ellipsis = '…',
-    this.columnSeparator = const Span(' '),
+    this.columnSeparator = const Text(' '),
     this.loadingIndicator,
     this.emptyPlaceholder,
     this.styles = const TableViewStyle(),

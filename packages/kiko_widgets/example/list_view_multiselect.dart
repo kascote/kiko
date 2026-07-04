@@ -111,7 +111,7 @@ void appView(AppModel model, Frame frame) {
                   Line('      ${contact.email}', style: theme.muted),
                 ];
               },
-              separatorBuilder: () => Line.fromSpans([Span('─' * 40, style: theme.border)]),
+              separatorBuilder: () => Line.fromSpans([Text('─' * 40, style: theme.border)]),
             ),
           ),
         ),

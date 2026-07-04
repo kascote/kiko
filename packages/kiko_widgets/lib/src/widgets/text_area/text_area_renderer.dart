@@ -1,12 +1,11 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
 import 'selection.dart';
 import 'text_area_model.dart';
 
-/// Paints a [TextAreaModel] through a plume [plume.Surface].
+/// Paints a [TextAreaModel] through a plume [Surface].
 ///
 /// The rendering — wrapped lines, the line-number gutter, selection
 /// highlighting, vertical scroll, and the placeholder — lives here so both the
@@ -46,7 +45,7 @@ class TextAreaRenderer {
 
   /// Paints the editor into [area] of [surface], returning where the
   /// terminal cursor belongs when the model is focused, or `null`.
-  Position? paint(Rect area, plume.Surface<PaintToken> surface) {
+  Position? paint(Rect area, Surface surface) {
     if (area.isEmpty) return null;
 
     final m = model;
@@ -73,7 +72,7 @@ class TextAreaRenderer {
     return _renderContent(area, surface, gutterWidth, textAreaWidth);
   }
 
-  Position? _renderPlaceholder(Rect area, plume.Surface<PaintToken> surface, int gutterWidth) {
+  Position? _renderPlaceholder(Rect area, Surface surface, int gutterWidth) {
     final textArea = area.copyWith(
       x: area.x + gutterWidth,
       width: area.width - gutterWidth,
@@ -91,7 +90,7 @@ class TextAreaRenderer {
 
   Position? _renderContent(
     Rect area,
-    plume.Surface<PaintToken> surface,
+    Surface surface,
     int gutterWidth,
     int textAreaWidth,
   ) {
@@ -160,7 +159,7 @@ class TextAreaRenderer {
   }
 
   void _renderLineNumber(
-    plume.Surface<PaintToken> surface,
+    Surface surface,
     int x,
     int y,
     int gutterWidth,
@@ -177,7 +176,7 @@ class TextAreaRenderer {
   }
 
   void _renderLine(
-    plume.Surface<PaintToken> surface,
+    Surface surface,
     Rect area,
     Characters line,
     int bufferRow,

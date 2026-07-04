@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 Future<void> main() async {
   await Application(
@@ -16,36 +15,36 @@ Future<void> main() async {
 final _fps = _FpsWidget();
 final _grid = _ColorGridWidget();
 
-plume.RenderNode<PaintToken> _ui() => plume.Column<PaintToken>(
-  crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+Node _ui() => Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
   children: [
-    plume.Row<PaintToken>(
+    Row(
       children: [
-        plume.Expanded<PaintToken>(
+        Expanded(
           child: lineNode(Line('colors_rgb example, Press q to quit', alignment: Alignment.center)),
         ),
-        plume.ConstrainedBox<PaintToken>(
-          additionalConstraints: const plume.BoxConstraints(minW: 8, maxW: 8),
+        ConstrainedBox(
+          additionalConstraints: const BoxConstraints(minW: 8, maxW: 8),
           child: _fps,
         ),
       ],
     ),
-    plume.Expanded<PaintToken>(child: _grid),
+    Expanded(child: _grid),
   ],
 );
 
 /// Right-aligned frames-per-second counter, redrawn every frame.
-class _FpsWidget extends plume.RenderNode<PaintToken> {
+class _FpsWidget extends Node {
   int _frameCount = 0;
   DateTime _lastInstant = DateTime.now();
   double _fps = 0;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
-      plume.Size(constraints.biggest.w, constraints.constrainHeight(1));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      Size(constraints.biggest.w, constraints.constrainHeight(1));
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     _frameCount++;
     final now = DateTime.now();
     final elapsed = now.difference(_lastInstant).inSeconds;
@@ -70,12 +69,12 @@ class _FpsWidget extends plume.RenderNode<PaintToken> {
 
 /// A scrolling HSV gradient painted two vertical pixels per cell via the `▀`
 /// half-block glyph — one raw `Surface.drawText` call per pixel.
-class _ColorGridWidget extends plume.RenderNode<PaintToken> {
+class _ColorGridWidget extends Node {
   List<List<Color>> _colors = [];
   int _frameCount = 0;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) => constraints.biggest;
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.biggest;
 
   void _setupColors(int width, int pixelHeight) {
     if (_colors.length == pixelHeight && (_colors.isEmpty || _colors[0].length == width)) {
@@ -93,7 +92,7 @@ class _ColorGridWidget extends plume.RenderNode<PaintToken> {
   }
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     if (rect.width <= 0 || rect.height <= 0) return;
     _setupColors(rect.width, rect.height * 2);
 

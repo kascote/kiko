@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
 import 'text_input_model.dart';
@@ -18,12 +17,12 @@ import 'text_input_model.dart';
 /// the model's own. The subtree root is stamped with the model id so a click
 /// routes back through [Frame.hitId]; the terminal cursor is reported through
 /// the surface, the same way the `textArea` viewport does.
-plume.RenderNode<PaintToken> textInput(TextInputModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) =>
+Node textInput(TextInputModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) =>
     _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
 
 /// The self-painting body of a [textInput]: fills the space the box gives it,
 /// paints the field through the plume `Surface`, and reports the cursor.
-class _TextInputViewport extends plume.RenderNode<PaintToken> {
+class _TextInputViewport extends Node {
   _TextInputViewport({required this.model, required this.theme, this.styleOverrides})
     : _regionStyle = TextInputStyle.fromTheme(theme).merge(model.style);
 
@@ -33,11 +32,11 @@ class _TextInputViewport extends plume.RenderNode<PaintToken> {
   final TextInputStyle _regionStyle;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
-      constraints.constrain(plume.Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     final clip = surface.clipRect ?? rect;
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;
@@ -48,7 +47,7 @@ class _TextInputViewport extends plume.RenderNode<PaintToken> {
     if (surface is BufferSurface) surface.cursor = cursor;
   }
 
-  Position? _paint(Rect area, plume.Surface<PaintToken> surface) {
+  Position? _paint(Rect area, Surface surface) {
     final visibleWidth = area.width;
     final y = area.y;
     final m = model;

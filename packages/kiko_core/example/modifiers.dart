@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 Future<void> main() async {
   await Application(
@@ -24,8 +23,8 @@ const List<Color> _colors = [
 final List<MapEntry<String, Modifier>> _modifiers = Modifier.list.entries.toList();
 
 void draw(Frame frame) {
-  final ui = plume.Column<PaintToken>(
-    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  final ui = Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       lineNode(
         Line(
@@ -33,7 +32,7 @@ void draw(Frame frame) {
           style: const Style(fg: Color.red, addModifier: Modifier.bold),
         ),
       ),
-      plume.Expanded<PaintToken>(child: _modifiersGrid()),
+      Expanded(child: _modifiersGrid()),
     ],
   );
 
@@ -41,8 +40,8 @@ void draw(Frame frame) {
 }
 
 /// 25 background/foreground combinations, two rows of five modifiers each.
-plume.RenderNode<PaintToken> _modifiersGrid() {
-  final rows = <plume.RenderNode<PaintToken>>[];
+Node _modifiersGrid() {
+  final rows = <Node>[];
   for (final bg in _colors) {
     for (final fg in _colors) {
       rows
@@ -50,18 +49,18 @@ plume.RenderNode<PaintToken> _modifiersGrid() {
         ..add(_modifierRow(fg: fg, bg: bg, start: 5));
     }
   }
-  return plume.Column<PaintToken>(children: rows);
+  return Column(children: rows);
 }
 
-plume.RenderNode<PaintToken> _modifierRow({required Color fg, required Color bg, required int start}) {
-  return plume.Row<PaintToken>(
+Node _modifierRow({required Color fg, required Color bg, required int start}) {
+  return Row(
     children: [
-      for (var i = start; i < start + 5; i++) plume.Expanded<PaintToken>(child: _modifierCell(fg, bg, _modifiers[i])),
+      for (var i = start; i < start + 5; i++) Expanded(child: _modifierCell(fg, bg, _modifiers[i])),
     ],
   );
 }
 
-plume.RenderNode<PaintToken> _modifierCell(Color fg, Color bg, MapEntry<String, Modifier> modifier) {
+Node _modifierCell(Color fg, Color bg, MapEntry<String, Modifier> modifier) {
   final padding = ' ' * (12 - modifier.key.length);
   return lineNode(
     Line(

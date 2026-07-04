@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'table_renderer.dart';
 import 'table_view_model.dart';
@@ -15,7 +14,7 @@ import 'table_view_model.dart';
 /// reused here, so the plume port and the old widget draw identically. The
 /// subtree root is stamped with the model id so a click routes back through
 /// [Frame.hitId].
-plume.RenderNode<PaintToken> tableView({
+Node tableView({
   required TableViewModel model,
   required Theme theme,
   Map<WidgetState, Style>? styleOverrides,
@@ -35,7 +34,7 @@ plume.RenderNode<PaintToken> tableView({
 
 /// The self-painting body of a [tableView]: fills the space the box gives it and
 /// paints the table through the plume `Surface`.
-class _TableViewport extends plume.RenderNode<PaintToken> {
+class _TableViewport extends Node {
   _TableViewport({required this.model, required this.theme, this.styleOverrides});
 
   final TableViewModel model;
@@ -43,11 +42,11 @@ class _TableViewport extends plume.RenderNode<PaintToken> {
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
-      constraints.constrain(plume.Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     final clip = surface.clipRect ?? rect;
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;

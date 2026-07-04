@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -43,16 +42,16 @@ void view(Model model, Frame frame) {
   // Fill background with theme color
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = plume.Column<PaintToken>(
-    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  final ui = Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       // Header
       box(
         border: BorderType.plain,
         borderStyle: theme.border,
-        child: plume.Row<PaintToken>(
+        child: Row(
           children: [
-            plume.Expanded<PaintToken>(
+            Expanded(
               child: lineNode(
                 Line(
                   ' Theme: ${model.themeName}',
@@ -68,14 +67,14 @@ void view(Model model, Frame frame) {
         ),
       ),
       // Content
-      plume.Expanded<PaintToken>(
-        child: plume.Row<PaintToken>(
-          crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+      Expanded(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Palette styles
-            plume.Expanded<PaintToken>(child: _styleSection(theme, 'Palette Styles', _paletteStyles(theme))),
+            Expanded(child: _styleSection(theme, 'Palette Styles', _paletteStyles(theme))),
             // Semantic styles
-            plume.Expanded<PaintToken>(child: _styleSection(theme, 'Semantic Styles', _semanticStyles(theme))),
+            Expanded(child: _styleSection(theme, 'Semantic Styles', _semanticStyles(theme))),
           ],
         ),
       ),
@@ -104,21 +103,21 @@ List<(String, Style)> _semanticStyles(Theme t) => [
   ('highlight', t.highlight),
 ];
 
-plume.RenderNode<PaintToken> _styleSection(Theme theme, String title, List<(String, Style)> styles) {
-  final rows = <plume.RenderNode<PaintToken>>[_headerRow(theme)];
+Node _styleSection(Theme theme, String title, List<(String, Style)> styles) {
+  final rows = <Node>[_headerRow(theme)];
   for (final (name, style) in styles) {
     rows.add(_styleRow(theme, name, style));
   }
   return box(
     border: BorderType.plain,
     borderStyle: theme.border,
-    padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+    padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [Line(title, style: theme.focus)],
-    child: plume.Column<PaintToken>(children: rows),
+    child: Column(children: rows),
   );
 }
 
-plume.RenderNode<PaintToken> _headerRow(Theme theme) => plume.Row<PaintToken>(
+Node _headerRow(Theme theme) => Row(
   children: [
     _col(12, lineNode(Line('Name', style: theme.muted))),
     _col(10, lineNode(Line('fg', style: theme.muted))),
@@ -128,7 +127,7 @@ plume.RenderNode<PaintToken> _headerRow(Theme theme) => plume.Row<PaintToken>(
   ],
 );
 
-plume.RenderNode<PaintToken> _styleRow(Theme theme, String name, Style style) => plume.Row<PaintToken>(
+Node _styleRow(Theme theme, String name, Style style) => Row(
   children: [
     // Name column
     _col(12, lineNode(Line(name, style: Style(fg: theme.background.fg)))),
@@ -144,14 +143,14 @@ plume.RenderNode<PaintToken> _styleRow(Theme theme, String name, Style style) =>
 );
 
 /// Pins [child] to an exact [width], one visual row tall.
-plume.RenderNode<PaintToken> _col(int width, plume.RenderNode<PaintToken> child) => plume.ConstrainedBox<PaintToken>(
-  additionalConstraints: plume.BoxConstraints(minW: width, maxW: width),
+Node _col(int width, Node child) => ConstrainedBox(
+  additionalConstraints: BoxConstraints(minW: width, maxW: width),
   child: child,
 );
 
 /// A color chip: [width] cells of [style]'s background with [label] over it.
-plume.RenderNode<PaintToken> _swatch(int width, Style style, String label) => plume.ConstrainedBox<PaintToken>(
-  additionalConstraints: plume.BoxConstraints(minW: width, maxW: width),
+Node _swatch(int width, Style style, String label) => ConstrainedBox(
+  additionalConstraints: BoxConstraints(minW: width, maxW: width),
   child: box(
     background: style,
     child: lineNode(Line(' $label ', style: style)),

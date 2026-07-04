@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'modal_model.dart';
 
@@ -10,9 +9,9 @@ import 'modal_model.dart';
 /// carries no behaviour of its own. Pass [ModalModel]'s id for the static
 /// confirm/cancel case, or any other widget model's id to frame a fully
 /// custom inner MVU the same way.
-plume.RenderNode<PaintToken> modalDialog({
+Node modalDialog({
   required String id,
-  required plume.RenderNode<PaintToken> content,
+  required Node content,
   required Theme theme,
   BorderType border = BorderType.rounded,
   Style? borderStyle,
@@ -23,7 +22,7 @@ plume.RenderNode<PaintToken> modalDialog({
     border: border,
     borderStyle: borderStyle ?? theme.border,
     background: background ?? theme.surface,
-    padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+    padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
     child: content,
   )..tag = id;
@@ -36,18 +35,18 @@ plume.RenderNode<PaintToken> modalDialog({
 /// than constraint-based (unlike the old cassowary `Constraint width/height`)
 /// because a dialog's whole point is a stable size regardless of what's
 /// behind it.
-plume.RenderNode<PaintToken> centeredOverlay({
-  required plume.RenderNode<PaintToken> dialog,
+Node centeredOverlay({
+  required Node dialog,
   required Rect area,
   required int width,
   required int height,
 }) {
   final left = ((area.width - width) / 2).round().clamp(0, area.width);
   final top = ((area.height - height) / 2).round().clamp(0, area.height);
-  return plume.Stack<PaintToken>(
-    fit: plume.StackFit.expand,
-    children: <plume.RenderNode<PaintToken>>[
-      plume.Positioned<PaintToken>(left: left, top: top, width: width, height: height, child: dialog),
+  return Stack(
+    fit: StackFit.expand,
+    children: <Node>[
+      Positioned(left: left, top: top, width: width, height: height, child: dialog),
     ],
   );
 }
@@ -62,10 +61,10 @@ plume.RenderNode<PaintToken> centeredOverlay({
 /// backdrop dim entirely.
 void renderModalOverlay(
   Frame frame, {
-  required plume.RenderNode<PaintToken> base,
+  required Node base,
   required int width,
   required int height,
-  plume.RenderNode<PaintToken>? dialog,
+  Node? dialog,
   bool dim = true,
   double dimFactor = 0.3,
 }) {

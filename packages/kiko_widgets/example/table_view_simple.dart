@@ -9,7 +9,6 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -161,12 +160,12 @@ void appView(AppModel model, Frame frame) {
       ? 'Selected: $selectedCount rows (${selectedKeys.join(", ")})'
       : 'No rows selected';
 
-  final selectedBox = plume.ConstrainedBox<PaintToken>(
-    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+  final selectedBox = ConstrainedBox(
+    additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: box(
       border: BorderType.plain,
       borderStyle: selectedCount > 0 ? theme.success : theme.border,
-      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selection')],
       child: lineNode(
         Line(
@@ -178,12 +177,12 @@ void appView(AppModel model, Frame frame) {
   );
 
   // Confirmed cell info
-  final confirmedBox = plume.ConstrainedBox<PaintToken>(
-    additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+  final confirmedBox = ConstrainedBox(
+    additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: box(
       border: BorderType.plain,
       borderStyle: model.confirmedCell != null ? theme.accent : theme.border,
-      padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Confirmed')],
       child: lineNode(
         Line(
@@ -194,9 +193,9 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  final help = plume.Row<PaintToken>(
+  final help = Row(
     children: [
-      plume.Expanded<PaintToken>(
+      Expanded(
         child: lineNode(
           Line(
             '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
@@ -204,8 +203,8 @@ void appView(AppModel model, Frame frame) {
           ),
         ),
       ),
-      plume.ConstrainedBox<PaintToken>(
-        additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+      ConstrainedBox(
+        additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
         child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
       ),
     ],
@@ -213,10 +212,10 @@ void appView(AppModel model, Frame frame) {
 
   final ui = box(
     topTitles: [Line('TableView Demo', style: theme.muted)],
-    child: plume.Column<PaintToken>(
-      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        plume.Expanded<PaintToken>(child: tableWidget),
+        Expanded(child: tableWidget),
         selectedBox,
         confirmedBox,
         help,

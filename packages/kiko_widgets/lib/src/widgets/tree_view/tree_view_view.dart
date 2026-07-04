@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'tree_node.dart';
 import 'tree_view_model.dart';
@@ -16,7 +15,7 @@ import 'types.dart';
 /// roots load. Row backgrounds come from the node's state (focused / loading)
 /// via the theme, overridable with [styleOverrides]. The subtree root is stamped
 /// with the model id so a click routes back through [Frame.hitId].
-plume.RenderNode<PaintToken> treeView<T>({
+Node treeView<T>({
   required TreeViewModel<T> model,
   required Theme theme,
   Line Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder,
@@ -44,7 +43,7 @@ plume.RenderNode<PaintToken> treeView<T>({
 
 /// The self-painting body of a [treeView]: fills the space the box gives it and
 /// paints the model's visible window of tree rows through the plume `Surface`.
-class _TreeViewport<T> extends plume.RenderNode<PaintToken> {
+class _TreeViewport<T> extends Node {
   _TreeViewport({
     required this.model,
     required this.theme,
@@ -60,18 +59,18 @@ class _TreeViewport<T> extends plume.RenderNode<PaintToken> {
   final Line? emptyPlaceholder;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
-      constraints.constrain(plume.Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     final clip = surface.clipRect ?? rect;
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;
     _paint(area, surface);
   }
 
-  void _paint(Rect area, plume.Surface<PaintToken> surface) {
+  void _paint(Rect area, Surface surface) {
     final m = model;
     final nodes = m.flatNodes;
 

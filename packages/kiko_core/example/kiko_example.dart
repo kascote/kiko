@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 void main() async {
   await Application(title: 'Kiko Example').runStateless(
@@ -17,17 +16,17 @@ void main() async {
         Span('!', style: Style(bg: Color.blue)),
       ]);
 
-      final ui = plume.Column<PaintToken>(
+      final ui = Column(
         children: [
-          plume.ConstrainedBox<PaintToken>(
-            additionalConstraints: const plume.BoxConstraints(minW: 20, maxW: 20),
+          ConstrainedBox(
+            additionalConstraints: const BoxConstraints(minW: 20, maxW: 20),
             child: box(
               border: BorderType.rounded,
               topTitles: [Line('Kiko', style: const Style(fg: Color.green))],
               child: lineNode(greeting),
             ),
           ),
-          plume.Expanded<PaintToken>(child: plume.SizedBox<PaintToken>()),
+          Expanded(child: SizedBox()),
         ],
       );
 

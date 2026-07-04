@@ -195,7 +195,7 @@ class Terminal {
   Rect get viewportArea => _viewportArea;
 
   /// Returns the size of the terminal
-  Size get size => backend.size();
+  TermSize get size => backend.size();
 
   /// Returns the current frame
   Frame getFrame() => Frame(
@@ -461,7 +461,7 @@ Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
 Future<(Rect, Position)> _computeInlineSize(
   TermlibBackend backend,
   int height,
-  Size size,
+  TermSize size,
   int offsetInPreviousViewport,
 ) async {
   // TODO(nelson): we need to review this. If for some reason we can't get the cursor position,

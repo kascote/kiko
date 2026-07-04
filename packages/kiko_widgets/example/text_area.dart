@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -80,25 +79,25 @@ void appView(AppModel model, Frame frame) {
     border: BorderType.plain,
     borderStyle: theme.border,
     topTitles: [Line('TextArea Demo', style: theme.muted)],
-    child: plume.Column<PaintToken>(
-      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _field(model.title, 'Title', theme),
         _field(model.author, 'Author', theme),
         // Editor panel
-        plume.Expanded<PaintToken>(
+        Expanded(
           child: box(
             border: BorderType.plain,
             borderStyle: model.editor.focused ? theme.focus : theme.border,
-            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Content')],
             child: textArea(model.editor, theme),
           ),
         ),
         // Status bar
-        plume.Row<PaintToken>(
+        Row(
           children: [
-            plume.Expanded<PaintToken>(
+            Expanded(
               child: lineNode(
                 Line(
                   'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
@@ -109,8 +108,8 @@ void appView(AppModel model, Frame frame) {
                 ),
               ),
             ),
-            plume.ConstrainedBox<PaintToken>(
-              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+            ConstrainedBox(
+              additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: lineNode(
                 Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
               ),
@@ -133,13 +132,13 @@ void appView(AppModel model, Frame frame) {
 }
 
 /// A bordered, titled field wrapping a fixed-height [textInput].
-plume.RenderNode<PaintToken> _field(TextInputModel input, String label, Theme theme) => box(
+Node _field(TextInputModel input, String label, Theme theme) => box(
   border: BorderType.plain,
   borderStyle: input.focused ? theme.focus : theme.border,
-  padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+  padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
-  child: plume.ConstrainedBox<PaintToken>(
-    additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+  child: ConstrainedBox(
+    additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
     child: textInput(input, theme),
   ),
 );

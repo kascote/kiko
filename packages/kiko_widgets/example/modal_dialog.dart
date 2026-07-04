@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -61,18 +60,18 @@ void appView(AppModel model, Frame frame) {
   final base = box(
     border: BorderType.rounded,
     borderStyle: theme.border,
-    padding: const plume.EdgeInsets.all(1),
+    padding: const EdgeInsets.all(1),
     topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted)],
-    child: plume.Column<PaintToken>(
-      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         lineNode(Line('Count: ${model.count}', style: Style(fg: theme.accent.fg))),
-        plume.SizedBox<PaintToken>(height: 1),
+        SizedBox(height: 1),
         lineNode(Line('Some colourful background content:')),
         lineNode(Line('  Red', style: const Style(fg: Color.red))),
         lineNode(Line('  Green', style: const Style(fg: Color.green))),
         lineNode(Line('  Blue', style: const Style(fg: Color.blue))),
-        plume.Expanded<PaintToken>(child: plume.SizedBox<PaintToken>()),
+        Expanded(child: SizedBox()),
         lineNode(
           Line(
             model.lastAction.isEmpty
@@ -90,11 +89,11 @@ void appView(AppModel model, Frame frame) {
       id: modal.id,
       theme: theme,
       topTitles: [Line(' Confirm ', style: Style(fg: theme.warning.fg))],
-      content: plume.Column<PaintToken>(
-        mainAxisAlignment: plume.MainAxisAlignment.center,
+      content: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           lineNode(Line('Add 10 to the counter?', alignment: Alignment.center)),
-          plume.SizedBox<PaintToken>(height: 1),
+          SizedBox(height: 1),
           lineNode(Line('[Enter] OK   [Esc] Cancel', alignment: Alignment.center, style: theme.muted)),
         ],
       ),

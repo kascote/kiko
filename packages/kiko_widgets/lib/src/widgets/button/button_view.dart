@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'button_model.dart';
 
@@ -15,7 +14,7 @@ import 'button_model.dart';
 /// The content area is pinned to the label's width so the button keeps its size
 /// while loading, when the [ButtonModel.loadingText] indicator is centred in
 /// that same width instead of the label.
-plume.RenderNode<PaintToken> button(ButtonModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) {
+Node button(ButtonModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) {
   final style = _resolveStyle(model, theme, styleOverrides);
   final labelWidth = model.label.width;
   final content = model.loading
@@ -24,9 +23,9 @@ plume.RenderNode<PaintToken> button(ButtonModel model, Theme theme, {Map<WidgetS
 
   return box(
     background: style,
-    padding: plume.EdgeInsets.symmetric(horizontal: model.padding),
-    child: plume.ConstrainedBox<PaintToken>(
-      additionalConstraints: plume.BoxConstraints(minW: labelWidth, maxW: labelWidth, minH: 1, maxH: 1),
+    padding: EdgeInsets.symmetric(horizontal: model.padding),
+    child: ConstrainedBox(
+      additionalConstraints: BoxConstraints(minW: labelWidth, maxW: labelWidth, minH: 1, maxH: 1),
       child: lineNode(content),
     ),
   )..tag = model.id;

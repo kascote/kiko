@@ -150,7 +150,7 @@ class TermlibBackend {
   void showCursor() => _term.cursorShow();
 
   /// Gets the current size of the terminal.
-  Size size() => Size(_term.terminalColumns, _term.terminalLines);
+  TermSize size() => TermSize(_term.terminalColumns, _term.terminalLines);
 
   /// Gets the terminal color profile.
   tl.ProfileEnum get profile => _term.profile;

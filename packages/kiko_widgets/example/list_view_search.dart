@@ -8,7 +8,6 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -180,25 +179,25 @@ void appView(AppModel model, Frame frame) {
 
   final ui = box(
     topTitles: [Line('Searchable List Demo', style: theme.muted)],
-    child: plume.Column<PaintToken>(
-      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Search box
-        plume.ConstrainedBox<PaintToken>(
-          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+        ConstrainedBox(
+          additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: box(
             border: BorderType.plain,
             borderStyle: model.search.focused ? theme.focus : theme.border,
-            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Search (${items.length}/${allItems.length})')],
-            child: plume.ConstrainedBox<PaintToken>(
-              additionalConstraints: const plume.BoxConstraints(minH: 1, maxH: 1),
+            child: ConstrainedBox(
+              additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
               child: textInput(model.search, theme),
             ),
           ),
         ),
         // List area using ListView
-        plume.Expanded<PaintToken>(
+        Expanded(
           child: box(
             border: BorderType.plain,
             borderStyle: model.list.focused ? theme.focus : theme.border,
@@ -215,12 +214,12 @@ void appView(AppModel model, Frame frame) {
           ),
         ),
         // Selected item display
-        plume.ConstrainedBox<PaintToken>(
-          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+        ConstrainedBox(
+          additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: box(
             border: BorderType.plain,
             borderStyle: model.selected != null ? theme.success : theme.border,
-            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
             child: lineNode(
               Line(
@@ -231,15 +230,15 @@ void appView(AppModel model, Frame frame) {
           ),
         ),
         // Help
-        plume.Row<PaintToken>(
+        Row(
           children: [
-            plume.Expanded<PaintToken>(
+            Expanded(
               child: lineNode(
                 Line('Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit', style: theme.muted),
               ),
             ),
-            plume.ConstrainedBox<PaintToken>(
-              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+            ConstrainedBox(
+              additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
             ),
           ],

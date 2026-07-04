@@ -8,7 +8,6 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'shared/theme_switcher.dart';
 
@@ -155,10 +154,10 @@ void appView(AppModel model, Frame frame) {
 
   final ui = box(
     topTitles: [Line('Paginated ListView Demo', style: theme.muted)],
-    child: plume.Column<PaintToken>(
-      crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        plume.Expanded<PaintToken>(
+        Expanded(
           child: box(
             border: BorderType.plain,
             borderStyle: theme.focus,
@@ -183,23 +182,23 @@ void appView(AppModel model, Frame frame) {
             ),
           ),
         ),
-        plume.ConstrainedBox<PaintToken>(
-          additionalConstraints: const plume.BoxConstraints(minH: 3, maxH: 3),
+        ConstrainedBox(
+          additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: box(
             border: BorderType.plain,
             borderStyle: statusBorder,
-            padding: const plume.EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Status')],
             child: lineNode(Line(status, style: Style(fg: statusFg))),
           ),
         ),
-        plume.Row<PaintToken>(
+        Row(
           children: [
-            plume.Expanded<PaintToken>(
+            Expanded(
               child: lineNode(Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted)),
             ),
-            plume.ConstrainedBox<PaintToken>(
-              additionalConstraints: const plume.BoxConstraints(minW: 25, maxW: 25),
+            ConstrainedBox(
+              additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
             ),
           ],

@@ -379,11 +379,11 @@ void main() {
 
     test('asSize', () {
       final r = Rect.create(x: 1, y: 2, width: 3, height: 4);
-      expect(r.asSize, const Size(3, 4));
+      expect(r.asSize, const TermSize(3, 4));
     });
 
     test('fromPositionSize', () {
-      final r = Rect.fromPositionSize(const Position(1, 2), const Size(3, 4));
+      final r = Rect.fromPositionSize(const Position(1, 2), const TermSize(3, 4));
       expect(r, Rect.create(x: 1, y: 2, width: 3, height: 4));
     });
 

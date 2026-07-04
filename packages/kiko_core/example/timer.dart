@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -61,17 +60,17 @@ void appView(AppModel model, Frame frame) {
   final time = '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   final status = model.running ? 'RUNNING' : 'STOPPED';
 
-  final ui = plume.Row<PaintToken>(
-    crossAxisAlignment: plume.CrossAxisAlignment.stretch,
+  final ui = Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       // Timer pane (left)
-      plume.Expanded<PaintToken>(
+      Expanded(
         child: box(
           border: BorderType.plain,
           topTitles: [Line('Timer (space/r)')],
-          child: plume.Column<PaintToken>(
+          child: Column(
             children: [
-              plume.Expanded<PaintToken>(child: lineNode(Line(time, alignment: Alignment.center))),
+              Expanded(child: lineNode(Line(time, alignment: Alignment.center))),
               lineNode(
                 Line(
                   status,
@@ -84,7 +83,7 @@ void appView(AppModel model, Frame frame) {
         ),
       ),
       // Counter pane (right)
-      plume.Expanded<PaintToken>(
+      Expanded(
         child: box(
           border: BorderType.plain,
           topTitles: [Line('Counter (↑/↓)')],

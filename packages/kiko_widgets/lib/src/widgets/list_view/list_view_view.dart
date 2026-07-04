@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'list_view_model.dart';
 import 'types.dart';
@@ -17,7 +16,7 @@ import 'types.dart';
 /// the item's state (focused / selected / disabled) via the theme,
 /// overridable per state with [styleOverrides]. The subtree root is stamped
 /// with the model id so a click routes back through [Frame.hitId].
-plume.RenderNode<PaintToken> listView<T, K>({
+Node listView<T, K>({
   required ListViewModel<T, K> model,
   required Theme theme,
   required List<Line> Function(T item, int index, ItemState state) itemBuilder,
@@ -47,7 +46,7 @@ plume.RenderNode<PaintToken> listView<T, K>({
 
 /// The self-painting body of a [listView]: fills the space the box gives it and
 /// paints the model's visible window of rows through the plume `Surface`.
-class _ListViewport<T, K> extends plume.RenderNode<PaintToken> {
+class _ListViewport<T, K> extends Node {
   _ListViewport({
     required this.model,
     required this.theme,
@@ -65,18 +64,18 @@ class _ListViewport<T, K> extends plume.RenderNode<PaintToken> {
   final Line? emptyPlaceholder;
 
   @override
-  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
-      constraints.constrain(plume.Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
 
   @override
-  void paintSelf(plume.Surface<PaintToken> surface) {
+  void paintSelf(Surface surface) {
     final clip = surface.clipRect ?? rect;
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;
     _paint(area, surface);
   }
 
-  void _paint(Rect area, plume.Surface<PaintToken> surface) {
+  void _paint(Rect area, Surface surface) {
     final m = model;
     final dataView = m.dataView;
     final itemCount = dataView.length ?? 0;

@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -132,9 +131,9 @@ void appView(AppModel model, Frame frame) {
   final ui = box(
     border: BorderType.plain,
     topTitles: [Line('Async Task Demo')],
-    child: plume.Column<PaintToken>(
+    child: Column(
       children: [
-        plume.Expanded<PaintToken>(
+        Expanded(
           child: lineNode(
             Line(
               model.status,

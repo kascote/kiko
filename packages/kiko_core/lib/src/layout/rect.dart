@@ -67,8 +67,8 @@ class Rect {
     return Rect._(x, y, w, h);
   }
 
-  /// Creates a new [Rect] given a [Position] and [Size]
-  Rect.fromPositionSize(Position pos, Size size) : this._(pos.x, pos.y, size.width, size.height);
+  /// Creates a new [Rect] given a [Position] and [TermSize]
+  Rect.fromPositionSize(Position pos, TermSize size) : this._(pos.x, pos.y, size.width, size.height);
 
   /// Check if the rectangle is empty
   bool get isEmpty => width == 0 || height == 0;
@@ -190,8 +190,8 @@ class Rect {
   /// Returns a [Position] with the same coordinates as this [Rect]
   Position get asPosition => Position(x, y);
 
-  /// Converts the [Rect] into a [Size] object.
-  Size get asSize => Size(width, height);
+  /// Converts the [Rect] into a [TermSize] object.
+  TermSize get asSize => TermSize(width, height);
 
   /// indents the x value of the [Rect] by a given offset
   Rect indentX(int offset) => copyWith(

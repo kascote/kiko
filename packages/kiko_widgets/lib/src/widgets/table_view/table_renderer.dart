@@ -1,12 +1,11 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 import 'package:termunicode/termunicode.dart';
 
 import 'table_column.dart';
 import 'table_view_model.dart';
 import 'types.dart';
 
-/// Paints a [TableViewModel] through a plume [plume.Surface].
+/// Paints a [TableViewModel] through a plume [Surface].
 ///
 /// The rendering — visible columns, sticky header, windowed rows, per-cell
 /// truncation, alignment, and state styling — lives here so both the plume
@@ -25,7 +24,7 @@ class TableRenderer {
   final Map<WidgetState, Style>? styleOverrides;
 
   /// Paints the table into [area] of [surface].
-  void paint(Rect area, plume.Surface<PaintToken> surface) {
+  void paint(Rect area, Surface surface) {
     if (area.isEmpty) return;
 
     // Calculate visible columns that fit in area width
@@ -117,7 +116,7 @@ class TableRenderer {
   }
 
   /// Renders the header row.
-  void _renderHeader(plume.Surface<PaintToken> surface, Rect area, List<TableColumn> visibleCols) {
+  void _renderHeader(Surface surface, Rect area, List<TableColumn> visibleCols) {
     var x = area.x;
     final y = area.y;
     final sep = model.columnSeparator;
@@ -150,13 +149,13 @@ class TableRenderer {
   }
 
   /// Renders a loading placeholder row.
-  void _renderLoadingRow(plume.Surface<PaintToken> surface, Rect area) {
+  void _renderLoadingRow(Surface surface, Rect area) {
     paintLine(surface, model.loadingIndicator ?? Line('Loading...'), x: area.x, y: area.y, width: area.width);
   }
 
   /// Renders a data row.
   void _renderRow(
-    plume.Surface<PaintToken> surface,
+    Surface surface,
     Rect area,
     Map<String, Object?> row,
     int rowIndex,

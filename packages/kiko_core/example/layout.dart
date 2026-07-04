@@ -17,20 +17,25 @@ const _cellWidth = 15;
 const _cellHeight = 7;
 
 void draw(Frame frame) {
-  final header = Text.fromLines([
-    Line(
-      'Plume flex layout example',
-      style: const Style(fg: Color.darkGray),
-      alignment: Alignment.center,
-    ),
-    Line('Each row cycles one flex knob across a fixed Row of three swatches.'),
-    Line("Note: labels that don't fit their cell are truncated"),
-  ]);
+  final header = Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      lineNode(
+        Line(
+          'Plume flex layout example',
+          style: const Style(fg: Color.darkGray),
+          alignment: Alignment.center,
+        ),
+      ),
+      lineNode(Line('Each row cycles one flex knob across a fixed Row of three swatches.')),
+      lineNode(Line("Note: labels that don't fit their cell are truncated")),
+    ],
+  );
 
   final ui = Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      textNode(header),
+      header,
       SizedBox(height: 1),
       _sectionTitle('MainAxisAlignment'),
       _row([for (final a in MainAxisAlignment.values) _cell(a.name, _mainAxisDemo(a))]),

@@ -1,22 +1,6 @@
-import 'package:kiko/kiko.dart' hide Text;
-import 'package:kiko/kiko.dart' as kiko show Text;
+import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
-
-String _dump(Buffer buffer) {
-  final out = StringBuffer();
-  final area = buffer.area;
-  for (var y = area.top; y < area.bottom; y++) {
-    final row = StringBuffer();
-    for (var x = area.left; x < area.right; x++) {
-      final cell = buffer[(x: x, y: y)];
-      if (cell.skip) continue;
-      row.write(cell.symbol.isEmpty ? ' ' : cell.symbol);
-    }
-    out.writeln(row.toString().trimRight());
-  }
-  return out.toString();
-}
 
 void main() {
   group('spanRun', () {
@@ -79,46 +63,6 @@ void main() {
       expect(mapAlign(Alignment.left), plume.TextAlign.start);
       expect(mapAlign(Alignment.center), plume.TextAlign.center);
       expect(mapAlign(Alignment.right), plume.TextAlign.end);
-    });
-  });
-
-  group('textNode', () {
-    test('a single-line text is one bare text node', () {
-      final node = textNode(kiko.Text(<Line>[Line('hi')]));
-      expect(node, isA<plume.Text<PaintToken>>());
-    });
-
-    test('a multi-line text is a stretched column of lines', () {
-      final node = textNode(kiko.Text(<Line>[Line('a'), Line('b')]));
-      expect(node, isA<plume.Column<PaintToken>>());
-      final column = node as plume.Column<PaintToken>;
-      expect(column.crossAxisAlignment, plume.CrossAxisAlignment.stretch);
-    });
-
-    test('resolves the style chain base then text then line then span', () {
-      final text = kiko.Text(
-        <Line>[
-          Line.fromSpans(const <Span>[Span('x', style: Style(fg: Color.red))], style: const Style(bg: Color.green)),
-        ],
-        style: const Style(addModifier: Modifier.bold),
-      );
-      final node = textNode(text, base: const Style(fg: Color.blue)) as plume.Text<PaintToken>;
-
-      final expected = const Style(fg: Color.blue)
-          .patch(const Style(addModifier: Modifier.bold))
-          .patch(const Style(bg: Color.green))
-          .patch(const Style(fg: Color.red));
-      expect(node.runs.single, plume.TextRun<PaintToken>('x', PaintToken(expected)));
-    });
-
-    test('keeps each line on its own alignment when rendered', () {
-      final text = kiko.Text(<Line>[
-        Line('ab', alignment: Alignment.left),
-        Line('cd', alignment: Alignment.right),
-      ]);
-      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 2));
-      Frame(buffer.area, buffer, 0).renderNode(textNode(text));
-      expect(_dump(buffer), 'ab\n  cd\n');
     });
   });
 }

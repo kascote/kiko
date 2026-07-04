@@ -74,13 +74,16 @@ void appView(AppModel model, Frame frame) {
         _field(model.password, 'Password', theme),
         // Debug info
         Expanded(
-          child: textNode(
-            Text.raw(
-              'Username: "${model.username.value}"\n'
-              'Password: "${model.password.value}" (${model.password.length} chars)\n'
-              'Focused: ${model.focus.index == 0 ? "username" : "password"}',
-              style: Style(fg: theme.background.fg),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final line in [
+                'Username: "${model.username.value}"',
+                'Password: "${model.password.value}" (${model.password.length} chars)',
+                'Focused: ${model.focus.index == 0 ? "username" : "password"}',
+              ])
+                lineNode(Line(line, style: Style(fg: theme.background.fg))),
+            ],
           ),
         ),
         // Help

@@ -32,7 +32,6 @@ export 'src/terminal/terminal.dart';
 export 'src/text/line.dart';
 export 'src/text/span.dart';
 export 'src/text/styled_char.dart';
-export 'src/text/text.dart';
 export 'src/theme.dart';
 export 'src/widget_state.dart';
 export 'src/widgets/border_type.dart';

@@ -4,7 +4,6 @@ import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
 import '../text/span.dart';
-import '../text/text.dart';
 import 'paint_token.dart';
 
 /// Flattens kiko's `Span`/`Line` text into the plume nodes a layout tree draws.
@@ -44,23 +43,3 @@ plume.TextAlign mapAlign(Alignment? alignment) => switch (alignment) {
   Alignment.center => plume.TextAlign.center,
   Alignment.right => plume.TextAlign.end,
 };
-
-/// Turns a multi-line kiko [Text] into a plume node — the plume-native leaf for
-/// a paragraph.
-///
-/// Each line flattens through [lineNode] with the style chain [base] ▸ text ▸
-/// line ▸ span. A single line becomes one plume text node, shrink-wrapping to
-/// its content. Because each kiko line can align itself independently but a
-/// plume text node has one block alignment, several lines become a stretched
-/// [plume.Column] of one text node per line — every line then fills the block
-/// width and aligns its own content within it. A line without its own alignment
-/// falls back to the text's, then to [fallbackAlign].
-plume.RenderNode<PaintToken> textNode(Text text, {Style base = const Style(), Alignment? fallbackAlign}) {
-  final textBase = base.patch(text.style);
-  final blockAlign = text.alignment ?? fallbackAlign;
-  final lines = <plume.RenderNode<PaintToken>>[
-    for (final line in text.lines) lineNode(line, base: textBase, fallbackAlign: blockAlign),
-  ];
-  if (lines.length == 1) return lines.first;
-  return plume.Column<PaintToken>(children: lines, crossAxisAlignment: plume.CrossAxisAlignment.stretch);
-}

@@ -94,15 +94,19 @@ void appView(AppModel model, Frame frame) {
         _field(model.phone, 'Phone', theme),
         // Status
         Expanded(
-          child: textNode(
-            Text.raw(
-              'Focus index: ${model.focusIndex}\n'
-              'Focused field: ${['Name', 'Email', 'Phone'][model.focusIndex]}\n\n'
-              'Name: "${model.name.value}"\n'
-              'Email: "${model.email.value}"\n'
-              'Phone: "${model.phone.value}"',
-              style: Style(fg: theme.background.fg),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final line in [
+                'Focus index: ${model.focusIndex}',
+                'Focused field: ${['Name', 'Email', 'Phone'][model.focusIndex]}',
+                '',
+                'Name: "${model.name.value}"',
+                'Email: "${model.email.value}"',
+                'Phone: "${model.phone.value}"',
+              ])
+                lineNode(Line(line, style: Style(fg: theme.background.fg))),
+            ],
           ),
         ),
         // Help

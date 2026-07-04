@@ -60,7 +60,7 @@ const int _sigTerm = _baseError + 15;
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, Quit()),
 ///     _ => (null, null),
 ///   },
-///   view: (_, frame) => frame.renderNode(textNode(Text.raw('Hello'))),
+///   view: (_, frame) => frame.renderNode(lineNode(Line('Hello'))),
 /// );
 /// ```
 class Application {

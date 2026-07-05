@@ -13,8 +13,8 @@ class TableColumn {
   /// Column width in characters.
   final int width;
 
-  /// Cell alignment (left/center/right).
-  final Alignment alignment;
+  /// Cell alignment (start/center/end).
+  final TextAlign alignment;
 
   /// Default cell style for this column.
   final Style? style;
@@ -42,7 +42,7 @@ class TableColumn {
     required this.field,
     required this.label,
     this.width = 20,
-    this.alignment = Alignment.left,
+    this.alignment = TextAlign.start,
     this.style,
     this.visible = true,
     this.render,

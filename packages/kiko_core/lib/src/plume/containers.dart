@@ -1,0 +1,299 @@
+import 'package:plume/plume.dart' as plume;
+
+import 'aliases.dart';
+import 'paint_token.dart';
+import 'view.dart';
+
+/// The composable containers kiko lays out with — [View] wrappers over plume's
+/// layout nodes.
+///
+/// Each container is an immutable [View]: it holds its children as views and,
+/// on [View.build], inflates a fresh plume node with each child built in turn.
+/// Children are typed [View], so a non-view child is a compile error rather than
+/// a paint-time surprise.
+
+/// A vertical stack of children, laid out top to bottom.
+final class Column implements View {
+  /// Stacks [children] top to bottom.
+  const Column({
+    required this.children,
+    this.mainAxis = plume.MainAxisAlignment.start,
+    this.crossAxis = plume.CrossAxisAlignment.start,
+    this.mainAxisSize = plume.MainAxisSize.max,
+  });
+
+  /// The children, laid out in order from top to bottom.
+  final List<View> children;
+
+  /// How leftover vertical space is distributed.
+  final plume.MainAxisAlignment mainAxis;
+
+  /// How each child is aligned or stretched horizontally.
+  final plume.CrossAxisAlignment crossAxis;
+
+  /// Whether the column fills the available height or shrink-wraps its children.
+  final plume.MainAxisSize mainAxisSize;
+
+  @override
+  Node build() => plume.Column<PaintToken>(
+    children: [for (final c in children) c.build()],
+    mainAxisAlignment: mainAxis,
+    crossAxisAlignment: crossAxis,
+    mainAxisSize: mainAxisSize,
+  );
+}
+
+/// A horizontal row of children, laid out left to right.
+final class Row implements View {
+  /// Lays [children] out left to right.
+  const Row({
+    required this.children,
+    this.mainAxis = plume.MainAxisAlignment.start,
+    this.crossAxis = plume.CrossAxisAlignment.start,
+    this.mainAxisSize = plume.MainAxisSize.max,
+  });
+
+  /// The children, laid out in order from left to right.
+  final List<View> children;
+
+  /// How leftover horizontal space is distributed.
+  final plume.MainAxisAlignment mainAxis;
+
+  /// How each child is aligned or stretched vertically.
+  final plume.CrossAxisAlignment crossAxis;
+
+  /// Whether the row fills the available width or shrink-wraps its children.
+  final plume.MainAxisSize mainAxisSize;
+
+  @override
+  Node build() => plume.Row<PaintToken>(
+    children: [for (final c in children) c.build()],
+    mainAxisAlignment: mainAxis,
+    crossAxisAlignment: crossAxis,
+    mainAxisSize: mainAxisSize,
+  );
+}
+
+/// A flex child that takes a share of the free main-axis space proportional to
+/// [flex], and may be smaller than its share.
+final class Flexible implements View {
+  /// Gives [child] a [flex] share, filled according to [fit].
+  const Flexible({required this.child, this.flex = 1, this.fit = plume.FlexFit.loose});
+
+  /// The wrapped child.
+  final View child;
+
+  /// This child's share of the free space, relative to its siblings.
+  final int flex;
+
+  /// Whether the child must fill its share or may be smaller.
+  final plume.FlexFit fit;
+
+  @override
+  Node build() => plume.Flexible<PaintToken>(flex: flex, fit: fit, child: child.build());
+}
+
+/// A flex child that expands to fill its whole share of the main axis.
+final class Expanded implements View {
+  /// Expands [child] with the given [flex] share.
+  const Expanded({required this.child, this.flex = 1});
+
+  /// The wrapped child.
+  final View child;
+
+  /// This child's share of the free space, relative to its siblings.
+  final int flex;
+
+  @override
+  Node build() => plume.Expanded<PaintToken>(flex: flex, child: child.build());
+}
+
+/// Layers its children, painting each over the one before it.
+final class Stack implements View {
+  /// Layers [children], aligned by [alignment] and sized per [fit].
+  const Stack({
+    required this.children,
+    this.alignment = plume.Alignment.topLeft,
+    this.fit = plume.StackFit.loose,
+  });
+
+  /// The children, painted back to front in order.
+  final List<View> children;
+
+  /// Where each non-positioned child sits within the stack's extra space.
+  final plume.Alignment alignment;
+
+  /// How non-positioned children are sized.
+  final plume.StackFit fit;
+
+  @override
+  Node build() => plume.Stack<PaintToken>(
+    children: [for (final c in children) c.build()],
+    alignment: alignment,
+    fit: fit,
+  );
+}
+
+/// Pins its child to chosen edges of a [Stack].
+final class Positioned implements View {
+  /// Positions [child] using any mix of edges and an explicit size.
+  const Positioned({
+    required this.child,
+    this.left,
+    this.top,
+    this.right,
+    this.bottom,
+    this.width,
+    this.height,
+  });
+
+  /// The wrapped child.
+  final View child;
+
+  /// Distance from the stack's left edge, or `null` to leave the left free.
+  final int? left;
+
+  /// Distance from the stack's top edge, or `null` to leave the top free.
+  final int? top;
+
+  /// Distance from the stack's right edge, or `null` to leave the right free.
+  final int? right;
+
+  /// Distance from the stack's bottom edge, or `null` to leave the bottom free.
+  final int? bottom;
+
+  /// Explicit width, used when [left] and [right] do not already fix it.
+  final int? width;
+
+  /// Explicit height, used when [top] and [bottom] do not already fix it.
+  final int? height;
+
+  @override
+  Node build() => plume.Positioned<PaintToken>(
+    left: left,
+    top: top,
+    right: right,
+    bottom: bottom,
+    width: width,
+    height: height,
+    child: child.build(),
+  );
+}
+
+/// A fixed-size box that draws nothing — a spacer or minimum-size placeholder.
+final class SizedBox implements View {
+  /// Creates a box [width] cells wide and [height] cells tall.
+  const SizedBox({this.width = 0, this.height = 0});
+
+  /// The requested width in cells, before constraints are applied.
+  final int width;
+
+  /// The requested height in cells, before constraints are applied.
+  final int height;
+
+  @override
+  Node build() => plume.SizedBox<PaintToken>(width: width, height: height);
+}
+
+/// Applies [additionalConstraints] to its child on top of the incoming ones.
+final class ConstrainedBox implements View {
+  /// Constrains [child] further with [additionalConstraints].
+  const ConstrainedBox({required this.additionalConstraints, required this.child});
+
+  /// The extra bounds to impose on the child.
+  final plume.BoxConstraints additionalConstraints;
+
+  /// The wrapped child.
+  final View child;
+
+  @override
+  Node build() => plume.ConstrainedBox<PaintToken>(
+    additionalConstraints: additionalConstraints,
+    child: child.build(),
+  );
+}
+
+/// A single-child box that can size itself, pad its child, and paint a
+/// background and border.
+final class Container implements View {
+  /// Wraps [child] with optional sizing and decoration.
+  const Container({
+    required this.child,
+    this.padding = plume.EdgeInsets.zero,
+    this.width,
+    this.height,
+    this.background,
+    this.border,
+  });
+
+  /// The wrapped child.
+  final View child;
+
+  /// Inner padding around the child.
+  final plume.EdgeInsets padding;
+
+  /// A fixed width in cells, or `null` to size to the child.
+  final int? width;
+
+  /// A fixed height in cells, or `null` to size to the child.
+  final int? height;
+
+  /// The fill paint token, or `null` for no fill.
+  final PaintToken? background;
+
+  /// The border paint token, or `null` for no border.
+  final PaintToken? border;
+
+  @override
+  Node build() => plume.Container<PaintToken>(
+    padding: padding,
+    width: width,
+    height: height,
+    background: background,
+    border: border,
+    child: child.build(),
+  );
+}
+
+/// Insets its child by [insets], reporting a size that includes the padding.
+final class Padding implements View {
+  /// Pads [child] by [insets].
+  const Padding({required this.insets, required this.child});
+
+  /// The cell insets around the child.
+  final plume.EdgeInsets insets;
+
+  /// The wrapped child.
+  final View child;
+
+  @override
+  Node build() => plume.Padding<PaintToken>(insets: insets, child: child.build());
+}
+
+/// Sizes to the available space and positions its child within it by
+/// [alignment].
+final class Align implements View {
+  /// Aligns [child] within this box using [alignment].
+  const Align({required this.alignment, required this.child});
+
+  /// Where the child sits within the extra space.
+  final plume.Alignment alignment;
+
+  /// The wrapped child.
+  final View child;
+
+  @override
+  Node build() => plume.Align<PaintToken>(alignment: alignment, child: child.build());
+}
+
+/// Centers its child within the available space.
+final class Center implements View {
+  /// Centers [child].
+  const Center({required this.child});
+
+  /// The wrapped child.
+  final View child;
+
+  @override
+  Node build() => plume.Center<PaintToken>(child: child.build());
+}

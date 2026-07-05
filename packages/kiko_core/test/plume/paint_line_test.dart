@@ -26,13 +26,13 @@ void main() {
 
     test('centers when given center alignment', () {
       final surface = plume.RecordingSurface<PaintToken>();
-      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: Alignment.center);
+      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: TextAlign.center);
       expect(surface.intents.map((i) => '$i').toList(), ['drawText(4, 0, "hi", ${const PaintToken(Style())})']);
     });
 
-    test('right-aligns when given right alignment', () {
+    test('right-aligns when given end alignment', () {
       final surface = plume.RecordingSurface<PaintToken>();
-      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: Alignment.right);
+      paintLine(surface, Line('hi'), x: 0, y: 0, width: 10, align: TextAlign.end);
       expect(surface.intents.map((i) => '$i').toList(), ['drawText(8, 0, "hi", ${const PaintToken(Style())})']);
     });
 

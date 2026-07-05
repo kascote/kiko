@@ -1,6 +1,5 @@
 import 'package:plume/plume.dart' as plume;
 
-import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
 import '../text/text.dart';
@@ -43,12 +42,3 @@ plume.Text<PaintToken> lineNode(Line line, {Style base = const Style()}) {
     <plume.TextRun<PaintToken>>[for (final span in line.spans) spanRun(span, base: lineBase)],
   );
 }
-
-/// Maps a kiko [Alignment] onto the plume [plume.TextAlign] it corresponds to.
-///
-/// A `null` alignment — no preference — reads as left, plume's [plume.TextAlign.start].
-plume.TextAlign mapAlign(Alignment? alignment) => switch (alignment) {
-  Alignment.left || null => plume.TextAlign.start,
-  Alignment.center => plume.TextAlign.center,
-  Alignment.right => plume.TextAlign.end,
-};

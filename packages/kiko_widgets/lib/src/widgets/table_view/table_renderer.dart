@@ -277,15 +277,15 @@ class TableRenderer {
   }
 
   /// Aligns line content within [width].
-  Line _alignLine(Line line, int width, Alignment alignment) {
+  Line _alignLine(Line line, int width, TextAlign alignment) {
     final lineWidth = line.width;
     if (lineWidth >= width) return line;
 
     final padding = width - lineWidth;
     final (leftPad, rightPad) = switch (alignment) {
-      Alignment.left => (0, padding),
-      Alignment.center => (padding ~/ 2, padding - padding ~/ 2),
-      Alignment.right => (padding, 0),
+      TextAlign.start => (0, padding),
+      TextAlign.center => (padding ~/ 2, padding - padding ~/ 2),
+      TextAlign.end => (padding, 0),
     };
 
     final spans = <Text>[];

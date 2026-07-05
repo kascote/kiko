@@ -1,6 +1,5 @@
 import 'package:plume/plume.dart' as plume;
 
-import '../layout/alignment.dart';
 import '../style.dart';
 import '../text/line.dart';
 import 'paint_token.dart';
@@ -14,7 +13,7 @@ import 'text_flatten.dart';
 /// instead of the retired `Widget.render` buffer bridge. The style chain
 /// resolves as [base] ▸ the line's own style ▸ each span's style. The viewport
 /// owns the row's rect, so it also owns placement: [align] positions the line
-/// within [width], defaulting to the left.
+/// within [width], defaulting to the start.
 ///
 /// [skipColumns] is a horizontal scroll offset (see plume's `paintRuns`) —
 /// meant for left-aligned, single-line scrolling content such as a text
@@ -26,7 +25,7 @@ void paintLine(
   required int y,
   required int width,
   Style base = const Style(),
-  Alignment align = Alignment.left,
+  plume.TextAlign align = plume.TextAlign.start,
   int skipColumns = 0,
   plume.TextMeasurer measurer = const TermUnicodeMeasurer(),
 }) {
@@ -38,7 +37,7 @@ void paintLine(
     x: x,
     y: y,
     width: width,
-    align: mapAlign(align),
+    align: align,
     skipColumns: skipColumns,
   );
 }

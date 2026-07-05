@@ -29,7 +29,7 @@ void main() {
   group('text input view', () {
     test('renders the text and places the cursor at its end', () {
       final model = TextInputModel(id: 'in', initial: 'hi', focused: true);
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(_dump(frame.buffer), 'hi\n');
       expect(frame.rectOf('in'), Rect.create(x: 0, y: 0, width: 5, height: 1));
@@ -38,7 +38,7 @@ void main() {
 
     test('shows the placeholder when empty', () {
       final model = TextInputModel(id: 'in', placeholder: 'name', focused: true);
-      final frame = _frame(6, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(_dump(frame.buffer), 'name\n');
       expect(frame.cursorPosition, Position.origin);
@@ -46,7 +46,7 @@ void main() {
 
     test('obscures the text and tracks the cursor over the dots', () {
       final model = TextInputModel(id: 'in', initial: 'abc', obscureText: true, focused: true);
-      final frame = _frame(6, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(_dump(frame.buffer), '•••\n');
       expect(frame.cursorPosition, const Position(3, 0));
@@ -54,13 +54,13 @@ void main() {
 
     test('has no cursor when unfocused', () {
       final model = TextInputModel(id: 'in', initial: 'hi');
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
       expect(frame.cursorPosition, isNull);
     });
 
     test('places the cursor mid-text when the model starts scrolled to the middle', () {
       final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
-      final frame = _frame(20, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(20, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
       expect(frame.buffer[(x: 4, y: 0)].symbol, equals('o'));
@@ -72,11 +72,11 @@ void main() {
       final model = TextInputModel(initial: 'abcdefgh', focused: true);
 
       // First render at cursor 8 (end) - scrolls to show "efgh".
-      _frame(5, 1).renderNode(textInput(model, Theme.dark));
+      _frame(5, 1).render(TextInput(model: model, theme: Theme.dark));
 
       // Move cursor left within the scrolled window.
       model.cursor = 7;
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('e'));
       expect(frame.cursorPosition, equals(const Position(3, 0)));
@@ -86,11 +86,11 @@ void main() {
       final model = TextInputModel(initial: 'abcdefgh', focused: true);
 
       // First scroll right by rendering with the cursor at the end.
-      _frame(5, 1).renderNode(textInput(model, Theme.dark));
+      _frame(5, 1).render(TextInput(model: model, theme: Theme.dark));
 
       // Then jump to the beginning - should scroll back.
       model.cursor = 0;
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
       expect(frame.cursorPosition, equals(Position.origin));
@@ -101,7 +101,7 @@ void main() {
       // cursor at end (pos 4), cursorDisplayPos = 5.
       // scrollOffset = 5 - 4 + 1 = 2. Shows: "👋c" with cursor at col 4 (after 'c').
       final model = TextInputModel(initial: 'ab👋c', focused: true);
-      final frame = _frame(4, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(4, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('👋'));
       expect(frame.buffer[(x: 2, y: 0)].symbol, equals('c'));
@@ -110,7 +110,7 @@ void main() {
 
     test('scrolls to keep the cursor in view when the value overflows the field', () {
       final model = TextInputModel(id: 'in', initial: 'hello world', focused: true);
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // Cursor sits at the end (index 11 of 11); a 5-wide field scrolls right
       // by 7 columns to keep it in view, showing the tail "orld".
@@ -120,7 +120,7 @@ void main() {
 
     test('fills remaining width with fillChar', () {
       final model = TextInputModel(id: 'in', initial: 'ab', fillChar: '_');
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), 'ab___\n');
     });
 
@@ -131,7 +131,7 @@ void main() {
       // scroll/fillChar paint path is new; confirm it too paints through a
       // bare Surface with no BufferSurface underneath.
       final model = TextInputModel(id: 'in', initial: 'ab', fillChar: '_');
-      final node = textInput(model, Theme.dark)
+      final node = TextInput(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(5, 1)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -147,7 +147,7 @@ void main() {
   group('text input view / fill and style overrides', () {
     test('fills remaining space after the placeholder', () {
       final model = TextInputModel(placeholder: 'Hi', fillChar: '.');
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // 'Hi' takes 2 chars, fill 8 dots.
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('H'));
@@ -158,7 +158,7 @@ void main() {
 
     test('fills to maxLength, not the full field width, when maxLength is set', () {
       final model = TextInputModel(initial: 'abc', maxLength: 10, fillChar: '_');
-      final frame = _frame(20, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(20, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // 'abc' takes 3 chars, fill to maxLength (10), so 7 underscores.
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -177,7 +177,7 @@ void main() {
           fill: Style(fg: Color.red, bg: Color.blue),
         ),
       );
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // Text cells should have default style.
       expect(frame.buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
@@ -190,7 +190,7 @@ void main() {
 
     test('applies theme fg to input text', () {
       final model = TextInputModel(initial: 'hello');
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
       // Text gets theme.background.fg.
@@ -203,7 +203,7 @@ void main() {
         placeholder: 'Type here',
         style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
       );
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('T'));
       expect(frame.buffer[(x: 0, y: 0)].fg, equals(Color.gray));
@@ -215,7 +215,7 @@ void main() {
         obscureText: true,
         style: const TextInputStyle(obscured: Style(fg: Color.yellow)),
       );
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // Uses the obscured style, not the plain text style.
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('•'));
@@ -224,7 +224,7 @@ void main() {
 
     test('no fill when the text already fills the entire maxLength', () {
       final model = TextInputModel(initial: 'abcde', maxLength: 5, fillChar: '_');
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 4, y: 0)].symbol, equals('e'));
       expect(frame.buffer[(x: 5, y: 0)].symbol, equals(' ')); // no fill
@@ -233,7 +233,7 @@ void main() {
     test('handles wide fill characters', () {
       // Using a wide char like '＿' (fullwidth low line, 2 cols).
       final model = TextInputModel(initial: 'ab', fillChar: '＿');
-      final frame = _frame(10, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // 'ab' = 2 cols, remaining 8 cols, wide char = 2 cols each, so 4 chars.
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -244,7 +244,7 @@ void main() {
     test('maxLength is clamped to the visible width', () {
       // maxLength 20 but only 5 visible.
       final model = TextInputModel(initial: 'ab', maxLength: 20, fillChar: '_');
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       // Should only fill up to the visible width (5), not maxLength (20).
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('a'));
@@ -257,7 +257,7 @@ void main() {
   group('text input click routing', () {
     test('a click on the field resolves to its id', () {
       final model = TextInputModel(id: 'in', initial: 'hi', focused: true);
-      final frame = _frame(5, 1)..renderNode(textInput(model, Theme.dark));
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.hitId(0, 0), 'in');
       expect(frame.hitId(4, 0), 'in');

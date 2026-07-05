@@ -430,7 +430,7 @@ r0   LongEno...0''',
 
       test('right alignment', () async {
         final columns = [
-          TableColumn(field: 'id', label: Line('ID'), width: 8, alignment: Alignment.right),
+          TableColumn(field: 'id', label: Line('ID'), width: 8, alignment: TextAlign.end),
         ];
         final rows = [
           {'id': 'X'},
@@ -452,7 +452,7 @@ r0   LongEno...0''',
 
       test('center alignment', () async {
         final columns = [
-          TableColumn(field: 'id', label: Line('ID'), width: 8, alignment: Alignment.center),
+          TableColumn(field: 'id', label: Line('ID'), width: 8, alignment: TextAlign.center),
         ];
         final rows = [
           {'id': 'XX'},
@@ -717,7 +717,7 @@ ID
           field: 'a',
           label: Line('A'),
           width: 15,
-          alignment: Alignment.right,
+          alignment: TextAlign.end,
           render: (ctx) {
             captured = ctx;
             return Line('');
@@ -735,7 +735,7 @@ ID
         expect(captured!.column, same(col));
         expect(captured!.column.field, equals('a'));
         expect(captured!.column.width, equals(15));
-        expect(captured!.column.alignment, equals(Alignment.right));
+        expect(captured!.column.alignment, equals(TextAlign.end));
       });
 
       test('render can access other columns via row', () async {

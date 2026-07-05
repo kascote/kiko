@@ -44,7 +44,7 @@ void main() {
   group('table view render', () {
     test('draws the sticky header and the visible rows', () async {
       final model = await _seededTable();
-      final frame = _frame(7, 3)..renderNode(tableView(model: model, theme: Theme.dark));
+      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), 'ID Name\n1  Al\n2  Bo\n');
     });
 
@@ -53,7 +53,7 @@ void main() {
       // taken through plume's own RecordingSurface saw a border and nothing
       // else. Rows now paint through the plume Surface protocol directly.
       final model = await _seededTable();
-      final node = tableView(model: model, theme: Theme.dark)
+      final node = TableView(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(7, 3)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -73,7 +73,7 @@ void main() {
   group('table view click routing', () {
     test('a click in the table resolves to its id', () async {
       final model = await _seededTable(id: 'grid');
-      final frame = _frame(7, 3)..renderNode(tableView(model: model, theme: Theme.dark));
+      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
       expect(frame.hitId(0, 0), 'grid');
       expect(frame.hitId(3, 1), 'grid');
     });

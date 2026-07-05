@@ -37,14 +37,14 @@ void main() {
           TreeNode(path: '/a/c2', label: Line('Child2'), isLeaf: true),
         ]);
 
-      final frame = _frame(12, 3)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(12, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), '▼ Parent\n    Child1\n    Child2\n');
     });
 
     test('shows the empty placeholder before roots load', () {
       final model = TreeViewModel<String>();
       final frame = _frame(9, 1)
-        ..renderNode(treeView<String>(model: model, theme: Theme.dark, emptyPlaceholder: Line('(empty)')));
+        ..render(TreeView<String>(model: model, theme: Theme.dark, emptyPlaceholder: Line('(empty)')));
       expect(_dump(frame.buffer), '(empty)\n');
     });
 
@@ -59,7 +59,7 @@ void main() {
           TreeNode(path: '/a/b/c', label: Line('Level2'), isLeaf: true),
         ]);
 
-      final frame = _frame(14, 3)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(14, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), '▼ Root\n  ▼ Level1\n      Level2\n');
     });
 
@@ -72,7 +72,7 @@ void main() {
           TreeNode(path: '/a/f', label: Line('File'), icon: '📄', isLeaf: true),
         ]);
 
-      final frame = _frame(20, 2)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(20, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), '▼ 📁 Folder\n     📄 File\n');
     });
 
@@ -86,7 +86,7 @@ void main() {
           TreeNode(path: '/a/leaf', label: Line('Leaf'), isLeaf: true),
         ]);
 
-      final frame = _frame(12, 3)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(12, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), '▼ Parent\n  ▶ Branch\n    Leaf\n');
     });
 
@@ -98,7 +98,7 @@ void main() {
       final model = TreeViewModel<String>(focused: true)
         ..setVisibleCount(10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'), isLeaf: true)]);
-      final node = treeView<String>(model: model, theme: Theme.dark)
+      final node = TreeView<String>(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(6, 1)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -116,7 +116,7 @@ void main() {
       final model = TreeViewModel<String>(id: 'files')
         ..setVisibleCount(10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))]);
-      final frame = _frame(10, 2)..renderNode(treeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
 
       expect(frame.hitId(0, 0), 'files');
       expect(frame.hitId(3, 0), 'files');

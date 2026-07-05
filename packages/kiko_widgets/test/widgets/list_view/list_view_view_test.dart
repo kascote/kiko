@@ -33,13 +33,13 @@ List<Line> _row(String item, int index, ItemState state) => [Line(item)];
 void main() {
   group('list view render', () {
     test('draws the visible items inside a bordered box', () {
-      final node = listView<String, String>(
+      final node = ListView<String, String>(
         model: _list(<String>['Apple', 'Banana', 'Cherry']),
         theme: Theme.dark,
         itemBuilder: _row,
         border: BorderType.plain,
       );
-      final frame = _frame(12, 5)..renderNode(node);
+      final frame = _frame(12, 5)..render(node);
 
       expect(_dump(frame.buffer), '''
 ┌──────────┐
@@ -52,26 +52,26 @@ void main() {
 
     test('windows the rows to the scroll offset', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
-      final node = listView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
 
       // First frame fixes the visible count (3 rows) the model scrolls against.
-      expect(_dump((_frame(5, 3)..renderNode(node)).buffer), 'a\nb\nc\n');
+      expect(_dump((_frame(5, 3)..render(node)).buffer), 'a\nb\nc\n');
 
       // Move the cursor to the end; the window slides down.
       for (var i = 0; i < 4; i++) {
         model.update(const KeyMsg('down'));
       }
-      expect(_dump((_frame(5, 3)..renderNode(node)).buffer), 'c\nd\ne\n');
+      expect(_dump((_frame(5, 3)..render(node)).buffer), 'c\nd\ne\n');
     });
 
     test('shows the empty placeholder when there are no items', () {
-      final node = listView<String, String>(
+      final node = ListView<String, String>(
         model: _list(<String>[]),
         theme: Theme.dark,
         itemBuilder: _row,
         emptyPlaceholder: Line('(empty)'),
       );
-      expect(_dump((_frame(9, 1)..renderNode(node)).buffer), '(empty)\n');
+      expect(_dump((_frame(9, 1)..render(node)).buffer), '(empty)\n');
     });
 
     test('paints real row content through a RecordingSurface, not a hole', () {
@@ -79,9 +79,10 @@ void main() {
       // taken through plume's own RecordingSurface saw a border and nothing
       // else. Rows now paint through the plume Surface protocol directly, so
       // the focused row's fill and its text both land here too.
-      final node = listView<String, String>(model: _list(<String>['Apple']), theme: Theme.dark, itemBuilder: _row)
-        ..layout(plume.BoxConstraints.tight(const plume.Size(5, 1)), _ctx)
-        ..place(plume.Offset.zero);
+      final node =
+          ListView<String, String>(model: _list(<String>['Apple']), theme: Theme.dark, itemBuilder: _row).build()
+            ..layout(plume.BoxConstraints.tight(const plume.Size(5, 1)), _ctx)
+            ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
       node.paint(surface);
 
@@ -99,8 +100,7 @@ void main() {
         dataView: DataView.fromList<String>(<String>['a', 'b']),
         focused: true,
       );
-      final frame = _frame(5, 2)
-        ..renderNode(listView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
+      final frame = _frame(5, 2)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
 
       expect(frame.hitId(0, 0), 'menu');
       expect(frame.hitId(2, 1), 'menu');

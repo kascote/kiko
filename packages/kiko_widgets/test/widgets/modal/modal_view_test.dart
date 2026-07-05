@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -27,7 +26,7 @@ void main() {
   group('modalDialog', () {
     test('tags the dialog with the given id', () {
       final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
-      final frame = _frame(10, 3)..renderNode(dialog);
+      final frame = _frame(10, 3)..render(NodeView(dialog));
       expect(frame.rectOf('confirm'), isNotNull);
     });
   });
@@ -41,7 +40,7 @@ void main() {
         width: 6,
         height: 4,
       );
-      final frame = _frame(20, 10)..renderNode(overlay);
+      final frame = _frame(20, 10)..render(NodeView(overlay));
       expect(frame.rectOf('confirm'), Rect.create(x: 7, y: 3, width: 6, height: 4));
     });
   });
@@ -55,10 +54,10 @@ void main() {
     });
 
     test('dims the backdrop then paints the dialog on top', () {
-      final base = box(
-        background: const Style(bg: Color.rgb(0xC8C8C8)),
-        child: plume.SizedBox<PaintToken>(width: 10, height: 3),
-      );
+      final base = const Box(
+        background: Style(bg: Color.rgb(0xC8C8C8)),
+        child: SizedBox(width: 10, height: 3),
+      ).build();
       final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
       final frame = _frame(10, 3);
       renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog);

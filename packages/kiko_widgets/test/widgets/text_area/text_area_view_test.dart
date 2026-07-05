@@ -29,18 +29,18 @@ void main() {
   group('text area render', () {
     test('draws the buffer lines', () {
       final model = TextAreaModel(id: 'ta', initial: 'ab\ncd', focused: true);
-      final frame = _frame(4, 2)..renderNode(textArea(model, Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), 'ab\ncd\n');
     });
 
     test('carries the cursor to the frame when focused', () {
       final focused = TextAreaModel(id: 'ta', initial: 'ab', focused: true);
-      final frame = _frame(4, 2)..renderNode(textArea(focused, Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: focused, theme: Theme.dark));
       expect(frame.cursorPosition, isNotNull);
       expect(frame.cursorPosition!.y, inInclusiveRange(0, 1));
 
       final blurred = TextAreaModel(id: 'ta', initial: 'ab');
-      final frame2 = _frame(4, 2)..renderNode(textArea(blurred, Theme.dark));
+      final frame2 = _frame(4, 2)..render(TextArea(model: blurred, theme: Theme.dark));
       expect(frame2.cursorPosition, isNull);
     });
 
@@ -51,7 +51,7 @@ void main() {
       // directly; only cursor reporting stays BufferSurface-only (plume has
       // no cursor concept of its own), so a RecordingSurface simply gets none.
       final model = TextAreaModel(id: 'ta', initial: 'ab', focused: true);
-      final node = textArea(model, Theme.dark)
+      final node = TextArea(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(4, 1)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -66,7 +66,7 @@ void main() {
   group('text area click routing', () {
     test('a click in the editor resolves to its id', () {
       final model = TextAreaModel(id: 'notes', initial: 'ab\ncd', focused: true);
-      final frame = _frame(4, 2)..renderNode(textArea(model, Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
       expect(frame.hitId(0, 0), 'notes');
       expect(frame.hitId(1, 1), 'notes');
     });

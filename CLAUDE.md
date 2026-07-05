@@ -93,7 +93,7 @@ Application(
 - `Buffer` - grid of `Cell`s (grapheme + fg/bg/modifiers)
 - `Layout` - cassowary-based constraint solver for splitting areas (`Rect`)
 - `Block` - base widget for borders/titles/padding
-- `Span`/`Line`/`Text` - styled text primitives
+- `Line`/`Text` - styled text primitives (Views)
 
 ### Layout System
 

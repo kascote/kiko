@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -26,7 +25,13 @@ String _dump(Buffer buffer) {
 void main() {
   group('button view', () {
     test('renders the label inside horizontal padding', () {
-      final frame = _frame(4, 1)..renderNode(button(ButtonModel(id: 'ok', label: Line('OK')), Theme.dark));
+      final frame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.dark,
+          ),
+        );
       // one pad cell, "OK", one pad cell (the trailing pad trims away).
       expect(_dump(frame.buffer), ' OK\n');
       expect(frame.rectOf('ok'), Rect.create(x: 0, y: 0, width: 4, height: 1));
@@ -34,7 +39,7 @@ void main() {
 
     test('keeps the label width while loading, indicator at the start', () {
       final model = ButtonModel(id: 'go', label: Line('HELLO'), loadingText: Line('.'), loading: true);
-      final frame = _frame(7, 1)..renderNode(button(model, Theme.dark));
+      final frame = _frame(7, 1)..render(Button(model: model, theme: Theme.dark));
       // width stays label+padding (7); "." sits at the start of the 5-cell content band.
       expect(_dump(frame.buffer), ' .\n');
       expect(frame.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
@@ -43,7 +48,13 @@ void main() {
 
   group('button click routing', () {
     test('a click resolves to the button under it, padding included', () {
-      final frame = _frame(4, 1)..renderNode(button(ButtonModel(id: 'ok', label: Line('OK')), Theme.dark));
+      final frame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.dark,
+          ),
+        );
       expect(frame.hitId(0, 0), 'ok'); // left padding cell
       expect(frame.hitId(1, 0), 'ok'); // the label
       expect(frame.hitId(3, 0), 'ok'); // right padding cell
@@ -51,9 +62,15 @@ void main() {
     });
 
     test('a click resolves to the right button among several', () {
-      final a = button(ButtonModel(id: 'a', label: Line('A')), Theme.dark);
-      final b = button(ButtonModel(id: 'b', label: Line('B')), Theme.dark);
-      final frame = _frame(6, 1)..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
+      final a = Button(
+        model: ButtonModel(id: 'a', label: Line('A')),
+        theme: Theme.dark,
+      );
+      final b = Button(
+        model: ButtonModel(id: 'b', label: Line('B')),
+        theme: Theme.dark,
+      );
+      final frame = _frame(6, 1)..render(Row(children: <View>[a, b]));
 
       expect(frame.hitId(1, 0), 'a');
       expect(frame.hitId(4, 0), 'b');

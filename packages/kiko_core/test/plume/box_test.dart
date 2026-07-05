@@ -22,20 +22,20 @@ String _render(plume.RenderNode<PaintToken> node, int width, int height) {
 }
 
 void main() {
-  group('box mapping', () {
+  group('Box mapping', () {
     test('no border produces a BorderBox with no border token', () {
-      final node = box(child: plume.SizedBox<PaintToken>(width: 1, height: 1)) as plume.BorderBox<PaintToken>;
+      final node = const Box(child: SizedBox(width: 1, height: 1)).build() as plume.BorderBox<PaintToken>;
       expect(node.border, isNull);
       expect(node.background, isNull);
     });
 
     test('a border type becomes one token carrying its glyphs and style', () {
       final node =
-          box(
+          const Box(
                 border: BorderType.plain,
-                borderStyle: const Style(fg: Color.red),
-                child: plume.SizedBox<PaintToken>(width: 1, height: 1),
-              )
+                borderStyle: Style(fg: Color.red),
+                child: SizedBox(width: 1, height: 1),
+              ).build()
               as plume.BorderBox<PaintToken>;
 
       expect(node.border, PaintToken(const Style(fg: Color.red), border: BorderType.plain.symbols(BorderType.plain)));
@@ -43,21 +43,21 @@ void main() {
 
     test('a non-empty style becomes the background fill', () {
       final node =
-          box(
-                background: const Style(bg: Color.blue),
-                child: plume.SizedBox<PaintToken>(width: 1, height: 1),
-              )
+          const Box(
+                background: Style(bg: Color.blue),
+                child: SizedBox(width: 1, height: 1),
+              ).build()
               as plume.BorderBox<PaintToken>;
       expect(node.background, const PaintToken(Style(bg: Color.blue)));
     });
 
     test('titles become edge labels at the start of their edge', () {
       final node =
-          box(
+          Box(
                 topTitles: <Line>[Line('Top')],
                 bottomTitles: <Line>[Line('Bot')],
-                child: plume.SizedBox<PaintToken>(width: 1, height: 1),
-              )
+                child: const SizedBox(width: 1, height: 1),
+              ).build()
               as plume.BorderBox<PaintToken>;
 
       expect(node.labels, hasLength(2));
@@ -68,13 +68,13 @@ void main() {
     });
   });
 
-  group('box rendering', () {
+  group('Box rendering', () {
     test('draws a bordered frame with a start-aligned title and body text', () {
-      final node = box(
+      final node = Box(
         border: BorderType.plain,
         topTitles: <Line>[Line('Hi')],
-        child: Line('body').build(),
-      );
+        child: Line('body'),
+      ).build();
 
       expect(_render(node, 10, 4), '''
 ┌Hi──────┐

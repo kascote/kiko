@@ -103,4 +103,23 @@ void main() {
       expect(b[(x: 2, y: 0)].symbol, 'b');
     });
   });
+
+  group('Frame.render', () {
+    test('inflates a view and paints it — the public entry', () {
+      final b = _buf(10, 1);
+      Frame(b.area, b, 0).render(Line('hi'));
+      expect(b[(x: 0, y: 0)].symbol, 'h');
+      expect(b[(x: 1, y: 0)].symbol, 'i');
+    });
+
+    test('forwards a cjk-configured measurer to layout', () {
+      // '│' is ambiguous width; the cjk measurer widens it, pushing 'b' right.
+      final b = _buf(5, 1);
+      Frame(b.area, b, 0).render(
+        const Row(children: <View>[Text('│'), Text('b')]),
+        measurer: const TermUnicodeMeasurer(cjk: true),
+      );
+      expect(b[(x: 2, y: 0)].symbol, 'b');
+    });
+  });
 }

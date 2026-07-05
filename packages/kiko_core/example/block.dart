@@ -101,7 +101,7 @@ View _styledTitle() => Box(
 View _styledTitleContent() => Box(
   border: BorderType.plain,
   topTitles: [
-    Line.fromSpans([
+    Line.fromTexts([
       Text(
         'Styled ',
         style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
@@ -142,7 +142,7 @@ View _titlesBothEdges() => Box(
 
 View _padding() => Box(
   border: BorderType.plain,
-  padding: const EdgeInsets.only(left: 5, top: 1, right: 10, bottom: 2),
+  padding: const EdgeInsets.only(left: 5, top: 1, right: 10),
   topTitles: [Line('Padding')],
   child: _placeHolder,
 );

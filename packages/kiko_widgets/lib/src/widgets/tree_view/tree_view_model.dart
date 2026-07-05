@@ -319,8 +319,8 @@ class TreeViewModel<T> implements Component, Loadable {
 
     void searchNodes(List<TreeNode<T>> nodes) {
       for (final node in nodes) {
-        // Check if label contains query (simplified - checks raw spans)
-        final labelText = node.label.spans.map((s) => s.content).join();
+        // Check if label contains query (simplified - checks raw text runs)
+        final labelText = node.label.texts.map((t) => t.content).join();
         if (labelText.toLowerCase().contains(lowerQuery)) {
           results.add(node);
         }

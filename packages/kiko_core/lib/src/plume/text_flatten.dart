@@ -15,30 +15,53 @@ import 'paint_token.dart';
 /// These are the shared inflate step behind `Text.build`, `Line.build`, and
 /// `paintLine`. They are internal to the package — authors compose `Text`/`Line`
 /// as views and never call these directly.
-
-/// Turns one [span] into a plume run, resolving its style against [base].
 ///
-/// The run keeps the span's text verbatim; its token carries [base] overlaid
-/// with the span's own style, so a caller passes the surrounding style as [base]
-/// and the span's style wins where the two disagree.
-plume.TextRun<PaintToken> spanRun(Text span, {Style base = const Style()}) =>
-    plume.TextRun(span.content, PaintToken(base.patch(span.style)));
+/// ## Naming: `Text` is a false friend across this bridge
+///
+/// The word `Text` names two different scales on the two sides handled here, so
+/// read the prefix, not just the word:
+///
+/// - **kiko `Text`** (unprefixed, from `../text/text.dart`) is one styled *run* —
+///   a contiguous stretch of characters sharing a single style. It is the chunk,
+///   the smallest styleable unit.
+/// - **`plume.Text`** (always prefixed) is a whole *row* — a text node built from
+///   a `List<plume.TextRun>` that a layout tree positions as one visual line.
+///
+/// So the scale mapping this file performs is deliberately *not* name-for-name:
+///
+/// | kiko (authoring) | plume (engine) | scale       |
+/// | ---------------- | -------------- | ----------- |
+/// | `Text`           | `plume.TextRun`| one run     |
+/// | `Line`           | `plume.Text`   | one row     |
+///
+/// A kiko `Text` (chunk) becomes a `plume.TextRun` (chunk); a kiko `Line` (row)
+/// becomes a `plume.Text` (row). Keeping the `plume.` prefix on every plume type
+/// is what keeps the two `Text`s from blurring — never drop it in this file.
 
-/// Turns one standalone [text] into a single-run plume text node.
+/// Turns one kiko [text] chunk into a `plume.TextRun`, resolving its style
+/// against [base].
+///
+/// The run keeps the text verbatim; its token carries [base] overlaid with the
+/// text's own style, so a caller passes the surrounding style as [base] and the
+/// text's style wins where the two disagree.
+plume.TextRun<PaintToken> textRun(Text text, {Style base = const Style()}) =>
+    plume.TextRun(text.content, PaintToken(base.patch(text.style)));
+
+/// Turns one standalone kiko [text] chunk into a single-run `plume.Text` row.
 ///
 /// The run resolves through [base] ▸ the text's own style. The node aligns at
 /// the start — position is the parent's job, not the text's.
 plume.Text<PaintToken> textNode(Text text, {Style base = const Style()}) =>
-    plume.Text<PaintToken>(<plume.TextRun<PaintToken>>[spanRun(text, base: base)]);
+    plume.Text<PaintToken>(<plume.TextRun<PaintToken>>[textRun(text, base: base)]);
 
-/// Turns one [line] into a single plume text node, one visual row of runs.
+/// Turns one kiko [line] into a single `plume.Text` node, one visual row of runs.
 ///
-/// Each span becomes a run whose style resolves through the chain [base] ▸
-/// line ▸ span, matching how kiko paints a line directly. The node aligns at the
+/// Each kiko `Text` becomes a run whose style resolves through the chain [base] ▸
+/// line ▸ text, matching how kiko paints a line directly. The node aligns at the
 /// start; a caller that owns a rect (a viewport row) chooses placement itself.
 plume.Text<PaintToken> lineNode(Line line, {Style base = const Style()}) {
   final lineBase = base.patch(line.style);
   return plume.Text<PaintToken>(
-    <plume.TextRun<PaintToken>>[for (final span in line.spans) spanRun(span, base: lineBase)],
+    <plume.TextRun<PaintToken>>[for (final text in line.texts) textRun(text, base: lineBase)],
   );
 }

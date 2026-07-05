@@ -107,7 +107,7 @@ void appView(AppModel model, Frame frame) {
                 Line('      ${contact.email}', style: theme.muted),
               ];
             },
-            separatorBuilder: () => Line.fromSpans([Text('─' * 40, style: theme.border)]),
+            separatorBuilder: () => Line.fromTexts([Text('─' * 40, style: theme.border)]),
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Contacts', style: theme.focus)],

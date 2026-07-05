@@ -27,8 +27,8 @@ Buffer {
 
     test('style', () {
       final buf = Buffer.fromLines([
-        Line.fromSpan(const Text('Hello World!', style: Style())),
-        Line.fromSpan(
+        Line.fromTexts(const [Text('Hello World!', style: Style())]),
+        Line.fromTexts([
           Text(
             "G'day World!",
             style: const Style(
@@ -36,7 +36,7 @@ Buffer {
               bg: Color.yellow,
             ).incModifier(Modifier.bold),
           ),
-        ),
+        ]),
       ]);
       expect(buf.debug(), '''
 Buffer {
@@ -330,8 +330,8 @@ Buffer {
     //   expect(
     //     buf.eq(
     //       Buffer.fromLines([
-    //         Line.fromSpan(const Text(content: 'foo', style: Style(fg: Color.red))),
-    //         Line.fromSpan(const Text(content: 'bar', style: Style(fg: Color.blue))),
+    //         Line.fromText(const Text(content: 'foo', style: Style(fg: Color.red))),
+    //         Line.fromText(const Text(content: 'bar', style: Style(fg: Color.blue))),
     //       ]),
     //     ),
     //     isTrue,

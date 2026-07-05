@@ -7,7 +7,7 @@ void main() async {
       _ => (null, null),
     },
     view: (_, frame) {
-      final greeting = Line.fromSpans(const [
+      final greeting = Line.fromTexts(const [
         Text('Hello, ', style: Style(fg: Color.red)),
         Text(
           'World',

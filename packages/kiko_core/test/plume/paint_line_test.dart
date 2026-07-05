@@ -11,7 +11,7 @@ void main() {
     });
 
     test('resolves the style chain base then line then span', () {
-      final line = Line.fromSpans(
+      final line = Line.fromTexts(
         const <Text>[Text('a', style: Style(fg: Color.red))],
         style: const Style(bg: Color.green),
       );

@@ -125,7 +125,7 @@ class TableRenderer {
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
       if (i > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromSpans([sep]), x: x, y: y, width: sepWidth);
+        paintLine(surface, Line.fromTexts([sep]), x: x, y: y, width: sepWidth);
         x += sepWidth;
       }
 
@@ -171,7 +171,7 @@ class TableRenderer {
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
       if (colIdx > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromSpans([sep]), x: x, y: area.y, width: sepWidth);
+        paintLine(surface, Line.fromTexts([sep]), x: x, y: area.y, width: sepWidth);
         x += sepWidth;
       }
 
@@ -234,33 +234,33 @@ class TableRenderer {
       return Line(ellipsis.substring(0, maxWidth.clamp(0, ellipsis.length)));
     }
 
-    // Rebuild spans with truncation
-    final spans = <Text>[];
+    // Rebuild texts with truncation
+    final texts = <Text>[];
     var remainingWidth = targetWidth;
 
-    for (final span in line.spans) {
+    for (final text in line.texts) {
       if (remainingWidth <= 0) break;
 
-      final spanWidth = span.width;
-      if (spanWidth <= remainingWidth) {
-        spans.add(span);
-        remainingWidth -= spanWidth;
+      final textWidth = text.width;
+      if (textWidth <= remainingWidth) {
+        texts.add(text);
+        remainingWidth -= textWidth;
       } else {
-        // Truncate this span
-        final truncated = _truncateSpan(span, remainingWidth);
-        if (truncated != null) spans.add(truncated);
+        // Truncate this text
+        final truncated = _truncateText(text, remainingWidth);
+        if (truncated != null) texts.add(truncated);
         remainingWidth = 0;
       }
     }
 
     // Add ellipsis
-    spans.add(Text(ellipsis));
-    return Line.fromSpans(spans, style: line.style);
+    texts.add(Text(ellipsis));
+    return Line.fromTexts(texts, style: line.style);
   }
 
-  /// Truncates a span to fit within [maxWidth].
-  Text? _truncateSpan(Text span, int maxWidth) {
-    final content = span.content;
+  /// Truncates a text run to fit within [maxWidth].
+  Text? _truncateText(Text text, int maxWidth) {
+    final content = text.content;
     final result = StringBuffer();
     var width = 0;
 
@@ -273,7 +273,7 @@ class TableRenderer {
 
     final truncated = result.toString();
     if (truncated.isEmpty) return null;
-    return Text(truncated, style: span.style);
+    return Text(truncated, style: text.style);
   }
 
   /// Aligns line content within [width].
@@ -288,11 +288,11 @@ class TableRenderer {
       TextAlign.end => (padding, 0),
     };
 
-    final spans = <Text>[];
-    if (leftPad > 0) spans.add(Text(' ' * leftPad));
-    spans.addAll(line.spans);
-    if (rightPad > 0) spans.add(Text(' ' * rightPad));
+    final texts = <Text>[];
+    if (leftPad > 0) texts.add(Text(' ' * leftPad));
+    texts.addAll(line.texts);
+    if (rightPad > 0) texts.add(Text(' ' * rightPad));
 
-    return Line.fromSpans(spans, style: line.style);
+    return Line.fromTexts(texts, style: line.style);
   }
 }

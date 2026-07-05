@@ -156,21 +156,21 @@ class _TreeViewport<T> extends Node {
   }
 
   Line _defaultNode(TreeNode<T> node, NodeState state, TreeViewModel<T> m) {
-    final spans = <Text>[];
+    final texts = <Text>[];
     if (node.isLeaf) {
-      spans.add(const Text('  '));
+      texts.add(const Text('  '));
     } else {
       final char = state.loading
           ? m.loadingChar
           : state.expanded
           ? m.expandedChar
           : m.collapsedChar;
-      spans.add(Text('$char ', style: m.indicatorStyle));
+      texts.add(Text('$char ', style: m.indicatorStyle));
     }
     if (m.showIcons && node.icon != null) {
-      spans.add(Text('${node.icon!} '));
+      texts.add(Text('${node.icon!} '));
     }
-    spans.addAll(node.label.spans);
-    return Line.fromSpans(spans, style: node.label.style);
+    texts.addAll(node.label.texts);
+    return Line.fromTexts(texts, style: node.label.style);
   }
 }

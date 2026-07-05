@@ -5,24 +5,24 @@ void main() {
   group('Line >', () {
     test('raw str', () {
       final line = Line('test content');
-      expect(line.spans, [const Text('test content')]);
+      expect(line.texts, [const Text('test content')]);
 
       final line2 = Line('a\nb');
-      expect(line2.spans, [const Text('a'), const Text('b')]);
+      expect(line2.texts, [const Text('a'), const Text('b')]);
     });
 
     test('styled str', () {
       const style = Style(fg: Color.yellow);
       const content = 'hello world';
       final line = Line(content, style: style);
-      expect(line.spans, [const Text(content)]);
+      expect(line.texts, [const Text(content)]);
       expect(line.style, style);
     });
 
     test('span iter', () {
       const content = [Text('1'), Text('2'), Text('3')];
-      final line = Line.fromSpans(content);
-      expect(line.spans, content);
+      final line = Line.fromTexts(content);
+      expect(line.texts, content);
     });
 
     test('style', () {
@@ -31,7 +31,7 @@ void main() {
     });
 
     test('width', () {
-      final line = Line.fromSpans(const [
+      final line = Line.fromTexts(const [
         Text('My', style: Style(fg: Color.red)),
         Text(' text'),
       ]);
@@ -76,11 +76,11 @@ void main() {
     test('from String', () {
       const s = 'Hello World!';
       final line = Line(s);
-      expect(line.spans, [const Text(s)]);
+      expect(line.texts, [const Text(s)]);
 
       const s2 = 'Hello\nWorld!';
       final line2 = Line(s2);
-      expect(line2.spans, [
+      expect(line2.texts, [
         const Text('Hello'),
         const Text('World!'),
       ]);
@@ -97,7 +97,7 @@ void main() {
               style: Style(fg: Color.blue),
             ),
           );
-      expect(line.spans, [
+      expect(line.texts, [
         const Text('Hello'),
         const Text(
           ' World!',
@@ -115,7 +115,7 @@ void main() {
       const greenOnWhite = Style(fg: Color.green, bg: Color.white);
       const blueOnWhite = Style(fg: Color.blue, bg: Color.white);
 
-      final line = Line.fromSpans(const [
+      final line = Line.fromTexts(const [
         Text('He', style: red),
         Text('ll', style: green),
         Text('o1', style: blue),
@@ -137,12 +137,12 @@ void main() {
         'A',
       ).add(const Text('B')).add(const Text('C'));
 
-      expect(line.spans, [const Text('A'), const Text('B'), const Text('C')]);
+      expect(line.texts, [const Text('A'), const Text('B'), const Text('C')]);
     });
 
     test('copyWith', () {
       final line = Line('foo', style: const Style(fg: Color.red));
-      final copy = line.copyWith(spans: [const Text('bar')]);
+      final copy = line.copyWith(texts: [const Text('bar')]);
       expect(copy, Line('bar', style: const Style(fg: Color.red)));
       final copy2 = line.copyWith(style: const Style(fg: Color.blue));
       expect(
@@ -158,7 +158,7 @@ void main() {
       final line = Line('foo');
       expect(line.toString(), '''
 Line(
-  spans: (Text(foo, Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))),
+  texts: [Text(foo, Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE)))],
   style: Style(fg: null, bg: null, underline: null, addModifier: Modifier(NONE), subModifier: Modifier(NONE))
 )
 ''');

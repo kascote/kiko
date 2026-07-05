@@ -335,19 +335,19 @@ class Buffer implements Equality<Buffer> {
     for (var y = 0; y < lines.length; y++) {
       var offset = 0;
       var xx = 0;
-      for (final span in lines[y].spans) {
-        for (final (i, char) in span.content.characters.indexed) {
+      for (final text in lines[y].texts) {
+        for (final (i, char) in text.content.characters.indexed) {
           b.setCellAtPos(
             x: xx + i + offset,
             y: y,
             char: char,
-            style: lines[y].style.patch(span.style),
+            style: lines[y].style.patch(text.style),
           );
           if (widthString(char) > 1) {
             offset++;
           }
         }
-        xx += span.width;
+        xx += text.width;
       }
     }
     return b;

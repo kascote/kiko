@@ -146,7 +146,7 @@ View _indexedCell16(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(2, '0');
   final bg = index < 1 ? Color.darkGray : Color.black;
-  return Line.fromSpans([
+  return Line.fromTexts([
     Text(
       colorIndex,
       style: Style(fg: color, bg: bg),
@@ -185,7 +185,7 @@ View _indexedColorBlock(int startIndex, int endIndex) {
 View _indexedCellSmall(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(3, '0');
-  return Line.fromSpans([
+  return Line.fromTexts([
     Text(
       colorIndex,
       style: Style(fg: color, bg: Color.reset),
@@ -215,7 +215,7 @@ View _grayScaleCell(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(3, '0');
   final bg = index < 244 ? Color.gray : Color.black;
-  return Line.fromSpans([
+  return Line.fromTexts([
     Text(
       colorIndex,
       style: Style(fg: color, bg: bg),

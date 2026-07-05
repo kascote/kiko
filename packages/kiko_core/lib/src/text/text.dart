@@ -45,8 +45,8 @@ class Text implements View {
   /// determined by the Unicode standard.
   int get width => widthString(_content);
 
-  /// Returns an iterator over the graphemes held by this span. Each grapheme
-  /// is returned as a [StyledChar] with the style of the span.
+  /// Returns an iterator over the graphemes held by this text. Each grapheme
+  /// is returned as a [StyledChar] with the style of the text.
   /// The [baseStyle] passed is patched against the current Text.style
   Iterable<StyledChar> styledChars(Style baseStyle) sync* {
     final newStyle = baseStyle.patch(_style);

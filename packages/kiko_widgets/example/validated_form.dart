@@ -161,12 +161,12 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = box(
+  final ui = Box(
     border: BorderType.plain,
     borderStyle: theme.border,
     topTitles: [Line('Validated Form Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         _fieldWithValidation(model.username, 'Username', model.usernameValid, theme),
         _fieldWithValidation(model.email, 'Email', model.emailValid, theme),
@@ -174,8 +174,8 @@ void appView(AppModel model, Frame frame) {
         // Submit status
         Padding(
           insets: const EdgeInsets.only(top: 1),
-          child: lineNode(
-            Line(
+          child: Center(
+            child: Line(
               model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
               style: Style(
                 fg: model.submitted
@@ -184,22 +184,22 @@ void appView(AppModel model, Frame frame) {
                     ? theme.error.fg
                     : theme.muted.fg,
               ),
-              alignment: Alignment.center,
             ),
           ),
         ),
         // Spacer
-        Expanded(child: SizedBox()),
+        const Expanded(child: SizedBox()),
         // Help
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted)),
+              child: Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(
-                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
               ),
             ),
           ],
@@ -208,12 +208,12 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-/// A bordered, titled field with a fixed-height [textInput] and a validation
+/// A bordered, titled field with a fixed-height [TextInput] and a validation
 /// status column to its right.
-Node _fieldWithValidation(
+View _fieldWithValidation(
   TextInputModel input,
   String label,
   ValidationResult validation,
@@ -230,14 +230,14 @@ Node _fieldWithValidation(
   return Row(
     children: [
       Expanded(
-        child: box(
+        child: Box(
           border: BorderType.plain,
           borderStyle: effectiveBorder,
           padding: const EdgeInsets.symmetric(horizontal: 1),
           topTitles: [Line(label)],
           child: ConstrainedBox(
             additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-            child: textInput(input, theme),
+            child: TextInput(model: input, theme: theme),
           ),
         ),
       ),
@@ -245,7 +245,7 @@ Node _fieldWithValidation(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
         child: Padding(
           insets: const EdgeInsets.only(left: 1, top: 1),
-          child: lineNode(Line(statusText, style: Style(fg: statusColor))),
+          child: Line(statusText, style: Style(fg: statusColor)),
         ),
       ),
     ],

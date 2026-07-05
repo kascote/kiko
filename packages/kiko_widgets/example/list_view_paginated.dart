@@ -152,54 +152,52 @@ void appView(AppModel model, Frame frame) {
       ? theme.warning.fg
       : theme.success.fg;
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('Paginated ListView Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: box(
+          child: ListView(
+            model: model.list,
+            theme: theme,
+            itemBuilder: (user, index, state) {
+              final roleStyle = switch (user.role) {
+                'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
+                'Manager' => Style(fg: theme.warning.fg),
+                'Member' => Style(fg: theme.accent.fg),
+                _ => theme.muted,
+              };
+              return [
+                Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
+                Line('  ${user.role} (${user.id})', style: roleStyle),
+              ];
+            },
+            separatorBuilder: () => Line.fromSpans([Text('─' * 30, style: theme.border)]),
+            emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Users', style: theme.focus)],
-            child: listView(
-              model: model.list,
-              theme: theme,
-              itemBuilder: (user, index, state) {
-                final roleStyle = switch (user.role) {
-                  'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
-                  'Manager' => Style(fg: theme.warning.fg),
-                  'Member' => Style(fg: theme.accent.fg),
-                  _ => theme.muted,
-                };
-                return [
-                  Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
-                  Line('  ${user.role} (${user.id})', style: roleStyle),
-                ];
-              },
-              separatorBuilder: () => Line.fromSpans([Text('─' * 30, style: theme.border)]),
-              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
-            ),
           ),
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: statusBorder,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Status')],
-            child: lineNode(Line(status, style: Style(fg: statusFg))),
+            child: Line(status, style: Style(fg: statusFg)),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted)),
+              child: Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
             ),
           ],
         ),
@@ -207,7 +205,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

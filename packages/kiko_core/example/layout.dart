@@ -18,31 +18,30 @@ const _cellHeight = 7;
 
 void draw(Frame frame) {
   final header = Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
-      lineNode(
-        Line(
+      Center(
+        child: Line(
           'Plume flex layout example',
           style: const Style(fg: Color.darkGray),
-          alignment: Alignment.center,
         ),
       ),
-      lineNode(Line('Each row cycles one flex knob across a fixed Row of three swatches.')),
-      lineNode(Line("Note: labels that don't fit their cell are truncated")),
+      Line('Each row cycles one flex knob across a fixed Row of three swatches.'),
+      Line("Note: labels that don't fit their cell are truncated"),
     ],
   );
 
   final ui = Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
       header,
-      SizedBox(height: 1),
+      const SizedBox(height: 1),
       _sectionTitle('MainAxisAlignment'),
       _row([for (final a in MainAxisAlignment.values) _cell(a.name, _mainAxisDemo(a))]),
-      SizedBox(height: 1),
+      const SizedBox(height: 1),
       _sectionTitle('CrossAxisAlignment'),
       _row([for (final a in CrossAxisAlignment.values) _cell(a.name, _crossAxisDemo(a))]),
-      SizedBox(height: 1),
+      const SizedBox(height: 1),
       _sectionTitle('Expanded flex ratios'),
       _row([
         _cell('1:1', _flexDemo(1, 1)),
@@ -51,26 +50,26 @@ void draw(Frame frame) {
         _cell('1:3', _flexDemo(1, 3)),
         _cell('3:1', _flexDemo(3, 1)),
       ]),
-      Expanded(child: SizedBox()),
+      const Expanded(child: SizedBox()),
     ],
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-Node _sectionTitle(String title) => lineNode(Line(title, style: const Style(fg: Color.darkGray)));
+View _sectionTitle(String title) => Line(title, style: const Style(fg: Color.darkGray));
 
-Node _row(List<Node> cells) => Row(children: cells);
+View _row(List<View> cells) => Row(children: cells);
 
 /// A titled, fixed-size cell holding one flex demo.
-Node _cell(String title, Node demo) => ConstrainedBox(
+View _cell(String title, View demo) => ConstrainedBox(
   additionalConstraints: const BoxConstraints(
     minW: _cellWidth,
     maxW: _cellWidth,
     minH: _cellHeight,
     maxH: _cellHeight,
   ),
-  child: box(
+  child: Box(
     border: BorderType.plain,
     borderStyle: const Style(fg: Color.darkGray),
     topTitles: [Line(title, style: const Style(fg: Color.green))],
@@ -79,16 +78,16 @@ Node _cell(String title, Node demo) => ConstrainedBox(
 );
 
 /// A same-size red/blue/green Row packed by [alignment].
-Node _mainAxisDemo(MainAxisAlignment alignment) => Row(
-  mainAxisAlignment: alignment,
+View _mainAxisDemo(MainAxisAlignment alignment) => Row(
+  mainAxis: alignment,
   children: [_swatch(Color.red), _swatch(Color.blue), _swatch(Color.green)],
 );
 
 /// A different-height red/blue/green Row positioned on the cross axis by
 /// [alignment] — `stretch` overrides each swatch's own height, the others
 /// keep it.
-Node _crossAxisDemo(CrossAxisAlignment alignment) => Row(
-  crossAxisAlignment: alignment,
+View _crossAxisDemo(CrossAxisAlignment alignment) => Row(
+  crossAxis: alignment,
   children: [
     _swatch(Color.red),
     _swatch(Color.blue, height: 3),
@@ -97,22 +96,22 @@ Node _crossAxisDemo(CrossAxisAlignment alignment) => Row(
 );
 
 /// Two Expanded swatches sharing the row's width by an [a]:[b] flex ratio.
-Node _flexDemo(int a, int b) => Row(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+View _flexDemo(int a, int b) => Row(
+  crossAxis: CrossAxisAlignment.stretch,
   children: [
     Expanded(flex: a, child: _fill(Color.red)),
     Expanded(flex: b, child: _fill(Color.blue)),
   ],
 );
 
-Node _swatch(Color color, {int width = 3, int height = 1}) => Container(
+View _swatch(Color color, {int width = 3, int height = 1}) => Container(
   width: width,
   height: height,
   background: PaintToken(Style(bg: color)),
-  child: SizedBox(),
+  child: const SizedBox(),
 );
 
-Node _fill(Color color) => Container(
+View _fill(Color color) => Container(
   background: PaintToken(Style(bg: color)),
-  child: SizedBox(),
+  child: const SizedBox(),
 );

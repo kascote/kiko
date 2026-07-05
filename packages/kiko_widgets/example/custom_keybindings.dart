@@ -107,31 +107,27 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = box(
+  final ui = Box(
     border: BorderType.plain,
     borderStyle: theme.border,
     topTitles: [Line('Custom Keybindings Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         _field(model.normal, 'Normal bindings', theme),
         _field(model.vim, 'Vim bindings', theme),
         // Info
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxis: CrossAxisAlignment.stretch,
             children: [
-              lineNode(
-                Line(
-                  model.message.isNotEmpty ? model.message : 'Type in the fields above',
-                  style: model.message.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
-                ),
+              Line(
+                model.message.isNotEmpty ? model.message : 'Type in the fields above',
+                style: model.message.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
               ),
-              SizedBox(height: 1),
-              lineNode(
-                Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted),
-              ),
-              lineNode(Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted)),
+              const SizedBox(height: 1),
+              Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted),
+              Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted),
             ],
           ),
         ),
@@ -139,12 +135,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted)),
+              child: Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(
-                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
               ),
             ),
           ],
@@ -153,18 +150,18 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-/// A bordered, titled field wrapping a fixed-height [textInput].
-Node _field(TextInputModel input, String label, Theme theme) => box(
+/// A bordered, titled field wrapping a fixed-height [TextInput].
+View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
   borderStyle: input.focused ? theme.focus : theme.border,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: textInput(input, theme),
+    child: TextInput(model: input, theme: theme),
   ),
 );
 

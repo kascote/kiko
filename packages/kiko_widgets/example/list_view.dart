@@ -106,46 +106,42 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('ListView Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: box(
+          child: ListView(
+            model: model.list,
+            theme: theme,
+            itemBuilder: (item, index, _) => [Line(' $item')],
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Fruits (${fruits.length})', style: theme.focus)],
-            child: listView(
-              model: model.list,
-              theme: theme,
-              itemBuilder: (item, index, _) => [Line(' $item')],
-            ),
           ),
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: model.selected != null ? theme.success : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
-            child: lineNode(
-              Line(
-                model.selected ?? 'Press Enter to select',
-                style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
-              ),
+            child: Line(
+              model.selected ?? 'Press Enter to select',
+              style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
             ),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted)),
+              child: Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
             ),
           ],
         ),
@@ -153,7 +149,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

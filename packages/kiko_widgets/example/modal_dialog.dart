@@ -57,28 +57,24 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final base = box(
+  final base = Box(
     border: BorderType.rounded,
     borderStyle: theme.border,
     padding: const EdgeInsets.all(1),
     topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
-        lineNode(Line('Count: ${model.count}', style: Style(fg: theme.accent.fg))),
-        SizedBox(height: 1),
-        lineNode(Line('Some colourful background content:')),
-        lineNode(Line('  Red', style: const Style(fg: Color.red))),
-        lineNode(Line('  Green', style: const Style(fg: Color.green))),
-        lineNode(Line('  Blue', style: const Style(fg: Color.blue))),
-        Expanded(child: SizedBox()),
-        lineNode(
-          Line(
-            model.lastAction.isEmpty
-                ? '[m] open dialog   [q] quit'
-                : 'Last: ${model.lastAction}   [m] again   [q] quit',
-            style: theme.muted,
-          ),
+        Line('Count: ${model.count}', style: Style(fg: theme.accent.fg)),
+        const SizedBox(height: 1),
+        Line('Some colourful background content:'),
+        Line('  Red', style: const Style(fg: Color.red)),
+        Line('  Green', style: const Style(fg: Color.green)),
+        Line('  Blue', style: const Style(fg: Color.blue)),
+        const Expanded(child: SizedBox()),
+        Line(
+          model.lastAction.isEmpty ? '[m] open dialog   [q] quit' : 'Last: ${model.lastAction}   [m] again   [q] quit',
+          style: theme.muted,
         ),
       ],
     ),
@@ -90,18 +86,18 @@ void appView(AppModel model, Frame frame) {
       theme: theme,
       topTitles: [Line(' Confirm ', style: Style(fg: theme.warning.fg))],
       content: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxis: MainAxisAlignment.center,
         children: [
-          lineNode(Line('Add 10 to the counter?', alignment: Alignment.center)),
-          SizedBox(height: 1),
-          lineNode(Line('[Enter] OK   [Esc] Cancel', alignment: Alignment.center, style: theme.muted)),
+          Center(child: Line('Add 10 to the counter?')),
+          const SizedBox(height: 1),
+          Center(child: Line('[Enter] OK   [Esc] Cancel', style: theme.muted)),
         ],
-      ),
+      ).build(),
     ),
     null => null,
   };
 
-  renderModalOverlay(frame, base: base, width: 40, height: 7, dialog: dialog);
+  renderModalOverlay(frame, base: base.build(), width: 40, height: 7, dialog: dialog);
 }
 
 // ═══════════════════════════════════════════════════════════

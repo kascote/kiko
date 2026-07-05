@@ -82,12 +82,12 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final ui = box(
+  final ui = Box(
     border: BorderType.plain,
     borderStyle: theme.border,
     topTitles: [Line('Manual Focus Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         _field(model.name, 'Name', theme),
         _field(model.email, 'Email', theme),
@@ -95,7 +95,7 @@ void appView(AppModel model, Frame frame) {
         // Status
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxis: CrossAxisAlignment.stretch,
             children: [
               for (final line in [
                 'Focus index: ${model.focusIndex}',
@@ -105,7 +105,7 @@ void appView(AppModel model, Frame frame) {
                 'Email: "${model.email.value}"',
                 'Phone: "${model.phone.value}"',
               ])
-                lineNode(Line(line, style: Style(fg: theme.background.fg))),
+                Line(line, style: Style(fg: theme.background.fg)),
             ],
           ),
         ),
@@ -113,12 +113,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted)),
+              child: Line('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(
-                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
               ),
             ),
           ],
@@ -127,18 +128,18 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-/// A bordered, titled field wrapping a fixed-height [textInput].
-Node _field(TextInputModel input, String label, Theme theme) => box(
+/// A bordered, titled field wrapping a fixed-height [TextInput].
+View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
   borderStyle: input.focused ? theme.focus : theme.border,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: textInput(input, theme),
+    child: TextInput(model: input, theme: theme),
   ),
 );
 

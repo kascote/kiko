@@ -132,7 +132,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final treeWidget = treeView(
+  final treeWidget = TreeView(
     model: model.tree,
     theme: theme,
     border: BorderType.plain,
@@ -142,16 +142,14 @@ void appView(AppModel model, Frame frame) {
 
   final infoBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: box(
+    child: Box(
       border: BorderType.plain,
       borderStyle: model.selectedPath != null ? theme.success : theme.border,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selected')],
-      child: lineNode(
-        Line(
-          model.selectedPath ?? 'Press Enter to select',
-          style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
-        ),
+      child: Line(
+        model.selectedPath ?? 'Press Enter to select',
+        style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
       ),
     ),
   );
@@ -159,24 +157,22 @@ void appView(AppModel model, Frame frame) {
   final help = Row(
     children: [
       Expanded(
-        child: lineNode(
-          Line(
-            '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
-            style: theme.muted,
-          ),
+        child: Line(
+          '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
+          style: theme.muted,
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
       ),
     ],
   );
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('TreeView Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: treeWidget),
         infoBox,
@@ -185,7 +181,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

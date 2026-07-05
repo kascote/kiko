@@ -75,52 +75,50 @@ void appView(AppModel model, Frame frame) {
 
   final e = model.editor;
 
-  final ui = box(
+  final ui = Box(
     border: BorderType.plain,
     borderStyle: theme.border,
     topTitles: [Line('TextArea Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         _field(model.title, 'Title', theme),
         _field(model.author, 'Author', theme),
         // Editor panel
         Expanded(
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: model.editor.focused ? theme.focus : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Content')],
-            child: textArea(model.editor, theme),
+            child: TextArea(model: model.editor, theme: theme),
           ),
         ),
         // Status bar
         Row(
           children: [
             Expanded(
-              child: lineNode(
-                Line(
-                  'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
-                  '${e.lineCount} lines | '
-                  '${e.length} chars | '
-                  'Focus: ${_focusName(model.focus.index)}',
-                  style: theme.muted,
-                ),
+              child: Line(
+                'Ln ${e.cursorRow + 1}, Col ${e.cursorCol + 1} | '
+                '${e.lineCount} lines | '
+                '${e.length} chars | '
+                'Focus: ${_focusName(model.focus.index)}',
+                style: theme.muted,
               ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(
-                Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted, alignment: Alignment.right),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
               ),
             ),
           ],
         ),
         // Help
-        lineNode(
-          Line(
+        Center(
+          child: Line(
             'Tab/Shift+Tab to switch | Esc quit',
-            alignment: Alignment.center,
             style: theme.muted,
           ),
         ),
@@ -128,18 +126,18 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-/// A bordered, titled field wrapping a fixed-height [textInput].
-Node _field(TextInputModel input, String label, Theme theme) => box(
+/// A bordered, titled field wrapping a fixed-height [TextInput].
+View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
   borderStyle: input.focused ? theme.focus : theme.border,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: textInput(input, theme),
+    child: TextInput(model: input, theme: theme),
   ),
 );
 

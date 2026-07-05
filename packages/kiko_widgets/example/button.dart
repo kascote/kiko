@@ -162,12 +162,12 @@ void appView(AppModel model, Frame frame) {
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
   final ui = Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
       // Top row: Basic + Styled
       Expanded(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxis: CrossAxisAlignment.stretch,
           children: [
             // Pane 1: Basic buttons (theme-derived styles)
             Expanded(
@@ -193,7 +193,7 @@ void appView(AppModel model, Frame frame) {
       // Bottom row: Vertical + States
       Expanded(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxis: CrossAxisAlignment.stretch,
           children: [
             // Pane 3: Vertical layout (theme-derived)
             Expanded(
@@ -220,21 +220,20 @@ void appView(AppModel model, Frame frame) {
       Row(
         children: [
           Expanded(
-            child: lineNode(
-              Line(
-                model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
-                style: Style(fg: theme.accent.fg),
-              ),
+            child: Line(
+              model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
+              style: Style(fg: theme.accent.fg),
             ),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-            child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+            child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 30, maxW: 30),
-            child: lineNode(
-              Line('Tab: pane | Esc: quit', style: theme.muted, alignment: Alignment.right),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Line('Tab: pane | Esc: quit', style: theme.muted),
             ),
           ),
         ],
@@ -242,26 +241,26 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
-Node _buildPane(
+View _buildPane(
   Theme theme,
   String title,
   bool focused,
-  Node buttons,
+  View buttons,
 ) {
   final borderStyle = focused ? theme.focus : theme.border;
   final titleStyle = focused ? theme.focus : theme.muted;
-  return box(
+  return Box(
     border: BorderType.plain,
     borderStyle: borderStyle,
     padding: const EdgeInsets.all(1),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
-        lineNode(Line(title, style: titleStyle)),
-        SizedBox(height: 1), // Spacer
+        Line(title, style: titleStyle),
+        const SizedBox(height: 1), // Spacer
         Expanded(child: buttons),
       ],
     ),
@@ -269,51 +268,51 @@ Node _buildPane(
 }
 
 /// Build horizontal button layout with custom gap.
-Node _buildHorizontalButtons(
+View _buildHorizontalButtons(
   ButtonGroupModel group, {
   required Theme theme,
   int gap = 1,
 }) {
-  final children = <Node>[];
+  final children = <View>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
       children.add(SizedBox(width: gap, height: 1));
     }
-    children.add(button(group.buttons[i], theme));
+    children.add(Button(model: group.buttons[i], theme: theme));
   }
   return Row(children: children);
 }
 
 /// Build styled buttons with per-button overrides.
-Node _buildStyledButtons(
+View _buildStyledButtons(
   ButtonGroupModel group, {
   required Theme theme,
 }) {
-  final children = <Node>[];
+  final children = <View>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0) {
-      children.add(SizedBox(width: 1, height: 1));
+      children.add(const SizedBox(width: 1, height: 1));
     }
     final btnModel = group.buttons[i];
     children.add(
-      button(btnModel, theme, styleOverrides: _styledOverrides[btnModel.id]),
+      Button(model: btnModel, theme: theme, styleOverrides: _styledOverrides[btnModel.id]),
     );
   }
   return Row(children: children);
 }
 
 /// Build vertical button layout with gap.
-Node _buildVerticalButtons(
+View _buildVerticalButtons(
   ButtonGroupModel group, {
   required Theme theme,
   int gap = 1,
 }) {
-  final children = <Node>[];
+  final children = <View>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0 && gap > 0) {
       children.add(SizedBox(height: gap));
     }
-    children.add(button(group.buttons[i], theme));
+    children.add(Button(model: group.buttons[i], theme: theme));
   }
   return Column(children: children);
 }

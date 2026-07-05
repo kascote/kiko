@@ -128,25 +128,23 @@ void appView(AppModel model, Frame frame) {
 
   final resultText = model.result != null ? 'Last result: ${model.result}' : 'No result yet';
 
-  final ui = box(
+  final ui = Box(
     border: BorderType.plain,
     topTitles: [Line('Async Task Demo')],
     child: Column(
       children: [
         Expanded(
-          child: lineNode(
-            Line(
+          child: Center(
+            child: Line(
               model.status,
-              alignment: Alignment.center,
               style: Style(fg: statusColor),
             ),
           ),
         ),
-        lineNode(Line(resultText, alignment: Alignment.center)),
-        lineNode(
-          Line(
+        Center(child: Line(resultText)),
+        Center(
+          child: Line(
             model.loading ? '⏳ Loading...' : '(q=quit, enter=fetch)',
-            alignment: Alignment.center,
             style: const Style(fg: Color.darkGray),
           ),
         ),
@@ -154,7 +152,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

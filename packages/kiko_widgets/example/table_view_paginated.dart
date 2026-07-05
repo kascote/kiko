@@ -133,7 +133,7 @@ class AppModel with ThemeSwitcher {
         field: 'price',
         label: Line('Price', style: defaultHeaderStyle),
         width: 10,
-        alignment: Alignment.right,
+        alignment: TextAlign.end,
         render: (ctx) {
           final price = ctx.value as double? ?? 0.0;
           return Line('\$${price.toStringAsFixed(2)}');
@@ -143,7 +143,7 @@ class AppModel with ThemeSwitcher {
         field: 'stock',
         label: Line('Stock', style: defaultHeaderStyle),
         width: 8,
-        alignment: Alignment.right,
+        alignment: TextAlign.end,
         render: (ctx) {
           final stock = ctx.value as int? ?? 0;
           final color = stock < 50
@@ -256,7 +256,7 @@ void appView(AppModel model, Frame frame) {
 
   final loading = table.isLoading();
 
-  final tableWidget = tableView(
+  final tableWidget = TableView(
     model: table,
     theme: theme,
     border: BorderType.plain,
@@ -269,7 +269,7 @@ void appView(AppModel model, Frame frame) {
 
   final statusBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: box(
+    child: Box(
       border: BorderType.plain,
       borderStyle: model.error != null
           ? theme.error
@@ -278,16 +278,14 @@ void appView(AppModel model, Frame frame) {
           : theme.success,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Status')],
-      child: lineNode(
-        Line(
-          status,
-          style: Style(
-            fg: model.error != null
-                ? theme.error.fg
-                : loading
-                ? theme.warning.fg
-                : theme.success.fg,
-          ),
+      child: Line(
+        status,
+        style: Style(
+          fg: model.error != null
+              ? theme.error.fg
+              : loading
+              ? theme.warning.fg
+              : theme.success.fg,
         ),
       ),
     ),
@@ -304,24 +302,22 @@ void appView(AppModel model, Frame frame) {
   final help = Row(
     children: [
       Expanded(
-        child: lineNode(
-          Line(
-            '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
-            style: theme.muted,
-          ),
+        child: Line(
+          '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
+          style: theme.muted,
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
       ),
     ],
   );
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('Paginated TableView Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: tableWidget),
         statusBox,
@@ -330,7 +326,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

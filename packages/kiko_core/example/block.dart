@@ -13,11 +13,10 @@ Future<void> main() async {
 }
 
 void draw(Frame frame) {
-  final rows = <Node>[
-    lineNode(
-      Line(
+  final rows = <View>[
+    Center(
+      child: Line(
         'Block example. Press q to quit',
-        alignment: Alignment.center,
         style: const Style(fg: Color.darkGray),
       ),
     ),
@@ -27,7 +26,7 @@ void draw(Frame frame) {
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minH: 4, maxH: 4),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxis: CrossAxisAlignment.stretch,
           children: [
             Expanded(child: _demos[i]()),
             Expanded(child: _demos[i + 1]()),
@@ -37,15 +36,15 @@ void draw(Frame frame) {
     );
   }
 
-  frame.renderNode(
-    Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows),
+  frame.render(
+    Column(crossAxis: CrossAxisAlignment.stretch, children: rows),
   );
 }
 
 /// Demo cells, two per grid row. `Borders.left/right/top/bottom` had no
-/// plume-native replacement — [box] only ever draws a uniform border on all
+/// plume-native replacement — [Box] only ever draws a uniform border on all
 /// four sides or none — so only the ALL/NONE cases from that old demo survive.
-final _demos = <Node Function()>[
+final _demos = <View Function()>[
   _bordersAll,
   _bordersNone,
   () => _borderType(BorderType.plain, 'PLAIN'),
@@ -57,7 +56,7 @@ final _demos = <Node Function()>[
   _styledTitle,
   _styledTitleContent,
   _multipleTitles,
-  _multipleTitlePositions,
+  _titlesBothEdges,
   _padding,
   _nestedBlocks,
 ];
@@ -67,28 +66,28 @@ final _placeHolder = Line(
   style: const Style(fg: Color.darkGray),
 );
 
-Node _bordersAll() => box(border: BorderType.plain, topTitles: [Line('Borders::ALL')], child: lineNode(_placeHolder));
+View _bordersAll() => Box(border: BorderType.plain, topTitles: [Line('Borders::ALL')], child: _placeHolder);
 
-Node _bordersNone() => box(topTitles: [Line('Borders::NONE')], child: lineNode(_placeHolder));
+View _bordersNone() => Box(topTitles: [Line('Borders::NONE')], child: _placeHolder);
 
-Node _borderType(BorderType type, String name) =>
-    box(border: type, topTitles: [Line('BorderType::$name')], child: lineNode(_placeHolder));
+View _borderType(BorderType type, String name) =>
+    Box(border: type, topTitles: [Line('BorderType::$name')], child: _placeHolder);
 
-Node _styledBlock() => box(
+View _styledBlock() => Box(
   border: BorderType.plain,
   background: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
   topTitles: [Line('Styled block')],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _styledBorder() => box(
+View _styledBorder() => Box(
   border: BorderType.plain,
   borderStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
   topTitles: [Line('Styled borders')],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _styledTitle() => box(
+View _styledTitle() => Box(
   border: BorderType.plain,
   topTitles: [
     Line(
@@ -96,10 +95,10 @@ Node _styledTitle() => box(
       style: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
     ),
   ],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _styledTitleContent() => box(
+View _styledTitleContent() => Box(
   border: BorderType.plain,
   topTitles: [
     Line.fromSpans([
@@ -113,10 +112,10 @@ Node _styledTitleContent() => box(
       ),
     ]),
   ],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _multipleTitles() => box(
+View _multipleTitles() => Box(
   border: BorderType.plain,
   topTitles: [
     Line(
@@ -128,33 +127,28 @@ Node _multipleTitles() => box(
       style: Style(fg: Color.red, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
     ),
   ],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _multipleTitlePositions() => box(
+/// Per-title side positioning (left/center/right) had no plume-native
+/// replacement — [Box] packs every title at the start of its edge — so this
+/// now just shows several titles riding both the top and bottom edges.
+View _titlesBothEdges() => Box(
   border: BorderType.plain,
-  topTitles: [
-    Line('top left', alignment: Alignment.left),
-    Line('top center', alignment: Alignment.center),
-    Line('top right', alignment: Alignment.right),
-  ],
-  bottomTitles: [
-    Line('bottom left', alignment: Alignment.left),
-    Line('bottom center', alignment: Alignment.center),
-    Line('bottom right', alignment: Alignment.right),
-  ],
-  child: lineNode(_placeHolder),
+  topTitles: [Line('top one'), Line('top two'), Line('top three')],
+  bottomTitles: [Line('bottom one'), Line('bottom two'), Line('bottom three')],
+  child: _placeHolder,
 );
 
-Node _padding() => box(
+View _padding() => Box(
   border: BorderType.plain,
   padding: const EdgeInsets.only(left: 5, top: 1, right: 10, bottom: 2),
   topTitles: [Line('Padding')],
-  child: lineNode(_placeHolder),
+  child: _placeHolder,
 );
 
-Node _nestedBlocks() => box(
+View _nestedBlocks() => Box(
   border: BorderType.plain,
   topTitles: [Line('Outer block')],
-  child: box(border: BorderType.plain, topTitles: [Line('Inner block')], child: lineNode(_placeHolder)),
+  child: Box(border: BorderType.plain, topTitles: [Line('Inner block')], child: _placeHolder),
 );

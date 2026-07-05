@@ -61,20 +61,19 @@ void appView(AppModel model, Frame frame) {
   final status = model.running ? 'RUNNING' : 'STOPPED';
 
   final ui = Row(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
       // Timer pane (left)
       Expanded(
-        child: box(
+        child: Box(
           border: BorderType.plain,
           topTitles: [Line('Timer (space/r)')],
           child: Column(
             children: [
-              Expanded(child: lineNode(Line(time, alignment: Alignment.center))),
-              lineNode(
-                Line(
+              Expanded(child: Center(child: Line(time))),
+              Center(
+                child: Line(
                   status,
-                  alignment: Alignment.center,
                   style: Style(fg: model.running ? Color.green : Color.red),
                 ),
               ),
@@ -84,17 +83,17 @@ void appView(AppModel model, Frame frame) {
       ),
       // Counter pane (right)
       Expanded(
-        child: box(
+        child: Box(
           border: BorderType.plain,
           topTitles: [Line('Counter (↑/↓)')],
-          child: lineNode(Line('Count: ${model.counter}', alignment: Alignment.center)),
+          child: Center(child: Line('Count: ${model.counter}')),
         ),
       ),
     ],
   );
 
-  final outer = box(border: BorderType.plain, topTitles: [Line('q=quit')], child: ui);
-  frame.renderNode(outer);
+  final outer = Box(border: BorderType.plain, topTitles: [Line('q=quit')], child: ui);
+  frame.render(outer);
 }
 
 // ═══════════════════════════════════════════════════════════

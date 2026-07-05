@@ -14,7 +14,7 @@ Future<void> main() async {
 
 void draw(Frame frame) {
   final ui = Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
       _namedColorsPanel(),
       _indexedColorsPanel(),
@@ -22,7 +22,7 @@ void draw(Frame frame) {
     ],
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 const List<Color> _colors = [
@@ -64,14 +64,14 @@ const List<String> _colorNames = [
 ];
 
 /// A centered header line — the plume-native stand-in for the old
-/// top-border-only, titled `Block`; [box] only ever draws a uniform border on
+/// top-border-only, titled `Block`; [Box] only ever draws a uniform border on
 /// all four sides or none, so a single-edge rule is no longer expressible.
-Node _sectionTitle(String title) => lineNode(Line(title, alignment: Alignment.center));
+View _sectionTitle(String title) => Center(child: Line(title));
 
 // ─── Named colors ────────────────────────────────────────────────────────
 
-Node _namedColorsPanel() => Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+View _namedColorsPanel() => Column(
+  crossAxis: CrossAxisAlignment.stretch,
   children: [
     _namedColorFgSection('reset', Color.reset),
     _namedColorFgSection('black', Color.black),
@@ -87,54 +87,52 @@ Node _namedColorsPanel() => Column(
 );
 
 /// The 16 named colors as foreground, on a fixed [bg] background.
-Node _namedColorFgSection(String nameCol, Color bg) =>
+View _namedColorFgSection(String nameCol, Color bg) =>
     _namedColorGrid(title: 'Foreground colors on $nameCol background', fgAt: (i) => _colors[i], bgAt: (_) => bg);
 
 /// The 16 named colors as background, under a fixed [fg] foreground.
-Node _namedColorBgSection(String nameCol, Color fg) =>
+View _namedColorBgSection(String nameCol, Color fg) =>
     _namedColorGrid(title: 'Background colors with $nameCol foreground', fgAt: (_) => fg, bgAt: (i) => _colors[i]);
 
-Node _namedColorGrid({
+View _namedColorGrid({
   required String title,
   required Color Function(int) fgAt,
   required Color Function(int) bgAt,
 }) {
-  Node row(int start) => Row(
+  View row(int start) => Row(
     children: [
       for (var i = start; i < start + 8; i++)
         Expanded(
-          child: lineNode(
-            Line(
-              _colorNames[i],
-              style: Style(fg: fgAt(i), bg: bgAt(i)),
-            ),
+          child: Line(
+            _colorNames[i],
+            style: Style(fg: fgAt(i), bg: bgAt(i)),
           ),
         ),
     ],
   );
 
   return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [_sectionTitle(title), row(0), row(8)],
   );
 }
 
 // ─── Indexed colors (0-231) ──────────────────────────────────────────────
 
-Node _indexedColorsPanel() => Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+View _indexedColorsPanel() => Column(
+  crossAxis: CrossAxisAlignment.stretch,
   children: [
     _sectionTitle('Indexed colors'),
     _indexedRow16(),
-    SizedBox(height: 1),
+    const SizedBox(height: 1),
     _indexedColorBlock(16, 123),
-    SizedBox(height: 1),
+    const SizedBox(height: 1),
     _indexedColorBlock(124, 231),
-    SizedBox(height: 1),
+    const SizedBox(height: 1),
   ],
 );
 
-Node _indexedRow16() => Row(
+View _indexedRow16() => Row(
   children: [
     for (var i = 0; i < 16; i++)
       ConstrainedBox(
@@ -144,32 +142,30 @@ Node _indexedRow16() => Row(
   ],
 );
 
-Node _indexedCell16(int index) {
+View _indexedCell16(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(2, '0');
   final bg = index < 1 ? Color.darkGray : Color.black;
-  return lineNode(
-    Line.fromSpans([
-      Text(
-        colorIndex,
-        style: Style(fg: color, bg: bg),
-      ),
-      Text(
-        '  ',
-        style: Style(fg: color, bg: color),
-      ),
-    ]),
-  );
+  return Line.fromSpans([
+    Text(
+      colorIndex,
+      style: Style(fg: color, bg: bg),
+    ),
+    Text(
+      '  ',
+      style: Style(fg: color, bg: color),
+    ),
+  ]);
 }
 
 /// Three side-by-side 27-column groups, each a 6×6 grid of indexed swatches.
-Node _indexedColorBlock(int startIndex, int endIndex) {
-  final groups = <Node>[];
+View _indexedColorBlock(int startIndex, int endIndex) {
+  final groups = <View>[];
   var idx = startIndex;
   for (var group = 0; group < 3 && idx <= endIndex; group++) {
-    final rows = <Node>[];
+    final rows = <View>[];
     for (var row = 0; row < 6 && idx <= endIndex; row++) {
-      final cells = <Node>[];
+      final cells = <View>[];
       for (var col = 0; col < 6 && idx <= endIndex; col++) {
         cells.add(Expanded(child: _indexedCellSmall(idx)));
         idx++;
@@ -186,28 +182,26 @@ Node _indexedColorBlock(int startIndex, int endIndex) {
   return Row(children: groups);
 }
 
-Node _indexedCellSmall(int index) {
+View _indexedCellSmall(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(3, '0');
-  return lineNode(
-    Line.fromSpans([
-      Text(
-        colorIndex,
-        style: Style(fg: color, bg: Color.reset),
-      ),
-      Text(
-        '.',
-        style: Style(fg: color, bg: color),
-      ),
-    ]),
-  );
+  return Line.fromSpans([
+    Text(
+      colorIndex,
+      style: Style(fg: color, bg: Color.reset),
+    ),
+    Text(
+      '.',
+      style: Style(fg: color, bg: color),
+    ),
+  ]);
 }
 
 // ─── Grayscale (232-255) ─────────────────────────────────────────────────
 
-Node _grayScalePanel() => Column(children: [_grayScaleRow(232), _grayScaleRow(244)]);
+View _grayScalePanel() => Column(children: [_grayScaleRow(232), _grayScaleRow(244)]);
 
-Node _grayScaleRow(int startIndex) => Row(
+View _grayScaleRow(int startIndex) => Row(
   children: [
     for (var i = startIndex; i < startIndex + 12; i++)
       ConstrainedBox(
@@ -217,21 +211,19 @@ Node _grayScaleRow(int startIndex) => Row(
   ],
 );
 
-Node _grayScaleCell(int index) {
+View _grayScaleCell(int index) {
   final color = Color.indexed(index);
   final colorIndex = index.toString().padLeft(3, '0');
   final bg = index < 244 ? Color.gray : Color.black;
-  return lineNode(
-    Line.fromSpans([
-      Text(
-        colorIndex,
-        style: Style(fg: color, bg: bg),
-      ),
-      Text(
-        '  ',
-        style: Style(fg: color, bg: color),
-      ),
-      const Text('       '),
-    ]),
-  );
+  return Line.fromSpans([
+    Text(
+      colorIndex,
+      style: Style(fg: color, bg: bg),
+    ),
+    Text(
+      '  ',
+      style: Style(fg: color, bg: color),
+    ),
+    const Text('       '),
+  ]);
 }

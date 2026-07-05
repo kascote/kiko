@@ -8,28 +8,28 @@ Future<void> main() async {
       KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },
-    view: (_, frame) => frame.renderNode(_ui()),
+    view: (_, frame) => frame.render(_ui()),
   );
 }
 
 final _fps = _FpsWidget();
 final _grid = _ColorGridWidget();
 
-Node _ui() => Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+View _ui() => Column(
+  crossAxis: CrossAxisAlignment.stretch,
   children: [
     Row(
       children: [
         Expanded(
-          child: lineNode(Line('colors_rgb example, Press q to quit', alignment: Alignment.center)),
+          child: Center(child: Line('colors_rgb example, Press q to quit')),
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minW: 8, maxW: 8),
-          child: _fps,
+          child: NodeView(_fps),
         ),
       ],
     ),
-    Expanded(child: _grid),
+    Expanded(child: NodeView(_grid)),
   ],
 );
 
@@ -57,12 +57,12 @@ class _FpsWidget extends Node {
       surface,
       Line(
         '${_fps}fps',
-        alignment: Alignment.right,
         style: const Style(fg: Color.white),
       ),
       x: rect.x,
       y: rect.y,
       width: rect.width,
+      align: TextAlign.end,
     );
   }
 }

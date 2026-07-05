@@ -43,25 +43,26 @@ void view(Model model, Frame frame) {
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
   final ui = Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxis: CrossAxisAlignment.stretch,
     children: [
       // Header
-      box(
+      Box(
         border: BorderType.plain,
         borderStyle: theme.border,
         child: Row(
           children: [
             Expanded(
-              child: lineNode(
-                Line(
-                  ' Theme: ${model.themeName}',
-                  style: Style(fg: theme.primary.fg, addModifier: Modifier.bold),
-                ),
+              child: Line(
+                ' Theme: ${model.themeName}',
+                style: Style(fg: theme.primary.fg, addModifier: Modifier.bold),
               ),
             ),
             _col(
               30,
-              lineNode(Line('←/→: switch  q: quit ', style: theme.muted, alignment: Alignment.right)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Line('←/→: switch  q: quit ', style: theme.muted),
+              ),
             ),
           ],
         ),
@@ -69,7 +70,7 @@ void view(Model model, Frame frame) {
       // Content
       Expanded(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxis: CrossAxisAlignment.stretch,
           children: [
             // Palette styles
             Expanded(child: _styleSection(theme, 'Palette Styles', _paletteStyles(theme))),
@@ -81,7 +82,7 @@ void view(Model model, Frame frame) {
     ],
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 List<(String, Style)> _paletteStyles(Theme t) => [
@@ -103,12 +104,12 @@ List<(String, Style)> _semanticStyles(Theme t) => [
   ('highlight', t.highlight),
 ];
 
-Node _styleSection(Theme theme, String title, List<(String, Style)> styles) {
-  final rows = <Node>[_headerRow(theme)];
+View _styleSection(Theme theme, String title, List<(String, Style)> styles) {
+  final rows = <View>[_headerRow(theme)];
   for (final (name, style) in styles) {
     rows.add(_styleRow(theme, name, style));
   }
-  return box(
+  return Box(
     border: BorderType.plain,
     borderStyle: theme.border,
     padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -117,24 +118,24 @@ Node _styleSection(Theme theme, String title, List<(String, Style)> styles) {
   );
 }
 
-Node _headerRow(Theme theme) => Row(
+View _headerRow(Theme theme) => Row(
   children: [
-    _col(12, lineNode(Line('Name', style: theme.muted))),
-    _col(10, lineNode(Line('fg', style: theme.muted))),
-    _col(10, lineNode(Line('bg', style: theme.muted))),
-    _col(8, lineNode(Line('Normal', style: theme.muted))),
-    _col(10, lineNode(Line('Inverted', style: theme.muted))),
+    _col(12, Line('Name', style: theme.muted)),
+    _col(10, Line('fg', style: theme.muted)),
+    _col(10, Line('bg', style: theme.muted)),
+    _col(8, Line('Normal', style: theme.muted)),
+    _col(10, Line('Inverted', style: theme.muted)),
   ],
 );
 
-Node _styleRow(Theme theme, String name, Style style) => Row(
+View _styleRow(Theme theme, String name, Style style) => Row(
   children: [
     // Name column
-    _col(12, lineNode(Line(name, style: Style(fg: theme.background.fg)))),
+    _col(12, Line(name, style: Style(fg: theme.background.fg))),
     // fg hex
-    _col(10, lineNode(Line(_colorHex(style.fg), style: Style(fg: style.fg)))),
+    _col(10, Line(_colorHex(style.fg), style: Style(fg: style.fg))),
     // bg hex
-    _col(10, lineNode(Line(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.fg)))),
+    _col(10, Line(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.fg))),
     // Normal swatch
     _swatch(8, style, 'Abc'),
     // Inverted swatch
@@ -143,17 +144,17 @@ Node _styleRow(Theme theme, String name, Style style) => Row(
 );
 
 /// Pins [child] to an exact [width], one visual row tall.
-Node _col(int width, Node child) => ConstrainedBox(
+View _col(int width, View child) => ConstrainedBox(
   additionalConstraints: BoxConstraints(minW: width, maxW: width),
   child: child,
 );
 
 /// A color chip: [width] cells of [style]'s background with [label] over it.
-Node _swatch(int width, Style style, String label) => ConstrainedBox(
+View _swatch(int width, Style style, String label) => ConstrainedBox(
   additionalConstraints: BoxConstraints(minW: width, maxW: width),
-  child: box(
+  child: Box(
     background: style,
-    child: lineNode(Line(' $label ', style: style)),
+    child: Line(' $label ', style: style),
   ),
 );
 

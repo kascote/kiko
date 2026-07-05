@@ -177,55 +177,51 @@ void appView(AppModel model, Frame frame) {
 
   final items = model.filteredItems;
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('Searchable List Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         // Search box
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: model.search.focused ? theme.focus : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Search (${items.length}/${allItems.length})')],
             child: ConstrainedBox(
               additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-              child: textInput(model.search, theme),
+              child: TextInput(model: model.search, theme: theme),
             ),
           ),
         ),
         // List area using ListView
         Expanded(
-          child: box(
+          child: ListView(
+            model: model.list,
+            theme: theme,
+            itemBuilder: (item, index, _) {
+              final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
+              return [Line(' $item', style: style)];
+            },
+            emptyPlaceholder: Line('No matches', style: theme.muted),
             border: BorderType.plain,
             borderStyle: model.list.focused ? theme.focus : theme.border,
             topTitles: [Line('Results')],
-            child: listView(
-              model: model.list,
-              theme: theme,
-              itemBuilder: (item, index, _) {
-                final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
-                return [Line(' $item', style: style)];
-              },
-              emptyPlaceholder: Line('No matches', style: theme.muted),
-            ),
           ),
         ),
         // Selected item display
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: model.selected != null ? theme.success : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
-            child: lineNode(
-              Line(
-                model.selected ?? 'Press Enter to select',
-                style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
-              ),
+            child: Line(
+              model.selected ?? 'Press Enter to select',
+              style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
             ),
           ),
         ),
@@ -233,13 +229,11 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: lineNode(
-                Line('Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit', style: theme.muted),
-              ),
+              child: Line('Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
             ),
           ],
         ),
@@ -247,7 +241,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

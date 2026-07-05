@@ -20,17 +20,17 @@ void main() async {
         children: [
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 20, maxW: 20),
-            child: box(
+            child: Box(
               border: BorderType.rounded,
               topTitles: [Line('Kiko', style: const Style(fg: Color.green))],
-              child: lineNode(greeting),
+              child: greeting,
             ),
           ),
-          Expanded(child: SizedBox()),
+          const Expanded(child: SizedBox()),
         ],
       );
 
-      frame.renderNode(ui);
+      frame.render(ui);
     },
   );
 }

@@ -18,14 +18,14 @@ Node modalDialog({
   Style? background,
   List<Line> topTitles = const <Line>[],
 }) {
-  return box(
+  return Box(
     border: border,
     borderStyle: borderStyle ?? theme.border,
     background: background ?? theme.surface,
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
-    child: content,
-  )..tag = id;
+    child: NodeView(content),
+  ).build()..tag = id;
 }
 
 /// Centres [dialog] at a fixed [width]/[height] within [area], as a floating
@@ -45,10 +45,10 @@ Node centeredOverlay({
   final top = ((area.height - height) / 2).round().clamp(0, area.height);
   return Stack(
     fit: StackFit.expand,
-    children: <Node>[
-      Positioned(left: left, top: top, width: width, height: height, child: dialog),
+    children: <View>[
+      Positioned(left: left, top: top, width: width, height: height, child: NodeView(dialog)),
     ],
-  );
+  ).build();
 }
 
 /// Renders [base], then — when [dialog] is non-null — dims the painted
@@ -56,8 +56,8 @@ Node centeredOverlay({
 ///
 /// This is the two-pass render the old `Modal.render()` did procedurally
 /// (`dimBackdrop` then paint on top): [Frame.dimBackdrop] operates on the
-/// already-painted buffer, so it must run *between* two [Frame.renderNode]
-/// calls rather than inside one composed tree. Pass `dim: false` to skip the
+/// already-painted buffer, so it must run *between* two [Frame.render] calls
+/// rather than inside one composed tree. Pass `dim: false` to skip the
 /// backdrop dim entirely.
 void renderModalOverlay(
   Frame frame, {
@@ -68,8 +68,8 @@ void renderModalOverlay(
   bool dim = true,
   double dimFactor = 0.3,
 }) {
-  frame.renderNode(base);
+  frame.render(NodeView(base));
   if (dialog == null) return;
   if (dim) frame.dimBackdrop(factor: dimFactor);
-  frame.renderNode(centeredOverlay(dialog: dialog, area: frame.area, width: width, height: height));
+  frame.render(NodeView(centeredOverlay(dialog: dialog, area: frame.area, width: width, height: height)));
 }

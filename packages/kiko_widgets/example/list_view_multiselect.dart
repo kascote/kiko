@@ -87,54 +87,50 @@ void appView(AppModel model, Frame frame) {
   final selectedNames = contacts.where((c) => selectedKeys.contains(c.id)).map((c) => c.name);
   final summary = selectedKeys.isEmpty ? 'No contacts checked' : 'Checked: ${selectedNames.join(', ')}';
 
-  final ui = box(
+  final ui = Box(
     topTitles: [Line('Multi-Select Demo', style: theme.muted)],
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: box(
+          child: ListView(
+            model: model.list,
+            theme: theme,
+            itemBuilder: (contact, index, state) {
+              final checkbox = state.checked ? '●' : '○';
+              final archivedTag = state.disabled ? ' (archived)' : '';
+              return [
+                Line(
+                  ' $checkbox ${contact.name}$archivedTag',
+                  style: const Style(addModifier: Modifier.bold),
+                ),
+                Line('      ${contact.email}', style: theme.muted),
+              ];
+            },
+            separatorBuilder: () => Line.fromSpans([Text('─' * 40, style: theme.border)]),
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Contacts', style: theme.focus)],
-            child: listView(
-              model: model.list,
-              theme: theme,
-              itemBuilder: (contact, index, state) {
-                final checkbox = state.checked ? '●' : '○';
-                final archivedTag = state.disabled ? ' (archived)' : '';
-                return [
-                  Line(
-                    ' $checkbox ${contact.name}$archivedTag',
-                    style: const Style(addModifier: Modifier.bold),
-                  ),
-                  Line('      ${contact.email}', style: theme.muted),
-                ];
-              },
-              separatorBuilder: () => Line.fromSpans([Text('─' * 40, style: theme.border)]),
-            ),
           ),
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: box(
+          child: Box(
             border: BorderType.plain,
             borderStyle: selectedKeys.isNotEmpty ? theme.success : theme.border,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Checked (${selectedKeys.length})')],
-            child: lineNode(
-              Line(summary, style: selectedKeys.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted),
-            ),
+            child: Line(summary, style: selectedKeys.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: lineNode(Line('↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit', style: theme.muted)),
+              child: Line('↑↓/jk nav | Space toggle | Shift+↑↓ range | Esc quit', style: theme.muted),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: lineNode(Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted)),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
             ),
           ],
         ),
@@ -142,7 +138,7 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  frame.renderNode(ui);
+  frame.render(ui);
 }
 
 // ═══════════════════════════════════════════════════════════

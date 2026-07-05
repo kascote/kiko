@@ -3,24 +3,39 @@ import 'package:termunicode/termunicode.dart';
 
 import 'text_input_model.dart';
 
-/// Builds a single-line text input as a plume node — the plume-native view for
+/// A single-line text input as a view — the plume-native view for
 /// [TextInputModel].
 ///
-/// A self-painting node: the placeholder when the input is empty, the obscure
-/// character repeated when [TextInputModel.obscureText] is set, or the text
-/// itself, horizontally scrolled to keep the cursor in view via
+/// Unlike the framed widgets, a text input needs no box: [build] returns its
+/// self-painting node directly. That node paints the placeholder when the input
+/// is empty, the obscure character repeated when [TextInputModel.obscureText] is
+/// set, or the text itself, horizontally scrolled to keep the cursor in view via
 /// [TextInputModel.adjustScroll] (a plain box-plus-run form can't do this —
 /// scrolling needs the actual on-screen width, known only at paint time), then
 /// [TextInputModel.fillChar] repeated across whatever width is left. Styles
 /// come from the [theme] and the model's focus state, with region styles
 /// (placeholder, fill, obscured) from [TextInputStyle.fromTheme] merged with
-/// the model's own. The subtree root is stamped with the model id so a click
+/// the model's own. The built node is stamped with the model id so a click
 /// routes back through [Frame.hitId]; the terminal cursor is reported through
-/// the surface, the same way the `textArea` viewport does.
-Node textInput(TextInputModel model, Theme theme, {Map<WidgetState, Style>? styleOverrides}) =>
-    _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
+/// the surface, the same way the `TextArea` viewport does.
+final class TextInput implements View {
+  /// Creates a text input over [model], styled by [theme].
+  const TextInput({required this.model, required this.theme, this.styleOverrides});
 
-/// The self-painting body of a [textInput]: fills the space the box gives it,
+  /// The model whose text, cursor, and scroll this view renders.
+  final TextInputModel model;
+
+  /// The theme that resolves the field's styles.
+  final Theme theme;
+
+  /// Per-state style overrides applied on top of the theme's field styles.
+  final Map<WidgetState, Style>? styleOverrides;
+
+  @override
+  Node build() => _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
+}
+
+/// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
   _TextInputViewport({required this.model, required this.theme, this.styleOverrides})

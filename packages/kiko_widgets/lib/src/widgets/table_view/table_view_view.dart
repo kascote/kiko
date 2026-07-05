@@ -3,36 +3,60 @@ import 'package:kiko/kiko.dart';
 import 'table_renderer.dart';
 import 'table_view_model.dart';
 
-/// Builds a TableView as a plume node — the plume-native view for
-/// [TableViewModel].
+/// A TableView as a view — the plume-native view for [TableViewModel].
 ///
-/// plume owns the outer frame: an optional [border] with [borderStyle] and edge
-/// titles. The scrolling body is a custom node that fills the inner area and
-/// paints the table's sticky header and its windowed rows through the plume
+/// A [Box] owns the outer frame: an optional [border] with [borderStyle] and
+/// edge titles. The scrolling body is a custom node that fills the inner area
+/// and paints the table's sticky header and its windowed rows through the plume
 /// paint protocol. That row rendering — visible columns, truncation,
 /// alignment, per-cell styling — is the table's own [TableRenderer] and is
 /// reused here, so the plume port and the old widget draw identically. The
-/// subtree root is stamped with the model id so a click routes back through
+/// built subtree is stamped with the model id so a click routes back through
 /// [Frame.hitId].
-Node tableView({
-  required TableViewModel model,
-  required Theme theme,
-  Map<WidgetState, Style>? styleOverrides,
-  BorderType border = BorderType.none,
-  Style borderStyle = const Style(),
-  List<Line> topTitles = const <Line>[],
-  List<Line> bottomTitles = const <Line>[],
-}) {
-  return box(
+final class TableView implements View {
+  /// Creates a table view over [model], styled by [theme].
+  const TableView({
+    required this.model,
+    required this.theme,
+    this.styleOverrides,
+    this.border = BorderType.none,
+    this.borderStyle = const Style(),
+    this.topTitles = const <Line>[],
+    this.bottomTitles = const <Line>[],
+  });
+
+  /// The model whose columns, rows, cursor, and scroll this view renders.
+  final TableViewModel model;
+
+  /// The theme that resolves cell, header, and border styles.
+  final Theme theme;
+
+  /// Per-state style overrides applied on top of the theme's row styles.
+  final Map<WidgetState, Style>? styleOverrides;
+
+  /// The border drawn around the table, or [BorderType.none] for no border.
+  final BorderType border;
+
+  /// The colour and modifiers of the border glyphs.
+  final Style borderStyle;
+
+  /// The titles riding on the top edge of the border.
+  final List<Line> topTitles;
+
+  /// The titles riding on the bottom edge of the border.
+  final List<Line> bottomTitles;
+
+  @override
+  Node build() => Box(
     border: border,
     borderStyle: borderStyle,
     topTitles: topTitles,
     bottomTitles: bottomTitles,
-    child: _TableViewport(model: model, theme: theme, styleOverrides: styleOverrides),
-  )..tag = model.id;
+    child: NodeView(_TableViewport(model: model, theme: theme, styleOverrides: styleOverrides)),
+  ).build()..tag = model.id;
 }
 
-/// The self-painting body of a [tableView]: fills the space the box gives it and
+/// The self-painting body of a [TableView]: fills the space the box gives it and
 /// paints the table through the plume `Surface`.
 class _TableViewport extends Node {
   _TableViewport({required this.model, required this.theme, this.styleOverrides});

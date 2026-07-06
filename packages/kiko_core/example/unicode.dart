@@ -98,18 +98,36 @@ View _mixedRuns() => Column(
       child: Column(
         crossAxis: CrossAxisAlignment.stretch,
         children: [
-          for (final run in _mixedRunLines) Row(mainAxis: MainAxisAlignment.end, children: [Line(run)]),
+          for (final (i, run) in _mixedRunLines.indexed)
+            Row(mainAxis: MainAxisAlignment.end, children: [_mixedLine(run, i)]),
         ],
       ),
     ),
   ],
 );
 
-const _mixedRunLines = <String>[
-  'latin→cjk→emoji:  café · 世界 · 🔥 · 日本語 · ★ ✓',
-  'clusters:  👨‍👩‍👧‍👦 family · 🇯🇵 flag · 👋🏽 wave · 🧑‍💻 ‖',
-  'combining:  e̋ ñ ō̈ · base+mark · aあb mixed width ⟩',
-  'symbols/box:  ┌─┬─┐ · ½ ¾ · §¶±× · αβγ ambiguous ⟨end⟩',
+/// Builds one right-aligned run, coloring its trailing marker so we can see the
+/// styled glyph stops exactly at the border and never tints the border cell.
+/// The color alternates by line, so odd and even ends are visibly distinct.
+View _mixedLine((String, String) run, int index) {
+  final (head, tail) = run;
+  final tailColor = index.isEven ? Color.brightGreen : Color.brightMagenta;
+  return Line.fromTexts([
+    Text(head),
+    Text(
+      tail,
+      style: Style(fg: tailColor, addModifier: Modifier.bold),
+    ),
+  ]);
+}
+
+// Each run is (body, trailing marker); the marker is the colored, border-hugging
+// glyph under test.
+const _mixedRunLines = <(String, String)>[
+  ('latin→cjk→emoji:  café · 世界 · 🔥 · 日本語 · ★ ', '✓'),
+  ('clusters:  👨‍👩‍👧‍👦 family · 🇯🇵 flag · 👋🏽 wave · 🧑‍💻 ', '‖'),
+  ('combining:  e̋ ñ ō̈ · base+mark · aあb mixed width ', '⟩'),
+  ('symbols/box:  ┌─┬─┐ · ½ ¾ · §¶±× · αβγ ambiguous ', '⟨end⟩'),
 ];
 
 /// One labelled sample in a fixed-width box; the right border is the assertion.

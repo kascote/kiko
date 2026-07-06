@@ -73,6 +73,12 @@ class Application {
   /// Enable Kitty keyboard enhancement protocol
   final bool keyboardEnhancement;
 
+  /// Enable bracketed paste, so a paste arrives as one [PasteMsg]
+  final bool bracketedPaste;
+
+  /// Enable terminal focus reporting, so focus in/out arrives as a [FocusMsg]
+  final bool focusEvents;
+
   /// Set terminal title
   final String? title;
 
@@ -126,6 +132,8 @@ class Application {
     this.viewport = const ViewPortFullScreen(),
     this.mouseEvents = false,
     this.keyboardEnhancement = false,
+    this.bracketedPaste = false,
+    this.focusEvents = false,
     this.title,
     this.showError = true,
     this.defaultErrorCode = 1,
@@ -256,6 +264,8 @@ class Application {
     }
     if (mouseEvents) terminal.enableMouseEvents();
     if (keyboardEnhancement) terminal.enableKeyboardEnhancement();
+    if (bracketedPaste) terminal.enableBracketedPaste();
+    if (focusEvents) terminal.enableFocusTracking();
     if (title != null) terminal.setTitle(title!);
   }
 
@@ -266,6 +276,8 @@ class Application {
 
     if (keyboardEnhancement) terminal.disableKeyboardEnhancement();
     if (mouseEvents) terminal.disableMouseEvents();
+    if (bracketedPaste) terminal.disableBracketedPaste();
+    if (focusEvents) terminal.disableFocusTracking();
     if (viewport is ViewPortFullScreen) {
       terminal
         ..disableRawMode()

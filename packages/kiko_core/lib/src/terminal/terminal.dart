@@ -117,6 +117,9 @@ class Terminal {
   // Number of frames rendered up until current time.
   int _frameCount;
 
+  // Cells written on the last flush — the size of the last buffer diff.
+  int _lastDiffCount = 0;
+
   Terminal._(
     this.backend, {
     bool hiddenCursor = false,
@@ -133,6 +136,15 @@ class Terminal {
 
   /// Returns the current frame count.
   int get frameCount => _frameCount;
+
+  /// The number of cells written on the last [flush] — the size of the last
+  /// buffer diff.
+  ///
+  /// This is what the double buffer actually redrew: a small change touches a
+  /// handful of cells, a full repaint touches the whole viewport. Exposed so a
+  /// HUD or test can observe the minimal-write invariant. Zero before the first
+  /// flush.
+  int get lastDiffCount => _lastDiffCount;
 
   /// Creates a new [Terminal] with a full screen viewport by default.
   static Future<Terminal> create({
@@ -202,6 +214,7 @@ class Terminal {
     _viewportArea,
     currentBuffer,
     _frameCount,
+    lastDiffCount: _lastDiffCount,
   );
 
   /// Obtains a difference between the previous and the current buffer and
@@ -209,7 +222,10 @@ class Terminal {
   void flush() {
     final prevBuffer = _buffers[1 - _currentBufferIndex];
     final currentBuffer = _buffers[_currentBufferIndex];
-    final diff = prevBuffer.diff(currentBuffer);
+    // Materialize once: the count, the cursor probe, and the draw each need to
+    // walk the diff, and the generator can only be walked afresh each time.
+    final diff = prevBuffer.diff(currentBuffer).toList(growable: false);
+    _lastDiffCount = diff.length;
     if (diff.isNotEmpty) {
       final last = diff.last;
       _lastKnowCursorPosition = Position(last.x, last.y);
@@ -440,6 +456,18 @@ class Terminal {
 
   /// Disables Kitty keyboard enhancement protocol
   void disableKeyboardEnhancement() => backend.disableKeyboardEnhancement();
+
+  /// Enables bracketed paste, delivering a paste as one paste event
+  void enableBracketedPaste() => backend.enableBracketedPaste();
+
+  /// Disables bracketed paste
+  void disableBracketedPaste() => backend.disableBracketedPaste();
+
+  /// Enables terminal focus in/out reporting
+  void enableFocusTracking() => backend.enableFocusTracking();
+
+  /// Disables terminal focus in/out reporting
+  void disableFocusTracking() => backend.disableFocusTracking();
 
   /// Sets the terminal title
   void setTitle(String title) => backend.setTitle(title);

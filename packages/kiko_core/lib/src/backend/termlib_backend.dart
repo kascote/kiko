@@ -203,6 +203,18 @@ class TermlibBackend {
   /// Disables Kitty keyboard enhancement protocol.
   void disableKeyboardEnhancement() => _term.disableKeyboardEnhancement();
 
+  /// Enables bracketed paste, so a paste arrives as one paste event.
+  void enableBracketedPaste() => _term.enableBracketedPaste();
+
+  /// Disables bracketed paste.
+  void disableBracketedPaste() => _term.disableBracketedPaste();
+
+  /// Enables focus reporting, so terminal focus in/out arrives as events.
+  void enableFocusTracking() => _term.startFocusTracking();
+
+  /// Disables focus reporting.
+  void disableFocusTracking() => _term.endFocusTracking();
+
   /// Sets the terminal title.
   void setTitle(String title) => _term.setTerminalTitle(title);
 } // End TermlibBackend

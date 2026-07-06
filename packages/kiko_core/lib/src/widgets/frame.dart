@@ -37,6 +37,15 @@ class Frame {
   /// The frame count indicating the sequence number of this frame
   final int count;
 
+  /// Cells the terminal wrote on the previous flush — the size of the last
+  /// buffer diff.
+  ///
+  /// This frame's own diff is not known until it flushes, so this reports the
+  /// frame currently on screen: how many cells the double buffer redrew to put
+  /// it there. A small change is a handful of cells; a full repaint is the whole
+  /// viewport. Zero on the first frame.
+  final int lastDiffCount;
+
   /// The Plume trees rendered into this frame, in paint order.
   ///
   /// [renderNode] appends each laid-out root here so [hitId] and [rectOf] can
@@ -45,7 +54,7 @@ class Frame {
   final List<plume.RenderNode<PaintToken>> _nodeRoots = <plume.RenderNode<PaintToken>>[];
 
   /// Creates a new frame with the given area and buffer.
-  Frame(this.area, this.buffer, this.count);
+  Frame(this.area, this.buffer, this.count, {this.lastDiffCount = 0});
 
   /// Renders a [view] into this frame — the entry point for drawing a UI.
   ///

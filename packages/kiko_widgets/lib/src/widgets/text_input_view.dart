@@ -46,9 +46,15 @@ class _TextInputViewport extends Node {
   final Map<WidgetState, Style>? styleOverrides;
   final TextInputStyle _regionStyle;
 
+  // Captured from the layout context so paint measures text the way the frame
+  // does — a cjk frame reaches the field content, not just the box chrome.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
-      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  }
 
   @override
   void paintSelf(Surface surface) {
@@ -78,6 +84,7 @@ class _TextInputViewport extends Node {
         x: area.x,
         y: y,
         width: area.width,
+        measurer: _measurer,
       );
       usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
       if (m.focused) cursor = Position(area.x, y);
@@ -92,6 +99,7 @@ class _TextInputViewport extends Node {
         y: y,
         width: area.width,
         skipColumns: scrollOffset,
+        measurer: _measurer,
       );
 
       final totalTextWidth = widthChars(displayText);
@@ -118,6 +126,7 @@ class _TextInputViewport extends Node {
               x: area.x + usedWidth,
               y: y,
               width: remainingWidth,
+              measurer: _measurer,
             );
           }
         }

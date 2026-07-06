@@ -15,7 +15,10 @@ import 'text_area_model.dart';
 /// terminal to blink one in), so reporting it back is the caller's job.
 class TextAreaRenderer {
   /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
-  TextAreaRenderer(this.model, this.theme, this.styleOverrides)
+  ///
+  /// [measurer] measures text the way the frame paints it; pass the frame's own
+  /// measurer so a cjk-configured frame sizes content like it draws it.
+  TextAreaRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()})
     : _regionStyle = TextAreaStyle.fromTheme(theme).merge(model.style);
 
   /// The model containing state and config.
@@ -26,6 +29,9 @@ class TextAreaRenderer {
 
   /// Optional per-state style overrides.
   final Map<WidgetState, Style>? styleOverrides;
+
+  /// Measures text for painting, carried from the frame.
+  final TextMeasurer measurer;
 
   /// Region styles resolved at construction.
   final TextAreaStyle _regionStyle;
@@ -83,6 +89,7 @@ class TextAreaRenderer {
       x: textArea.x,
       y: textArea.y,
       width: textArea.width,
+      measurer: measurer,
     );
 
     return model.focused ? Position(textArea.x, textArea.y) : null;
@@ -172,6 +179,7 @@ class TextAreaRenderer {
       x: x,
       y: y,
       width: gutterWidth,
+      measurer: measurer,
     );
   }
 
@@ -195,6 +203,7 @@ class TextAreaRenderer {
         x: area.x,
         y: area.y,
         width: area.width,
+        measurer: measurer,
       );
       return;
     }
@@ -213,6 +222,7 @@ class TextAreaRenderer {
         x: x,
         y: area.y,
         width: partWidth,
+        measurer: measurer,
       );
       x += partWidth;
     }

@@ -65,15 +65,21 @@ class _TableViewport extends Node {
   final Theme theme;
   final Map<WidgetState, Style>? styleOverrides;
 
+  // Captured from the layout context so paint measures text the way the frame
+  // does — a cjk frame reaches the cells, not just the box chrome.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
-      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  }
 
   @override
   void paintSelf(Surface surface) {
     final clip = surface.clipRect ?? rect;
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;
-    TableRenderer(model, theme, styleOverrides).paint(area, surface);
+    TableRenderer(model, theme, styleOverrides, measurer: _measurer).paint(area, surface);
   }
 }

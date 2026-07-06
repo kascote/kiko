@@ -99,9 +99,15 @@ class _ListViewport<T, K> extends Node {
   final Line Function()? separatorBuilder;
   final Line? emptyPlaceholder;
 
+  // Captured from the layout context so paint measures text the way the frame
+  // does — a cjk frame reaches the rows, not just the box chrome.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
-      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  }
 
   @override
   void paintSelf(Surface surface) {
@@ -119,7 +125,7 @@ class _ListViewport<T, K> extends Node {
     if (itemCount == 0) {
       final placeholder = emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width);
+        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width, measurer: _measurer);
       }
       return;
     }
@@ -158,12 +164,12 @@ class _ListViewport<T, K> extends Node {
 
       final lines = itemBuilder(item, i, (checked: isChecked, focused: isFocused, disabled: isDisabled));
       for (var li = 0; li < lines.length && li < itemArea.height; li++) {
-        paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width);
+        paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
       }
       y += m.itemHeight;
 
       if (hasSeparator && i < endIndex - 1) {
-        paintLine(surface, separatorBuilder!(), x: area.x, y: y, width: area.width);
+        paintLine(surface, separatorBuilder!(), x: area.x, y: y, width: area.width, measurer: _measurer);
         y += 1;
       }
     }

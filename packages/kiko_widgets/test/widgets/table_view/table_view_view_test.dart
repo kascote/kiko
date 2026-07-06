@@ -5,6 +5,18 @@ import 'package:test/test.dart';
 
 const _ctx = plume.LayoutContext(measurer: plume.MonospaceMeasurer());
 
+/// Wraps a measurer to count how many width requests reach it.
+class _CountingMeasurer extends plume.TextMeasurer {
+  _CountingMeasurer(this._inner);
+  final plume.TextMeasurer _inner;
+  int calls = 0;
+  @override
+  int widthOf(String text) {
+    calls++;
+    return _inner.widthOf(text);
+  }
+}
+
 Frame _frame(int width, int height) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   return Frame(buffer.area, buffer, 0);
@@ -46,6 +58,16 @@ void main() {
       final model = await _seededTable();
       final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
       expect(_dump(frame.buffer), 'ID Name\n1  Al\n2  Bo\n');
+    });
+
+    test('the measurer injected into the frame reaches cell text (mikos 0123)', () async {
+      // Regression: the table body paints through paintLine, which used to
+      // hardcode its own TermUnicodeMeasurer and ignore the frame's. A counting
+      // measurer passed to Frame.render therefore saw zero requests for cells.
+      final model = await _seededTable();
+      final measurer = _CountingMeasurer(const TermUnicodeMeasurer());
+      _frame(7, 3).render(TableView(model: model, theme: Theme.dark), measurer: measurer);
+      expect(measurer.calls, greaterThan(0));
     });
 
     test('paints real cell content through a RecordingSurface, not a hole', () async {

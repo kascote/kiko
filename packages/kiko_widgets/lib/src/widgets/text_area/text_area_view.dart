@@ -65,9 +65,15 @@ class _TextAreaViewport extends Node {
   final Theme theme;
   final Map<WidgetState, Style>? styleOverrides;
 
+  // Captured from the layout context so paint measures text the way the frame
+  // does — a cjk frame reaches the content, not just the box chrome.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
-      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  }
 
   @override
   void paintSelf(Surface surface) {
@@ -75,7 +81,7 @@ class _TextAreaViewport extends Node {
     final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
     if (area.isEmpty) return;
 
-    final cursor = TextAreaRenderer(model, theme, styleOverrides).paint(area, surface);
+    final cursor = TextAreaRenderer(model, theme, styleOverrides, measurer: _measurer).paint(area, surface);
     // Only the real BufferSurface has a terminal cursor to report — a
     // RecordingSurface (goldens) has nothing to carry it to.
     if (surface is BufferSurface) surface.cursor = cursor;

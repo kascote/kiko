@@ -12,7 +12,10 @@ import 'types.dart';
 /// `tableView` viewport and any other caller draw a table the same way.
 class TableRenderer {
   /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
-  TableRenderer(this.model, this.theme, this.styleOverrides);
+  ///
+  /// [measurer] measures text the way the frame paints it; pass the frame's own
+  /// measurer so a cjk-configured frame sizes cells like it draws them.
+  TableRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()});
 
   /// The model containing table state.
   final TableViewModel model;
@@ -22,6 +25,9 @@ class TableRenderer {
 
   /// Optional per-state style overrides.
   final Map<WidgetState, Style>? styleOverrides;
+
+  /// Measures text for painting, carried from the frame.
+  final TextMeasurer measurer;
 
   /// Paints the table into [area] of [surface].
   void paint(Rect area, Surface surface) {
@@ -48,7 +54,7 @@ class TableRenderer {
     if (loadedStart == loadedEnd && !model.isLoading()) {
       final placeholder = model.emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y + headerHeight, width: area.width);
+        paintLine(surface, placeholder, x: area.x, y: area.y + headerHeight, width: area.width, measurer: measurer);
       }
       return;
     }
@@ -125,7 +131,7 @@ class TableRenderer {
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
       if (i > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]), x: x, y: y, width: sepWidth);
+        paintLine(surface, Line.fromTexts([sep]), x: x, y: y, width: sepWidth, measurer: measurer);
         x += sepWidth;
       }
 
@@ -142,7 +148,7 @@ class TableRenderer {
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
       final aligned = _alignLine(line, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(style), x: x, y: y, width: col.width);
+      paintLine(surface, aligned.patchStyle(style), x: x, y: y, width: col.width, measurer: measurer);
 
       x += col.width;
     }
@@ -150,7 +156,7 @@ class TableRenderer {
 
   /// Renders a loading placeholder row.
   void _renderLoadingRow(Surface surface, Rect area) {
-    paintLine(surface, model.loadingIndicator ?? Line('Loading...'), x: area.x, y: area.y, width: area.width);
+    paintLine(surface, model.loadingIndicator ?? Line('Loading...'), x: area.x, y: area.y, width: area.width, measurer: measurer);
   }
 
   /// Renders a data row.
@@ -171,7 +177,7 @@ class TableRenderer {
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
       if (colIdx > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]), x: x, y: area.y, width: sepWidth);
+        paintLine(surface, Line.fromTexts([sep]), x: x, y: area.y, width: sepWidth, measurer: measurer);
         x += sepWidth;
       }
 
@@ -213,7 +219,7 @@ class TableRenderer {
       final line = col.render?.call(ctx) ?? _defaultRender(value, col);
       final truncated = _truncateLine(line, col.width, model.ellipsis);
       final aligned = _alignLine(truncated, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(style), x: x, y: area.y, width: col.width);
+      paintLine(surface, aligned.patchStyle(style), x: x, y: area.y, width: col.width, measurer: measurer);
 
       x += col.width;
     }

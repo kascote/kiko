@@ -92,9 +92,15 @@ class _TreeViewport<T> extends Node {
   final Map<WidgetState, Style>? styleOverrides;
   final Line? emptyPlaceholder;
 
+  // Captured from the layout context so paint measures text the way the frame
+  // does — a cjk frame reaches the rows, not just the box chrome.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
-      constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
+  }
 
   @override
   void paintSelf(Surface surface) {
@@ -111,7 +117,7 @@ class _TreeViewport<T> extends Node {
     if (!m.isLoaded || nodes.isEmpty) {
       final placeholder = emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width);
+        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width, measurer: _measurer);
       }
       return;
     }
@@ -148,7 +154,7 @@ class _TreeViewport<T> extends Node {
       final indent = node.depth * m.indentWidth;
       final contentWidth = (area.width - indent).clamp(0, area.width);
       if (contentWidth > 0) {
-        paintLine(surface, nodeLine, x: area.x + indent, y: y, width: contentWidth);
+        paintLine(surface, nodeLine, x: area.x + indent, y: y, width: contentWidth, measurer: _measurer);
       }
 
       y++;

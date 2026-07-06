@@ -74,12 +74,43 @@ void view(UnicodeModel model, Frame frame) {
         _Sample('marks', '§¶±×'),
         _Sample('lines', '│─┼'),
       ]),
+      _mixedRuns(),
       const Expanded(child: SizedBox()),
     ],
   );
 
   frame.render(ui, measurer: measurer);
 }
+
+/// Long heterogeneous runs in one full-width box, each right-aligned so its
+/// final glyph should land flush against the right border. The small boxes above
+/// hold one glyph type each; these mix scripts, emoji, clusters and combining
+/// marks in a single run, where width bugs hide at the boundaries between types
+/// and accumulate over length. If every glyph is measured right, all four line
+/// ends form a straight column against the border; a mismeasure floats one off.
+View _mixedRuns() => Column(
+  crossAxis: CrossAxisAlignment.stretch,
+  children: [
+    Line('Mixed runs — each line ends flush at the right border', style: const Style(fg: Color.green)),
+    Box(
+      border: BorderType.rounded,
+      borderStyle: const Style(fg: Color.darkGray),
+      child: Column(
+        crossAxis: CrossAxisAlignment.stretch,
+        children: [
+          for (final run in _mixedRunLines) Row(mainAxis: MainAxisAlignment.end, children: [Line(run)]),
+        ],
+      ),
+    ),
+  ],
+);
+
+const _mixedRunLines = <String>[
+  'latin→cjk→emoji:  café · 世界 · 🔥 · 日本語 · ★ ✓',
+  'clusters:  👨‍👩‍👧‍👦 family · 🇯🇵 flag · 👋🏽 wave · 🧑‍💻 ‖',
+  'combining:  e̋ ñ ō̈ · base+mark · aあb mixed width ⟩',
+  'symbols/box:  ┌─┬─┐ · ½ ¾ · §¶±× · αβγ ambiguous ⟨end⟩',
+];
 
 /// One labelled sample in a fixed-width box; the right border is the assertion.
 class _Sample {

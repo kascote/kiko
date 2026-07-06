@@ -33,11 +33,13 @@ List<Line> _row(String item, int index, ItemState state) => [Line(item)];
 void main() {
   group('list view render', () {
     test('draws the visible items inside a bordered box', () {
-      final node = ListView<String, String>(
-        model: _list(<String>['Apple', 'Banana', 'Cherry']),
-        theme: Theme.dark,
-        itemBuilder: _row,
+      final node = Box(
         border: BorderType.plain,
+        child: ListView<String, String>(
+          model: _list(<String>['Apple', 'Banana', 'Cherry']),
+          theme: Theme.dark,
+          itemBuilder: _row,
+        ),
       );
       final frame = _frame(12, 5)..render(node);
 

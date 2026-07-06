@@ -158,26 +158,28 @@ void appView(AppModel model, Frame frame) {
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ListView(
-            model: model.list,
-            theme: theme,
-            itemBuilder: (user, index, state) {
-              final roleStyle = switch (user.role) {
-                'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
-                'Manager' => Style(fg: theme.warning.fg),
-                'Member' => Style(fg: theme.accent.fg),
-                _ => theme.muted,
-              };
-              return [
-                Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
-                Line('  ${user.role} (${user.id})', style: roleStyle),
-              ];
-            },
-            separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border)]),
-            emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
+          child: Box(
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Users', style: theme.focus)],
+            child: ListView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (user, index, state) {
+                final roleStyle = switch (user.role) {
+                  'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
+                  'Manager' => Style(fg: theme.warning.fg),
+                  'Member' => Style(fg: theme.accent.fg),
+                  _ => theme.muted,
+                };
+                return [
+                  Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
+                  Line('  ${user.role} (${user.id})', style: roleStyle),
+                ];
+              },
+              separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border)]),
+              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
+            ),
           ),
         ),
         ConstrainedBox(

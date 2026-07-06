@@ -5,16 +5,15 @@ import 'types.dart';
 
 /// A ListView as a view — the plume-native view for [ListViewModel].
 ///
-/// A [Box] owns the outer frame: an optional [border] with [borderStyle] and
-/// edge titles, laid out and placed by the engine. The scrolling body is a
-/// custom node that windows the model's visible rows and paints them through the
-/// plume paint protocol — [itemBuilder] returns the lines of each row (one
-/// per row of `model.itemHeight`; a shorter list leaves the remaining rows
-/// blank), with an optional [separatorBuilder] between items and an
-/// [emptyPlaceholder] line when there are no items. Row backgrounds come from
-/// the item's state (focused / selected / disabled) via the theme,
-/// overridable per state with [styleOverrides]. The built subtree is stamped
-/// with the model id so a click routes back through [Frame.hitId].
+/// This is the scrolling body on its own, with no frame around it: a custom node
+/// that windows the model's visible rows and paints them through the plume paint
+/// protocol. [itemBuilder] returns the lines of each row (one per row of
+/// `model.itemHeight`; a shorter list leaves the remaining rows blank), with an
+/// optional [separatorBuilder] between items and an [emptyPlaceholder] line when
+/// there are no items. Row backgrounds come from the item's state (focused /
+/// selected / disabled) via the theme, overridable per state with
+/// [styleOverrides]. Wrap it in a [Box] for a border or edge titles. The node is
+/// stamped with the model id so a click routes back through [Frame.hitId].
 final class ListView<T, K> implements View {
   /// Creates a list view over [model], styled by [theme] and built row by row
   /// through [itemBuilder].
@@ -25,16 +24,12 @@ final class ListView<T, K> implements View {
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
-    this.border = BorderType.none,
-    this.borderStyle = const Style(),
-    this.topTitles = const <Line>[],
-    this.bottomTitles = const <Line>[],
   });
 
   /// The model whose rows, cursor, and selection this view renders.
   final ListViewModel<T, K> model;
 
-  /// The theme that resolves row and border styles.
+  /// The theme that resolves row styles.
   final Theme theme;
 
   /// Builds the lines of the row for [model]'s item at a given index and state.
@@ -49,35 +44,15 @@ final class ListView<T, K> implements View {
   /// The line shown when the list has no items, or `null` for a blank body.
   final Line? emptyPlaceholder;
 
-  /// The border drawn around the list, or [BorderType.none] for no border.
-  final BorderType border;
-
-  /// The colour and modifiers of the border glyphs.
-  final Style borderStyle;
-
-  /// The titles riding on the top edge of the border.
-  final List<Line> topTitles;
-
-  /// The titles riding on the bottom edge of the border.
-  final List<Line> bottomTitles;
-
   @override
-  Node build() => Box(
-    border: border,
-    borderStyle: borderStyle,
-    topTitles: topTitles,
-    bottomTitles: bottomTitles,
-    child: NodeView(
-      _ListViewport<T, K>(
-        model: model,
-        theme: theme,
-        itemBuilder: itemBuilder,
-        styleOverrides: styleOverrides,
-        separatorBuilder: separatorBuilder,
-        emptyPlaceholder: emptyPlaceholder,
-      ),
-    ),
-  ).build()..tag = model.id;
+  Node build() => _ListViewport<T, K>(
+    model: model,
+    theme: theme,
+    itemBuilder: itemBuilder,
+    styleOverrides: styleOverrides,
+    separatorBuilder: separatorBuilder,
+    emptyPlaceholder: emptyPlaceholder,
+  )..tag = model.id;
 }
 
 /// The self-painting body of a [ListView]: fills the space the box gives it and

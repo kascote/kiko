@@ -6,14 +6,14 @@ import 'types.dart';
 
 /// A TreeView as a view — the plume-native view for [TreeViewModel].
 ///
-/// A [Box] owns the outer frame: an optional [border] with [borderStyle] and
-/// edge titles. The scrolling body is a custom node that windows the model's
-/// flat, visible nodes and paints them through the plume paint protocol — each
-/// row indented by its depth, drawn by [nodeBuilder] or a default builder
-/// showing the expand indicator, icon, and label, with an [emptyPlaceholder]
-/// until the roots load. Row backgrounds come from the node's state (focused /
-/// loading) via the theme, overridable with [styleOverrides]. The built subtree
-/// is stamped with the model id so a click routes back through [Frame.hitId].
+/// This is the scrolling body on its own, with no frame around it: a custom node
+/// that windows the model's flat, visible nodes and paints them through the plume
+/// paint protocol — each row indented by its depth, drawn by [nodeBuilder] or a
+/// default builder showing the expand indicator, icon, and label, with an
+/// [emptyPlaceholder] until the roots load. Row backgrounds come from the node's
+/// state (focused / loading) via the theme, overridable with [styleOverrides].
+/// Wrap it in a [Box] for a border or edge titles. The node is stamped with the
+/// model id so a click routes back through [Frame.hitId].
 final class TreeView<T> implements View {
   /// Creates a tree view over [model], styled by [theme] and built row by row
   /// through [nodeBuilder].
@@ -23,16 +23,12 @@ final class TreeView<T> implements View {
     this.nodeBuilder,
     this.styleOverrides,
     this.emptyPlaceholder,
-    this.border = BorderType.none,
-    this.borderStyle = const Style(),
-    this.topTitles = const <Line>[],
-    this.bottomTitles = const <Line>[],
   });
 
   /// The model whose visible nodes, cursor, and expansion this view renders.
   final TreeViewModel<T> model;
 
-  /// The theme that resolves row and border styles.
+  /// The theme that resolves row styles.
   final Theme theme;
 
   /// Builds the line for a node at a given depth and state, or `null` to use the
@@ -45,34 +41,14 @@ final class TreeView<T> implements View {
   /// The line shown until the roots load, or `null` for a blank body.
   final Line? emptyPlaceholder;
 
-  /// The border drawn around the tree, or [BorderType.none] for no border.
-  final BorderType border;
-
-  /// The colour and modifiers of the border glyphs.
-  final Style borderStyle;
-
-  /// The titles riding on the top edge of the border.
-  final List<Line> topTitles;
-
-  /// The titles riding on the bottom edge of the border.
-  final List<Line> bottomTitles;
-
   @override
-  Node build() => Box(
-    border: border,
-    borderStyle: borderStyle,
-    topTitles: topTitles,
-    bottomTitles: bottomTitles,
-    child: NodeView(
-      _TreeViewport<T>(
-        model: model,
-        theme: theme,
-        nodeBuilder: nodeBuilder,
-        styleOverrides: styleOverrides,
-        emptyPlaceholder: emptyPlaceholder,
-      ),
-    ),
-  ).build()..tag = model.id;
+  Node build() => _TreeViewport<T>(
+    model: model,
+    theme: theme,
+    nodeBuilder: nodeBuilder,
+    styleOverrides: styleOverrides,
+    emptyPlaceholder: emptyPlaceholder,
+  )..tag = model.id;
 }
 
 /// The self-painting body of a [TreeView]: fills the space the box gives it and

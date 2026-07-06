@@ -198,17 +198,19 @@ void appView(AppModel model, Frame frame) {
         ),
         // List area using ListView
         Expanded(
-          child: ListView(
-            model: model.list,
-            theme: theme,
-            itemBuilder: (item, index, _) {
-              final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
-              return [Line(' $item', style: style)];
-            },
-            emptyPlaceholder: Line('No matches', style: theme.muted),
+          child: Box(
             border: BorderType.plain,
             borderStyle: model.list.focused ? theme.focus : theme.border,
             topTitles: [Line('Results')],
+            child: ListView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (item, index, _) {
+                final style = model.selected == item ? Style(fg: theme.success.fg) : const Style();
+                return [Line(' $item', style: style)];
+              },
+              emptyPlaceholder: Line('No matches', style: theme.muted),
+            ),
           ),
         ),
         // Selected item display

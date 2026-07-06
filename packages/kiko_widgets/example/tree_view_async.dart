@@ -289,10 +289,7 @@ void appView(AppModel model, Frame frame) {
       ? '${model.tree.flatNodes.length} nodes'
       : 'Not loaded';
 
-  final treeWidget = TreeView(
-    model: model.tree,
-    theme: theme,
-    emptyPlaceholder: Line('Loading categories...', style: theme.muted),
+  final treeWidget = Box(
     border: BorderType.plain,
     borderStyle: theme.focus,
     topTitles: [
@@ -301,6 +298,11 @@ void appView(AppModel model, Frame frame) {
         Text('($loadingStatus)', style: theme.muted),
       ]),
     ],
+    child: TreeView(
+      model: model.tree,
+      theme: theme,
+      emptyPlaceholder: Line('Loading categories...', style: theme.muted),
+    ),
   );
 
   final infoBox = ConstrainedBox(

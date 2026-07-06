@@ -132,12 +132,14 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final treeWidget = TreeView(
-    model: model.tree,
-    theme: theme,
+  final treeWidget = Box(
     border: BorderType.plain,
     borderStyle: theme.focus,
     topTitles: [Line('File Browser', style: theme.focus)],
+    child: TreeView(
+      model: model.tree,
+      theme: theme,
+    ),
   );
 
   final infoBox = ConstrainedBox(

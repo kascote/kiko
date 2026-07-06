@@ -145,12 +145,14 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
 
-  final tableWidget = TableView(
-    model: model.table,
-    theme: theme,
+  final tableWidget = Box(
     border: BorderType.plain,
     borderStyle: theme.focus,
     topTitles: [Line('Employees (${employees.length})', style: theme.focus)],
+    child: TableView(
+      model: model.table,
+      theme: theme,
+    ),
   );
 
   // Selected rows info

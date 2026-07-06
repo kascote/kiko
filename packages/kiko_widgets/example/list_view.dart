@@ -112,13 +112,15 @@ void appView(AppModel model, Frame frame) {
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ListView(
-            model: model.list,
-            theme: theme,
-            itemBuilder: (item, index, _) => [Line(' $item')],
+          child: Box(
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Fruits (${fruits.length})', style: theme.focus)],
+            child: ListView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (item, index, _) => [Line(' $item')],
+            ),
           ),
         ),
         ConstrainedBox(

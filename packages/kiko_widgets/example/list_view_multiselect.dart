@@ -93,24 +93,26 @@ void appView(AppModel model, Frame frame) {
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ListView(
-            model: model.list,
-            theme: theme,
-            itemBuilder: (contact, index, state) {
-              final checkbox = state.checked ? '●' : '○';
-              final archivedTag = state.disabled ? ' (archived)' : '';
-              return [
-                Line(
-                  ' $checkbox ${contact.name}$archivedTag',
-                  style: const Style(addModifier: Modifier.bold),
-                ),
-                Line('      ${contact.email}', style: theme.muted),
-              ];
-            },
-            separatorBuilder: () => Line.fromTexts([Text('─' * 40, style: theme.border)]),
+          child: Box(
             border: BorderType.plain,
             borderStyle: theme.focus,
             topTitles: [Line('Contacts', style: theme.focus)],
+            child: ListView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (contact, index, state) {
+                final checkbox = state.checked ? '●' : '○';
+                final archivedTag = state.disabled ? ' (archived)' : '';
+                return [
+                  Line(
+                    ' $checkbox ${contact.name}$archivedTag',
+                    style: const Style(addModifier: Modifier.bold),
+                  ),
+                  Line('      ${contact.email}', style: theme.muted),
+                ];
+              },
+              separatorBuilder: () => Line.fromTexts([Text('─' * 40, style: theme.border)]),
+            ),
           ),
         ),
         ConstrainedBox(

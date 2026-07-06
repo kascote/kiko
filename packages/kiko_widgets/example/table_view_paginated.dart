@@ -256,12 +256,14 @@ void appView(AppModel model, Frame frame) {
 
   final loading = table.isLoading();
 
-  final tableWidget = TableView(
-    model: table,
-    theme: theme,
+  final tableWidget = Box(
     border: BorderType.plain,
     borderStyle: loading ? theme.warning : theme.focus,
     topTitles: [Line(titleText, style: loading ? theme.warning : theme.focus)],
+    child: TableView(
+      model: table,
+      theme: theme,
+    ),
   );
 
   // Status

@@ -3,76 +3,126 @@ import 'package:test/test.dart';
 
 void main() {
   group('Theme', () {
-    test('dark preset has all required styles', () {
+    test('dark preset has all required tones', () {
       const theme = Theme.dark;
 
-      expect(theme.primary.fg, isNotNull);
-      expect(theme.primary.bg, isNotNull);
-      expect(theme.secondary.fg, isNotNull);
-      expect(theme.accent.fg, isNotNull);
-      expect(theme.error.fg, isNotNull);
-      expect(theme.success.fg, isNotNull);
-      expect(theme.warning.fg, isNotNull);
-      expect(theme.surface.fg, isNotNull);
-      expect(theme.surface.bg, isNotNull);
-      expect(theme.background.fg, isNotNull);
-      expect(theme.background.bg, isNotNull);
-      expect(theme.focus.fg, isNotNull);
-      expect(theme.muted.fg, isNotNull);
-      expect(theme.disabled.fg, isNotNull);
-      expect(theme.border.fg, isNotNull);
-      expect(theme.highlight.fg, isNotNull);
-      expect(theme.highlight.bg, isNotNull);
+      expect(theme.primary.color, isNotNull);
+      expect(theme.primary.on, isNotNull);
+      expect(theme.secondary.color, isNotNull);
+      expect(theme.accent.color, isNotNull);
+      expect(theme.error.color, isNotNull);
+      expect(theme.warning.color, isNotNull);
+      expect(theme.success.color, isNotNull);
+      expect(theme.background.color, isNotNull);
+      expect(theme.background.on, isNotNull);
+      expect(theme.surface.color, isNotNull);
+      expect(theme.surface.on, isNotNull);
+      expect(theme.border.color, isNotNull);
+      expect(theme.muted.color, isNotNull);
+      expect(theme.disabled.color, isNotNull);
+      expect(theme.focus.color, isNotNull);
+      expect(theme.selection.color, isNotNull);
+      expect(theme.selection.on, isNotNull);
     });
 
-    test('light preset has all required styles', () {
+    test('light preset has all required tones', () {
       const theme = Theme.light;
 
-      expect(theme.primary.fg, isNotNull);
-      expect(theme.primary.bg, isNotNull);
-      expect(theme.secondary.fg, isNotNull);
-      expect(theme.accent.fg, isNotNull);
-      expect(theme.error.fg, isNotNull);
-      expect(theme.success.fg, isNotNull);
-      expect(theme.warning.fg, isNotNull);
-      expect(theme.surface.fg, isNotNull);
-      expect(theme.surface.bg, isNotNull);
-      expect(theme.background.fg, isNotNull);
-      expect(theme.background.bg, isNotNull);
-      expect(theme.focus.fg, isNotNull);
-      expect(theme.muted.fg, isNotNull);
-      expect(theme.disabled.fg, isNotNull);
-      expect(theme.border.fg, isNotNull);
-      expect(theme.highlight.fg, isNotNull);
-      expect(theme.highlight.bg, isNotNull);
+      expect(theme.primary.color, isNotNull);
+      expect(theme.primary.on, isNotNull);
+      expect(theme.background.color, isNotNull);
+      expect(theme.background.on, isNotNull);
+      expect(theme.surface.color, isNotNull);
+      expect(theme.selection.color, isNotNull);
+      expect(theme.selection.on, isNotNull);
     });
 
     test('ansiDark preset uses ANSI colors', () {
       const theme = Theme.ansiDark;
 
-      expect(theme.primary.fg, equals(Color.cyan));
-      expect(theme.primary.bg, equals(Color.black));
-      expect(theme.error.fg, equals(Color.red));
-      expect(theme.success.fg, equals(Color.green));
-      expect(theme.background.fg, equals(Color.white));
-      expect(theme.background.bg, equals(Color.black));
+      expect(theme.primary.color, equals(Color.cyan));
+      expect(theme.primary.on, equals(Color.black));
+      expect(theme.error.color, equals(Color.red));
+      expect(theme.success.color, equals(Color.green));
+      // background: color = base bg, on = default text.
+      expect(theme.background.color, equals(Color.black));
+      expect(theme.background.on, equals(Color.white));
     });
 
-    test('focus has bold modifier', () {
-      expect(Theme.dark.focus.addModifier.has(Modifier.bold), isTrue);
-      expect(Theme.light.focus.addModifier.has(Modifier.bold), isTrue);
-      expect(Theme.ansiDark.focus.addModifier.has(Modifier.bold), isTrue);
+    test('background tone: color is the base bg, on is default text', () {
+      // The surface-shaped tones invert the old Style(fg: text, bg: bg) layout:
+      // the identity color is the bg, the readable color is the text.
+      expect(Theme.dark.background.color, equals(const Color.rgb(0x0d1117)));
+      expect(Theme.dark.background.on, equals(const Color.rgb(0xc9d1d9)));
+      expect(Theme.dark.surface.color, equals(const Color.rgb(0x161b22)));
+      expect(Theme.dark.surface.on, equals(const Color.rgb(0xc9d1d9)));
     });
 
-    test('disabled has dim modifier', () {
-      expect(Theme.dark.disabled.addModifier.has(Modifier.dim), isTrue);
-      expect(Theme.light.disabled.addModifier.has(Modifier.dim), isTrue);
-      expect(Theme.ansiDark.disabled.addModifier.has(Modifier.dim), isTrue);
+    test('selection carries a color and a readable on', () {
+      // Old highlight Style(fg: F, bg: B) maps to selection Tone(color: B, on: F).
+      expect(Theme.dark.selection.color, equals(const Color.rgb(0x264a5c)));
+      expect(Theme.dark.selection.on, equals(const Color.rgb(0xc9d1d9)));
+    });
+
+    test('no tone carries a modifier — modifiers ride on projections', () {
+      // Tones are pure color; bold/dim/blink come from the resolver matrix.
+      expect(Theme.dark.focus.ink.addModifier, equals(Modifier.empty));
+      expect(Theme.dark.disabled.ink.addModifier, equals(Modifier.empty));
+    });
+
+    group('derived cursor and hover', () {
+      test('dark theme derives washes by lifting the background', () {
+        const theme = Theme.dark;
+        final base = theme.background.color!;
+
+        expect(theme.cursor.color, equals(base.lift(0.10)));
+        expect(theme.cursor.on, equals(theme.background.on));
+        expect(theme.hover.color, equals(base.lift(0.08)));
+      });
+
+      test('light theme derives washes by lifting (darkening) the background', () {
+        const theme = Theme.light;
+        final base = theme.background.color!;
+
+        // On a light base, lift darkens.
+        expect(theme.cursor.color, equals(base.lift(0.10)));
+        expect(theme.cursor.color, equals(base.darken(0.10)));
+      });
+
+      test('explicit cursor/hover win over derivation', () {
+        const custom = Tone(color: Color.rgb(0x2a1d10), on: Color.rgb(0xffffff));
+        final theme = Theme.dark.copyWith(cursor: custom);
+
+        expect(theme.cursor, equals(custom));
+        // hover is still derived.
+        expect(theme.hover.color, equals(theme.background.color!.lift(0.08)));
+      });
+
+      test('terminal-default background derives to an empty tone', () {
+        const theme = Theme(
+          primary: Tone(color: Color.cyan),
+          secondary: Tone(color: Color.magenta),
+          accent: Tone(color: Color.yellow),
+          error: Tone(color: Color.red),
+          warning: Tone(color: Color.yellow),
+          success: Tone(color: Color.green),
+          background: Tone(), // transparent: no color
+          surface: Tone(color: Color.darkGray),
+          border: Tone(color: Color.gray),
+          muted: Tone(color: Color.darkGray),
+          disabled: Tone(color: Color.darkGray),
+          focus: Tone(color: Color.brightCyan),
+          selection: Tone(color: Color.yellow),
+        );
+
+        expect(theme.cursor, equals(const Tone()));
+        expect(theme.hover, equals(const Tone()));
+      });
     });
 
     group('copyWith', () {
-      test('replaces single field', () {
-        const customPrimary = Style(fg: Color.red, bg: Color.white);
+      test('replaces a single tone', () {
+        const customPrimary = Tone(color: Color.red, on: Color.white);
         final theme = Theme.ansiDark.copyWith(primary: customPrimary);
 
         expect(theme.primary, equals(customPrimary));
@@ -80,128 +130,58 @@ void main() {
         expect(theme.error, equals(Theme.ansiDark.error));
       });
 
-      test('replaces multiple fields', () {
-        const customPrimary = Style(fg: Color.red);
-        const customError = Style(fg: Color.magenta);
-        final theme = Theme.ansiDark.copyWith(
-          primary: customPrimary,
-          error: customError,
-        );
-
-        expect(theme.primary, equals(customPrimary));
-        expect(theme.error, equals(customError));
-        expect(theme.secondary, equals(Theme.ansiDark.secondary));
-      });
-
-      test('null values keep original', () {
+      test('null values keep the original', () {
         final theme = Theme.ansiDark.copyWith();
 
         expect(theme.primary, equals(Theme.ansiDark.primary));
-        expect(theme.secondary, equals(Theme.ansiDark.secondary));
         expect(theme.background, equals(Theme.ansiDark.background));
+      });
+
+      test('renaming to selection replaces the old highlight token', () {
+        const custom = Tone(color: Color.blue, on: Color.white);
+        final theme = Theme.dark.copyWith(selection: custom);
+        expect(theme.selection, equals(custom));
       });
     });
 
     group('equality', () {
       test('same presets are equal', () {
         expect(Theme.ansiDark, equals(Theme.ansiDark));
-      });
-
-      test('identical themes are equal', () {
-        const theme1 = Theme(
-          primary: Style(fg: Color.cyan),
-          secondary: Style(fg: Color.magenta),
-          accent: Style(fg: Color.yellow),
-          error: Style(fg: Color.red),
-          success: Style(fg: Color.green),
-          warning: Style(fg: Color.yellow),
-          surface: Style(fg: Color.white),
-          background: Style(fg: Color.white, bg: Color.black),
-          focus: Style(fg: Color.cyan),
-          muted: Style(fg: Color.gray),
-          disabled: Style(fg: Color.darkGray),
-          border: Style(fg: Color.gray),
-          highlight: Style(fg: Color.black, bg: Color.yellow),
-        );
-        const theme2 = Theme(
-          primary: Style(fg: Color.cyan),
-          secondary: Style(fg: Color.magenta),
-          accent: Style(fg: Color.yellow),
-          error: Style(fg: Color.red),
-          success: Style(fg: Color.green),
-          warning: Style(fg: Color.yellow),
-          surface: Style(fg: Color.white),
-          background: Style(fg: Color.white, bg: Color.black),
-          focus: Style(fg: Color.cyan),
-          muted: Style(fg: Color.gray),
-          disabled: Style(fg: Color.darkGray),
-          border: Style(fg: Color.gray),
-          highlight: Style(fg: Color.black, bg: Color.yellow),
-        );
-
-        expect(theme1, equals(theme2));
-        expect(theme1.hashCode, equals(theme2.hashCode));
-      });
-
-      test('different themes are not equal', () {
-        const theme1 = Theme(
-          primary: Style(fg: Color.cyan),
-          secondary: Style(fg: Color.magenta),
-          accent: Style(fg: Color.yellow),
-          error: Style(fg: Color.red),
-          success: Style(fg: Color.green),
-          warning: Style(fg: Color.yellow),
-          surface: Style(fg: Color.white),
-          background: Style(fg: Color.white, bg: Color.black),
-          focus: Style(fg: Color.cyan),
-          muted: Style(fg: Color.gray),
-          disabled: Style(fg: Color.darkGray),
-          border: Style(fg: Color.gray),
-          highlight: Style(fg: Color.black, bg: Color.yellow),
-        );
-        const theme2 = Theme(
-          primary: Style(fg: Color.red), // different
-          secondary: Style(fg: Color.magenta),
-          accent: Style(fg: Color.yellow),
-          error: Style(fg: Color.red),
-          success: Style(fg: Color.green),
-          warning: Style(fg: Color.yellow),
-          surface: Style(fg: Color.white),
-          background: Style(fg: Color.white, bg: Color.black),
-          focus: Style(fg: Color.cyan),
-          muted: Style(fg: Color.gray),
-          disabled: Style(fg: Color.darkGray),
-          border: Style(fg: Color.gray),
-          highlight: Style(fg: Color.black, bg: Color.yellow),
-        );
-
-        expect(theme1, isNot(equals(theme2)));
+        expect(Theme.ansiDark.hashCode, equals(Theme.ansiDark.hashCode));
       });
 
       test('dark and light are different', () {
         expect(Theme.dark, isNot(equals(Theme.light)));
       });
+
+      test('differing in one tone is unequal', () {
+        final other = Theme.dark.copyWith(primary: const Tone(color: Color.red));
+        expect(Theme.dark, isNot(equals(other)));
+      });
+
+      test('explicit cursor differs from a derived one', () {
+        final withCursor = Theme.dark.copyWith(
+          cursor: const Tone(color: Color.rgb(0x123456)),
+        );
+        expect(withCursor, isNot(equals(Theme.dark)));
+      });
     });
 
-    group('usage patterns', () {
-      test('primary.inverted for buttons', () {
-        final buttonStyle = Theme.ansiDark.primary.inverted;
+    group('projection usage patterns', () {
+      test('primary.fill for buttons (fg: on, bg: color)', () {
+        final buttonStyle = Theme.ansiDark.primary.fill;
 
         expect(buttonStyle.fg, equals(Color.black));
         expect(buttonStyle.bg, equals(Color.cyan));
       });
 
-      test('background.fg for default text', () {
-        final textColor = Theme.ansiDark.background.fg;
-
-        expect(textColor, equals(Color.white));
+      test('background.on for default text', () {
+        expect(Theme.ansiDark.background.on, equals(Color.white));
       });
 
-      test('error.inverted for destructive buttons', () {
-        final deleteStyle = Theme.ansiDark.error.inverted;
-
-        expect(deleteStyle.bg, equals(Color.red));
-        expect(deleteStyle.fg, equals(Color.white));
+      test('border.ink for chrome carries no background', () {
+        expect(Theme.dark.border.ink.fg, equals(Theme.dark.border.color));
+        expect(Theme.dark.border.ink.bg, isNull);
       });
     });
   });

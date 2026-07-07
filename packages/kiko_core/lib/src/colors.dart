@@ -241,6 +241,26 @@ class Color {
       (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
     );
   }
+
+  /// Perceived brightness of this color, in the range 0.0 (black) to 1.0 (white).
+  ///
+  /// ANSI and indexed colors are resolved to RGB first, then weighted by how
+  /// the eye responds to each channel (green counts most, blue least).
+  double get luminance {
+    final rgb = toRgb();
+    final r = (rgb.value >> 16) & 0xFF;
+    final g = (rgb.value >> 8) & 0xFF;
+    final b = rgb.value & 0xFF;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+  }
+
+  /// Shifts this color away from its own background by [amount].
+  ///
+  /// Dark colors are lightened and light ones are darkened, so a tint derived
+  /// with [lift] stays visible whether it sits on a dark or a light base. The
+  /// split point is mid-[luminance]; [amount] is passed straight to [lighten]
+  /// or [darken].
+  Color lift(double amount) => luminance < 0.5 ? lighten(amount) : darken(amount);
 }
 
 /// ANSI-16 lighten lookup: dark → bright variant.

@@ -130,12 +130,12 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final treeWidget = Box(
     border: BorderType.plain,
-    borderStyle: theme.focus,
-    topTitles: [Line('File Browser', style: theme.focus)],
+    borderStyle: theme.focus.ink,
+    topTitles: [Line('File Browser', style: theme.focus.ink)],
     child: TreeView(
       model: model.tree,
       theme: theme,
@@ -146,12 +146,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Box(
       border: BorderType.plain,
-      borderStyle: model.selectedPath != null ? theme.success : theme.border,
+      borderStyle: model.selectedPath != null ? theme.success.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selected')],
       child: Line(
         model.selectedPath ?? 'Press Enter to select',
-        style: model.selectedPath != null ? Style(fg: theme.success.fg) : theme.muted,
+        style: model.selectedPath != null ? Style(fg: theme.success.color) : theme.muted.ink,
       ),
     ),
   );
@@ -161,18 +161,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
-          style: theme.muted,
+          style: theme.muted.ink,
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
       ),
     ],
   );
 
   final ui = Box(
-    topTitles: [Line('TreeView Demo', style: theme.muted)],
+    topTitles: [Line('TreeView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

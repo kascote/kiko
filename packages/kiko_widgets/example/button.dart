@@ -159,7 +159,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
 
   // Fill background
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
@@ -222,18 +222,18 @@ void appView(AppModel model, Frame frame) {
           Expanded(
             child: Line(
               model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
-              style: Style(fg: theme.accent.fg),
+              style: Style(fg: theme.accent.color),
             ),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-            child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+            child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 30, maxW: 30),
             child: Align(
               alignment: Alignment.centerRight,
-              child: Line('Tab: pane | Esc: quit', style: theme.muted),
+              child: Line('Tab: pane | Esc: quit', style: theme.muted.ink),
             ),
           ),
         ],
@@ -250,8 +250,8 @@ View _buildPane(
   bool focused,
   View buttons,
 ) {
-  final borderStyle = focused ? theme.focus : theme.border;
-  final titleStyle = focused ? theme.focus : theme.muted;
+  final borderStyle = focused ? theme.focus.ink : theme.border.ink;
+  final titleStyle = focused ? theme.focus.ink : theme.muted.ink;
   return Box(
     border: BorderType.plain,
     borderStyle: borderStyle,

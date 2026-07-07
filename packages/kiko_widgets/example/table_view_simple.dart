@@ -143,12 +143,12 @@ String _formatNumber(int n) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final tableWidget = Box(
     border: BorderType.plain,
-    borderStyle: theme.focus,
-    topTitles: [Line('Employees (${employees.length})', style: theme.focus)],
+    borderStyle: theme.focus.ink,
+    topTitles: [Line('Employees (${employees.length})', style: theme.focus.ink)],
     child: TableView(
       model: model.table,
       theme: theme,
@@ -166,12 +166,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Box(
       border: BorderType.plain,
-      borderStyle: selectedCount > 0 ? theme.success : theme.border,
+      borderStyle: selectedCount > 0 ? theme.success.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selection')],
       child: Line(
         selectedInfo,
-        style: selectedCount > 0 ? Style(fg: theme.success.fg) : theme.muted,
+        style: selectedCount > 0 ? Style(fg: theme.success.color) : theme.muted.ink,
       ),
     ),
   );
@@ -181,12 +181,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Box(
       border: BorderType.plain,
-      borderStyle: model.confirmedCell != null ? theme.accent : theme.border,
+      borderStyle: model.confirmedCell != null ? theme.accent.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Confirmed')],
       child: Line(
         model.confirmedCell ?? 'Press Enter to confirm cell',
-        style: model.confirmedCell != null ? Style(fg: theme.accent.fg) : theme.muted,
+        style: model.confirmedCell != null ? Style(fg: theme.accent.color) : theme.muted.ink,
       ),
     ),
   );
@@ -196,18 +196,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
-          style: theme.muted,
+          style: theme.muted.ink,
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
       ),
     ],
   );
 
   final ui = Box(
-    topTitles: [Line('TableView Demo', style: theme.muted)],
+    topTitles: [Line('TableView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

@@ -1,26 +1,31 @@
 /// Visual states a widget can be in.
 ///
-/// Priority order: later values override earlier when resolving styles.
-/// For example, [disabled] overrides [focused] if both are active.
+/// Declaration order is priority order: when several states are active, later
+/// values are applied last and win. For example, [disabled] overrides every
+/// other state, and [cursor] shows through a [selected] item so the moving bar
+/// stays visible over a selected run.
 enum WidgetState {
-  /// Mouse is hovering over the widget.
+  /// The mouse pointer is over the widget. Mouse only — never set by keyboard.
   hover,
 
-  /// Widget has keyboard focus.
-  focused,
-
-  /// Widget is selected (e.g. list item, checkbox).
+  /// The widget is in the chosen set (e.g. a selected list item or checkbox).
   selected,
 
-  /// Widget's parent lost focus (dimmed state).
+  /// The widget is the current item — the keyboard cursor position.
+  cursor,
+
+  /// The widget owns keyboard input.
+  focused,
+
+  /// The widget's container lost focus (dimmed).
   unfocused,
 
-  /// Widget is non-interactive.
-  disabled,
-
-  /// Widget is performing an async operation.
+  /// The widget is performing an async operation.
   loading,
 
-  /// Widget is in an error state (e.g. validation failure).
+  /// The widget is in an error state (e.g. validation failure).
   error,
+
+  /// The widget is non-interactive — overrides every other state.
+  disabled,
 }

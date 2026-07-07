@@ -105,12 +105,12 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border,
-    topTitles: [Line('Custom Keybindings Demo', style: theme.muted)],
+    borderStyle: theme.border.ink,
+    topTitles: [Line('Custom Keybindings Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -123,11 +123,11 @@ void appView(AppModel model, Frame frame) {
             children: [
               Line(
                 model.message.isNotEmpty ? model.message : 'Type in the fields above',
-                style: model.message.isNotEmpty ? Style(fg: theme.success.fg) : theme.muted,
+                style: model.message.isNotEmpty ? Style(fg: theme.success.color) : theme.muted.ink,
               ),
               const SizedBox(height: 1),
-              Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted),
-              Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted),
+              Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted.ink),
+              Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted.ink),
             ],
           ),
         ),
@@ -135,13 +135,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted),
+              child: Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
               ),
             ),
           ],
@@ -156,7 +156,7 @@ void appView(AppModel model, Frame frame) {
 /// A bordered, titled field wrapping a fixed-height [TextInput].
 View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
-  borderStyle: input.focused ? theme.focus : theme.border,
+  borderStyle: input.focused ? theme.focus.ink : theme.border.ink,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(

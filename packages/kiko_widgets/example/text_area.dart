@@ -71,14 +71,14 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final e = model.editor;
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border,
-    topTitles: [Line('TextArea Demo', style: theme.muted)],
+    borderStyle: theme.border.ink,
+    topTitles: [Line('TextArea Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -88,7 +88,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: model.editor.focused ? theme.focus : theme.border,
+            borderStyle: model.editor.focused ? theme.focus.ink : theme.border.ink,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Content')],
             child: TextArea(model: model.editor, theme: theme),
@@ -103,14 +103,14 @@ void appView(AppModel model, Frame frame) {
                 '${e.lineCount} lines | '
                 '${e.length} chars | '
                 'Focus: ${_focusName(model.focus.index)}',
-                style: theme.muted,
+                style: theme.muted.ink,
               ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
               ),
             ),
           ],
@@ -119,7 +119,7 @@ void appView(AppModel model, Frame frame) {
         Center(
           child: Line(
             'Tab/Shift+Tab to switch | Esc quit',
-            style: theme.muted,
+            style: theme.muted.ink,
           ),
         ),
       ],
@@ -132,7 +132,7 @@ void appView(AppModel model, Frame frame) {
 /// A bordered, titled field wrapping a fixed-height [TextInput].
 View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
-  borderStyle: input.focused ? theme.focus : theme.border,
+  borderStyle: input.focused ? theme.focus.ink : theme.border.ink,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(

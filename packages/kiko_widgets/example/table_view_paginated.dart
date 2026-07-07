@@ -246,7 +246,7 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final table = model.table;
 
@@ -258,8 +258,8 @@ void appView(AppModel model, Frame frame) {
 
   final tableWidget = Box(
     border: BorderType.plain,
-    borderStyle: loading ? theme.warning : theme.focus,
-    topTitles: [Line(titleText, style: loading ? theme.warning : theme.focus)],
+    borderStyle: loading ? theme.warning.ink : theme.focus.ink,
+    topTitles: [Line(titleText, style: loading ? theme.warning.ink : theme.focus.ink)],
     child: TableView(
       model: table,
       theme: theme,
@@ -274,20 +274,20 @@ void appView(AppModel model, Frame frame) {
     child: Box(
       border: BorderType.plain,
       borderStyle: model.error != null
-          ? theme.error
+          ? theme.error.ink
           : loading
-          ? theme.warning
-          : theme.success,
+          ? theme.warning.ink
+          : theme.success.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Status')],
       child: Line(
         status,
         style: Style(
           fg: model.error != null
-              ? theme.error.fg
+              ? theme.error.color
               : loading
-              ? theme.warning.fg
-              : theme.success.fg,
+              ? theme.warning.color
+              : theme.success.color,
         ),
       ),
     ),
@@ -306,18 +306,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
-          style: theme.muted,
+          style: theme.muted.ink,
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
       ),
     ],
   );
 
   final ui = Box(
-    topTitles: [Line('Paginated TableView Demo', style: theme.muted)],
+    topTitles: [Line('Paginated TableView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

@@ -128,7 +128,7 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final loading = model.list.isLoading();
 
@@ -142,43 +142,43 @@ void appView(AppModel model, Frame frame) {
       : '';
 
   final statusBorder = model.error != null
-      ? theme.error
+      ? theme.error.ink
       : loading
-      ? theme.warning
-      : theme.success;
+      ? theme.warning.ink
+      : theme.success.ink;
   final statusFg = model.error != null
-      ? theme.error.fg
+      ? theme.error.color
       : loading
-      ? theme.warning.fg
-      : theme.success.fg;
+      ? theme.warning.color
+      : theme.success.color;
 
   final ui = Box(
-    topTitles: [Line('Paginated ListView Demo', style: theme.muted)],
+    topTitles: [Line('Paginated ListView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: theme.focus,
-            topTitles: [Line('Users', style: theme.focus)],
+            borderStyle: theme.focus.ink,
+            topTitles: [Line('Users', style: theme.focus.ink)],
             child: ListView(
               model: model.list,
               theme: theme,
               itemBuilder: (user, index, state) {
                 final roleStyle = switch (user.role) {
-                  'Admin' => Style(fg: theme.error.fg, addModifier: Modifier.italic),
-                  'Manager' => Style(fg: theme.warning.fg),
-                  'Member' => Style(fg: theme.accent.fg),
-                  _ => theme.muted,
+                  'Admin' => Style(fg: theme.error.color, addModifier: Modifier.italic),
+                  'Manager' => Style(fg: theme.warning.color),
+                  'Member' => Style(fg: theme.accent.color),
+                  _ => theme.muted.ink,
                 };
                 return [
                   Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
                   Line('  ${user.role} (${user.id})', style: roleStyle),
                 ];
               },
-              separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border)]),
-              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted),
+              separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border.ink)]),
+              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted.ink),
             ),
           ),
         ),
@@ -195,11 +195,11 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted),
+              child: Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
             ),
           ],
         ),

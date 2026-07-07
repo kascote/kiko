@@ -45,8 +45,8 @@ final class Button implements View {
 }
 
 /// Resolves the button style from the theme, the model's active states, and any
-/// overrides, mirroring the button defaults (focused → primary inverted,
-/// loading → warning inverted) over a base of the inverted surface.
+/// overrides, mirroring the button defaults (focused → primary fill,
+/// loading → warning fill) over a base of the surface fill.
 Style _resolveStyle(ButtonModel model, Theme theme, Map<WidgetState, Style>? styleOverrides) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{
@@ -55,11 +55,11 @@ Style _resolveStyle(ButtonModel model, Theme theme, Map<WidgetState, Style>? sty
     if (model.loading) WidgetState.loading,
   };
   final widgetDefaults = <WidgetState, Style>{
-    WidgetState.focused: theme.primary.inverted,
-    WidgetState.loading: theme.warning.inverted,
+    WidgetState.focused: theme.primary.fill,
+    WidgetState.loading: theme.warning.fill,
   };
   return resolver.resolve(
-    theme.surface.inverted,
+    theme.surface.fill,
     states,
     overrides: <WidgetState, Style>{...widgetDefaults, ...?styleOverrides},
   );

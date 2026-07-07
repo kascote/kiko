@@ -20,8 +20,8 @@ Node modalDialog({
 }) {
   return Box(
     border: border,
-    borderStyle: borderStyle ?? theme.border,
-    background: background ?? theme.surface,
+    borderStyle: borderStyle ?? theme.border.ink,
+    background: background ?? theme.surface.fill,
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
     child: NodeView(content),

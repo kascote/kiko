@@ -55,17 +55,17 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final base = Box(
     border: BorderType.rounded,
-    borderStyle: theme.border,
+    borderStyle: theme.border.ink,
     padding: const EdgeInsets.all(1),
-    topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted)],
+    topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        Line('Count: ${model.count}', style: Style(fg: theme.accent.fg)),
+        Line('Count: ${model.count}', style: Style(fg: theme.accent.color)),
         const SizedBox(height: 1),
         Line('Some colourful background content:'),
         Line('  Red', style: const Style(fg: Color.red)),
@@ -74,7 +74,7 @@ void appView(AppModel model, Frame frame) {
         const Expanded(child: SizedBox()),
         Line(
           model.lastAction.isEmpty ? '[m] open dialog   [q] quit' : 'Last: ${model.lastAction}   [m] again   [q] quit',
-          style: theme.muted,
+          style: theme.muted.ink,
         ),
       ],
     ),
@@ -84,13 +84,13 @@ void appView(AppModel model, Frame frame) {
     final modal? => modalDialog(
       id: modal.id,
       theme: theme,
-      topTitles: [Line(' Confirm ', style: Style(fg: theme.warning.fg))],
+      topTitles: [Line(' Confirm ', style: Style(fg: theme.warning.color))],
       content: Column(
         mainAxis: MainAxisAlignment.center,
         children: [
           Center(child: Line('Add 10 to the counter?')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] OK   [Esc] Cancel', style: theme.muted)),
+          Center(child: Line('[Enter] OK   [Esc] Cancel', style: theme.muted.ink)),
         ],
       ).build(),
     ),

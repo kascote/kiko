@@ -43,7 +43,7 @@ class TextAreaRenderer {
       if (model.focused) WidgetState.focused,
     };
     return resolver.resolve(
-      Style(fg: theme.background.fg),
+      Style(fg: theme.background.on),
       states,
       overrides: {...?styleOverrides},
     );

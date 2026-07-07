@@ -104,18 +104,18 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Box(
-    topTitles: [Line('ListView Demo', style: theme.muted)],
+    topTitles: [Line('ListView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: theme.focus,
-            topTitles: [Line('Fruits (${fruits.length})', style: theme.focus)],
+            borderStyle: theme.focus.ink,
+            topTitles: [Line('Fruits (${fruits.length})', style: theme.focus.ink)],
             child: ListView(
               model: model.list,
               theme: theme,
@@ -127,23 +127,23 @@ void appView(AppModel model, Frame frame) {
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: Box(
             border: BorderType.plain,
-            borderStyle: model.selected != null ? theme.success : theme.border,
+            borderStyle: model.selected != null ? theme.success.ink : theme.border.ink,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
             child: Line(
               model.selected ?? 'Press Enter to select',
-              style: model.selected != null ? Style(fg: theme.success.fg) : theme.muted,
+              style: model.selected != null ? Style(fg: theme.success.color) : theme.muted.ink,
             ),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted),
+              child: Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
             ),
           ],
         ),

@@ -159,12 +159,12 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border,
-    topTitles: [Line('Validated Form Demo', style: theme.muted)],
+    borderStyle: theme.border.ink,
+    topTitles: [Line('Validated Form Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -179,10 +179,10 @@ void appView(AppModel model, Frame frame) {
               model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
               style: Style(
                 fg: model.submitted
-                    ? theme.success.fg
+                    ? theme.success.color
                     : model.submitMessage != null
-                    ? theme.error.fg
-                    : theme.muted.fg,
+                    ? theme.error.color
+                    : theme.muted.color,
               ),
             ),
           ),
@@ -193,13 +193,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted),
+              child: Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
               ),
             ),
           ],
@@ -220,12 +220,12 @@ View _fieldWithValidation(
   Theme theme,
 ) {
   final (borderStyle, statusText, statusColor) = switch (validation) {
-    Valid() => (theme.success, '✓', theme.success.fg),
-    Invalid(:final message) => (theme.error, message, theme.error.fg),
-    Empty() => (theme.border, 'Required', theme.muted.fg),
+    Valid() => (theme.success.ink, '✓', theme.success.color),
+    Invalid(:final message) => (theme.error.ink, message, theme.error.color),
+    Empty() => (theme.border.ink, 'Required', theme.muted.color),
   };
 
-  final effectiveBorder = input.focused ? theme.focus : borderStyle;
+  final effectiveBorder = input.focused ? theme.focus.ink : borderStyle;
 
   return Row(
     children: [

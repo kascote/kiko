@@ -141,7 +141,7 @@ class TableRenderer {
       final style =
           model.styles.header ??
           Style(
-            fg: theme.background.fg,
+            fg: theme.background.on,
             addModifier: Modifier.bold,
           );
 

@@ -61,12 +61,12 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border,
-    topTitles: [Line('TextInput Demo', style: theme.muted)],
+    borderStyle: theme.border.ink,
+    topTitles: [Line('TextInput Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -82,7 +82,7 @@ void appView(AppModel model, Frame frame) {
                 'Password: "${model.password.value}" (${model.password.length} chars)',
                 'Focused: ${model.focus.index == 0 ? "username" : "password"}',
               ])
-                Line(line, style: Style(fg: theme.background.fg)),
+                Line(line, style: Style(fg: theme.background.on)),
             ],
           ),
         ),
@@ -90,13 +90,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to switch | Esc quit', style: theme.muted),
+              child: Line('Tab to switch | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
               ),
             ),
           ],
@@ -111,7 +111,7 @@ void appView(AppModel model, Frame frame) {
 /// A bordered, titled field wrapping a fixed-height [TextInput].
 View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
-  borderStyle: input.focused ? theme.focus : theme.border,
+  borderStyle: input.focused ? theme.focus.ink : theme.border.ink,
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(

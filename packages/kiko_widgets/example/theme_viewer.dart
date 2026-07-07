@@ -40,7 +40,7 @@ void view(Model model, Frame frame) {
   final theme = model.theme;
 
   // Fill background with theme color
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.bg));
+  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
@@ -48,20 +48,20 @@ void view(Model model, Frame frame) {
       // Header
       Box(
         border: BorderType.plain,
-        borderStyle: theme.border,
+        borderStyle: theme.border.ink,
         child: Row(
           children: [
             Expanded(
               child: Line(
                 ' Theme: ${model.themeName}',
-                style: Style(fg: theme.primary.fg, addModifier: Modifier.bold),
+                style: Style(fg: theme.primary.color, addModifier: Modifier.bold),
               ),
             ),
             _col(
               30,
               Align(
                 alignment: Alignment.centerRight,
-                child: Line('←/→: switch  q: quit ', style: theme.muted),
+                child: Line('←/→: switch  q: quit ', style: theme.muted.ink),
               ),
             ),
           ],
@@ -86,22 +86,22 @@ void view(Model model, Frame frame) {
 }
 
 List<(String, Style)> _paletteStyles(Theme t) => [
-  ('primary', t.primary),
-  ('secondary', t.secondary),
-  ('accent', t.accent),
-  ('error', t.error),
-  ('success', t.success),
-  ('warning', t.warning),
-  ('surface', t.surface),
-  ('background', t.background),
+  ('primary', t.primary.fill),
+  ('secondary', t.secondary.fill),
+  ('accent', t.accent.fill),
+  ('error', t.error.fill),
+  ('success', t.success.fill),
+  ('warning', t.warning.fill),
+  ('surface', t.surface.fill),
+  ('background', t.background.fill),
 ];
 
 List<(String, Style)> _semanticStyles(Theme t) => [
-  ('focus', t.focus),
-  ('muted', t.muted),
-  ('disabled', t.disabled),
-  ('border', t.border),
-  ('highlight', t.highlight),
+  ('focus', t.focus.fill),
+  ('muted', t.muted.fill),
+  ('disabled', t.disabled.fill),
+  ('border', t.border.fill),
+  ('selection', t.selection.fill),
 ];
 
 View _styleSection(Theme theme, String title, List<(String, Style)> styles) {
@@ -111,31 +111,31 @@ View _styleSection(Theme theme, String title, List<(String, Style)> styles) {
   }
   return Box(
     border: BorderType.plain,
-    borderStyle: theme.border,
+    borderStyle: theme.border.ink,
     padding: const EdgeInsets.symmetric(horizontal: 1),
-    topTitles: [Line(title, style: theme.focus)],
+    topTitles: [Line(title, style: theme.focus.ink)],
     child: Column(children: rows),
   );
 }
 
 View _headerRow(Theme theme) => Row(
   children: [
-    _col(12, Line('Name', style: theme.muted)),
-    _col(10, Line('fg', style: theme.muted)),
-    _col(10, Line('bg', style: theme.muted)),
-    _col(8, Line('Normal', style: theme.muted)),
-    _col(10, Line('Inverted', style: theme.muted)),
+    _col(12, Line('Name', style: theme.muted.ink)),
+    _col(10, Line('fg', style: theme.muted.ink)),
+    _col(10, Line('bg', style: theme.muted.ink)),
+    _col(8, Line('Normal', style: theme.muted.ink)),
+    _col(10, Line('Inverted', style: theme.muted.ink)),
   ],
 );
 
 View _styleRow(Theme theme, String name, Style style) => Row(
   children: [
     // Name column
-    _col(12, Line(name, style: Style(fg: theme.background.fg))),
+    _col(12, Line(name, style: Style(fg: theme.background.on))),
     // fg hex
     _col(10, Line(_colorHex(style.fg), style: Style(fg: style.fg))),
     // bg hex
-    _col(10, Line(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.fg))),
+    _col(10, Line(_colorHex(style.bg), style: Style(fg: style.bg ?? theme.muted.color))),
     // Normal swatch
     _swatch(8, style, 'Abc'),
     // Inverted swatch

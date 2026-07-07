@@ -33,9 +33,9 @@ class TextAreaStyle {
 
   /// Creates region styles derived from a [Theme].
   factory TextAreaStyle.fromTheme(Theme theme) => TextAreaStyle(
-    placeholder: theme.muted,
-    selection: theme.highlight,
-    lineNumber: theme.muted,
+    placeholder: theme.muted.ink,
+    selection: theme.selection.fill,
+    lineNumber: theme.muted.ink,
   );
 
   /// Merges [other] on top of this, non-null values override.

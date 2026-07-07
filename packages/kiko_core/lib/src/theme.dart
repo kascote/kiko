@@ -1,198 +1,247 @@
 import 'package:meta/meta.dart';
 
 import 'colors.dart';
-import 'style.dart';
+import 'tone.dart';
 
-/// Theme defines the visual appearance of widgets.
+/// A theme is a small, fixed set of [Tone]s — color identities the whole app
+/// shares.
 ///
-/// A theme is a collection of [Style]s, not raw colors. Each style has:
-/// - `fg`: the primary color (used for text, borders)
-/// - `bg`: the contrast color (used when inverted for surfaces)
+/// A theme owns *which* colors exist, never how they land as paint: every tone
+/// becomes cells only through a projection ([Tone.ink] / [Tone.fill] /
+/// [Tone.wash]), usually via `StyleResolver`. Nothing else belongs on a theme —
+/// per-widget parts are anatomy (widget style slots) and interaction facts are
+/// widget states, so this set stays frozen while widgets grow freely.
 ///
-/// Use [Style.inverted] to swap fg/bg for surface uses (buttons, selected rows).
+/// ## Tone groups
 ///
-/// ## Palette Styles
-/// - [primary]: main brand color (buttons, links, selections)
-/// - [secondary]: secondary actions, less prominent
-/// - [accent]: highlights, badges, attention-grabbing elements
-/// - [error]: errors, destructive actions
-/// - [success]: success states, confirmations
-/// - [warning]: warnings, cautions
-/// - [surface]: elevated surfaces, cards, dialogs
-/// - [background]: base background; `background.fg` is default text color,
-///   `background.bg` is actual background color
+/// Intent — the meaning of an action or status:
+/// - [primary], [secondary], [accent]
+/// - [error], [warning], [success]
 ///
-/// ## Semantic Styles
-/// - [focus]: focused element indicator
-/// - [muted]: secondary/dimmed text
-/// - [disabled]: disabled elements
-/// - [border]: default border color
-/// - [highlight]: search matches, selections
+/// Neutral — the surfaces and quiet text:
+/// - [background]: the app base; `background.color` is the base bg,
+///   `background.on` is the default text color
+/// - [surface]: elevated panels and dialogs
+/// - [border]: resting chrome
+/// - [muted]: secondary text
+/// - [disabled]: non-interactive elements
+///
+/// Interaction — how the current interaction looks:
+/// - [focus]: keyboard "you are here"
+/// - [selection]: the chosen items
+/// - [cursor]: the current row/column tint (derived from [background] by default)
+/// - [hover]: the mouse-over tint (derived from [background] by default)
 @immutable
 class Theme {
-  // === Palette Styles ===
+  // === Intent ===
 
   /// Main brand color for primary actions.
-  final Style primary;
+  final Tone primary;
 
-  /// Secondary color for less prominent actions.
-  final Style secondary;
+  /// Second-rank actions, less prominent than [primary].
+  final Tone secondary;
 
-  /// Accent color for highlights and badges.
-  final Style accent;
+  /// Attention-grabbing color for highlights and badges.
+  final Tone accent;
 
-  /// Error color for destructive actions and error states.
-  final Style error;
+  /// Destructive actions and invalid/error states.
+  final Tone error;
 
-  /// Success color for confirmations and success states.
-  final Style success;
+  /// Cautions and warnings.
+  final Tone warning;
 
-  /// Warning color for cautions and warnings.
-  final Style warning;
+  /// Confirmations and success states.
+  final Tone success;
 
-  /// Surface color for elevated elements (cards, dialogs).
-  final Style surface;
+  // === Neutral ===
 
-  /// Background style.
+  /// The app base color.
   ///
-  /// - `background.bg` = actual background color
-  /// - `background.fg` = default text color on background
-  final Style background;
+  /// `background.color` is the base background; `background.on` is the default
+  /// text color drawn on it.
+  final Tone background;
 
-  // === Semantic Styles ===
+  /// Elevated surfaces — cards, dialogs, panels.
+  final Tone surface;
 
-  /// Focus indicator style.
-  final Style focus;
+  /// Resting chrome (borders, separators).
+  final Tone border;
 
-  /// Muted/secondary text style.
-  final Style muted;
+  /// Secondary/dimmed text.
+  final Tone muted;
 
-  /// Disabled element style.
-  final Style disabled;
+  /// Non-interactive elements.
+  final Tone disabled;
 
-  /// Default border style.
-  final Style border;
+  // === Interaction ===
 
-  /// Highlight style for search matches and selections.
-  final Style highlight;
+  /// Keyboard focus indicator ("you are here").
+  final Tone focus;
 
-  /// Creates a theme with the given styles.
+  /// Chosen items (selected rows, picked options).
+  final Tone selection;
+
+  final Tone? _cursor;
+  final Tone? _hover;
+
+  /// Creates a theme from its tones.
+  ///
+  /// [cursor] and [hover] are optional: when omitted they are derived from
+  /// [background] as subtle washes (see [cursor] and [hover]). Themes built on
+  /// the terminal's default background (`background.color == null`) cannot
+  /// derive a wash and should pass [cursor]/[hover] explicitly.
   const Theme({
     required this.primary,
     required this.secondary,
     required this.accent,
     required this.error,
-    required this.success,
     required this.warning,
-    required this.surface,
+    required this.success,
     required this.background,
-    required this.focus,
+    required this.surface,
+    required this.border,
     required this.muted,
     required this.disabled,
-    required this.border,
-    required this.highlight,
-  });
+    required this.focus,
+    required this.selection,
+    Tone? cursor,
+    Tone? hover,
+  }) : _cursor = cursor,
+       _hover = hover;
+
+  /// The current row/column tint.
+  ///
+  /// When not set explicitly it is derived as a subtle lift of [background]
+  /// (10%), keeping [background]'s text color as its `on`. Derives to an empty
+  /// tone when [background] has no color (terminal-default themes).
+  Tone get cursor {
+    final explicit = _cursor;
+    if (explicit != null) return explicit;
+    final base = background.color;
+    if (base == null) return const Tone();
+    return Tone(color: base.lift(0.10), on: background.on);
+  }
+
+  /// The mouse-over tint.
+  ///
+  /// When not set explicitly it is derived as a fainter lift of [background]
+  /// (8%). Derives to an empty tone when [background] has no color.
+  Tone get hover {
+    final explicit = _hover;
+    if (explicit != null) return explicit;
+    final base = background.color;
+    if (base == null) return const Tone();
+    return Tone(color: base.lift(0.08));
+  }
 
   /// Kiko Dark theme - deep slate base with muted warm accents.
   static const Theme dark = Theme(
-    primary: Style(fg: Color.rgb(0x58a6b0), bg: Color.rgb(0x0d1117)),
-    secondary: Style(fg: Color.rgb(0x8b7ec8), bg: Color.rgb(0x0d1117)),
-    accent: Style(fg: Color.rgb(0xd4976c), bg: Color.rgb(0x0d1117)),
-    error: Style(fg: Color.rgb(0xc75d5d), bg: Color.rgb(0x0d1117)),
-    success: Style(fg: Color.rgb(0x6aab73), bg: Color.rgb(0x0d1117)),
-    warning: Style(fg: Color.rgb(0xc9a857), bg: Color.rgb(0x0d1117)),
-    surface: Style(fg: Color.rgb(0xc9d1d9), bg: Color.rgb(0x161b22)),
-    background: Style(fg: Color.rgb(0xc9d1d9), bg: Color.rgb(0x0d1117)),
-    focus: Style(fg: Color.rgb(0x6bc5d2), addModifier: Modifier.bold),
-    muted: Style(fg: Color.rgb(0x6e7681)),
-    disabled: Style(fg: Color.rgb(0x484f58), addModifier: Modifier.dim),
-    border: Style(fg: Color.rgb(0x30363d)),
-    highlight: Style(fg: Color.rgb(0xc9d1d9), bg: Color.rgb(0x264a5c)),
+    primary: Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
+    secondary: Tone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
+    accent: Tone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
+    error: Tone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
+    warning: Tone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
+    success: Tone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
+    background: Tone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
+    surface: Tone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
+    border: Tone(color: Color.rgb(0x30363d)),
+    muted: Tone(color: Color.rgb(0x6e7681)),
+    disabled: Tone(color: Color.rgb(0x484f58)),
+    focus: Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
+    selection: Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
+    // cursor, hover: derived washes over background.
   );
 
   /// Kiko Light theme - warm white base with deeper accents.
   static const Theme light = Theme(
-    primary: Style(fg: Color.rgb(0x1a7f8e), bg: Color.rgb(0xf6f8fa)),
-    secondary: Style(fg: Color.rgb(0x6b5ba8), bg: Color.rgb(0xf6f8fa)),
-    accent: Style(fg: Color.rgb(0xb87a4a), bg: Color.rgb(0xf6f8fa)),
-    error: Style(fg: Color.rgb(0xb54343), bg: Color.rgb(0xf6f8fa)),
-    success: Style(fg: Color.rgb(0x3d8b48), bg: Color.rgb(0xf6f8fa)),
-    warning: Style(fg: Color.rgb(0xa68830), bg: Color.rgb(0xf6f8fa)),
-    surface: Style(fg: Color.rgb(0x1f2328), bg: Color.rgb(0xeef1f5)),
-    background: Style(fg: Color.rgb(0x1f2328), bg: Color.rgb(0xf6f8fa)),
-    focus: Style(fg: Color.rgb(0x2a8a9a), addModifier: Modifier.bold),
-    muted: Style(fg: Color.rgb(0x8b949e)),
-    disabled: Style(fg: Color.rgb(0xafb8c1), addModifier: Modifier.dim),
-    border: Style(fg: Color.rgb(0xd0d7de)),
-    highlight: Style(fg: Color.rgb(0x1f2328), bg: Color.rgb(0xddf4ff)),
+    primary: Tone(color: Color.rgb(0x1a7f8e), on: Color.rgb(0xf6f8fa)),
+    secondary: Tone(color: Color.rgb(0x6b5ba8), on: Color.rgb(0xf6f8fa)),
+    accent: Tone(color: Color.rgb(0xb87a4a), on: Color.rgb(0xf6f8fa)),
+    error: Tone(color: Color.rgb(0xb54343), on: Color.rgb(0xf6f8fa)),
+    warning: Tone(color: Color.rgb(0xa68830), on: Color.rgb(0xf6f8fa)),
+    success: Tone(color: Color.rgb(0x3d8b48), on: Color.rgb(0xf6f8fa)),
+    background: Tone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
+    surface: Tone(color: Color.rgb(0xeef1f5), on: Color.rgb(0x1f2328)),
+    border: Tone(color: Color.rgb(0xd0d7de)),
+    muted: Tone(color: Color.rgb(0x8b949e)),
+    disabled: Tone(color: Color.rgb(0xafb8c1)),
+    focus: Tone(color: Color.rgb(0x2a8a9a), on: Color.rgb(0xf6f8fa)),
+    selection: Tone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
   );
 
   /// Ember theme - warm orange palette with teal accents on near-black base.
   ///
   /// Uses complementary color theory: orange primary with teal accent.
-  /// Warm-tinted semantic colors (coral error, olive success) maintain cohesion.
+  /// Warm-tinted intents (coral error, olive success) maintain cohesion.
   static const Theme ember = Theme(
-    primary: Style(fg: Color.rgb(0xe07830), bg: Color.rgb(0x0a0908)),
-    secondary: Style(fg: Color.rgb(0xa85545), bg: Color.rgb(0x0a0908)),
-    accent: Style(fg: Color.rgb(0x45a5a5), bg: Color.rgb(0x0a0908)),
-    error: Style(fg: Color.rgb(0xcc5555), bg: Color.rgb(0x0a0908)),
-    success: Style(fg: Color.rgb(0x88a540), bg: Color.rgb(0x0a0908)),
-    warning: Style(fg: Color.rgb(0xd5a030), bg: Color.rgb(0x0a0908)),
-    surface: Style(fg: Color.rgb(0xcdc0b4), bg: Color.rgb(0x16120f)),
-    background: Style(fg: Color.rgb(0xcdc0b4), bg: Color.rgb(0x0a0908)),
-    focus: Style(fg: Color.rgb(0x55c5c5), addModifier: Modifier.bold),
-    muted: Style(fg: Color.rgb(0x6a6055)),
-    disabled: Style(fg: Color.rgb(0x4a4540), addModifier: Modifier.dim),
-    border: Style(fg: Color.rgb(0x2a2420)),
-    highlight: Style(fg: Color.rgb(0xcdc0b4), bg: Color.rgb(0x1a3535)),
+    primary: Tone(color: Color.rgb(0xe07830), on: Color.rgb(0x0a0908)),
+    secondary: Tone(color: Color.rgb(0xa85545), on: Color.rgb(0x0a0908)),
+    accent: Tone(color: Color.rgb(0x45a5a5), on: Color.rgb(0x0a0908)),
+    error: Tone(color: Color.rgb(0xcc5555), on: Color.rgb(0x0a0908)),
+    warning: Tone(color: Color.rgb(0xd5a030), on: Color.rgb(0x0a0908)),
+    success: Tone(color: Color.rgb(0x88a540), on: Color.rgb(0x0a0908)),
+    background: Tone(color: Color.rgb(0x0a0908), on: Color.rgb(0xcdc0b4)),
+    surface: Tone(color: Color.rgb(0x16120f), on: Color.rgb(0xcdc0b4)),
+    border: Tone(color: Color.rgb(0x2a2420)),
+    muted: Tone(color: Color.rgb(0x6a6055)),
+    disabled: Tone(color: Color.rgb(0x4a4540)),
+    focus: Tone(color: Color.rgb(0x55c5c5), on: Color.rgb(0x0a0908)),
+    selection: Tone(color: Color.rgb(0x1a3535), on: Color.rgb(0xcdc0b4)),
   );
 
   /// ANSI-16 dark theme for basic terminal compatibility.
   static const Theme ansiDark = Theme(
-    primary: Style(fg: Color.cyan, bg: Color.black),
-    secondary: Style(fg: Color.magenta, bg: Color.black),
-    accent: Style(fg: Color.yellow, bg: Color.black),
-    error: Style(fg: Color.red, bg: Color.white),
-    success: Style(fg: Color.green, bg: Color.black),
-    warning: Style(fg: Color.yellow, bg: Color.black),
-    surface: Style(fg: Color.white, bg: Color.darkGray),
-    background: Style(fg: Color.white, bg: Color.black),
-    focus: Style(fg: Color.brightCyan, addModifier: Modifier.bold),
-    muted: Style(fg: Color.darkGray),
-    disabled: Style(fg: Color.darkGray, addModifier: Modifier.dim),
-    border: Style(fg: Color.gray),
-    highlight: Style(fg: Color.black, bg: Color.yellow),
+    primary: Tone(color: Color.cyan, on: Color.black),
+    secondary: Tone(color: Color.magenta, on: Color.black),
+    accent: Tone(color: Color.yellow, on: Color.black),
+    error: Tone(color: Color.red, on: Color.white),
+    warning: Tone(color: Color.yellow, on: Color.black),
+    success: Tone(color: Color.green, on: Color.black),
+    background: Tone(color: Color.black, on: Color.white),
+    surface: Tone(color: Color.darkGray, on: Color.white),
+    border: Tone(color: Color.gray),
+    muted: Tone(color: Color.darkGray),
+    disabled: Tone(color: Color.darkGray),
+    focus: Tone(color: Color.brightCyan, on: Color.black),
+    selection: Tone(color: Color.yellow, on: Color.black),
   );
 
-  /// Creates a copy of this theme with the given fields replaced.
+  /// Creates a copy of this theme with the given tones replaced.
+  ///
+  /// Passing `null` for [cursor] or [hover] keeps this theme's current
+  /// value (explicit or derived); to override them, pass a tone.
   Theme copyWith({
-    Style? primary,
-    Style? secondary,
-    Style? accent,
-    Style? error,
-    Style? success,
-    Style? warning,
-    Style? surface,
-    Style? background,
-    Style? focus,
-    Style? muted,
-    Style? disabled,
-    Style? border,
-    Style? highlight,
+    Tone? primary,
+    Tone? secondary,
+    Tone? accent,
+    Tone? error,
+    Tone? warning,
+    Tone? success,
+    Tone? background,
+    Tone? surface,
+    Tone? border,
+    Tone? muted,
+    Tone? disabled,
+    Tone? focus,
+    Tone? selection,
+    Tone? cursor,
+    Tone? hover,
   }) => Theme(
     primary: primary ?? this.primary,
     secondary: secondary ?? this.secondary,
     accent: accent ?? this.accent,
     error: error ?? this.error,
-    success: success ?? this.success,
     warning: warning ?? this.warning,
-    surface: surface ?? this.surface,
+    success: success ?? this.success,
     background: background ?? this.background,
-    focus: focus ?? this.focus,
+    surface: surface ?? this.surface,
+    border: border ?? this.border,
     muted: muted ?? this.muted,
     disabled: disabled ?? this.disabled,
-    border: border ?? this.border,
-    highlight: highlight ?? this.highlight,
+    focus: focus ?? this.focus,
+    selection: selection ?? this.selection,
+    cursor: cursor ?? _cursor,
+    hover: hover ?? _hover,
   );
 
   @override
@@ -203,15 +252,17 @@ class Theme {
         other.secondary == secondary &&
         other.accent == accent &&
         other.error == error &&
-        other.success == success &&
         other.warning == warning &&
-        other.surface == surface &&
+        other.success == success &&
         other.background == background &&
-        other.focus == focus &&
+        other.surface == surface &&
+        other.border == border &&
         other.muted == muted &&
         other.disabled == disabled &&
-        other.border == border &&
-        other.highlight == highlight;
+        other.focus == focus &&
+        other.selection == selection &&
+        other._cursor == _cursor &&
+        other._hover == _hover;
   }
 
   @override
@@ -220,14 +271,16 @@ class Theme {
     secondary,
     accent,
     error,
-    success,
     warning,
-    surface,
+    success,
     background,
-    focus,
+    surface,
+    border,
     muted,
     disabled,
-    border,
-    highlight,
+    focus,
+    selection,
+    _cursor,
+    _hover,
   );
 }

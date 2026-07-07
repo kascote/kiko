@@ -28,8 +28,8 @@ class TextInputStyle {
 
   /// Creates region styles derived from [theme].
   factory TextInputStyle.fromTheme(Theme theme) => TextInputStyle(
-    placeholder: theme.muted,
-    fill: theme.muted,
+    placeholder: theme.muted.ink,
+    fill: theme.muted.ink,
   );
 
   /// Merges [other] on top of this, non-null values override.

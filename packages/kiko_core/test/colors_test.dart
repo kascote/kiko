@@ -196,5 +196,38 @@ void main() {
         expect(result.kind, ColorKind.rgb);
       });
     });
+
+    group('luminance', () {
+      test('black is 0 and white is 1', () {
+        expect(const Color.rgb(0x000000).luminance, closeTo(0.0, 1e-9));
+        expect(const Color.rgb(0xffffff).luminance, closeTo(1.0, 1e-9));
+      });
+
+      test('a dark base reads below mid, a light base above', () {
+        expect(const Color.rgb(0x0d1117).luminance, lessThan(0.5));
+        expect(const Color.rgb(0xf6f8fa).luminance, greaterThan(0.5));
+      });
+
+      test('ANSI colors resolve to RGB first', () {
+        expect(Color.black.luminance, closeTo(0.0, 1e-9));
+      });
+    });
+
+    group('lift', () {
+      test('lightens a dark base', () {
+        const dark = Color.rgb(0x0d1117);
+        expect(dark.lift(0.10), equals(dark.lighten(0.10)));
+      });
+
+      test('darkens a light base', () {
+        const light = Color.rgb(0xf6f8fa);
+        expect(light.lift(0.10), equals(light.darken(0.10)));
+      });
+
+      test('a dark result is brighter, a light result is dimmer', () {
+        expect(const Color.rgb(0x101010).lift(0.2).luminance, greaterThan(const Color.rgb(0x101010).luminance));
+        expect(const Color.rgb(0xf0f0f0).lift(0.2).luminance, lessThan(const Color.rgb(0xf0f0f0).luminance));
+      });
+    });
   });
 }

@@ -193,8 +193,8 @@ void main() {
       final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
-      // Text gets theme.background.fg.
-      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.fg));
+      // Text gets theme.background.on.
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.on));
       expect(frame.buffer[(x: 4, y: 0)].symbol, equals('o'));
     });
 

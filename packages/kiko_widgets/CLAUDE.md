@@ -208,6 +208,66 @@ handler; revisit only if it proves tedious.
 See also `a2-cmd-roles.md` (the three `Cmd` roles — `LoadRequest`/`LoadResult` are a
 widget→app event + its result) and `a2.1-id-addressing.md` (id routing; widgets never do I/O).
 
+## Theming
+
+Every widget is styled the same way: **states pick tones, parts pick projections.** A
+`Theme` owns ~12 color identities (`Tone`s); a widget owns its parts (anatomy); the
+`StyleResolver` turns "which state, which part" into a `Style`. Full rationale:
+`specs/theme-doctrine.md`. Recipe for a new widget: `docs/theming-widgets.md`.
+
+### The four layers
+
+- **Tone** — a color pair `(color, on)`, **not paintable**. Project it with `.ink`
+  (fg only), `.fill` (`fg: on, bg: color`), or `.wash` (bg only). The projection is
+  chosen by the *part*, not the tone: a selected border is `selection.ink`, a
+  selected row is `selection.fill` — same tone, no bg bleed onto the border glyphs.
+- **WidgetState** — declaration order is priority order (later wins): `hover <
+  selected < cursor < focused < unfocused < loading < error < disabled`.
+- **StyleResolver** — `resolve(base, states, {cls, overrides})` walks the matrix;
+  `border(states)` is the `focused ? theme.focus : theme.border` killer. `resolve`
+  defaults to `PaintClass.fill`.
+- **Anatomy** — an `XStyle` class of nullable `Style?` slots on the model
+  (`TableViewStyle`, `ListViewStyle`, `TreeViewStyle`). `null` derives from tones by
+  a doc-comment table; non-null wins verbatim. Copy `TableViewStyle` as the template.
+
+### The never-rules
+
+- **Never borrow a state for the cursor.** The keyboard-current item is
+  `WidgetState.cursor`. `focused` = the widget owns input; `hover` = mouse-over
+  (mouse only). Conflating them is the F2 bug the model exists to kill.
+- **Never paint a `Tone` directly** — it won't type-check where paint is expected.
+  Project it, or the fill's bg bleeds onto chrome (the F1 bug).
+- **Never give a slot to a part you don't paint.** No `indicator` slot on List/Tree
+  (the item/node builder owns the glyphs). Don't duplicate a part that already has a
+  home (Tree's expand glyph stays on `indicatorStyle`; its loading/error placeholders
+  carry their style on the `Line`s).
+- **Never hand a derived bg to a border.** Pass `resolver.border(...)` (an ink) to
+  `Box.borderStyle`. An *explicit* `Style(fg:, bg:)` on a border is a deliberate
+  choice and is fine — `Box` takes an unrestricted `Style`; theme-awareness lives one
+  level up in the resolver.
+- **Never handle NO_COLOR yourself.** The resolver carries a `RenderPolicy`;
+  `Application` sets `StyleResolver.defaultPolicy` from the terminal profile, so every
+  `StyleResolver(theme)` re-expresses `fill → reversed`, `ink →` modifiers-only,
+  `wash →` nothing under a NO_COLOR terminal. Route through the resolver and it is free.
+
+### Per-widget anatomy map
+
+- **TableView** — `TableViewStyle {header, row, separator, selectedRow, cursorRow,
+  cursorColumn, cursorCell, loadingRow, placeholder}`; crosshair (`cursorColumn`)
+  gated by `showCrosshair`, not slot presence. The exemplar — copy its shape.
+- **ListView** — `ListViewStyle {item, selectedItem, cursorItem, placeholder}`.
+- **TreeView** — `TreeViewStyle {item, cursorItem, placeholder}`; expand glyph =
+  `indicatorStyle`, placeholder text = `loadingIndicator`/`errorIndicator` `Line`s (no
+  selection set → no `selectedItem`).
+- **Button** — resting face `theme.primary.fill`, states via the matrix (focused →
+  `focus.fill` + bold, loading → warning + blink, disabled → dim). No anatomy class.
+- **TextInput / TextArea** — region styles (`TextInputStyle`/`TextAreaStyle`:
+  placeholder/fill/obscured, selection/lineNumber) via `fromTheme`; base text + focus
+  through the resolver.
+
+`ItemState`/`NodeState` (passed to the item/node builders) expose `cursor` (not
+`focused`) — the honest current-item flag.
+
 ## Current Widgets
 
 - `TextInput` / `TextInputModel` - single-line text input with readline keybindings

@@ -33,7 +33,9 @@ class Line implements View {
       style = style ?? const Style();
 
   /// Creates a new [Line] from a list of [Text]s
-  Line.fromTexts(List<Text> texts, {Style? style}) : _texts = List<Text>.unmodifiable(texts), style = style ?? const Style();
+  Line.fromTexts(List<Text> texts, {Style? style})
+    : _texts = List<Text>.unmodifiable(texts),
+      style = style ?? const Style();
 
   // Callers must pass an unmodifiable list so the Line stays immutable.
   const Line._(this._texts, this.style);

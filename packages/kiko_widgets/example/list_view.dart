@@ -114,7 +114,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: theme.focus.ink,
+            borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
             topTitles: [Line('Fruits (${fruits.length})', style: theme.focus.ink)],
             child: ListView(
               model: model.list,

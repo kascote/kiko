@@ -173,6 +173,7 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final items = model.filteredItems;
@@ -187,7 +188,7 @@ void appView(AppModel model, Frame frame) {
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: Box(
             border: BorderType.plain,
-            borderStyle: model.search.focused ? theme.focus.ink : theme.border.ink,
+            borderStyle: resolver.border({if (model.search.focused) WidgetState.focused}),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Search (${items.length}/${allItems.length})')],
             child: ConstrainedBox(
@@ -200,7 +201,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: model.list.focused ? theme.focus.ink : theme.border.ink,
+            borderStyle: resolver.border({if (model.list.focused) WidgetState.focused}),
             topTitles: [Line('Results')],
             child: ListView(
               model: model.list,

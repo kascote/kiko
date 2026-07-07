@@ -71,13 +71,14 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final e = model.editor;
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border.ink,
+    borderStyle: resolver.border(const {}),
     topTitles: [Line('TextArea Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
@@ -88,7 +89,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: model.editor.focused ? theme.focus.ink : theme.border.ink,
+            borderStyle: resolver.border({if (model.editor.focused) WidgetState.focused}),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Content')],
             child: TextArea(model: model.editor, theme: theme),
@@ -132,7 +133,7 @@ void appView(AppModel model, Frame frame) {
 /// A bordered, titled field wrapping a fixed-height [TextInput].
 View _field(TextInputModel input, String label, Theme theme) => Box(
   border: BorderType.plain,
-  borderStyle: input.focused ? theme.focus.ink : theme.border.ink,
+  borderStyle: StyleResolver(theme).border({if (input.focused) WidgetState.focused}),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(

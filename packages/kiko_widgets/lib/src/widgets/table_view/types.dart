@@ -135,22 +135,69 @@ class TableScrollState {
 // STYLES
 // ═══════════════════════════════════════════════════════════
 
-/// Region-based style configuration for TableView.
+/// TableView's anatomy: one nullable style slot per part.
 ///
-/// State-based styling (hover, selected, focused) is handled by
-/// `StyleResolver` in the widget. Use `styleOverrides` on `TableView`
-/// to customize per-state styles.
+/// A `null` slot is derived from the theme's tones by the rule below; a
+/// non-null slot is the caller's exact style and wins verbatim, bypassing
+/// both the derivation and the per-state `styleOverrides` map on `TableView`.
+///
+/// | slot           | derived default                          | matrix source     |
+/// | -------------- | ----------------------------------------- | ----------------- |
+/// | `header`       | `Style(fg: theme.background.on)` + bold   | anatomy-specific  |
+/// | `row`          | none (inherits the pane's own fill)       | —                 |
+/// | `separator`    | `theme.border.ink`                        | resting chrome    |
+/// | `selectedRow`  | `theme.selection.fill`                    | selected × fill   |
+/// | `cursorRow`    | `theme.cursor.wash`                       | cursor × wash     |
+/// | `cursorColumn` | `theme.cursor.wash`                       | cursor × wash     |
+/// | `cursorCell`   | `theme.cursor.fill` + bold                | cursor × fill     |
+/// | `loadingRow`   | `theme.muted.ink`                         | anatomy-specific  |
+/// | `placeholder`  | `theme.muted.ink`                         | anatomy-specific  |
+///
+/// Per-cell paint order is: row base, then `selectedRow` (a fill), then
+/// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each
+/// cell's own foreground untouched), then `cursorCell` (a fill, which wins
+/// outright since it patches last). The crosshair (`cursorColumn`) only
+/// paints when `TableViewModel.showCrosshair` is true; a slot's presence
+/// styles a part, it never turns on the behavior that paints it.
 class TableViewStyle {
-  /// Header row style.
+  /// Sticky header text.
   final Style? header;
 
-  /// Default row style.
+  /// Base row style (usually left null to inherit the pane's own fill).
   final Style? row;
+
+  /// Column separator glyphs.
+  final Style? separator;
+
+  /// Rows in the selection set.
+  final Style? selectedRow;
+
+  /// Crosshair: the current row, painted as a wash.
+  final Style? cursorRow;
+
+  /// Crosshair: the current column, painted as a wash.
+  final Style? cursorColumn;
+
+  /// The cursor cell (current row ∩ current column), painted as a fill.
+  final Style? cursorCell;
+
+  /// Placeholder rows for data windowed out of the cache.
+  final Style? loadingRow;
+
+  /// The empty-state line.
+  final Style? placeholder;
 
   /// Creates a TableViewStyle.
   const TableViewStyle({
     this.header,
     this.row,
+    this.separator,
+    this.selectedRow,
+    this.cursorRow,
+    this.cursorColumn,
+    this.cursorCell,
+    this.loadingRow,
+    this.placeholder,
   });
 }
 

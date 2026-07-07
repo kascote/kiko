@@ -159,11 +159,12 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final ui = Box(
     border: BorderType.plain,
-    borderStyle: theme.border.ink,
+    borderStyle: resolver.border(const {}),
     topTitles: [Line('Validated Form Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
@@ -225,7 +226,8 @@ View _fieldWithValidation(
     Empty() => (theme.border.ink, 'Required', theme.muted.color),
   };
 
-  final effectiveBorder = input.focused ? theme.focus.ink : borderStyle;
+  final resolver = StyleResolver(theme);
+  final effectiveBorder = resolver.resolve(borderStyle, {if (input.focused) WidgetState.focused}, cls: PaintClass.ink);
 
   return Row(
     children: [

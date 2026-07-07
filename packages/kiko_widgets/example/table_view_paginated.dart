@@ -256,10 +256,14 @@ void appView(AppModel model, Frame frame) {
 
   final loading = table.isLoading();
 
+  // The pane rests on `focused`; a load in flight tints it with `loading`
+  // layered on top, rather than replacing the focus look outright.
+  final paneBorder = StyleResolver(theme).border({WidgetState.focused, if (loading) WidgetState.loading});
+
   final tableWidget = Box(
     border: BorderType.plain,
-    borderStyle: loading ? theme.warning.ink : theme.focus.ink,
-    topTitles: [Line(titleText, style: loading ? theme.warning.ink : theme.focus.ink)],
+    borderStyle: paneBorder,
+    topTitles: [Line(titleText, style: paneBorder)],
     child: TableView(
       model: table,
       theme: theme,

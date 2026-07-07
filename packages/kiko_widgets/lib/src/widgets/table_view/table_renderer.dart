@@ -29,6 +29,9 @@ class TableRenderer {
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
 
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  late final _resolver = StyleResolver(theme);
+
   /// Paints the table into [area] of [surface].
   void paint(Rect area, Surface surface) {
     if (area.isEmpty) return;
@@ -54,7 +57,14 @@ class TableRenderer {
     if (loadedStart == loadedEnd && !model.isLoading()) {
       final placeholder = model.emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y + headerHeight, width: area.width, measurer: measurer);
+        paintLine(
+          surface,
+          placeholder.patchStyle(_placeholderStyle()),
+          x: area.x,
+          y: area.y + headerHeight,
+          width: area.width,
+          measurer: measurer,
+        );
       }
       return;
     }
@@ -81,7 +91,7 @@ class TableRenderer {
         continue;
       }
 
-      final isHover = rowIdx == model.cursorRow;
+      final isCursorRow = rowIdx == model.cursorRow;
       final isSelected = model.isSelected(rowIdx);
 
       _renderRow(
@@ -95,7 +105,7 @@ class TableRenderer {
         row,
         rowIdx,
         visibleCols,
-        isHover,
+        isCursorRow,
         isSelected,
       );
     }
@@ -131,19 +141,12 @@ class TableRenderer {
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
       if (i > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]), x: x, y: y, width: sepWidth, measurer: measurer);
+        paintLine(surface, Line.fromTexts([sep]).patchStyle(_separatorStyle()), x: x, y: y, width: sepWidth, measurer: measurer);
         x += sepWidth;
       }
 
       final col = visibleCols[i];
-
-      // Determine header style
-      final style =
-          model.styles.header ??
-          Style(
-            fg: theme.background.on,
-            addModifier: Modifier.bold,
-          );
+      final style = _headerStyle();
 
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
@@ -156,17 +159,27 @@ class TableRenderer {
 
   /// Renders a loading placeholder row.
   void _renderLoadingRow(Surface surface, Rect area) {
-    paintLine(surface, model.loadingIndicator ?? Line('Loading...'), x: area.x, y: area.y, width: area.width, measurer: measurer);
+    final line = (model.loadingIndicator ?? Line('Loading...')).patchStyle(_loadingRowStyle());
+    paintLine(surface, line, x: area.x, y: area.y, width: area.width, measurer: measurer);
   }
 
   /// Renders a data row.
+  ///
+  /// Per-cell paint order is honest anatomy, not borrowed states: row base,
+  /// then [_selectedRowStyle] (a fill) if the row is selected, then the
+  /// crosshair washes ([_cursorRowStyle] always, [_cursorColumnStyle] only
+  /// when [TableViewModel.showCrosshair] is on) if the cell is on the
+  /// cursor's row/column, then [_cursorCellStyle] (a fill) if this is the
+  /// exact cursor cell — patched last, so it wins outright. Each wash is a
+  /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
+  /// a custom [TableColumn.render]) already painted untouched.
   void _renderRow(
     Surface surface,
     Rect area,
     Map<String, Object?> row,
     int rowIndex,
     List<TableColumn> visibleCols,
-    bool isHover,
+    bool isCursorRow,
     bool isSelected,
   ) {
     var x = area.x;
@@ -177,30 +190,21 @@ class TableRenderer {
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
       if (colIdx > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]), x: x, y: area.y, width: sepWidth, measurer: measurer);
+        paintLine(surface, Line.fromTexts([sep]).patchStyle(_separatorStyle()), x: x, y: area.y, width: sepWidth, measurer: measurer);
         x += sepWidth;
       }
 
       final col = visibleCols[colIdx];
       final value = row[col.field];
 
-      // Resolve row style via StyleResolver
-      final states = <WidgetState>{
-        if (isHover) WidgetState.hover,
-        if (isSelected) WidgetState.selected,
-      };
-      final resolver = StyleResolver(theme);
-      var style = model.styles.row ?? const Style();
-      if (col.style != null) style = col.style!;
-      if (states.isNotEmpty) {
-        style = resolver.resolve(style, states, overrides: styleOverrides);
-      }
+      final isCursorColumn = (scrollCol + colIdx) == model.cursorCol;
+      final isCursorCell = isCursorRow && isCursorColumn;
 
-      // Column highlight for current cell (cursor row + cursor col)
-      final isCursorCell = isHover && (scrollCol + colIdx) == model.cursorCol;
-      if (isCursorCell) {
-        style = resolver.resolve(style, {WidgetState.focused}, overrides: styleOverrides);
-      }
+      var style = col.style ?? model.styles.row ?? const Style();
+      if (isSelected) style = style.patch(_selectedRowStyle());
+      if (isCursorRow) style = style.patch(_cursorRowStyle());
+      if (model.showCrosshair && isCursorColumn) style = style.patch(_cursorColumnStyle());
+      if (isCursorCell) style = style.patch(_cursorCellStyle());
 
       // Build render context
       final ctx = CellRenderContext(
@@ -210,7 +214,7 @@ class TableRenderer {
         colIndex: scrollCol + colIdx,
         column: col,
         isSelected: isSelected,
-        isCursorRow: isHover,
+        isCursorRow: isCursorRow,
         isCursorCell: isCursorCell,
         totalCount: model.totalCount,
       );
@@ -224,6 +228,38 @@ class TableRenderer {
       x += col.width;
     }
   }
+
+  // ─────────────────────────────────────────────
+  // Anatomy — derived defaults, overridable per instance or per theme
+  // ─────────────────────────────────────────────
+
+  /// Sticky header text style.
+  Style _headerStyle() => model.styles.header ?? Style(fg: theme.background.on, addModifier: Modifier.bold);
+
+  /// Column separator glyph style.
+  Style _separatorStyle() => model.styles.separator ?? theme.border.ink;
+
+  /// Placeholder rows for data windowed out of the cache.
+  Style _loadingRowStyle() => model.styles.loadingRow ?? theme.muted.ink;
+
+  /// The empty-state line.
+  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
+
+  /// Rows in the selection set — `selected` × `fill`.
+  Style _selectedRowStyle() =>
+      model.styles.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+
+  /// Crosshair row wash — `cursor` × `wash`.
+  Style _cursorRowStyle() => model.styles.cursorRow ?? _resolveCursor(PaintClass.wash);
+
+  /// Crosshair column wash — `cursor` × `wash`.
+  Style _cursorColumnStyle() => model.styles.cursorColumn ?? _resolveCursor(PaintClass.wash);
+
+  /// The cursor cell fill — `cursor` × `fill`.
+  Style _cursorCellStyle() => model.styles.cursorCell ?? _resolveCursor(PaintClass.fill);
+
+  Style _resolveCursor(PaintClass cls) =>
+      _resolver.resolve(null, const {WidgetState.cursor}, cls: cls, overrides: styleOverrides);
 
   /// Default cell rendering: converts value to string.
   Line _defaultRender(Object? value, TableColumn col) {

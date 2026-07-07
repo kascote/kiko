@@ -55,11 +55,12 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final base = Box(
     border: BorderType.rounded,
-    borderStyle: theme.border.ink,
+    borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.all(1),
     topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted.ink)],
     child: Column(

@@ -128,6 +128,7 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final loading = model.list.isLoading();
@@ -141,11 +142,14 @@ void appView(AppModel model, Frame frame) {
       ? 'Scroll: ${scroll.offset + 1}-${(scroll.offset + scroll.visible).clamp(0, scroll.total!)}/${scroll.total}'
       : '';
 
-  final statusBorder = model.error != null
-      ? theme.error.ink
-      : loading
-      ? theme.warning.ink
-      : theme.success.ink;
+  final statusBorder = resolver.resolve(
+    theme.success.ink,
+    {
+      if (loading) WidgetState.loading,
+      if (model.error != null) WidgetState.error,
+    },
+    cls: PaintClass.ink,
+  );
   final statusFg = model.error != null
       ? theme.error.color
       : loading
@@ -160,7 +164,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: theme.focus.ink,
+            borderStyle: resolver.border(const {WidgetState.focused}),
             topTitles: [Line('Users', style: theme.focus.ink)],
             child: ListView(
               model: model.list,

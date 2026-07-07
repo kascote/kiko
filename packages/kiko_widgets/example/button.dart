@@ -250,7 +250,7 @@ View _buildPane(
   bool focused,
   View buttons,
 ) {
-  final borderStyle = focused ? theme.focus.ink : theme.border.ink;
+  final borderStyle = StyleResolver(theme).border({if (focused) WidgetState.focused});
   final titleStyle = focused ? theme.focus.ink : theme.muted.ink;
   return Box(
     border: BorderType.plain,

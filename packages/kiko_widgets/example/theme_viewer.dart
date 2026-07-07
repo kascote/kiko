@@ -38,6 +38,7 @@ class Model {
 
 void view(Model model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
 
   // Fill background with theme color
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
@@ -48,7 +49,7 @@ void view(Model model, Frame frame) {
       // Header
       Box(
         border: BorderType.plain,
-        borderStyle: theme.border.ink,
+        borderStyle: resolver.border(const {}),
         child: Row(
           children: [
             Expanded(
@@ -111,7 +112,7 @@ View _styleSection(Theme theme, String title, List<(String, Style)> styles) {
   }
   return Box(
     border: BorderType.plain,
-    borderStyle: theme.border.ink,
+    borderStyle: StyleResolver(theme).border(const {}),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [Line(title, style: theme.focus.ink)],
     child: Column(children: rows),

@@ -6,6 +6,10 @@
 // - Cell-level cursor navigation (arrows, h/j/k/l)
 // - Row selection (space)
 // - Confirm action (Enter)
+// - Crosshair toggle (c): current row + current column, not just the cursor
+//   row and cell
+// - Custom anatomy toggle (y): a TableViewStyle override replaces the
+//   theme-derived crosshair with a fixed warm look, independent of theme
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -33,6 +37,23 @@ final List<Map<String, Object?>> employees = [
   {'id': '14', 'name': 'Nick Adams', 'dept': 'HR', 'salary': 62000},
   {'id': '15', 'name': 'Olivia Moore', 'dept': 'Engineering', 'salary': 105000},
 ];
+
+// ═══════════════════════════════════════════════════════════
+// STYLE
+// ═══════════════════════════════════════════════════════════
+
+// A fixed, theme-independent look for the crosshair — the "this table gets
+// an orange crosshair" tier: an anatomy override wins outright over whatever
+// the current theme would derive, ember or not.
+const _emberTableStyle = TableViewStyle(
+  cursorRow: Style(bg: Color.rgb(0x2a1d10)),
+  cursorColumn: Style(bg: Color.rgb(0x2a1d10)),
+  cursorCell: Style(
+    fg: Color.rgb(0x0a0908),
+    bg: Color.rgb(0xe07830),
+    addModifier: Modifier.bold,
+  ),
+);
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -86,6 +107,9 @@ class AppModel with ThemeSwitcher {
   );
 
   String? confirmedCell;
+
+  /// Whether the ember-style [_emberTableStyle] override is active.
+  bool customStyleOn = false;
 }
 
 String _formatNumber(int n) {
@@ -110,6 +134,20 @@ String _formatNumber(int n) {
     // Load first page synchronously (fromList returns immediately)
     model.table.insertRows(employees, 0);
     return (model, null);
+  }
+
+  // Crosshair + custom anatomy toggles, ahead of the table's own key
+  // bindings so 'c'/'y' never reach it as unhandled keys.
+  if (msg case KeyMsg(:final key)) {
+    if (key == 'c') {
+      model.table.showCrosshair = !model.table.showCrosshair;
+      return (model, null);
+    }
+    if (key == 'y') {
+      model.customStyleOn = !model.customStyleOn;
+      model.table.styles = model.customStyleOn ? _emberTableStyle : const TableViewStyle();
+      return (model, null);
+    }
   }
 
   final cmd = model.table.update(msg);
@@ -147,7 +185,7 @@ void appView(AppModel model, Frame frame) {
 
   final tableWidget = Box(
     border: BorderType.plain,
-    borderStyle: theme.focus.ink,
+    borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [Line('Employees (${employees.length})', style: theme.focus.ink)],
     child: TableView(
       model: model.table,
@@ -195,7 +233,9 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓←→/hjkl nav | Space select | Enter confirm | Esc quit',
+          '↑↓←→/hjkl nav | Space select | Enter confirm | c crosshair'
+          '${model.table.showCrosshair ? " (on)" : ""} | y style'
+          '${model.customStyleOn ? " (on)" : ""} | Esc quit',
           style: theme.muted.ink,
         ),
       ),

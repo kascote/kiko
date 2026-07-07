@@ -43,6 +43,7 @@ void main() {
           windowSize: 500,
           loadThreshold: 20,
           stickyHeader: false,
+          showCrosshair: true,
           selectionEnabled: true,
           focused: true,
         );
@@ -50,8 +51,21 @@ void main() {
         expect(model.windowSize, equals(500));
         expect(model.loadThreshold, equals(20));
         expect(model.stickyHeader, isFalse);
+        expect(model.showCrosshair, isTrue);
         expect(model.selectionEnabled, isTrue);
         expect(model.focused, isTrue);
+      });
+
+      test('showCrosshair defaults to false and is mutable', () {
+        final model = TableViewModel(
+          dataSource: TableDataSource.fromList(sampleRows()),
+          keyField: 'id',
+          columns: sampleColumns(),
+        );
+        expect(model.showCrosshair, isFalse);
+
+        model.showCrosshair = true;
+        expect(model.showCrosshair, isTrue);
       });
 
       test('totalCount from dataSource', () {

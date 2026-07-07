@@ -81,6 +81,7 @@ class AppModel with ThemeSwitcher {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
   final selectedKeys = model.list.getSelectedKeys();
@@ -95,7 +96,7 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Box(
             border: BorderType.plain,
-            borderStyle: theme.focus.ink,
+            borderStyle: resolver.border(const {WidgetState.focused}),
             topTitles: [Line('Contacts', style: theme.focus.ink)],
             child: ListView(
               model: model.list,

@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   const theme = Theme.dark;
-  const resolver = StyleResolver(theme);
+  final resolver = StyleResolver(theme);
 
   group('StyleResolver / basics', () {
     test('empty states returns base unchanged', () {

@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'style.dart';
 import 'theme.dart';
+import 'tone.dart';
 import 'widget_state.dart';
 
 /// How a tone lands as paint on a given part.
@@ -21,6 +22,23 @@ enum PaintClass {
   wash,
 }
 
+/// Whether the resolver may use color, or must re-express meaning without it.
+///
+/// Under [noColor] (a `NO_COLOR` terminal) color fidelity is not a downgrade
+/// but a *semantic* gap: a selection whose whole identity is its background
+/// becomes invisible, not merely dimmer. The re-expression happens here, at the
+/// projection — the one place that still knows the intent — so widgets never
+/// know: a `fill` degrades to [Modifier.reversed], an `ink` keeps its modifiers
+/// but drops its foreground, and a `wash` (a tint that cannot exist without
+/// color) degrades to nothing.
+enum RenderPolicy {
+  /// Colors render as themed.
+  color,
+
+  /// Colors are dropped; meaning survives through modifiers alone.
+  noColor,
+}
+
 /// Resolves a [Style] from a [Theme], active [WidgetState]s, and a [PaintClass].
 ///
 /// This is the single place the built-in look lives: for each active state, in
@@ -36,11 +54,28 @@ enum PaintClass {
 /// ```
 @immutable
 class StyleResolver {
+  /// The process-wide policy new resolvers adopt when none is passed.
+  ///
+  /// A `NO_COLOR` fact is set once, at startup, for the whole process, and the
+  /// theme is app-owned — so widgets construct `StyleResolver(theme)` without
+  /// threading a policy through. `Application` sets this from the terminal's
+  /// color profile before the first frame; tests that need a specific policy
+  /// pass [policy] explicitly or set this directly.
+  static RenderPolicy defaultPolicy = RenderPolicy.color;
+
   /// The theme used for built-in state defaults.
   final Theme theme;
 
+  /// How tones become paint — full color, or the [RenderPolicy.noColor]
+  /// modifier-only re-expression.
+  final RenderPolicy policy;
+
   /// Creates a resolver backed by [theme].
-  const StyleResolver(this.theme);
+  ///
+  /// [policy] defaults to [defaultPolicy] (the process-wide value set by
+  /// `Application` from the terminal profile), so a widget never has to know or
+  /// pass it.
+  StyleResolver(this.theme, {RenderPolicy? policy}) : policy = policy ?? defaultPolicy;
 
   /// Resolves a [Style] by applying state styles on top of [base].
   ///
@@ -82,7 +117,20 @@ class StyleResolver {
   ///
   /// Resolves over the resting border tone as [PaintClass.ink], so a state can
   /// tint the border foreground but never flood a background onto its glyphs.
-  Style border(Set<WidgetState> states) => resolve(theme.border.ink, states, cls: PaintClass.ink);
+  Style border(Set<WidgetState> states) => resolve(_ink(theme.border), states, cls: PaintClass.ink);
+
+  /// Projects a tone as foreground-only ink, or drops the color under
+  /// [RenderPolicy.noColor] (modifiers added by the caller still ride on top).
+  Style _ink(Tone tone) => policy == RenderPolicy.noColor ? const Style() : tone.ink;
+
+  /// Projects a tone as a filled surface, or degrades it to [Modifier.reversed]
+  /// under [RenderPolicy.noColor] so the surface stays distinguishable once its
+  /// color is stripped.
+  Style _fill(Tone tone) => policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
+
+  /// Projects a tone as a background wash, or drops it entirely under
+  /// [RenderPolicy.noColor] — a wash cannot exist without color.
+  Style _wash(Tone tone) => policy == RenderPolicy.noColor ? const Style() : tone.wash;
 
   /// The built-in state × class matrix.
   ///
@@ -92,52 +140,52 @@ class StyleResolver {
   Style? _cell(WidgetState state, PaintClass cls) {
     switch (state) {
       case WidgetState.hover:
-        return cls == PaintClass.wash ? theme.hover.wash : null;
+        return cls == PaintClass.wash ? _wash(theme.hover) : null;
 
       case WidgetState.selected:
         return switch (cls) {
-          PaintClass.ink => theme.selection.ink,
-          PaintClass.fill => theme.selection.fill,
-          PaintClass.wash => theme.selection.wash,
+          PaintClass.ink => _ink(theme.selection),
+          PaintClass.fill => _fill(theme.selection),
+          PaintClass.wash => _wash(theme.selection),
         };
 
       case WidgetState.cursor:
         return switch (cls) {
           PaintClass.ink => null,
-          PaintClass.fill => theme.cursor.fill.incModifier(Modifier.bold),
-          PaintClass.wash => theme.cursor.wash,
+          PaintClass.fill => _fill(theme.cursor).incModifier(Modifier.bold),
+          PaintClass.wash => _wash(theme.cursor),
         };
 
       case WidgetState.focused:
         return switch (cls) {
-          PaintClass.ink => theme.focus.ink.incModifier(Modifier.bold),
-          PaintClass.fill => theme.focus.fill.incModifier(Modifier.bold),
+          PaintClass.ink => _ink(theme.focus).incModifier(Modifier.bold),
+          PaintClass.fill => _fill(theme.focus).incModifier(Modifier.bold),
           PaintClass.wash => null,
         };
 
       case WidgetState.unfocused:
         return switch (cls) {
-          PaintClass.ink => theme.muted.ink,
-          PaintClass.fill => theme.muted.ink.patch(theme.surface.wash),
+          PaintClass.ink => _ink(theme.muted),
+          PaintClass.fill => _ink(theme.muted).patch(_wash(theme.surface)),
           PaintClass.wash => null,
         };
 
       case WidgetState.loading:
         return switch (cls) {
-          PaintClass.ink || PaintClass.fill => theme.warning.ink.incModifier(Modifier.slowBlink),
+          PaintClass.ink || PaintClass.fill => _ink(theme.warning).incModifier(Modifier.slowBlink),
           PaintClass.wash => null,
         };
 
       case WidgetState.error:
         return switch (cls) {
-          PaintClass.ink => theme.error.ink,
-          PaintClass.fill => theme.error.fill,
-          PaintClass.wash => theme.error.wash,
+          PaintClass.ink => _ink(theme.error),
+          PaintClass.fill => _fill(theme.error),
+          PaintClass.wash => _wash(theme.error),
         };
 
       case WidgetState.disabled:
         return switch (cls) {
-          PaintClass.ink || PaintClass.fill => theme.disabled.ink.incModifier(Modifier.dim),
+          PaintClass.ink || PaintClass.fill => _ink(theme.disabled).incModifier(Modifier.dim),
           PaintClass.wash => null,
         };
     }

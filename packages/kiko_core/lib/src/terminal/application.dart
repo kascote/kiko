@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:kiko_log/kiko_log.dart';
 import 'package:meta/meta.dart';
 
+import '../backend/termlib_backend.dart' show ProfileEnum;
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
 import '../mvu/mvu_runtime.dart';
+import '../style_resolver.dart';
 import '../widgets/frame.dart';
 import 'terminal.dart';
 
@@ -256,6 +258,12 @@ class Application {
 
   void _initTerminal() {
     final terminal = _terminal!;
+    // A NO_COLOR terminal is a process-wide fact known only here (the theme is
+    // app-owned). Publish it once so every StyleResolver a widget builds
+    // re-expresses meaning through modifiers instead of stripped colors.
+    StyleResolver.defaultPolicy = terminal.backend.profile == ProfileEnum.noColor
+        ? RenderPolicy.noColor
+        : RenderPolicy.color;
     if (viewport is ViewPortFullScreen) {
       terminal
         ..enableAlternateScreen()

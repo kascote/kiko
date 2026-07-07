@@ -8,12 +8,18 @@ import 'button_model.dart';
 /// the label sits inside a symmetric horizontal [ButtonModel.padding], and the
 /// built subtree is stamped with the model's id so a click resolves back to it
 /// through [Frame.hitId]. Styles come from the [theme] and the model's state
-/// (focused / disabled / loading), with the same button defaults the old widget
-/// used; [styleOverrides] fully replaces the style for a given state.
+/// (focused / disabled / loading) through the built-in matrix over a primary
+/// resting face; [styleOverrides] fully replaces the style for a given state.
 ///
 /// The content area is pinned to the label's width so the button keeps its size
 /// while loading, when the [ButtonModel.loadingText] indicator sits in that same
 /// width instead of the label.
+///
+/// A button is a primary action, so its resting face is `theme.primary.fill`.
+/// Its states then ride the built-in state × class matrix (via [StyleResolver])
+/// rather than per-widget overrides: focused → `theme.focus.fill` + bold,
+/// loading → warning ink + slow blink, disabled → dim. Passing a
+/// [styleOverrides] entry for a state replaces that state's contribution.
 final class Button implements View {
   /// Creates a button over [model], styled by [theme].
   const Button({required this.model, required this.theme, this.styleOverrides});
@@ -45,8 +51,10 @@ final class Button implements View {
 }
 
 /// Resolves the button style from the theme, the model's active states, and any
-/// overrides, mirroring the button defaults (focused → primary fill,
-/// loading → warning fill) over a base of the surface fill.
+/// overrides: a resting face of `theme.primary.fill` (a button is a primary
+/// action) with the state contributions coming straight from the built-in
+/// matrix, so a focused button lights up in the focus tone and a loading one
+/// blinks — no per-widget default overrides to keep in sync with the doctrine.
 Style _resolveStyle(ButtonModel model, Theme theme, Map<WidgetState, Style>? styleOverrides) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{
@@ -54,13 +62,5 @@ Style _resolveStyle(ButtonModel model, Theme theme, Map<WidgetState, Style>? sty
     if (model.disabled) WidgetState.disabled,
     if (model.loading) WidgetState.loading,
   };
-  final widgetDefaults = <WidgetState, Style>{
-    WidgetState.focused: theme.primary.fill,
-    WidgetState.loading: theme.warning.fill,
-  };
-  return resolver.resolve(
-    theme.surface.fill,
-    states,
-    overrides: <WidgetState, Style>{...widgetDefaults, ...?styleOverrides},
-  );
+  return resolver.resolve(theme.primary.fill, states, overrides: styleOverrides);
 }

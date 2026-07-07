@@ -80,11 +80,59 @@ class TreeScrollState {
 // ═══════════════════════════════════════════════════════════
 
 /// State passed to nodeBuilder for each node.
+///
+/// - `cursor`: true if the keyboard cursor is on this node (the current node)
+/// - `expanded`: true if the node is open
+/// - `loading`: true if the node's children are being fetched
 typedef NodeState = ({
-  bool focused,
+  bool cursor,
   bool expanded,
   bool loading,
 });
+
+// ═══════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════
+
+/// TreeView's anatomy: one nullable style slot per part.
+///
+/// A `null` slot is derived from the theme's tones by the rule below; a
+/// non-null slot is the caller's exact style and wins verbatim, bypassing both
+/// the derivation and the per-state `styleOverrides` map on `TreeView`.
+///
+/// | slot          | derived default            | matrix source     |
+/// | ------------- | -------------------------- | ----------------- |
+/// | `item`        | none (inherits the pane fill)| —               |
+/// | `cursorItem`  | `theme.cursor.fill` + bold | cursor × fill     |
+/// | `placeholder` | `theme.muted.ink`          | anatomy-specific  |
+///
+/// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
+/// keyboard cursor is on the node, then — for a node whose children are being
+/// fetched — the `loading` state (a warning ink with a slow blink, resolved
+/// from the state matrix). The tree has no selection set, so no `selectedItem`.
+///
+/// Three tree parts keep their homes on the tree model rather than duplicating
+/// slots here: the expand/collapse/loading glyph is styled by its
+/// `indicatorStyle`, and the placeholder rows shown beneath a node while its
+/// children load or after a failure carry their own style on the
+/// `loadingIndicator` / `errorIndicator` lines.
+class TreeViewStyle {
+  /// Base row style (usually left null to inherit the pane's own fill).
+  final Style? item;
+
+  /// The current node — the keyboard cursor position.
+  final Style? cursorItem;
+
+  /// The empty-state line shown until the roots load.
+  final Style? placeholder;
+
+  /// Creates a TreeViewStyle.
+  const TreeViewStyle({
+    this.item,
+    this.cursorItem,
+    this.placeholder,
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 // COMMANDS

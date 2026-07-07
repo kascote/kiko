@@ -72,6 +72,10 @@ class TreeViewModel<T> implements Component, Loadable {
   /// Placeholder shown beneath a node whose child load failed.
   final Line errorIndicator;
 
+  /// Anatomy overrides. Mutable so an app can swap in a custom look at runtime,
+  /// the way it flips [focused].
+  TreeViewStyle styles;
+
   /// Key bindings for tree actions.
   late final KeyBinding<TreeViewAction> keyBinding;
 
@@ -85,6 +89,7 @@ class TreeViewModel<T> implements Component, Loadable {
     this.showIcons = false,
     Line? loadingIndicator,
     Line? errorIndicator,
+    this.styles = const TreeViewStyle(),
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
   }) : id = id ?? autoId('treeview'),

@@ -11,9 +11,11 @@ import 'types.dart';
 /// paint protocol — each row indented by its depth, drawn by [nodeBuilder] or a
 /// default builder showing the expand indicator, icon, and label, with an
 /// [emptyPlaceholder] until the roots load. Row backgrounds come from the node's
-/// state (focused / loading) via the theme, overridable with [styleOverrides].
-/// Wrap it in a [Box] for a border or edge titles. The node is stamped with the
-/// model id so a click routes back through [Frame.hitId].
+/// honest state (cursor / loading) painted through the model's [TreeViewStyle]
+/// anatomy — each `null` slot deriving from the theme's tones — and overridable
+/// with [styleOverrides]. Wrap it in a [Box] for a border or edge titles. The
+/// node is stamped with the model id so a click routes back through
+/// [Frame.hitId].
 final class TreeView<T> implements View {
   /// Creates a tree view over [model], styled by [theme] and built row by row
   /// through [nodeBuilder].
@@ -72,6 +74,9 @@ class _TreeViewport<T> extends Node {
   // does — a cjk frame reaches the rows, not just the box chrome.
   TextMeasurer _measurer = const TermUnicodeMeasurer();
 
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  late final _resolver = StyleResolver(theme);
+
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     _measurer = context.measurer;
@@ -93,7 +98,14 @@ class _TreeViewport<T> extends Node {
     if (!m.isLoaded || nodes.isEmpty) {
       final placeholder = emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width, measurer: _measurer);
+        paintLine(
+          surface,
+          placeholder.patchStyle(_placeholderStyle()),
+          x: area.x,
+          y: area.y,
+          width: area.width,
+          measurer: _measurer,
+        );
       }
       return;
     }
@@ -108,23 +120,31 @@ class _TreeViewport<T> extends Node {
     var y = area.y;
     for (var i = startIndex; i < endIndex; i++) {
       final node = nodes[i];
-      final isFocused = i == m.cursor;
+      final isCursor = i == m.cursor;
       final isExpanded = m.isExpanded(node.path);
       final isLoading = m.isPathLoading(node.path);
 
       final rowArea = Rect.create(x: area.x, y: y, width: area.width, height: 1);
       if (rowArea.isEmpty) break;
 
-      final states = <WidgetState>{
-        if (isFocused) WidgetState.focused,
-        if (isLoading) WidgetState.loading,
-      };
-      if (states.isNotEmpty) {
-        final rowStyle = StyleResolver(theme).resolve(null, states, overrides: styleOverrides);
+      // Honest anatomy, not borrowed states: the base item style, then the
+      // cursor fill, then the loading state (warning ink + blink) for a node
+      // whose children are being fetched — each layer patches the last.
+      var rowStyle = m.styles.item ?? const Style();
+      var styled = m.styles.item != null;
+      if (isCursor) {
+        rowStyle = rowStyle.patch(_cursorItemStyle());
+        styled = true;
+      }
+      if (isLoading) {
+        rowStyle = rowStyle.patch(_loadingStyle());
+        styled = true;
+      }
+      if (styled) {
         fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
       }
 
-      final state = (focused: isFocused, expanded: isExpanded, loading: isLoading);
+      final state = (cursor: isCursor, expanded: isExpanded, loading: isLoading);
       final nodeLine = nodeBuilder != null ? nodeBuilder!(node, node.depth, state) : _defaultNode(node, state, m);
 
       final indent = node.depth * m.indentWidth;
@@ -155,4 +175,20 @@ class _TreeViewport<T> extends Node {
     texts.addAll(node.label.texts);
     return Line.fromTexts(texts, style: node.label.style);
   }
+
+  // ─────────────────────────────────────────────
+  // Anatomy — derived defaults, overridable per instance or per theme
+  // ─────────────────────────────────────────────
+
+  /// The current node — `cursor` × `fill`.
+  Style _cursorItemStyle() =>
+      model.styles.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+
+  /// A node whose children are being fetched — `loading` × `fill` (warning ink
+  /// + slow blink). No anatomy slot: loading is a generic state, not a
+  /// TreeView-specific part.
+  Style _loadingStyle() => _resolver.resolve(null, const {WidgetState.loading}, overrides: styleOverrides);
+
+  /// The empty-state line shown until the roots load.
+  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
 }

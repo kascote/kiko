@@ -10,10 +10,12 @@ import 'types.dart';
 /// protocol. [itemBuilder] returns the lines of each row (one per row of
 /// `model.itemHeight`; a shorter list leaves the remaining rows blank), with an
 /// optional [separatorBuilder] between items and an [emptyPlaceholder] line when
-/// there are no items. Row backgrounds come from the item's state (focused /
-/// selected / disabled) via the theme, overridable per state with
-/// [styleOverrides]. Wrap it in a [Box] for a border or edge titles. The node is
-/// stamped with the model id so a click routes back through [Frame.hitId].
+/// there are no items. Row backgrounds come from the item's honest state
+/// (selected / cursor / disabled) painted through the model's [ListViewStyle]
+/// anatomy — each `null` slot deriving from the theme's tones — and overridable
+/// per state with [styleOverrides]. Wrap it in a [Box] for a border or edge
+/// titles. The node is stamped with the model id so a click routes back through
+/// [Frame.hitId].
 final class ListView<T, K> implements View {
   /// Creates a list view over [model], styled by [theme] and built row by row
   /// through [itemBuilder].
@@ -78,6 +80,9 @@ class _ListViewport<T, K> extends Node {
   // does — a cjk frame reaches the rows, not just the box chrome.
   TextMeasurer _measurer = const TermUnicodeMeasurer();
 
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  late final _resolver = StyleResolver(theme);
+
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     _measurer = context.measurer;
@@ -100,7 +105,14 @@ class _ListViewport<T, K> extends Node {
     if (itemCount == 0) {
       final placeholder = emptyPlaceholder;
       if (placeholder != null) {
-        paintLine(surface, placeholder, x: area.x, y: area.y, width: area.width, measurer: _measurer);
+        paintLine(
+          surface,
+          placeholder.patchStyle(_placeholderStyle()),
+          x: area.x,
+          y: area.y,
+          width: area.width,
+          measurer: _measurer,
+        );
       }
       return;
     }
@@ -118,26 +130,37 @@ class _ListViewport<T, K> extends Node {
     var y = area.y;
     for (var i = startIndex; i < endIndex; i++) {
       final item = dataView.itemAt(i);
-      final isFocused = i == m.cursor;
+      final isCursor = i == m.cursor;
       final isChecked = m.isSelected(i);
       final isDisabled = m.isDisabled?.call(i) ?? false;
 
       final itemArea = Rect.create(x: area.x, y: y, width: area.width, height: m.itemHeight).intersection(area);
       if (itemArea.isEmpty) break;
 
-      final states = <WidgetState>{
-        if (isFocused) WidgetState.focused,
-        if (isChecked) WidgetState.selected,
-        if (isDisabled) WidgetState.disabled,
-      };
-      if (states.isNotEmpty) {
-        final rowStyle = StyleResolver(theme).resolve(null, states, overrides: styleOverrides);
+      // Honest anatomy, not borrowed states: the base item style, then the
+      // selection fill, then the cursor fill (so the cursor stays visible over
+      // a selected run), then the disabled dim — each layer patches the last.
+      var rowStyle = m.styles.item ?? const Style();
+      var styled = m.styles.item != null;
+      if (isChecked) {
+        rowStyle = rowStyle.patch(_selectedItemStyle());
+        styled = true;
+      }
+      if (isCursor) {
+        rowStyle = rowStyle.patch(_cursorItemStyle());
+        styled = true;
+      }
+      if (isDisabled) {
+        rowStyle = rowStyle.patch(_disabledStyle());
+        styled = true;
+      }
+      if (styled) {
         for (var dy = 0; dy < itemArea.height; dy++) {
           fillRow(surface, x: itemArea.x, y: itemArea.y + dy, width: itemArea.width, style: rowStyle);
         }
       }
 
-      final lines = itemBuilder(item, i, (checked: isChecked, focused: isFocused, disabled: isDisabled));
+      final lines = itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled));
       for (var li = 0; li < lines.length && li < itemArea.height; li++) {
         paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
       }
@@ -149,4 +172,23 @@ class _ListViewport<T, K> extends Node {
       }
     }
   }
+
+  // ─────────────────────────────────────────────
+  // Anatomy — derived defaults, overridable per instance or per theme
+  // ─────────────────────────────────────────────
+
+  /// Rows in the selection set — `selected` × `fill`.
+  Style _selectedItemStyle() =>
+      model.styles.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+
+  /// The current item — `cursor` × `fill`.
+  Style _cursorItemStyle() =>
+      model.styles.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+
+  /// Disabled rows — `disabled` × `fill` (dim). No anatomy slot: disabled is a
+  /// generic state, not a ListView-specific part.
+  Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
+
+  /// The empty-state line.
+  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
 }

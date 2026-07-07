@@ -79,7 +79,7 @@ class ScrollState {
 
 /// State passed to itemBuilder for each item.
 ///
-/// - `focused`: true if cursor is on this item
+/// - `cursor`: true if the keyboard cursor is on this item (the current item)
 /// - `checked`: true if item is checked (multi-select only, requires
 ///   `multiSelect: true` on ListViewModel)
 /// - `disabled`: true if item is disabled via `isDisabled` callback
@@ -90,10 +90,55 @@ class ScrollState {
 /// itemBuilder: (item, index, _) => Line(item),
 ///
 /// // Use specific fields
-/// itemBuilder: (item, index, (:focused, :checked, :disabled)) =>
-///     Line('${focused ? '>' : ' '} $item'),
+/// itemBuilder: (item, index, (:cursor, :checked, :disabled)) =>
+///     Line('${cursor ? '>' : ' '} $item'),
 /// ```
-typedef ItemState = ({bool checked, bool focused, bool disabled});
+typedef ItemState = ({bool checked, bool cursor, bool disabled});
+
+// ═══════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════
+
+/// ListView's anatomy: one nullable style slot per part.
+///
+/// A `null` slot is derived from the theme's tones by the rule below; a
+/// non-null slot is the caller's exact style and wins verbatim, bypassing both
+/// the derivation and the per-state `styleOverrides` map on `ListView`.
+///
+/// | slot           | derived default              | matrix source     |
+/// | -------------- | ---------------------------- | ----------------- |
+/// | `item`         | none (inherits the pane fill)| —                 |
+/// | `selectedItem` | `theme.selection.fill`       | selected × fill   |
+/// | `cursorItem`   | `theme.cursor.fill` + bold   | cursor × fill     |
+/// | `placeholder`  | `theme.muted.ink`            | anatomy-specific  |
+///
+/// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
+/// row is in the selection set, then `cursorItem` (a fill) if the keyboard
+/// cursor is on it, then the disabled dim if the row is disabled — later layers
+/// patch over earlier ones, so the cursor stays visible over a selected run and
+/// disabled dims everything. There is no `indicator` slot: a ListView renders
+/// no built-in glyph, so any marker is the caller's own `itemBuilder` content.
+class ListViewStyle {
+  /// Base row style (usually left null to inherit the pane's own fill).
+  final Style? item;
+
+  /// Rows in the selection set.
+  final Style? selectedItem;
+
+  /// The current item — the keyboard cursor position.
+  final Style? cursorItem;
+
+  /// The empty-state line.
+  final Style? placeholder;
+
+  /// Creates a ListViewStyle.
+  const ListViewStyle({
+    this.item,
+    this.selectedItem,
+    this.cursorItem,
+    this.placeholder,
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 // COMMANDS

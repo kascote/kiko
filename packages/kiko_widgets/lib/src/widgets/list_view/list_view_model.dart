@@ -83,6 +83,10 @@ class ListViewModel<T, K> implements Component, Loadable {
   /// Return a [LoadRequest] when the cursor is within this many items of the end.
   final int loadMoreThreshold;
 
+  /// Anatomy overrides. Mutable so an app can swap in a custom look at runtime,
+  /// the way it flips [focused].
+  ListViewStyle styles;
+
   /// Items expected per page, used to tell when the last page has arrived.
   ///
   /// After a page is applied, the list keeps [DataView.hasMore] true only while
@@ -116,6 +120,7 @@ class ListViewModel<T, K> implements Component, Loadable {
     this.pageSize = 20,
     this.focused = false,
     this.isDisabled,
+    this.styles = const ListViewStyle(),
     KeyBinding<ListViewAction>? keyBinding,
   }) : id = id ?? autoId('listview'),
        itemKey = itemKey ?? _castItemKey {

@@ -31,8 +31,7 @@ final class TextArea implements View {
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  Node build() =>
-      _TextAreaViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
+  Node build() => _TextAreaViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
 }
 
 /// The self-painting body of a [TextArea]: fills the space the box gives it,

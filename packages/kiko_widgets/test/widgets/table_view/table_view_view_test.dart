@@ -66,7 +66,10 @@ void main() {
       // measurer passed to Frame.render therefore saw zero requests for cells.
       final model = await _seededTable();
       final measurer = _CountingMeasurer(const TermUnicodeMeasurer());
-      _frame(7, 3).render(TableView(model: model, theme: Theme.dark), measurer: measurer);
+      _frame(7, 3).render(
+        TableView(model: model, theme: Theme.dark),
+        measurer: measurer,
+      );
       expect(measurer.calls, greaterThan(0));
     });
 

@@ -53,25 +53,25 @@ List<Map<String, Object?>> buildRows(int n) {
 }
 
 List<TableColumn> buildColumns() => <TableColumn>[
-      TableColumn(field: 'id', label: Line('ID'), width: 6, alignment: TextAlign.end),
-      TableColumn(field: 'name', label: Line('Name'), width: 22),
-      TableColumn(field: 'email', label: Line('Email'), width: 28),
-      // A styled render callback — realistic (colored status pill).
-      TableColumn(
-        field: 'status',
-        label: Line('Status'),
-        width: 12,
-        render: (ctx) => Line.fromTexts([Text('${ctx.value}', style: const Style(fg: Color.green))]),
-      ),
-      TableColumn(field: 'updated', label: Line('Updated'), width: 16),
-      TableColumn(field: 'amount', label: Line('Amount'), width: 14, alignment: TextAlign.end),
-    ];
+  TableColumn(field: 'id', label: Line('ID'), width: 6, alignment: TextAlign.end),
+  TableColumn(field: 'name', label: Line('Name'), width: 22),
+  TableColumn(field: 'email', label: Line('Email'), width: 28),
+  // A styled render callback — realistic (colored status pill).
+  TableColumn(
+    field: 'status',
+    label: Line('Status'),
+    width: 12,
+    render: (ctx) => Line.fromTexts([Text('${ctx.value}', style: const Style(fg: Color.green))]),
+  ),
+  TableColumn(field: 'updated', label: Line('Updated'), width: 16),
+  TableColumn(field: 'amount', label: Line('Amount'), width: 14, alignment: TextAlign.end),
+];
 
 TableViewModel buildModel() => TableViewModel(
-      dataSource: TableDataSource.fromList(const []),
-      keyField: 'id',
-      columns: buildColumns(),
-    )..insertRows(buildRows(kVisibleRows + 10), 0);
+  dataSource: TableDataSource.fromList(const []),
+  keyField: 'id',
+  columns: buildColumns(),
+)..insertRows(buildRows(kVisibleRows + 10), 0);
 
 /// Every whole-string `widthString` argument one frame of the table produces on
 /// the kiko side (labels + each visible cell's rendered text). Drives pattern A.
@@ -92,8 +92,7 @@ List<String> frameWholeStrings() {
 
 /// Every grapheme plume measures once while painting those same strings
 /// (`clusterRuns` calls `widthOf` per cluster). Drives pattern B.
-List<String> frameGraphemes() =>
-    [for (final s in frameWholeStrings()) ...s.characters];
+List<String> frameGraphemes() => [for (final s in frameWholeStrings()) ...s.characters];
 
 // ── Ground-truth frame benchmark (one real frame per run) ────────────────────
 
@@ -102,8 +101,8 @@ class FrameBenchmark extends BenchmarkBase {
   final Rect area;
   late Buffer buffer;
   FrameBenchmark(super.name)
-      : model = buildModel(),
-        area = Rect.create(x: 0, y: 0, width: kAreaWidth, height: kAreaHeight);
+    : model = buildModel(),
+      area = Rect.create(x: 0, y: 0, width: kAreaWidth, height: kAreaHeight);
 
   @override
   void setup() => buffer = Buffer.empty(area);
@@ -123,8 +122,7 @@ class WholeStringBenchmark extends BenchmarkBase {
   final bool cached;
   final List<String> strings = frameWholeStrings();
   final Map<String, int> memo = {};
-  WholeStringBenchmark({required this.cached})
-      : super('wholeString ${cached ? "memo" : "raw "} (kiko truncate/align)');
+  WholeStringBenchmark({required this.cached}) : super('wholeString ${cached ? "memo" : "raw "} (kiko truncate/align)');
   @override
   void exercise() => run();
   @override
@@ -145,8 +143,7 @@ class GraphemeBenchmark extends BenchmarkBase {
   final bool cached;
   final List<String> graphemes = frameGraphemes();
   final Map<String, int> memo = {};
-  GraphemeBenchmark({required this.cached})
-      : super('grapheme    ${cached ? "memo" : "raw "} (plume clusterRuns)');
+  GraphemeBenchmark({required this.cached}) : super('grapheme    ${cached ? "memo" : "raw "} (plume clusterRuns)');
   @override
   void exercise() => run();
   @override

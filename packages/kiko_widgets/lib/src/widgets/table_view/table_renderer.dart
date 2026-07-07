@@ -141,7 +141,14 @@ class TableRenderer {
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
       if (i > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]).patchStyle(_separatorStyle()), x: x, y: y, width: sepWidth, measurer: measurer);
+        paintLine(
+          surface,
+          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          x: x,
+          y: y,
+          width: sepWidth,
+          measurer: measurer,
+        );
         x += sepWidth;
       }
 
@@ -190,7 +197,14 @@ class TableRenderer {
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
       if (colIdx > 0 && sepWidth > 0) {
-        paintLine(surface, Line.fromTexts([sep]).patchStyle(_separatorStyle()), x: x, y: area.y, width: sepWidth, measurer: measurer);
+        paintLine(
+          surface,
+          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          x: x,
+          y: area.y,
+          width: sepWidth,
+          measurer: measurer,
+        );
         x += sepWidth;
       }
 

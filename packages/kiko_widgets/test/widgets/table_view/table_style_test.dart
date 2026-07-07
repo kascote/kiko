@@ -30,8 +30,7 @@ List<TableColumn> _columns() => [
   TableColumn(field: 'b', label: Line('B'), width: 5),
 ];
 
-List<Map<String, Object?>> _rows(int count) =>
-    List.generate(count, (i) => {'id': 'r$i', 'a': '-$i', 'b': 'v$i'});
+List<Map<String, Object?>> _rows(int count) => List.generate(count, (i) => {'id': 'r$i', 'a': '-$i', 'b': 'v$i'});
 
 TableViewModel _model({
   int rowCount = 4,
@@ -249,8 +248,7 @@ void main() {
         // Column "a" has its own explicit red fg from its render callback,
         // which always wins over any cell-level style — move the cursor to
         // column "b" so the override is the only fg in play.
-        final model = _model(styles: const TableViewStyle(cursorCell: override))
-          ..update(const KeyMsg('right'));
+        final model = _model(styles: const TableViewStyle(cursorCell: override))..update(const KeyMsg('right'));
 
         final buffer = renderBuffer(model, width: 11, height: 5);
         final cell = buffer[(x: 6, y: 1)];

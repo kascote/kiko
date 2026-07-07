@@ -30,8 +30,7 @@ final class TableView implements View {
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  Node build() =>
-      _TableViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
+  Node build() => _TableViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
 }
 
 /// The self-painting body of a [TableView]: fills the space the box gives it and

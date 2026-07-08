@@ -29,18 +29,13 @@ make cover         # coverage report
 **Key components:**
 
 - `Buffer` - grid of `Cell`s (grapheme + fg/bg/modifiers)
-- `Layout` - cassowary-based constraint solver for splitting areas (`Rect`)
 - `Block` - base widget for borders/titles/padding
 - `Line`/`Text` - styled text primitives (Views)
 
-**Layout system uses cassowary solver with constraints:**
+**Layout** is handled by the `plume` package — a Flutter-style box model (constraints
+down, sizes up), no constraint solver. See `packages/plume/README.md`.
 
-- `Constraint.length(n)` - exact size
-- `Constraint.min(n)` / `Constraint.max(n)` - bounds
-- `Constraint.percentage(n)` / `Constraint.ratio(a,b)` - proportional
-- `Constraint.fill(n)` - expand to fill
-
-**Dependencies:** termlib (terminal control), termparser (input), termunicode (width), cassowary (layout)
+**Dependencies:** plume (layout), termlib (terminal control), termparser (input), termunicode (width)
 
 ## MVU Identity & Addressing
 

@@ -32,9 +32,8 @@ Node modalDialog({
 /// layer with nothing else composited under it.
 ///
 /// [area] is the full viewport — pass [Frame.area]. Sizing is fixed rather
-/// than constraint-based (unlike the old cassowary `Constraint width/height`)
-/// because a dialog's whole point is a stable size regardless of what's
-/// behind it.
+/// than constraint-based because a dialog's whole point is a stable size
+/// regardless of what's behind it.
 Node centeredOverlay({
   required Node dialog,
   required Rect area,

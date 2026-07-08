@@ -153,5 +153,5 @@ themed correctly by construction.
 
 ---
 
-Sibling: `docs/building-widgets.md` (MVU, events, focus). Doctrine and rationale:
+MVU, events, and focus: see the root `CLAUDE.md`. Theme doctrine and rationale:
 `specs/theme-doctrine.md`.

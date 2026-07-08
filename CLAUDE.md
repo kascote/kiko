@@ -8,10 +8,12 @@ Kiko is a Dart port of [Ratatui](https://ratatui.rs/) - a Rust TUI framework. Bu
 
 ## Monorepo Structure
 
-Dart workspace with two packages:
+Dart workspace with four packages:
 
-- `packages/kiko_core` - core TUI library (rendering, layout, widgets, MVU runtime)
-- `packages/kiko_widgets` - higher-level widgets (text input, etc.)
+- `packages/plume` - Flutter-style, solver-free layout engine for cell grids (geometry only; see `packages/plume/README.md`)
+- `packages/kiko_core` - core TUI library (rendering, widgets, MVU runtime); lays out via plume
+- `packages/kiko_widgets` - higher-level widgets (text input, list/table/tree, etc.)
+- `packages/kiko_log` - logging
 
 ## Commands
 
@@ -62,8 +64,8 @@ await Application(title: 'App').run(
 - `MvuRuntime` - unified message queue, frame/tick timers, async task handling
 
 Widget→app events and effects address their target by **stable `id`** (carried by value),
-not by object reference — and async results must thread that id home. See
-`specs/a2.1-id-addressing.md`.
+not by object reference — and async results must thread that id home. See the addressing
+sections in `packages/kiko_core/CLAUDE.md` and `packages/kiko_widgets/CLAUDE.md`.
 
 ### Event System
 
@@ -91,32 +93,23 @@ Application(
 ### Key Components
 
 - `Buffer` - grid of `Cell`s (grapheme + fg/bg/modifiers)
-- `Layout` - cassowary-based constraint solver for splitting areas (`Rect`)
 - `Block` - base widget for borders/titles/padding
 - `Line`/`Text` - styled text primitives (Views)
 
 ### Layout System
 
-Cassowary solver with constraints:
-
-- `Constraint.length(n)` - exact size
-- `Constraint.min(n)` / `Constraint.max(n)` - bounds
-- `Constraint.percentage(n)` / `Constraint.ratio(a,b)` - proportional
-- `Constraint.fill(n)` - expand to fill
-
-Declarative layout widgets: `Row`, `Column`, `Grid`, `LayoutBuilder`, `Padding`
-Constraint wrappers: `Fixed`, `MinSize`, `Percent`, `Expanded`
+Layout is handled by the `plume` package: a Flutter-style box model — constraints
+flow down, sizes flow up, parents place children, leaves paint. No constraint
+solver. See `packages/plume/README.md` for the model and API.
 
 ### Dependencies
 
-Local termkit monorepo at `../termkit/packages/`:
+`plume` (layout), plus the local termkit monorepo at `../termkit/packages/`:
 
 - `termlib` - terminal control (raw mode, cursor, colors)
 - `termparser` - input parsing (keys, mouse, events)
 - `termunicode` - Unicode width calculation
 - `termansi` - ANSI escape sequences
-
-External: cassowary (layout solver)
 
 ## Code Style
 

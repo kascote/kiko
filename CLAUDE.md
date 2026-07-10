@@ -46,20 +46,24 @@ Kiko uses MVU in the **Bubble Tea** style (Go), _not_ Elm: models are mutable co
 ```dart
 await Application(title: 'App').run(
   init: MyModel(),
-  update: (model, msg) => switch (msg) {
-    KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (model, Quit()),
+  update: (model, msg, ctx) => switch (msg) {
+    KeyMsg(key: 'q') => (model, const Quit()),
     TickMsg(:final elapsed) => (model.tick(elapsed), null),
     _ => (model, null),
   },
-  view: (model, frame, theme) => frame.renderWidget(myWidget(model, theme), frame.area),
+  view: (model, frame) => frame.render(myWidget(model)),
 );
 ```
+
+`update`'s third argument is an `UpdateContext`: the read-only environment the runtime
+supplies for a turn (the frame's `HitMap` and the viewport `Rect`). Take it as `_` when
+you have no use for it.
 
 `copyWith`-style immutable models are still allowed and clean for small value-like models (see `kiko_core/example/counter.dart`); mutability is the default for anything app-sized.
 
 **Key types:**
 
-- `Msg` - events (KeyMsg, MouseMsg, TickMsg, FrameTickMsg, InitMsg, custom)
+- `Msg` - events (KeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, custom)
 - `Cmd` - side effects (Quit, Tick, AsyncCmd, Batch, Emit)
 - `MvuRuntime` - unified message queue, frame/tick timers, async task handling
 

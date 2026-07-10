@@ -49,7 +49,7 @@ const int _sigTerm = _baseError + 15;
 /// await Application(title: 'Counter').run(
 ///   init: CounterModel(),
 ///   update: (model, msg, _) => switch (msg) {
-///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (model, Quit()),
+///     KeyMsg(key: 'q') => (model, const Quit()),
 ///     _ => (model, null),
 ///   },
 ///   view: (model, frame) => frame.render(myWidget(model)),
@@ -60,7 +60,7 @@ const int _sigTerm = _baseError + 15;
 /// ```dart
 /// await Application(title: 'Demo').runStateless(
 ///   update: (_, msg, _) => switch (msg) {
-///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, Quit()),
+///     KeyMsg(key: 'q') => (null, const Quit()),
 ///     _ => (null, null),
 ///   },
 ///   view: (_, frame) => frame.render(Line('Hello')),

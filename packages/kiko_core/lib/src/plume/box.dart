@@ -56,7 +56,7 @@ final class Box implements View {
 
   @override
   Node build() {
-    final borderToken = border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols(border));
+    final borderToken = border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols);
     final backgroundToken = background == const Style() ? null : PaintToken(background);
     return plume.BorderBox<PaintToken>(
       child: child.build(),

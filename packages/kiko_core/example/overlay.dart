@@ -85,7 +85,7 @@ View _modal() => Center(
     additionalConstraints: const BoxConstraints(minW: 40, maxW: 40, minH: 7, maxH: 7),
     child: Container(
       // A solid fill makes the modal opaque over the dimmed backdrop.
-      background: const PaintToken(Style(bg: Color.black)),
+      background: const Style(bg: Color.black),
       child: Box(
         border: BorderType.double,
         borderStyle: const Style(fg: Color.yellow),

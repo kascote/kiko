@@ -111,12 +111,13 @@ void main() {
       expect((node as plume.ConstrainedBox<PaintToken>).additionalConstraints, constraints);
     });
 
-    test('Container carries sizing and decoration tokens', () {
-      const background = PaintToken(Style(bg: Color.blue));
+    test('Container carries sizing and builds its decoration tokens', () {
       final node = const Container(
         width: 6,
         height: 3,
-        background: background,
+        background: Style(bg: Color.blue),
+        border: BorderType.plain,
+        borderStyle: Style(fg: Color.red),
         child: Text('x'),
       ).build();
 
@@ -124,7 +125,24 @@ void main() {
       final container = node as plume.Container<PaintToken>;
       expect(container.width, 6);
       expect(container.height, 3);
-      expect(container.background, background);
+      expect(container.background, const PaintToken(Style(bg: Color.blue)));
+      expect(container.border, PaintToken(const Style(fg: Color.red), border: BorderType.plain.symbols));
+    });
+
+    test('a bordered Container always carries the glyphs its border needs', () {
+      final node = const Container(border: BorderType.rounded, child: Text('x')).build() as plume.Container<PaintToken>;
+
+      // A border token reserves an edge cell in layout, so one without glyphs
+      // would leave a hole rather than a frame.
+      expect(node.border?.border, isNotNull);
+      expect(node.border?.border, BorderType.rounded.symbols);
+    });
+
+    test('an empty style and BorderType.none leave the decoration tokens off', () {
+      final node = const Container(child: Text('x')).build() as plume.Container<PaintToken>;
+
+      expect(node.background, isNull);
+      expect(node.border, isNull);
     });
 
     test('nested containers inflate the whole tree', () {

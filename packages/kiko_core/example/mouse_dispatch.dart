@@ -270,7 +270,7 @@ View _row(MenuModel model, int index) {
   final hovered = model.hoverRow == index;
   final bg = selected ? Color.cyan : (hovered ? Color.darkGray : null);
   return Container(
-    background: bg == null ? null : PaintToken(Style(bg: bg)),
+    background: Style(bg: bg),
     child: Line(
       ' ${model.items[index]}',
       style: Style(fg: selected ? Color.black : null),

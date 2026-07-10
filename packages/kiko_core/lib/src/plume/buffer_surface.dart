@@ -114,11 +114,14 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
 
   @override
   void rawDrawBorder(plume.Rect rect, PaintToken token, plume.Rect? clip) {
-    // The border charset rides in the token (spec 0074): a bordered box carries
-    // a BorderSet, and the surface decodes it here.
+    // The border glyphs ride in the token, and this is where they are decoded.
+    // Nothing in kiko builds a border token without them, so a null glyph set is
+    // a broken caller, not a border to skip: fail the same way in every build.
     final glyphs = token.border;
-    assert(glyphs != null, 'drawBorder needs a border glyph set on the token');
-    if (glyphs == null || rect.width <= 0 || rect.height <= 0) return;
+    if (glyphs == null) {
+      throw ArgumentError.value(token, 'token', 'drawBorder needs a border glyph set on the token');
+    }
+    if (rect.width <= 0 || rect.height <= 0) return;
 
     final style = token.style;
     final left = rect.left;

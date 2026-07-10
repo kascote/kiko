@@ -3,9 +3,6 @@ enum BorderType {
   /// No border
   none,
 
-  /// Custom defined border
-  custom,
-
   /// A plain, simple border.
   ///
   /// This is the default
@@ -104,8 +101,8 @@ const _quadrantTopRightBottomLeftBottomRight = '▟';
 
 /// Utility functions for [BorderType].
 extension BorderTypeUtils on BorderType {
-  /// Returns the symbols to use for the given [BorderType].
-  BorderSet symbols(BorderType type) => switch (type) {
+  /// The box-drawing glyphs this border type is drawn with.
+  BorderSet get symbols => switch (this) {
     BorderType.none => (
       top: ' ',
       bottom: ' ',
@@ -176,6 +173,5 @@ extension BorderTypeUtils on BorderType {
       top: _quadrantTopHalf,
       bottom: _quadrantBottomHalf,
     ),
-    _ => throw ArgumentError('Invalid border type: $type'),
   };
 }

@@ -193,13 +193,9 @@ View _swatch(MouseModel model, int i) {
       ? '◌'
       : '';
   final swatch = Container(
-    background: PaintToken(Style(bg: _palette[i])),
-    border: hovered || selected
-        ? PaintToken(
-            Style(fg: selected ? Color.white : Color.gray),
-            border: BorderType.plain.symbols(BorderType.plain),
-          )
-        : null,
+    background: Style(bg: _palette[i]),
+    border: hovered || selected ? BorderType.plain : BorderType.none,
+    borderStyle: Style(fg: selected ? Color.white : Color.gray),
     child: Center(
       child: Line(
         label,

@@ -121,6 +121,23 @@ void main() {
         expect(b[(x: 0, y: 3)].symbol, ' '); // below the clip's bottom edge
       });
 
+      test('throws on a token with no glyph set, in every build', () {
+        final s = BufferSurface(_buf(4, 3));
+        // Never silently paint nothing: layout has already reserved the edge, so
+        // a skipped border leaves a one-cell hole around the child.
+        expect(
+          () => s.drawBorder(const plume.Rect(0, 0, 4, 3), _tok()),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('an empty rect draws nothing and is not an error', () {
+        final b = _buf(4, 3);
+        final s = BufferSurface(b);
+        expect(() => s.drawBorder(plume.Rect.zero, const PaintToken(Style(), border: _plain)), returnsNormally);
+        expect(b[(x: 0, y: 0)].symbol, ' ');
+      });
+
       test('clamps a border past the buffer instead of throwing', () {
         final b = _buf(3, 3);
         final s = BufferSurface(b);

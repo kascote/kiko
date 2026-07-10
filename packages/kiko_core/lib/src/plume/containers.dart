@@ -1,6 +1,9 @@
 import 'package:plume/plume.dart' as plume;
 
+import '../style.dart';
+import '../widgets/border_type.dart';
 import 'aliases.dart';
+import 'box.dart';
 import 'paint_token.dart';
 import 'view.dart';
 
@@ -215,6 +218,10 @@ final class ConstrainedBox implements View {
 
 /// A single-child box that can size itself, pad its child, and paint a
 /// background and border.
+///
+/// Decoration is described the same way [Box] describes it: a [border] type and
+/// [borderStyle] for the frame, a [background] style for the fill. [build] turns
+/// each into the paint token plume carries — no caller assembles one.
 final class Container implements View {
   /// Wraps [child] with optional sizing and decoration.
   const Container({
@@ -222,8 +229,9 @@ final class Container implements View {
     this.padding = plume.EdgeInsets.zero,
     this.width,
     this.height,
-    this.background,
-    this.border,
+    this.background = const Style(),
+    this.border = BorderType.none,
+    this.borderStyle = const Style(),
   });
 
   /// The wrapped child.
@@ -238,19 +246,23 @@ final class Container implements View {
   /// A fixed height in cells, or `null` to size to the child.
   final int? height;
 
-  /// The fill paint token, or `null` for no fill.
-  final PaintToken? background;
+  /// The fill painted behind the child, or an empty style for no fill.
+  final Style background;
 
-  /// The border paint token, or `null` for no border.
-  final PaintToken? border;
+  /// The border glyph set drawn around the box, or [BorderType.none] for no
+  /// border.
+  final BorderType border;
+
+  /// The colour and modifiers of the border glyphs.
+  final Style borderStyle;
 
   @override
   Node build() => plume.Container<PaintToken>(
     padding: padding,
     width: width,
     height: height,
-    background: background,
-    border: border,
+    background: background == const Style() ? null : PaintToken(background),
+    border: border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols),
     child: child.build(),
   );
 }

@@ -38,7 +38,7 @@ void main() {
               ).build()
               as plume.BorderBox<PaintToken>;
 
-      expect(node.border, PaintToken(const Style(fg: Color.red), border: BorderType.plain.symbols(BorderType.plain)));
+      expect(node.border, PaintToken(const Style(fg: Color.red), border: BorderType.plain.symbols));
     });
 
     test('a non-empty style becomes the background fill', () {

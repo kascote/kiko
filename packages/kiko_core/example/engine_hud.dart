@@ -115,7 +115,7 @@ void view(HudModel model, Frame frame) {
 }
 
 View _sprite(HudModel model) => Container(
-  background: PaintToken(Style(bg: model.paused ? Color.darkGray : Color.magenta)),
+  background: Style(bg: model.paused ? Color.darkGray : Color.magenta),
   child: const SizedBox(),
 );
 

@@ -20,8 +20,7 @@ class Hit {
   const Hit(this.id, this.rect);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is Hit && id == other.id && rect == other.rect;
+  bool operator ==(Object other) => identical(this, other) || other is Hit && id == other.id && rect == other.rect;
 
   @override
   int get hashCode => Object.hash(id, rect);

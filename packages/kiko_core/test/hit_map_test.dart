@@ -19,8 +19,7 @@ void main() {
   group('hitId', () {
     test('resolves a point to the innermost tagged widget', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitId(2, 2), 'inner');
@@ -52,8 +51,7 @@ void main() {
       // Plume's `tag` is an opaque Object?. An inner node tagged with something
       // that is not an id must not hide the addressable widget enclosing it.
       final inner = _box('i', 42);
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitId(2, 2), 'outer');
@@ -74,8 +72,7 @@ void main() {
     test('is total for a placed tag and null for an unknown one', () {
       final a = _box('A', 'btn-a');
       final b = _box('B', 'btn-b');
-      final frame = _frame(6, 3)
-        ..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
+      final frame = _frame(6, 3)..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
 
       expect(frame.hits.rectOf('btn-a'), Rect.create(x: 0, y: 0, width: 3, height: 3));
       expect(frame.hits.rectOf('btn-b'), Rect.create(x: 3, y: 0, width: 3, height: 3));
@@ -86,8 +83,7 @@ void main() {
       // The whole point of tag uniqueness: a caller anchoring to the box it
       // tagged gets that box's rect, not a descendant's.
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.rectOf('outer'), Rect.create(x: 0, y: 0, width: 6, height: 5));
@@ -98,8 +94,7 @@ void main() {
   group('hitPath', () {
     test('reports tagged ancestors outermost first', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(_ids(frame.hits.hitPath(2, 2)), ['outer', 'inner']);
@@ -107,8 +102,7 @@ void main() {
 
     test('its last entry is the id hitId names', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       final path = frame.hits.hitPath(2, 2);
@@ -117,8 +111,7 @@ void main() {
 
     test('carries the rect of each entry', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitPath(2, 2), [
@@ -130,8 +123,7 @@ void main() {
     test('skips untagged nodes along the way', () {
       final inner = _box('i', 'inner');
       final middle = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner);
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: middle)
-        ..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: middle)..tag = 'outer';
       final frame = _frame(8, 7)..renderNode(outer);
 
       expect(_ids(frame.hits.hitPath(3, 3)), ['outer', 'inner']);
@@ -148,9 +140,8 @@ void main() {
       // one on top; the one beneath is not its ancestor.
       final under = _box('U', 'under');
       final overInner = _box('i', 'over-inner');
-      final over =
-          plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: overInner)
-            ..tag = 'over-outer';
+      final over = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: overInner)
+        ..tag = 'over-outer';
       final frame = _frame(6, 5)
         ..renderNode(under)
         ..renderNode(over);
@@ -163,8 +154,7 @@ void main() {
     test('a duplicate id trips an assert, because rectOf could not choose', () {
       final a = _box('A', 'dup');
       final b = _box('B', 'dup');
-      final frame = _frame(6, 3)
-        ..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
+      final frame = _frame(6, 3)..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
 
       expect(() => frame.hits, throwsA(isA<AssertionError>()));
     });

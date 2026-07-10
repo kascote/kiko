@@ -1,9 +1,16 @@
 import 'dart:async';
 
 import 'package:kiko/kiko.dart';
+// The un-routed form of a mouse event never leaves the runtime, so it is not
+// part of the public library. The queue is what these tests are about.
+import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
 import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
+
+/// A mouse event as it waits in the queue, aimed at nothing in particular.
+RawPointerMsg _pointer(int x, int y, MouseButton button) =>
+    RawPointerMsg(MouseEvent(x, y, button), const HitMap.empty());
 
 /// Test event stream controller for injecting events.
 class TestEventStream {
@@ -410,7 +417,7 @@ void main() {
         expect((msg as KeyMsg).key, equals('z'));
       });
 
-      test('converts MouseEvent to MouseMsg', () async {
+      test('converts MouseEvent to a stamped pointer message', () async {
         events.emit(MouseEvent(10, 20, MouseButton.down(MouseButtonKind.left)));
 
         // Allow stream to deliver
@@ -418,9 +425,10 @@ void main() {
 
         final msg = await runtime.nextMsg(timeout: 100);
 
-        expect(msg, isA<MouseMsg>());
-        expect((msg as MouseMsg).x, equals(10));
-        expect(msg.y, equals(20));
+        expect(msg, isA<RawPointerMsg>());
+        expect((msg as RawPointerMsg).mouse.x, equals(10));
+        expect(msg.mouse.y, equals(20));
+        expect(msg.hits, same(runtime.lastHitMap), reason: 'stamped with the frame it was aimed at');
       });
 
       test('converts FocusEvent to FocusMsg', () async {
@@ -722,16 +730,16 @@ void main() {
       test('mouse moves are coalesced to latest', () async {
         // Queue multiple mouse move events
         runtime
-          ..queueMsg(MouseMsg(MouseEvent(0, 0, MouseButton.moved())))
-          ..queueMsg(MouseMsg(MouseEvent(5, 5, MouseButton.moved())))
-          ..queueMsg(MouseMsg(MouseEvent(10, 10, MouseButton.moved())))
+          ..queueMsg(_pointer(0, 0, MouseButton.moved()))
+          ..queueMsg(_pointer(5, 5, MouseButton.moved()))
+          ..queueMsg(_pointer(10, 10, MouseButton.moved()))
           ..coalesceQueue();
 
         // Only the latest should remain
         final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<MouseMsg>());
-        expect((msg as MouseMsg).x, equals(10));
-        expect(msg.y, equals(10));
+        expect(msg, isA<RawPointerMsg>());
+        expect((msg as RawPointerMsg).mouse.x, equals(10));
+        expect(msg.mouse.y, equals(10));
 
         // Queue should be empty now (only timeout)
         final next = await runtime.nextMsg(timeout: 10);
@@ -740,47 +748,48 @@ void main() {
 
       test('mouse drags are coalesced to latest', () async {
         runtime
-          ..queueMsg(
-            MouseMsg(MouseEvent(0, 0, MouseButton.drag(MouseButtonKind.left))),
-          )
-          ..queueMsg(
-            MouseMsg(MouseEvent(5, 5, MouseButton.drag(MouseButtonKind.left))),
-          )
-          ..queueMsg(
-            MouseMsg(
-              MouseEvent(10, 10, MouseButton.drag(MouseButtonKind.left)),
-            ),
-          )
+          ..queueMsg(_pointer(0, 0, MouseButton.drag(MouseButtonKind.left)))
+          ..queueMsg(_pointer(5, 5, MouseButton.drag(MouseButtonKind.left)))
+          ..queueMsg(_pointer(10, 10, MouseButton.drag(MouseButtonKind.left)))
           ..coalesceQueue();
 
         final msg = await runtime.nextMsg(timeout: 100);
-        expect((msg as MouseMsg).x, equals(10));
+        expect((msg as RawPointerMsg).mouse.x, equals(10));
       });
 
       test('mouse clicks are NOT coalesced', () async {
         runtime
-          ..queueMsg(
-            MouseMsg(MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left))),
-          )
-          ..queueMsg(
-            MouseMsg(MouseEvent(5, 5, MouseButton.down(MouseButtonKind.left))),
-          )
+          ..queueMsg(_pointer(0, 0, MouseButton.down(MouseButtonKind.left)))
+          ..queueMsg(_pointer(5, 5, MouseButton.down(MouseButtonKind.left)))
           ..coalesceQueue();
 
         // Both clicks should remain
         final msg1 = await runtime.nextMsg(timeout: 100);
         final msg2 = await runtime.nextMsg(timeout: 100);
 
-        expect((msg1 as MouseMsg).x, equals(0));
-        expect((msg2 as MouseMsg).x, equals(5));
+        expect((msg1 as RawPointerMsg).mouse.x, equals(0));
+        expect((msg2 as RawPointerMsg).mouse.x, equals(5));
+      });
+
+      test('a wheel notch is a delta, so it is never coalesced', () async {
+        runtime
+          ..queueMsg(_pointer(0, 0, MouseButton.wheelDown()))
+          ..queueMsg(_pointer(0, 0, MouseButton.wheelDown()))
+          ..coalesceQueue();
+
+        final msg1 = await runtime.nextMsg(timeout: 100);
+        final msg2 = await runtime.nextMsg(timeout: 100);
+
+        expect(msg1, isA<RawPointerMsg>(), reason: 'merging two notches would eat one');
+        expect(msg2, isA<RawPointerMsg>());
       });
 
       test('mixed messages preserve order with coalescing', () async {
         runtime
           ..queueMsg(const KeyMsg('a'))
-          ..queueMsg(MouseMsg(MouseEvent(0, 0, MouseButton.moved())))
+          ..queueMsg(_pointer(0, 0, MouseButton.moved()))
           ..queueMsg(const KeyMsg('b'))
-          ..queueMsg(MouseMsg(MouseEvent(5, 5, MouseButton.moved())))
+          ..queueMsg(_pointer(5, 5, MouseButton.moved()))
           ..queueMsg(const KeyMsg('c'))
           ..coalesceQueue();
 
@@ -792,26 +801,22 @@ void main() {
 
         expect((msg1 as KeyMsg).key, equals('a'));
         expect((msg2 as KeyMsg).key, equals('b'));
-        expect((msg3 as MouseMsg).x, equals(5)); // latest mouse move
+        expect((msg3 as RawPointerMsg).mouse.x, equals(5)); // latest mouse move
         expect((msg4 as KeyMsg).key, equals('c'));
       });
 
-      test('MouseMsg.coalesceable returns correct values', () {
-        final moveMsg = MouseMsg(MouseEvent(0, 0, MouseButton.moved()));
-        final dragMsg = MouseMsg(
-          MouseEvent(0, 0, MouseButton.drag(MouseButtonKind.left)),
-        );
-        final clickMsg = MouseMsg(
-          MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)),
-        );
-        final releaseMsg = MouseMsg(
-          MouseEvent(0, 0, MouseButton.up(MouseButtonKind.left)),
-        );
+      test('only a position-valued mouse event is coalesceable', () {
+        final moveMsg = _pointer(0, 0, MouseButton.moved());
+        final dragMsg = _pointer(0, 0, MouseButton.drag(MouseButtonKind.left));
+        final clickMsg = _pointer(0, 0, MouseButton.down(MouseButtonKind.left));
+        final releaseMsg = _pointer(0, 0, MouseButton.up(MouseButtonKind.left));
+        final wheelMsg = _pointer(0, 0, MouseButton.wheelUp());
 
         expect(moveMsg.coalesceable, isTrue);
         expect(dragMsg.coalesceable, isTrue);
         expect(clickMsg.coalesceable, isFalse);
         expect(releaseMsg.coalesceable, isFalse);
+        expect(wheelMsg.coalesceable, isFalse);
       });
 
       test('default Msg is not coalesceable', () {
@@ -832,7 +837,16 @@ void main() {
       final msg = eventToMsg(
         MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)),
       );
-      expect(msg, isA<MouseMsg>());
+      expect(msg, isA<RawPointerMsg>());
+    });
+
+    test('stamps a mouse event with the map it was aimed at', () {
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 2));
+      final frame = Frame(buffer.area, buffer, 0)..render(Tagged('a', Box(border: BorderType.plain, child: Line(''))));
+
+      final msg = eventToMsg(MouseEvent(0, 0, MouseButton.moved()), hits: frame.hits);
+
+      expect((msg as RawPointerMsg).hits.hitId(0, 0), 'a');
     });
 
     test('converts FocusEvent', () {

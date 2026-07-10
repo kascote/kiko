@@ -1,18 +1,18 @@
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
-import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 
 // ═══════════════════════════════════════════════════════════
 // Interactive mouse playground.
 //
-// Exercises the tag-based hit-test seam end to end: swatches and a floating
-// panel stamp a stable id on their subtree, and a mouse event resolves back to
-// that id through `HitMap.hitId`.
+// Exercises the routing layer end to end: swatches and a floating panel stamp a
+// stable id on their subtree with `Tagged`, and a mouse event arrives at
+// `update` already resolved to that id.
 //
-// Mouse events are handled in `update`, which never sees a Frame. It does not
-// need one: the runtime hands it `ctx.hits`, the geometry of the frame that is
-// on screen — the very cells the click was aimed at. `HitMap.rectOf` then reads
-// back where the selected swatch was painted.
+// Nothing here hit-tests. `PointerMsg.targetId` names the widget, `local` gives
+// the cursor in that widget's own cells, and pressing the panel hands it the
+// pointer until the button comes up — so the drag survives a cursor that
+// outruns it. `PointerLeaveMsg` says when hover ends, `PointerCancelMsg` when a
+// drag was abandoned rather than finished.
 // ═══════════════════════════════════════════════════════════
 
 const _cols = 6;
@@ -43,49 +43,60 @@ class MouseModel {
   int mouseY = 0;
 }
 
-(MouseModel, Cmd?) update(MouseModel model, Msg msg, UpdateContext ctx) {
+(MouseModel, Cmd?) update(MouseModel model, Msg msg, UpdateContext _) {
   switch (msg) {
     case KeyMsg(key: 'q'):
       return (model, const Quit());
 
-    case final MouseMsg m:
+    // The pointer left whatever it was over. Nothing else has to notice.
+    case PointerLeaveMsg(:final targetId):
+      if (model.hoverId == targetId) model.hoverId = null;
+      return (model, null);
+
+    // The drag was abandoned — the cursor left the window, or focus went
+    // elsewhere. End it, and do not commit where the panel happened to be.
+    case PointerCancelMsg():
+      model.dragging = false;
+      return (model, null);
+
+    case final PointerMsg m:
       model
-        ..mouseX = m.x
-        ..mouseY = m.y;
-      final hit = ctx.hits.hitId(m.x, m.y);
+        ..mouseX = m.global.x
+        ..mouseY = m.global.y;
 
       if (m.isMove) {
-        model.hoverId = hit;
+        model.hoverId = m.targetId;
         return (model, null);
       }
 
-      // Button down: grab the panel, or select a swatch.
-      if (m.mouse.button.action == MouseButtonAction.down) {
-        if (hit == 'panel') {
+      // Button down: grab the panel, or select a swatch. `local` is already the
+      // grab offset — the cursor counted from the panel's own top-left cell.
+      if (m.isDown) {
+        if (m.targetId == 'panel') {
           model
             ..dragging = true
-            ..grabDX = m.x - model.panelX
-            ..grabDY = m.y - model.panelY;
-        } else if (hit != null && hit.startsWith('swatch-')) {
+            ..grabDX = m.local.x
+            ..grabDY = m.local.y;
+        } else if (m.targetId case final id? when id.startsWith('swatch-')) {
           model
-            ..selectedId = hit
-            ..selectedRect = ctx.hits.rectOf(hit);
+            ..selectedId = id
+            ..selectedRect = m.targetRect;
         }
         return (model, null);
       }
 
-      // Drag: move the panel, keeping the same grab point under the cursor.
+      // Drag: the press captured the panel, so every drag still addresses it
+      // even when the cursor has run off it. Keep the grab point under the
+      // cursor.
       if (m.isDrag && model.dragging) {
         model
-          ..panelX = (m.x - model.grabDX).clamp(0, 1 << 20)
-          ..panelY = (m.y - model.grabDY).clamp(0, 1 << 20);
+          ..panelX = (m.global.x - model.grabDX).clamp(0, 1 << 20)
+          ..panelY = (m.global.y - model.grabDY).clamp(0, 1 << 20);
         return (model, null);
       }
 
       // Button up: end the drag.
-      if (m.mouse.button.action == MouseButtonAction.up) {
-        model.dragging = false;
-      }
+      if (m.isUp) model.dragging = false;
       return (model, null);
 
     default:

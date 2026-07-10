@@ -6,7 +6,9 @@ import 'package:termparser/termparser_events.dart';
 
 import '../widgets/hit_map.dart';
 import 'cmd.dart';
+import 'mouse_router.dart';
 import 'msg.dart';
+import 'pointer_msg.dart';
 import 'update_context.dart';
 
 /// Internal cancellation token to prevent orphaned task results from queueing.
@@ -36,6 +38,7 @@ typedef OnMsgQueued = void Function();
 /// ticks, async tasks) push to the same queue in FIFO order.
 class MvuRuntime {
   final Queue<Msg> _msgQueue = Queue<Msg>();
+  final MouseRouter _router = MouseRouter();
   Timer? _tickTimer;
   Timer? _frameTickTimer;
   _CancellationToken _token = _CancellationToken();
@@ -70,6 +73,7 @@ class MvuRuntime {
   void reset() {
     exitCode = 0;
     lastHitMap = const HitMap.empty();
+    _router.reset();
     _msgQueue.clear();
     _wakeUp = Completer<void>();
     _tickTimer?.cancel();
@@ -87,12 +91,33 @@ class MvuRuntime {
   ///
   /// All terminal events are converted to messages and queued in FIFO order
   /// along with ticks and async task results.
+  ///
+  /// A mouse event is stamped as it arrives with the geometry then on screen,
+  /// so it stays aimed at the cells the user aimed it at however long it waits.
   void subscribeToEvents(Stream<Event> events) {
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = events.listen((event) {
-      queueMsg(eventToMsg(event));
+      queueMsg(eventToMsg(event, hits: lastHitMap));
     });
   }
+
+  /// Resolves a dequeued [msg] into the messages `update` should see, and the
+  /// geometry they were resolved against.
+  ///
+  /// A mouse event arrives as one message and leaves as up to three: the widget
+  /// the pointer left, the widget whose gesture was abandoned, and the routed
+  /// [PointerMsg] itself. Deliver them in order, to the same model. Every other
+  /// message passes through as itself.
+  ///
+  /// The returned `hits` is what [UpdateContext.hits] should carry for all of
+  /// them: the frame the pointer was over for a mouse event, and the last frame
+  /// committed for everything else. An app that walks [HitMap.hitPath] to hand a
+  /// declined event to the next widget out therefore walks the very path that
+  /// was hit.
+  ({List<Msg> msgs, HitMap hits}) route(Msg msg) => (
+    msgs: _router.route(msg, lastHitMap),
+    hits: msg is RawPointerMsg ? msg.hits : lastHitMap,
+  );
 
   /// Queues a message and signals wake-up.
   void queueMsg(Msg msg) {

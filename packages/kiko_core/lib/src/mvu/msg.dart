@@ -2,6 +2,9 @@ import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
+import '../widgets/hit_map.dart';
+import 'pointer_msg.dart';
+
 /// Base class for all messages in MVU architecture.
 ///
 /// Messages trigger state updates in the update function.
@@ -69,28 +72,40 @@ class KeyMsg extends Msg {
   int get hashCode => Object.hash(key, type);
 }
 
-/// Wrapper for mouse events.
+/// A mouse event waiting in the queue, stamped with the frame it was aimed at.
+///
+/// This is what a mouse event *is* between the moment it arrives and the moment
+/// the router resolves it. It never reaches `update`: the router replaces it
+/// with a [PointerMsg] addressed to the widget under the pointer.
+///
+/// It carries [hits] because the pointer aims at cells, not at widgets. By the
+/// time the queue drains, a frame tick may have painted a new layout — so the
+/// event keeps the geometry it was aimed at and is resolved against that. The
+/// map is immutable, so this costs one reference and no copy.
+///
+/// The pointer's *position* is what a move carries, so two moves collapse into
+/// the later one. The pointer's *travel* is what a drag carries, and a drag is
+/// coalesced the same way because a widget reads it as a position too. A wheel
+/// notch is a delta, and merging two of those would silently eat one, so it is
+/// never coalesced.
+@internal
 @immutable
-class MouseMsg extends Msg {
-  /// The underlying mouse event.
+class RawPointerMsg extends Msg {
+  /// The event as the backend delivered it, in 0-based buffer cells.
   final evt.MouseEvent mouse;
 
-  /// Creates a MouseMsg from a MouseEvent.
-  const MouseMsg(this.mouse);
+  /// The tagged geometry of the frame that was on screen when it arrived.
+  final HitMap hits;
 
-  /// X coordinate of mouse event.
-  int get x => mouse.x;
+  /// Stamps [mouse] with the [hits] it was aimed at.
+  const RawPointerMsg(this.mouse, this.hits);
 
-  /// Y coordinate of mouse event.
-  int get y => mouse.y;
-
-  /// Whether this is a move event (no button pressed).
+  /// Whether the pointer moved with no button held.
   bool get isMove => mouse.button.action == evt.MouseButtonAction.moved;
 
-  /// Whether this is a drag event (button held while moving).
+  /// Whether the pointer moved with a button held.
   bool get isDrag => mouse.button.action == evt.MouseButtonAction.drag;
 
-  /// Only mouse moves are coalesceable (not clicks/releases).
   @override
   bool get coalesceable => isMove || isDrag;
 
@@ -98,10 +113,7 @@ class MouseMsg extends Msg {
   String get coalesceKey => 'mouse-move';
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is MouseMsg && mouse == other.mouse;
-
-  @override
-  int get hashCode => mouse.hashCode;
+  String toString() => 'RawPointerMsg(${mouse.button.action.name} at ${mouse.x}, ${mouse.y})';
 }
 
 /// Wrapper for focus events.
@@ -201,10 +213,16 @@ class UnknownMsg extends Msg {
 }
 
 /// Converts a termparser Event to a Msg.
-Msg eventToMsg(evt.Event event) {
+///
+/// A mouse event is stamped with [hits], the geometry of the frame it was aimed
+/// at. The runtime passes the map it last committed, so an event that waits in
+/// the queue while a new frame is painted still resolves against the cells the
+/// user was looking at. Before the first frame there is nothing to hit, and the
+/// default empty map says so.
+Msg eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
   return switch (event) {
     final evt.KeyEvent e => _keyEventToMsg(e),
-    final evt.MouseEvent e => MouseMsg(e),
+    final evt.MouseEvent e => RawPointerMsg(e, hits),
     final evt.FocusEvent e => FocusMsg(e),
     final evt.PasteEvent e => PasteMsg(e),
     evt.NoneEvent() => const NoneMsg(),

@@ -228,15 +228,13 @@ class Application {
       ..reset()
       ..subscribeToEvents(terminal.events);
 
-    // What update is allowed to know about the world outside its model.
-    UpdateContext context() => UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
-
     // The map a mouse event resolves against is the one that painted the cells
     // it was aimed at, so every draw hands its geometry back to the runtime.
     void draw(M model) => runtime.lastHitMap = terminal.draw((frame) => view(model, frame)).hits;
 
     // 1. Send InitMsg, process, render immediately (before FrameTick starts)
-    var (model, initCmd) = update(init, const InitMsg(), context());
+    final initCtx = UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
+    var (model, initCmd) = update(init, const InitMsg(), initCtx);
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
     draw(model);
 
@@ -254,14 +252,22 @@ class Application {
       // Drop stale frames to prevent backlog
       if (runtime.isStale(msg, fps)) continue;
 
+      // Resolve the message. A mouse event leaves the router as a routed event,
+      // sometimes behind a leave or a cancel for the widget it abandons — up to
+      // three messages, all reading the frame the pointer was over.
+      final (:msgs, :hits) = runtime.route(msg);
+      final ctx = UpdateContext(hits: hits, area: terminal.viewportArea);
+
       // Update model (all messages, including FrameTick)
-      final (newModel, cmd) = update(model, msg, context());
-      model = newModel;
+      for (final delivered in msgs) {
+        final (newModel, cmd) = update(model, delivered, ctx);
+        model = newModel;
 
-      // Process command
-      if (runtime.processCmd(cmd)) return runtime.exitCode;
+        // Process command
+        if (runtime.processCmd(cmd)) return runtime.exitCode;
+      }
 
-      // Render only on FrameTick
+      // Render only on FrameTick, and only for the message that was dequeued.
       if (msg is FrameTickMsg) draw(model);
     }
   }

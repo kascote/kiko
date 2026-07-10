@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:kiko_log/kiko_log.dart';
 import 'package:meta/meta.dart';
 
-import '../backend/termlib_backend.dart' show ProfileEnum;
+import '../backend/backend.dart' show Backend, ColorProfile;
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
 import '../mvu/mvu_runtime.dart';
@@ -22,9 +22,6 @@ typedef ErrorHandler =
       Object error,
       StackTrace stack,
     );
-
-/// Exit callback type for testing. Replaces `flushThenExit`.
-typedef ExitCallback = Future<void> Function(Terminal terminal, int exitCode);
 
 /// Cleanup callback type. Called before exit on all paths.
 typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
@@ -96,9 +93,9 @@ class Application {
   /// Cleanup callback. Called before exit on all paths.
   final CleanupCallback? onCleanup;
 
-  /// Exit callback for testing. If null, uses `flushThenExit`.
+  /// Backend the terminal draws through. If null, draws on the real terminal.
   @visibleForTesting
-  final ExitCallback? exitCallback;
+  final Backend? backend;
 
   /// Event polling timeout in milliseconds
   final int eventTimeout;
@@ -141,7 +138,7 @@ class Application {
     this.defaultErrorCode = 1,
     this.onError,
     this.onCleanup,
-    @visibleForTesting this.exitCallback,
+    @visibleForTesting this.backend,
     this.eventTimeout = 10,
     this.fps = 60,
     this.logPath,
@@ -178,7 +175,7 @@ class Application {
       runZonedGuarded(
         () async {
           Log.info('Application starting');
-          _terminal = await Terminal.create(viewport: viewport);
+          _terminal = await Terminal.create(viewport: viewport, backend: backend);
           _initTerminal();
           _setupSignalHandlers();
           final rc = await _runLoop(init, update, view);
@@ -261,7 +258,7 @@ class Application {
     // A NO_COLOR terminal is a process-wide fact known only here (the theme is
     // app-owned). Publish it once so every StyleResolver a widget builds
     // re-expresses meaning through modifiers instead of stripped colors.
-    StyleResolver.defaultPolicy = terminal.backend.profile == ProfileEnum.noColor
+    StyleResolver.defaultPolicy = terminal.backend.profile == ColorProfile.noColor
         ? RenderPolicy.noColor
         : RenderPolicy.color;
     if (viewport is ViewPortFullScreen) {
@@ -364,12 +361,7 @@ class Application {
   }
 
   Future<void> _exit(int exitCode) async {
-    final terminal = _terminal;
-    if (exitCallback != null && terminal != null) {
-      await exitCallback!(terminal, exitCode);
-    } else {
-      await terminal?.flushThenExit(exitCode);
-    }
+    await _terminal?.flushThenExit(exitCode);
   }
 
   /// Clean up terminal state and exit.

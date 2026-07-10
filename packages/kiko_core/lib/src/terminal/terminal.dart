@@ -3,7 +3,8 @@ import 'dart:math' as math;
 
 import 'package:termparser/termparser_events.dart' as evt;
 
-import '../backend/termlib_backend.dart' show ClearType, TermlibBackend;
+import '../backend/backend.dart' show Backend, ClearType;
+import '../backend/termlib_backend.dart' show TermlibBackend;
 import '../buffer.dart';
 import '../cell.dart';
 import '../extensions/integer.dart';
@@ -68,8 +69,9 @@ class ViewPortFixed extends ViewPort {
 /// This is the main entry point for Kiko. It is responsible for drawing and
 /// maintaining the state of the buffers, cursor and viewport.
 ///
-/// The [Terminal] is generic over a [TermlibBackend] implementation which is used to
-/// interface with the underlying terminal library.
+/// The [Terminal] draws through a [Backend], the seam to the underlying
+/// terminal library. [Terminal.create] builds the default terminal-backed one;
+/// pass a backend to draw somewhere else, such as an in-memory screen.
 ///
 /// The [Terminal] maintains two buffers: the current and the previous.
 /// When the widgets are drawn, the changes are accumulated in the current
@@ -89,7 +91,7 @@ class ViewPortFixed extends ViewPort {
 ///
 class Terminal {
   /// The backend used to interface with the terminal
-  late final TermlibBackend backend;
+  late final Backend backend;
 
   /// Holds the results of the current and previous draw calls. The two are compared at the end
   /// of each draw pass to output the necessary updates to the terminal
@@ -147,14 +149,19 @@ class Terminal {
   int get lastDiffCount => _lastDiffCount;
 
   /// Creates a new [Terminal] with a full screen viewport by default.
+  ///
+  /// Draws through [backend], defaulting to a [TermlibBackend] on the real
+  /// terminal. Pass one to draw somewhere else — an in-memory screen, say —
+  /// which is what makes the render loop reachable without a TTY.
   static Future<Terminal> create({
+    Backend? backend,
     bool hiddenCursor = false,
     ViewPort viewport = const ViewPortFullScreen(),
     Position lastKnowCursorPosition = Position.origin,
   }) async {
-    final backend = TermlibBackend();
+    final resolvedBackend = backend ?? TermlibBackend();
     const origin = Position.origin;
-    final screenSize = backend.size();
+    final screenSize = resolvedBackend.size();
     final area = switch (viewport) {
       ViewPortFullScreen() || ViewPortInline() => Rect.create(
         x: origin.x,
@@ -167,7 +174,7 @@ class Terminal {
     final (viewportArea, cursorPosition) = switch (viewport) {
       ViewPortFullScreen() => (area, origin),
       ViewPortInline(:final height) => await _computeInlineSize(
-        backend,
+        resolvedBackend,
         height,
         area.asSize,
         0,
@@ -176,7 +183,7 @@ class Terminal {
     };
 
     final terminal = Terminal._(
-      backend,
+      resolvedBackend,
       hiddenCursor: hiddenCursor,
       viewport: viewport,
       lastKnowCursorPosition: cursorPosition,
@@ -487,7 +494,7 @@ Future<Rect> _computeSize(Terminal t, Rect area, int height) async {
 }
 
 Future<(Rect, Position)> _computeInlineSize(
-  TermlibBackend backend,
+  Backend backend,
   int height,
   TermSize size,
   int offsetInPreviousViewport,

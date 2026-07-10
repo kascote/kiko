@@ -3,6 +3,7 @@
 /// More dartdocs go here.
 library;
 
+export 'src/backend/backend.dart';
 export 'src/buffer.dart';
 export 'src/cell.dart';
 export 'src/colors.dart';

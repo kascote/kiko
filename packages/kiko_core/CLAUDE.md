@@ -37,6 +37,27 @@ down, sizes up), no constraint solver. See `packages/plume/README.md`.
 
 **Dependencies:** plume (layout), termlib (terminal control), termparser (input), termunicode (width)
 
+## The Backend Seam
+
+`Backend` (`src/backend/backend.dart`) is the whole surface `Terminal` and `Application`
+use to reach a terminal. Two implementations: `TermlibBackend` (real, needs a TTY, not
+exported) and `TestBackend` (in-memory, `package:kiko/testing.dart`).
+
+- **One coordinate space above the seam.** A backend delivers events in **0-based buffer
+  cells** and accepts draw/cursor calls in 0-based buffer cells. Terminals number from 1;
+  that is `TermlibBackend`'s private business, and it translates on the way in and out.
+  Never re-introduce a 1-based coordinate above the backend.
+- **No foreign types cross it.** `Backend.profile` is kiko's own `ColorProfile`, mapped
+  from termlib's `ProfileEnum` at the edge. `TestBackend` imports no termlib.
+- **Testing.** `Terminal.create({Backend? backend})` and
+  `Application({@visibleForTesting Backend? backend})` both take an injected backend, so the
+  render loop and the full MVU drain run under `dart test`. `TestBackend` keeps a `screen`
+  buffer that every `draw` applies onto (assert what was *rendered*), a `lastDiff` (assert
+  the double buffer redrew only what changed), `emit(event)` to drive the loop, and a
+  recorded `exitCode` — `flushThenExit` never exits the test process. It is **not a terminal
+  emulator**: it parses no escape sequences, and every call but `draw` is recorded, not
+  simulated. See `test/terminal_test.dart` and `test/application_test.dart`.
+
 ## MVU Identity & Addressing
 
 - `Component` (`src/mvu/focus.dart`) is the widget-model contract: `Cmd? update(Msg)` **plus

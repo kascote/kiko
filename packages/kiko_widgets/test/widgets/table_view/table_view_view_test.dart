@@ -99,8 +99,8 @@ void main() {
     test('a click in the table resolves to its id', () async {
       final model = await _seededTable(id: 'grid');
       final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
-      expect(frame.hitId(0, 0), 'grid');
-      expect(frame.hitId(3, 1), 'grid');
+      expect(frame.hits.hitId(0, 0), 'grid');
+      expect(frame.hits.hitId(3, 1), 'grid');
     });
   });
 }

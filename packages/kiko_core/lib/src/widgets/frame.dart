@@ -10,6 +10,7 @@ import '../plume/buffer_surface.dart';
 import '../plume/paint_token.dart';
 import '../plume/term_unicode_measurer.dart';
 import '../plume/view.dart';
+import 'hit_map.dart';
 
 /// A consistent view into the terminal state for rendering a single frame.
 ///
@@ -48,13 +49,27 @@ class Frame {
 
   /// The Plume trees rendered into this frame, in paint order.
   ///
-  /// [renderNode] appends each laid-out root here so [hitId] and [rectOf] can
-  /// address it after the fact; later roots paint on top, so they are searched
-  /// first.
+  /// [renderNode] appends each laid-out root here so [hits] can address it after
+  /// the fact; later roots paint on top, so they are searched first.
   final List<plume.RenderNode<PaintToken>> _nodeRoots = <plume.RenderNode<PaintToken>>[];
+
+  HitMap? _hits;
 
   /// Creates a new frame with the given area and buffer.
   Frame(this.area, this.buffer, this.count, {this.lastDiffCount = 0});
+
+  /// The tagged geometry of this frame, as far as it has been painted.
+  ///
+  /// Rendering a view adds to it, so a tag resolves only once its subtree has
+  /// rendered — read this after the render that places what you are asking
+  /// about. That ordering enforces itself: an unrendered node is not in the tree
+  /// to be found.
+  ///
+  /// Use it inside `view` to anchor one widget against another painted before
+  /// it. To route a mouse event, use the map the runtime hands `update` instead:
+  /// that one describes the frame the pointer was actually over, where this one
+  /// describes the frame being built now.
+  HitMap get hits => _hits ??= HitMap.fromRoots(_nodeRoots);
 
   /// Renders a [view] into this frame — the entry point for drawing a UI.
   ///
@@ -76,8 +91,8 @@ class Frame {
   /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
   /// as [measurer] when ambiguous-width glyphs should count as two cells.
   ///
-  /// The laid-out tree is retained so [hitId] and [rectOf] can address any node
-  /// that carries a `tag` after this returns.
+  /// The laid-out tree is retained so [hits] can address any node that carries a
+  /// `tag` after this returns.
   ///
   /// This is the low-level seam behind [render]; compose [View]s and call
   /// [render] instead of building plume nodes and calling this directly.
@@ -94,43 +109,11 @@ class Frame {
       measurer: measurer,
     );
     _nodeRoots.add(node);
+    _hits = null;
     // A focused text field painted through the surface reports where the cursor
     // belongs; carry it up to this frame.
     final cursor = surface.cursor;
     if (cursor != null) cursorPosition = cursor;
-  }
-
-  /// Returns the id of the innermost tagged widget at cell ([x], [y]), or `null`
-  /// when nothing addressable sits there.
-  ///
-  /// This resolves a point — usually a mouse position — to the stable id a
-  /// widget stamped on its Plume subtree, so an event can be routed to its
-  /// owner. Trees rendered later win an overlap, matching what the viewer sees.
-  String? hitId(int x, int y) {
-    final point = plume.Offset(x, y);
-    for (final root in _nodeRoots.reversed) {
-      final tag = root.tagAt(point);
-      if (tag is String) {
-        return tag;
-      }
-    }
-    return null;
-  }
-
-  /// Returns the on-screen rect of the widget stamped with [id], or `null` when
-  /// no widget carries it this frame.
-  ///
-  /// This is the reverse of [hitId]: it locates a widget by its stable id to
-  /// anchor an overlay, place a tooltip, or scroll it into view.
-  Rect? rectOf(String id) {
-    for (final root in _nodeRoots.reversed) {
-      final node = root.nodeForTag(id);
-      if (node != null) {
-        final r = node.rect;
-        return Rect.create(x: r.x, y: r.y, width: r.width, height: r.height);
-      }
-    }
-    return null;
   }
 
   /// Dims all cell colors in the buffer toward black.
@@ -168,6 +151,13 @@ class CompletedFrame {
   /// The frame count indicating the sequence number of this frame
   final int count;
 
+  /// The tagged geometry of the frame that was just committed.
+  ///
+  /// These are the pixels the user is looking at, so this is the map a mouse
+  /// event arriving now should resolve against. The runtime keeps it for exactly
+  /// that; an application rarely reads it here.
+  final HitMap hits;
+
   /// Creates a new completed frame with the given area and buffer.
-  const CompletedFrame(this.buffer, this.area, this.count);
+  const CompletedFrame(this.buffer, this.area, this.count, {required this.hits});
 }

@@ -15,7 +15,7 @@ import 'types.dart';
 /// anatomy — each `null` slot deriving from the theme's tones — and overridable
 /// with [styleOverrides]. Wrap it in a [Box] for a border or edge titles. The
 /// node is stamped with the model id so a click routes back through
-/// [Frame.hitId].
+/// [HitMap.hitId].
 final class TreeView<T> implements View {
   /// Creates a tree view over [model], styled by [theme] and built row by row
   /// through [nodeBuilder].

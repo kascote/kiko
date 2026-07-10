@@ -32,7 +32,7 @@ void main() {
       final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(_dump(frame.buffer), 'hi\n');
-      expect(frame.rectOf('in'), Rect.create(x: 0, y: 0, width: 5, height: 1));
+      expect(frame.hits.rectOf('in'), Rect.create(x: 0, y: 0, width: 5, height: 1));
       expect(frame.cursorPosition, const Position(2, 0));
     });
 
@@ -259,9 +259,9 @@ void main() {
       final model = TextInputModel(id: 'in', initial: 'hi', focused: true);
       final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
 
-      expect(frame.hitId(0, 0), 'in');
-      expect(frame.hitId(4, 0), 'in');
-      expect(frame.hitId(5, 0), isNull);
+      expect(frame.hits.hitId(0, 0), 'in');
+      expect(frame.hits.hitId(4, 0), 'in');
+      expect(frame.hits.hitId(5, 0), isNull);
     });
   });
 }

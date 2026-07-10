@@ -301,6 +301,7 @@ class Terminal {
       _buffers[1 - _currentBufferIndex],
       _viewportArea,
       _frameCount,
+      hits: frame.hits,
     );
 
     _frameCount = _frameCount.wrappingAddU32(1);

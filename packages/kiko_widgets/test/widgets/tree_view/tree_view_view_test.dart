@@ -118,8 +118,8 @@ void main() {
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))]);
       final frame = _frame(10, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
 
-      expect(frame.hitId(0, 0), 'files');
-      expect(frame.hitId(3, 0), 'files');
+      expect(frame.hits.hitId(0, 0), 'files');
+      expect(frame.hits.hitId(3, 0), 'files');
     });
   });
 }

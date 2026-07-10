@@ -3,7 +3,7 @@ import 'package:kiko/kiko.dart';
 import 'modal_model.dart';
 
 /// Frames [content] as a dialog: a bordered, backgrounded box tagged with
-/// [id] so a click inside it resolves back through [Frame.hitId].
+/// [id] so a click inside it resolves back through [HitMap.hitId].
 ///
 /// This is the plume-native replacement for the old `Modal`'s chrome — it
 /// carries no behaviour of its own. Pass [ModalModel]'s id for the static

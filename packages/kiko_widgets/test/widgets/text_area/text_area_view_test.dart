@@ -67,8 +67,8 @@ void main() {
     test('a click in the editor resolves to its id', () {
       final model = TextAreaModel(id: 'notes', initial: 'ab\ncd', focused: true);
       final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
-      expect(frame.hitId(0, 0), 'notes');
-      expect(frame.hitId(1, 1), 'notes');
+      expect(frame.hits.hitId(0, 0), 'notes');
+      expect(frame.hits.hitId(1, 1), 'notes');
     });
   });
 }

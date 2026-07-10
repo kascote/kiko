@@ -7,7 +7,7 @@ import 'button_model.dart';
 /// A button is a single filled row: the resolved style paints the whole width,
 /// the label sits inside a symmetric horizontal [ButtonModel.padding], and the
 /// built subtree is stamped with the model's id so a click resolves back to it
-/// through [Frame.hitId]. Styles come from the [theme] and the model's state
+/// through [HitMap.hitId]. Styles come from the [theme] and the model's state
 /// (focused / disabled / loading) through the built-in matrix over a primary
 /// resting face; [styleOverrides] fully replaces the style for a given state.
 ///

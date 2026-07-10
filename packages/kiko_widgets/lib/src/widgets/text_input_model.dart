@@ -71,7 +71,7 @@ class TextInputModel implements Focusable {
   /// Stable identity for this input.
   ///
   /// A plume view stamps it on the field so a click resolves back through
-  /// [Frame.hitId]; pass an explicit id when addressing must survive a restart.
+  /// [HitMap.hitId]; pass an explicit id when addressing must survive a restart.
   final String id;
 
   /// Whether the input is focused.

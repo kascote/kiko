@@ -16,7 +16,7 @@ import 'text_input_model.dart';
 /// come from the [theme] and the model's focus state, with region styles
 /// (placeholder, fill, obscured) from [TextInputStyle.fromTheme] merged with
 /// the model's own. The built node is stamped with the model id so a click
-/// routes back through [Frame.hitId]; the terminal cursor is reported through
+/// routes back through [HitMap.hitId]; the terminal cursor is reported through
 /// the surface, the same way the `TextArea` viewport does.
 final class TextInput implements View {
   /// Creates a text input over [model], styled by [theme].

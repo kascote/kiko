@@ -19,25 +19,25 @@ void main() {
     });
 
     test('hitId resolves a point to the enclosing widget id', () {
-      expect(frame.hitId(1, 1), 'btn-a');
-      expect(frame.hitId(4, 1), 'btn-b');
+      expect(frame.hits.hitId(1, 1), 'btn-a');
+      expect(frame.hits.hitId(4, 1), 'btn-b');
     });
 
     test('hitId resolves the box border itself, not just its inside', () {
-      expect(frame.hitId(0, 0), 'btn-a');
+      expect(frame.hits.hitId(0, 0), 'btn-a');
     });
 
     test('hitId returns null off the tree', () {
-      expect(frame.hitId(20, 20), isNull);
+      expect(frame.hits.hitId(20, 20), isNull);
     });
 
     test('rectOf returns the on-screen rect of each id', () {
-      expect(frame.rectOf('btn-a'), Rect.create(x: 0, y: 0, width: 3, height: 3));
-      expect(frame.rectOf('btn-b'), Rect.create(x: 3, y: 0, width: 3, height: 3));
+      expect(frame.hits.rectOf('btn-a'), Rect.create(x: 0, y: 0, width: 3, height: 3));
+      expect(frame.hits.rectOf('btn-b'), Rect.create(x: 3, y: 0, width: 3, height: 3));
     });
 
     test('rectOf returns null for an unknown id', () {
-      expect(frame.rectOf('btn-z'), isNull);
+      expect(frame.hits.rectOf('btn-z'), isNull);
     });
   });
 
@@ -49,6 +49,6 @@ void main() {
       ..renderNode(under)
       ..renderNode(over);
     // Both cover the frame; the tree painted last is what the viewer sees.
-    expect(frame.hitId(1, 1), 'over');
+    expect(frame.hits.hitId(1, 1), 'over');
   });
 }

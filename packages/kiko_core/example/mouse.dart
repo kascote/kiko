@@ -7,13 +7,13 @@ import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 //
 // Exercises the tag-based hit-test seam end to end: swatches and a floating
 // panel stamp a stable id on their subtree, and a mouse event resolves back to
-// that id through `Frame.hitId`.
+// that id through `HitMap.hitId`.
 //
-// The wrinkle worth seeing: `hitId` lives on the Frame, which only the *view*
-// receives, but mouse events are handled in *update*. So the view stashes the
-// last frame on the model, and update hit-tests against it — i.e. against what
-// is currently on screen. `Frame.rectOf` then anchors a marker to the selected
-// swatch's painted rect.
+// The wrinkle worth seeing: `frame.hits` lives on the Frame, which only the
+// *view* receives, but mouse events are handled in *update*. So the view stashes
+// the last frame on the model, and update hit-tests against it — i.e. against
+// what is currently on screen. `HitMap.rectOf` then anchors a marker to the
+// selected swatch's painted rect.
 // ═══════════════════════════════════════════════════════════
 
 const _cols = 6;
@@ -53,7 +53,7 @@ class MouseModel {
         ..mouseX = m.x
         ..mouseY = m.y;
       final frame = model.lastFrame;
-      final hit = frame?.hitId(m.x, m.y);
+      final hit = frame?.hits.hitId(m.x, m.y);
 
       if (m.isMove) {
         model.hoverId = hit;
@@ -93,7 +93,7 @@ class MouseModel {
 }
 
 void view(MouseModel model, Frame frame) {
-  // `hitId`/`rectOf` answer "what is on screen now" — they read the node roots a
+  // `frame.hits` answers "what is on screen now" — it reads the node roots a
   // frame collects while painting. This frame has not painted yet, so the
   // readout queries the previous (already-painted) frame, while update hit-tests
   // against whichever frame most recently finished. Hand off at the end.
@@ -209,15 +209,15 @@ View _readout(MouseModel model, String selectedRect) => Box(
   ),
 );
 
-/// Demonstrates `Frame.rectOf`: locate the selected swatch by id on the last
+/// Demonstrates `HitMap.rectOf`: locate the selected swatch by id on the last
 /// painted frame. Returns `—` before anything is selected or painted.
 String _rectLabel(String? id, Frame? onScreen) {
-  final rect = id == null ? null : onScreen?.rectOf(id);
+  final rect = id == null ? null : onScreen?.hits.rectOf(id);
   if (rect == null) return '—';
   return '(${rect.x}, ${rect.y}) ${rect.width}×${rect.height}';
 }
 
-/// Wraps a view so its built node carries [id] for `hitId` / `rectOf`.
+/// Wraps a view so its built node carries [id] for `frame.hits` to resolve.
 View _tagged(View view, String id) => NodeView(view.build()..tag = id);
 
 void main() async {

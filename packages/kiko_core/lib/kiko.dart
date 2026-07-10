@@ -39,3 +39,4 @@ export 'src/tone.dart';
 export 'src/widget_state.dart';
 export 'src/widgets/border_type.dart';
 export 'src/widgets/frame.dart';
+export 'src/widgets/hit_map.dart';

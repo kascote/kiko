@@ -104,8 +104,8 @@ void main() {
       );
       final frame = _frame(5, 2)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
 
-      expect(frame.hitId(0, 0), 'menu');
-      expect(frame.hitId(2, 1), 'menu');
+      expect(frame.hits.hitId(0, 0), 'menu');
+      expect(frame.hits.hitId(2, 1), 'menu');
     });
   });
 }

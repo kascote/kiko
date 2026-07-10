@@ -27,7 +27,7 @@ void main() {
     test('tags the dialog with the given id', () {
       final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
       final frame = _frame(10, 3)..render(NodeView(dialog));
-      expect(frame.rectOf('confirm'), isNotNull);
+      expect(frame.hits.rectOf('confirm'), isNotNull);
     });
   });
 
@@ -41,7 +41,7 @@ void main() {
         height: 4,
       );
       final frame = _frame(20, 10)..render(NodeView(overlay));
-      expect(frame.rectOf('confirm'), Rect.create(x: 7, y: 3, width: 6, height: 4));
+      expect(frame.hits.rectOf('confirm'), Rect.create(x: 7, y: 3, width: 6, height: 4));
     });
   });
 
@@ -62,7 +62,7 @@ void main() {
       final frame = _frame(10, 3);
       renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog);
 
-      expect(frame.rectOf('confirm'), isNotNull);
+      expect(frame.hits.rectOf('confirm'), isNotNull);
       // The backdrop's colour was dimmed before the dialog painted over it —
       // a corner cell just outside the dialog should no longer be full-bright.
       final corner = frame.buffer[(x: 0, y: 0)];

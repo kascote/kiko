@@ -11,7 +11,7 @@ import 'table_view_model.dart';
 /// truncation, alignment, per-cell styling — is the table's own [TableRenderer]
 /// and is reused here, so the plume port and the old widget draw identically.
 /// Wrap it in a [Box] for a border or edge titles. The node is stamped with the
-/// model id so a click routes back through [Frame.hitId].
+/// model id so a click routes back through [HitMap.hitId].
 final class TableView implements View {
   /// Creates a table view over [model], styled by [theme].
   const TableView({

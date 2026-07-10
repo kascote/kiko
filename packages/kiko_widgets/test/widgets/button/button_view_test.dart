@@ -34,7 +34,7 @@ void main() {
         );
       // one pad cell, "OK", one pad cell (the trailing pad trims away).
       expect(_dump(frame.buffer), ' OK\n');
-      expect(frame.rectOf('ok'), Rect.create(x: 0, y: 0, width: 4, height: 1));
+      expect(frame.hits.rectOf('ok'), Rect.create(x: 0, y: 0, width: 4, height: 1));
     });
 
     test('keeps the label width while loading, indicator at the start', () {
@@ -42,7 +42,7 @@ void main() {
       final frame = _frame(7, 1)..render(Button(model: model, theme: Theme.dark));
       // width stays label+padding (7); "." sits at the start of the 5-cell content band.
       expect(_dump(frame.buffer), ' .\n');
-      expect(frame.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
+      expect(frame.hits.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
     });
   });
 
@@ -55,10 +55,10 @@ void main() {
             theme: Theme.dark,
           ),
         );
-      expect(frame.hitId(0, 0), 'ok'); // left padding cell
-      expect(frame.hitId(1, 0), 'ok'); // the label
-      expect(frame.hitId(3, 0), 'ok'); // right padding cell
-      expect(frame.hitId(4, 0), isNull); // off the button
+      expect(frame.hits.hitId(0, 0), 'ok'); // left padding cell
+      expect(frame.hits.hitId(1, 0), 'ok'); // the label
+      expect(frame.hits.hitId(3, 0), 'ok'); // right padding cell
+      expect(frame.hits.hitId(4, 0), isNull); // off the button
     });
 
     test('a click resolves to the right button among several', () {
@@ -72,10 +72,10 @@ void main() {
       );
       final frame = _frame(6, 1)..render(Row(children: <View>[a, b]));
 
-      expect(frame.hitId(1, 0), 'a');
-      expect(frame.hitId(4, 0), 'b');
-      expect(frame.rectOf('a'), Rect.create(x: 0, y: 0, width: 3, height: 1));
-      expect(frame.rectOf('b'), Rect.create(x: 3, y: 0, width: 3, height: 1));
+      expect(frame.hits.hitId(1, 0), 'a');
+      expect(frame.hits.hitId(4, 0), 'b');
+      expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 3, height: 1));
+      expect(frame.hits.rectOf('b'), Rect.create(x: 3, y: 0, width: 3, height: 1));
     });
   });
 }

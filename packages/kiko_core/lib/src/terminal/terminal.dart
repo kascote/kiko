@@ -299,7 +299,7 @@ class Terminal {
 
     final completedFrame = CompletedFrame(
       _buffers[1 - _currentBufferIndex],
-      _lastKnowArea,
+      _viewportArea,
       _frameCount,
     );
 

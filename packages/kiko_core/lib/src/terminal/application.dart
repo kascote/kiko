@@ -152,6 +152,10 @@ class Application {
   /// [init] is the initial model state.
   /// [update] transforms model based on messages, returns (model, cmd?).
   /// [view] renders model to frame.
+  ///
+  /// Completes with the exit code, which [onError] may have replaced. On a real
+  /// terminal the backend exits the process first, so this only ever completes
+  /// under a backend that does not, such as a `TestBackend`.
   Future<int> run<M>({
     required M init,
     required Update<M> update,
@@ -179,13 +183,13 @@ class Application {
           _initTerminal();
           _setupSignalHandlers();
           final rc = await _runLoop(init, update, view);
-          await _shutdown(exitCode: rc);
-          completer.complete(rc);
+          completer.complete(await _shutdown(exitCode: rc));
         },
         (error, stackTrace) async {
           Log.error('Uncaught error', error, stackTrace);
-          await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
-          if (!completer.isCompleted) completer.complete(defaultErrorCode);
+          // onError may replace the code, so report what _shutdown settled on.
+          final code = await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
+          if (!completer.isCompleted) completer.complete(code);
         },
         zoneValues: {#kiko.log: log},
       ),
@@ -293,13 +297,14 @@ class Application {
 
   /// Single shutdown path - all exits go through here.
   ///
-  /// Handles normal exit, errors, and signals uniformly.
-  Future<void> _shutdown({
+  /// Handles normal exit, errors, and signals uniformly. Returns the code the
+  /// application exits with, which [onError] may have replaced.
+  Future<int> _shutdown({
     required int exitCode,
     Object? error,
     StackTrace? stack,
   }) async {
-    if (_disposed) return;
+    if (_disposed) return exitCode;
     _disposed = true;
 
     Log.info('Application stopping (code: $exitCode)');
@@ -325,6 +330,7 @@ class Application {
 
     await _terminal?.dispose();
     await _exit(finalCode);
+    return finalCode;
   }
 
   void _setupSignalHandlers() {

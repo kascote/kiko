@@ -55,6 +55,25 @@ void main() {
       expect(backend.flushCount, 1);
     });
 
+    test('reports the viewport area on the completed frame', () async {
+      final t = await terminal();
+
+      final completed = t.draw((_) {});
+
+      expect(completed.area, t.viewportArea);
+      expect(completed.area, Rect.create(x: 0, y: 0, width: 10, height: 3));
+    });
+
+    test('reports the viewport area for a fixed viewport too', () async {
+      final fixed = Rect.create(x: 2, y: 1, width: 4, height: 2);
+      final t = await terminal(viewport: ViewPortFixed(fixed));
+
+      final completed = t.draw((_) {});
+
+      // A fixed viewport never resizes, so the terminal area is never learned.
+      expect(completed.area, fixed);
+    });
+
     test('advances the frame count and reports it on the completed frame', () async {
       final t = await terminal();
 

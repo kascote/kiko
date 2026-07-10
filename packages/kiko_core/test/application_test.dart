@@ -189,14 +189,19 @@ void main() {
       final rc = await runApp(app, update: (_, _) => throw StateError('boom'));
 
       expect(seenError, isA<StateError>());
-      expect(backend.exitCode, 7, reason: 'the process would exit with the handler code');
-      expect(
-        rc,
-        1,
-        reason: 'run() returns defaultErrorCode, not the onError code — see note 0154',
-      );
+      expect(rc, 7, reason: 'onError replaces defaultErrorCode');
+      expect(backend.exitCode, 7, reason: 'and the process exits with the same code');
       expect(backend.rawMode, isFalse, reason: 'the terminal is restored even on the error path');
       expect(backend.disposed, isTrue);
+    });
+
+    test('without an onError, the failure exits with defaultErrorCode', () async {
+      final app = Application(backend: backend, showError: false, defaultErrorCode: 2);
+
+      final rc = await runApp(app, update: (_, _) => throw StateError('boom'));
+
+      expect(rc, 2);
+      expect(backend.exitCode, 2);
     });
   });
 }

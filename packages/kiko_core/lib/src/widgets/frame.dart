@@ -160,7 +160,9 @@ class CompletedFrame {
   /// The buffer that was used to draw the last frame
   final Buffer buffer;
 
-  /// The size of the last frame
+  /// The area of the viewport the frame was drawn into, the same area the
+  /// [Frame] carried. For a full screen viewport this is the whole terminal;
+  /// for an inline or fixed one it is the part of it the application owns.
   final Rect area;
 
   /// The frame count indicating the sequence number of this frame

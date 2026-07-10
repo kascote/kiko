@@ -197,10 +197,8 @@ View _swatch(MouseModel model, int i) {
     border: hovered || selected ? BorderType.plain : BorderType.none,
     borderStyle: Style(fg: selected ? Color.white : Color.gray),
     child: Center(
-      child: Line(
-        label,
-        style: const Style(fg: Color.black, bg: Color.reset),
-      ),
+      // No bg: the marker keeps the swatch's fill under it, so black reads.
+      child: Line(label, style: const Style(fg: Color.black)),
     ),
   );
   // Stamp the stable id so the hit map can resolve a click here.

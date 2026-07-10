@@ -93,18 +93,25 @@ abstract interface class Backend {
 
   /// Broadcast stream of parsed terminal events.
   ///
-  /// Events that carry a position — mouse events — arrive in 0-based buffer
-  /// cells, ready to resolve against a `Rect` without further translation.
+  /// Events that carry a position — a mouse event, a cursor-position reply —
+  /// arrive in 0-based buffer cells, ready to resolve against a `Rect` without
+  /// further translation. Sizes are counts rather than coordinates, so a resize
+  /// event reports the same numbers a terminal would.
+  ///
+  /// The contract holds on every event exit, not just this one: see [readEvent]
+  /// and [poll].
   Stream<evt.Event> get events;
 
   /// Reads an event of type [E], waiting up to [timeout] milliseconds.
   ///
   /// Returns `null` if no matching event arrives before the timeout elapses.
+  /// Coordinates arrive in 0-based buffer cells, as on [events].
   Future<evt.Event?> readEvent<E extends evt.Event>({int timeout = 100});
 
   /// Polls for an event of type [E] without blocking.
   ///
-  /// Returns `null` when no matching event is currently buffered.
+  /// Returns `null` when no matching event is currently buffered. Coordinates
+  /// arrive in 0-based buffer cells, as on [events].
   evt.Event? poll<E extends evt.Event>();
 
   /// Enables the alternate screen buffer.

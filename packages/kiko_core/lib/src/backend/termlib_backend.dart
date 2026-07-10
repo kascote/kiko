@@ -1,13 +1,38 @@
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
+
+/// Returns [event] with its coordinates moved from the terminal's 1-based
+/// numbering into kiko's 0-based buffer cells.
+///
+/// Events that carry no position are returned unchanged. Sizes are counts, not
+/// coordinates, so a resize event passes through untouched.
+///
+/// Two event kinds carry a position. A mouse event reports the cell the pointer
+/// is over, and a cursor-position reply reports where the cursor sits; both are
+/// reported from 1. Subtracting is deliberate rather than clamped: SGR and the
+/// legacy encodings both number from 1, so a zero would mean the parser is
+/// wrong, and a clamp would hide that.
+@visibleForTesting
+tle.Event toBufferCoords(tle.Event event) => switch (event) {
+  tle.MouseEvent(:final x, :final y, :final button, :final modifiers) => tle.MouseEvent(
+    x - 1,
+    y - 1,
+    button,
+    modifiers: modifiers,
+  ),
+  tle.CursorPositionEvent(:final x, :final y) => tle.CursorPositionEvent(x - 1, y - 1),
+  _ => event,
+};
 
 /// A [Backend] implementation that uses the [termlib](https://pub.dev/packages/termlib) library.
 ///
 /// This is the only backend that speaks to a real terminal, so it is the only
 /// place that knows terminals number their cells from 1. It translates on the
 /// way out, in [draw] and [setCursorPosition], and on the way in, in
-/// [getCursorPosition]. Above it, everything is 0-based.
+/// [getCursorPosition] and on every event exit — [events], [readEvent] and
+/// [poll]. Above it, everything is 0-based.
 class TermlibBackend implements Backend {
   final tl.InteractiveTerm _term;
 
@@ -171,21 +196,31 @@ class TermlibBackend implements Backend {
   /// Reads a terminal event of type [T], waiting up to [timeout] milliseconds.
   ///
   /// Returns `null` if no matching event arrives before the timeout elapses.
+  /// Coordinates arrive in 0-based buffer cells, as on [events].
   @override
-  Future<tle.Event?> readEvent<T extends tle.Event>({int timeout = 100}) =>
-      _term.awaitEvent<T>(timeout: Duration(milliseconds: timeout));
+  Future<tle.Event?> readEvent<T extends tle.Event>({int timeout = 100}) async {
+    final event = await _term.awaitEvent<T>(timeout: Duration(milliseconds: timeout));
+    return event == null ? null : toBufferCoords(event);
+  }
 
   /// Polls for a terminal event of type [T] without blocking.
   ///
-  /// Returns `null` when no matching event is currently buffered.
+  /// Returns `null` when no matching event is currently buffered. Coordinates
+  /// arrive in 0-based buffer cells, as on [events].
   @override
-  tle.Event? poll<T extends tle.Event>() => _term.tryEvent<T>();
+  tle.Event? poll<T extends tle.Event>() {
+    final event = _term.tryEvent<T>();
+    return event == null ? null : toBufferCoords(event);
+  }
 
   /// Broadcast stream of parsed terminal events.
   ///
-  /// Provides push-based event delivery for subscribers.
+  /// Provides push-based event delivery for subscribers. Every event carrying a
+  /// position — a mouse event, a cursor-position reply — is translated here, so
+  /// subscribers read 0-based buffer cells: the same space as `Rect`, `Buffer`
+  /// and `Position`. See [toBufferCoords].
   @override
-  Stream<tle.Event> get events => _term.events;
+  Stream<tle.Event> get events => _term.events.map(toBufferCoords);
 
   /// Flushes any buffered output and then exits the application with the given [status] code.
   @override

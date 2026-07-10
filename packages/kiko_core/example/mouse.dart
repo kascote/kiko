@@ -173,11 +173,12 @@ View _swatch(MouseModel model, int i) {
       ),
     ),
   );
-  // Stamp the stable id so hitId can resolve a click here.
-  return _tagged(swatch, id);
+  // Stamp the stable id so the hit map can resolve a click here.
+  return Tagged(id, swatch);
 }
 
-View _panel(MouseModel model) => _tagged(
+View _panel(MouseModel model) => Tagged(
+  'panel',
   Box(
     border: BorderType.double,
     borderStyle: Style(fg: model.dragging ? Color.yellow : Color.cyan),
@@ -189,7 +190,6 @@ View _panel(MouseModel model) => _tagged(
       ),
     ),
   ),
-  'panel',
 );
 
 View _readout(MouseModel model, String selectedRect) => Box(
@@ -216,9 +216,6 @@ String _rectLabel(String? id, Frame? onScreen) {
   if (rect == null) return '—';
   return '(${rect.x}, ${rect.y}) ${rect.width}×${rect.height}';
 }
-
-/// Wraps a view so its built node carries [id] for `frame.hits` to resolve.
-View _tagged(View view, String id) => NodeView(view.build()..tag = id);
 
 void main() async {
   await Application(title: 'Mouse playground', mouseEvents: true).run(

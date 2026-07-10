@@ -25,6 +25,7 @@ export 'src/plume/containers.dart';
 export 'src/plume/node_view.dart';
 export 'src/plume/paint_line.dart';
 export 'src/plume/paint_token.dart';
+export 'src/plume/tagged.dart';
 export 'src/plume/term_unicode_measurer.dart';
 export 'src/plume/view.dart';
 export 'src/style.dart';

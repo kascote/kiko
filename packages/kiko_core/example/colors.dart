@@ -4,7 +4,7 @@ Future<void> main() async {
   await Application(
     title: 'Color Demo',
   ).runStateless(
-    update: (_, msg) => switch (msg) {
+    update: (_, msg, _) => switch (msg) {
       KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },

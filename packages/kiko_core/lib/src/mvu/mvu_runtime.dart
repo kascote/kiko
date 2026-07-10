@@ -4,8 +4,10 @@ import 'dart:collection';
 import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 
+import '../widgets/hit_map.dart';
 import 'cmd.dart';
 import 'msg.dart';
+import 'update_context.dart';
 
 /// Internal cancellation token to prevent orphaned task results from queueing.
 ///
@@ -48,6 +50,13 @@ class MvuRuntime {
   /// Exit code set by Quit command.
   int exitCode = 0;
 
+  /// The tagged geometry of the last frame committed to the screen.
+  ///
+  /// The application refreshes it after every draw, and update reads it back
+  /// through [UpdateContext.hits] to resolve a mouse event against the cells
+  /// the user is actually looking at. Empty until the first frame is drawn.
+  HitMap lastHitMap = const HitMap.empty();
+
   /// Completer for wake-up signaling.
   Completer<void> _wakeUp = Completer<void>();
 
@@ -60,6 +69,7 @@ class MvuRuntime {
   /// Resets runtime state for a new run.
   void reset() {
     exitCode = 0;
+    lastHitMap = const HitMap.empty();
     _msgQueue.clear();
     _wakeUp = Completer<void>();
     _tickTimer?.cancel();

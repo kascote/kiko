@@ -20,7 +20,7 @@ class Model {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(Model, Cmd?) update(Model model, Msg msg) {
+(Model, Cmd?) update(Model model, Msg msg, UpdateContext _) {
   if (msg case KeyMsg(:final key)) {
     return switch (key) {
       'q' || 'escape' => (model, const Quit()),

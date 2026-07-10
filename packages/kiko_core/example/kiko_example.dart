@@ -2,7 +2,7 @@ import 'package:kiko/kiko.dart';
 
 void main() async {
   await Application(title: 'Kiko Example').runStateless(
-    update: (_, msg) => switch (msg) {
+    update: (_, msg, _) => switch (msg) {
       KeyMsg(key: 'q') => (null, const Quit()),
       _ => (null, null),
     },

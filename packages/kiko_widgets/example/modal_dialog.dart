@@ -17,7 +17,7 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // While a modal is open it captures all input: route to it and swallow

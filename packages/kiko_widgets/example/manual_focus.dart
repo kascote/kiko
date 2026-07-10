@@ -49,7 +49,7 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // Route to focused widget

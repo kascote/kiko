@@ -60,7 +60,7 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   final cmd = model.list.update(msg);

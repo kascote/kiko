@@ -67,7 +67,7 @@ Future<int> fetchRandomNumber() async {
 // ═══════════════════════════════════════════════════════════
 // UPDATE
 // ═══════════════════════════════════════════════════════════
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   return switch (msg) {
     // Quit on 'q'
     KeyMsg(key: 'q') => (model, const Quit()),

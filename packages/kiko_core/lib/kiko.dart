@@ -18,6 +18,7 @@ export 'src/mvu/cmd.dart';
 export 'src/mvu/focus.dart';
 export 'src/mvu/msg.dart';
 export 'src/mvu/mvu_runtime.dart';
+export 'src/mvu/update_context.dart';
 export 'src/plume/aliases.dart';
 export 'src/plume/box.dart';
 export 'src/plume/buffer_surface.dart';

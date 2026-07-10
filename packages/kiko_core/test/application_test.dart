@@ -12,7 +12,10 @@ Future<int> runApp(
 
 /// An update that quits with [code] the moment the application starts.
 Update<int> quitOnInit([int code = 0]) =>
-    (model, msg) => (model, msg is InitMsg ? Quit(code) : null);
+    (model, msg, _) => (model, msg is InitMsg ? Quit(code) : null);
+
+/// A view whose one widget fills the viewport and answers to the id `ok`.
+void tagWholeArea(int _, Frame frame) => frame.render(Tagged('ok', Box(border: BorderType.plain, child: Line(''))));
 
 void main() {
   late TestBackend backend;
@@ -60,7 +63,7 @@ void main() {
 
       await runApp(
         app,
-        update: (model, msg) {
+        update: (model, msg, _) {
           if (msg is InitMsg) {
             altOnInit = backend.alternateScreen;
             rawOnInit = backend.rawMode;
@@ -136,7 +139,7 @@ void main() {
 
       final rc = await runApp(
         Application(backend: backend),
-        update: (model, msg) {
+        update: (model, msg, _) {
           if (msg is! FrameTickMsg) return (model, null);
           ticks++;
           return (model, ticks == 2 ? const Quit() : null);
@@ -154,7 +157,7 @@ void main() {
 
       final rc = await runApp(
         Application(backend: backend),
-        update: (model, msg) {
+        update: (model, msg, _) {
           switch (msg) {
             case InitMsg():
               backend.emit(const KeyEvent(KeyCode.char('q')));
@@ -173,6 +176,72 @@ void main() {
     });
   });
 
+  group('the update context', () {
+    test('the init turn hit-tests an empty map, because nothing is painted yet', () async {
+      late final String? hit;
+      late final List<Hit> path;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, ctx) {
+          if (msg is InitMsg) {
+            hit = ctx.hits.hitId(0, 0);
+            path = ctx.hits.hitPath(0, 0);
+          }
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+        view: tagWholeArea,
+      );
+
+      expect(hit, isNull);
+      expect(path, isEmpty);
+    });
+
+    test('every later turn hit-tests the frame that was last committed', () async {
+      late final String? hit;
+      late final Rect? rect;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, ctx) {
+          if (msg is! FrameTickMsg) return (model, null);
+          hit = ctx.hits.hitId(3, 1);
+          rect = ctx.hits.rectOf('ok');
+          return (model, const Quit());
+        },
+        view: tagWholeArea,
+      );
+
+      expect(hit, 'ok', reason: 'the draw that followed the init message committed the tag');
+      expect(rect, Rect.create(x: 0, y: 0, width: 8, height: 2));
+    });
+
+    test('area is the viewport the application owns, not the whole terminal', () async {
+      final fixed = Rect.create(x: 1, y: 0, width: 4, height: 2);
+      late final Rect areaOnInit;
+      late final Rect areaOnTick;
+
+      await runApp(
+        Application(backend: backend, viewport: ViewPortFixed(fixed)),
+        update: (model, msg, ctx) {
+          switch (msg) {
+            case InitMsg():
+              areaOnInit = ctx.area;
+              return (model, null);
+            case FrameTickMsg():
+              areaOnTick = ctx.area;
+              return (model, const Quit());
+            default:
+              return (model, null);
+          }
+        },
+      );
+
+      expect(areaOnInit, fixed, reason: 'the viewport is known before the first draw');
+      expect(areaOnTick, fixed, reason: 'and a committed frame does not swap it for the terminal');
+    });
+  });
+
   group('the error path', () {
     test('onError sees the failure and its code reaches the backend', () async {
       Object? seenError;
@@ -186,7 +255,7 @@ void main() {
         },
       );
 
-      final rc = await runApp(app, update: (_, _) => throw StateError('boom'));
+      final rc = await runApp(app, update: (_, _, _) => throw StateError('boom'));
 
       expect(seenError, isA<StateError>());
       expect(rc, 7, reason: 'onError replaces defaultErrorCode');
@@ -198,7 +267,7 @@ void main() {
     test('without an onError, the failure exits with defaultErrorCode', () async {
       final app = Application(backend: backend, showError: false, defaultErrorCode: 2);
 
-      final rc = await runApp(app, update: (_, _) => throw StateError('boom'));
+      final rc = await runApp(app, update: (_, _, _) => throw StateError('boom'));
 
       expect(rc, 2);
       expect(backend.exitCode, 2);

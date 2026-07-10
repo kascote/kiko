@@ -20,7 +20,7 @@ class OverlayModel {
       OverlayModel(count: count ?? this.count, modalOpen: modalOpen ?? this.modalOpen);
 }
 
-(OverlayModel, Cmd?) update(OverlayModel model, Msg msg) => switch (msg) {
+(OverlayModel, Cmd?) update(OverlayModel model, Msg msg, UpdateContext _) => switch (msg) {
   KeyMsg(key: 'q') => (model, const Quit()),
   KeyMsg(key: 'm') => (model.copyWith(modalOpen: !model.modalOpen), null),
   KeyMsg(key: 'escape') => (model.copyWith(modalOpen: false), null),

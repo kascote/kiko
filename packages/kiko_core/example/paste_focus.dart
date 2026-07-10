@@ -24,7 +24,7 @@ class Model {
   }
 }
 
-(Model, Cmd?) update(Model model, Msg msg) {
+(Model, Cmd?) update(Model model, Msg msg, UpdateContext _) {
   switch (msg) {
     case KeyMsg(key: 'q'):
       return (model, const Quit());

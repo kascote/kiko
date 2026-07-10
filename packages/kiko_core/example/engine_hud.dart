@@ -64,7 +64,7 @@ class HudModel {
   }
 }
 
-(HudModel, Cmd?) update(HudModel model, Msg msg) {
+(HudModel, Cmd?) update(HudModel model, Msg msg, UpdateContext _) {
   switch (msg) {
     case KeyMsg(key: 'q'):
       return (model, const Quit());

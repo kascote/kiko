@@ -20,7 +20,7 @@ class CounterModel {
 // ═══════════════════════════════════════════════════════════
 // UPDATE
 // ═══════════════════════════════════════════════════════════
-(CounterModel, Cmd?) counterUpdate(CounterModel model, Msg msg) {
+(CounterModel, Cmd?) counterUpdate(CounterModel model, Msg msg, UpdateContext _) {
   return switch (msg) {
     KeyMsg(key: 'q') => (model, const Quit()),
     KeyMsg(key: 'up') => (model.copyWith(count: model.count + 1), null),

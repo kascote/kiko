@@ -86,7 +86,7 @@ class SubmitComplete extends Msg {
   const SubmitComplete();
 }
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   // Handle theme switching
   if (model.handleThemeSwitch(msg)) return (model, null);
 

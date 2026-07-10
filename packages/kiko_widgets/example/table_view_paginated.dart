@@ -186,7 +186,7 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // Page results route home by id, then install generically — applyLoad clears

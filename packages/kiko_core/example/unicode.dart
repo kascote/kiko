@@ -19,7 +19,7 @@ class UnicodeModel {
   UnicodeModel toggleCjk() => UnicodeModel(cjk: !cjk);
 }
 
-(UnicodeModel, Cmd?) update(UnicodeModel model, Msg msg) => switch (msg) {
+(UnicodeModel, Cmd?) update(UnicodeModel model, Msg msg, UpdateContext _) => switch (msg) {
   KeyMsg(key: 'q') => (model, const Quit()),
   KeyMsg(key: 'tab') => (model.toggleCjk(), null),
   _ => (model, null),

@@ -9,11 +9,10 @@ import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 // panel stamp a stable id on their subtree, and a mouse event resolves back to
 // that id through `HitMap.hitId`.
 //
-// The wrinkle worth seeing: `frame.hits` lives on the Frame, which only the
-// *view* receives, but mouse events are handled in *update*. So the view stashes
-// the last frame on the model, and update hit-tests against it — i.e. against
-// what is currently on screen. `HitMap.rectOf` then anchors a marker to the
-// selected swatch's painted rect.
+// Mouse events are handled in `update`, which never sees a Frame. It does not
+// need one: the runtime hands it `ctx.hits`, the geometry of the frame that is
+// on screen — the very cells the click was aimed at. `HitMap.rectOf` then reads
+// back where the selected swatch was painted.
 // ═══════════════════════════════════════════════════════════
 
 const _cols = 6;
@@ -26,11 +25,12 @@ const _palette = <Color>[
 ];
 
 class MouseModel {
-  /// The frame from the last render, consulted by update to hit-test.
-  Frame? lastFrame;
-
   String? selectedId;
   String? hoverId;
+
+  /// Where the selected swatch was painted, read off the hit map that resolved
+  /// the click.
+  Rect? selectedRect;
 
   // Floating panel position and drag bookkeeping.
   int panelX = 4;
@@ -43,7 +43,7 @@ class MouseModel {
   int mouseY = 0;
 }
 
-(MouseModel, Cmd?) update(MouseModel model, Msg msg) {
+(MouseModel, Cmd?) update(MouseModel model, Msg msg, UpdateContext ctx) {
   switch (msg) {
     case KeyMsg(key: 'q'):
       return (model, const Quit());
@@ -52,8 +52,7 @@ class MouseModel {
       model
         ..mouseX = m.x
         ..mouseY = m.y;
-      final frame = model.lastFrame;
-      final hit = frame?.hits.hitId(m.x, m.y);
+      final hit = ctx.hits.hitId(m.x, m.y);
 
       if (m.isMove) {
         model.hoverId = hit;
@@ -68,7 +67,9 @@ class MouseModel {
             ..grabDX = m.x - model.panelX
             ..grabDY = m.y - model.panelY;
         } else if (hit != null && hit.startsWith('swatch-')) {
-          model.selectedId = hit;
+          model
+            ..selectedId = hit
+            ..selectedRect = ctx.hits.rectOf(hit);
         }
         return (model, null);
       }
@@ -93,13 +94,6 @@ class MouseModel {
 }
 
 void view(MouseModel model, Frame frame) {
-  // `frame.hits` answers "what is on screen now" — it reads the node roots a
-  // frame collects while painting. This frame has not painted yet, so the
-  // readout queries the previous (already-painted) frame, while update hit-tests
-  // against whichever frame most recently finished. Hand off at the end.
-  final onScreen = model.lastFrame;
-  final selectedRect = _rectLabel(model.selectedId, onScreen);
-
   final base = Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
@@ -112,7 +106,7 @@ void view(MouseModel model, Frame frame) {
       const SizedBox(height: 1),
       _swatchGrid(model),
       const SizedBox(height: 1),
-      _readout(model, selectedRect),
+      _readout(model),
       const Expanded(child: SizedBox()),
     ],
   );
@@ -132,8 +126,6 @@ void view(MouseModel model, Frame frame) {
   );
 
   frame.render(ui);
-  // This frame is now painted; hand it to update as the on-screen state.
-  model.lastFrame = frame;
 }
 
 View _swatchGrid(MouseModel model) {
@@ -192,7 +184,7 @@ View _panel(MouseModel model) => Tagged(
   ),
 );
 
-View _readout(MouseModel model, String selectedRect) => Box(
+View _readout(MouseModel model) => Box(
   border: BorderType.plain,
   topTitles: [Line('hit-test readout')],
   child: Column(
@@ -204,15 +196,14 @@ View _readout(MouseModel model, String selectedRect) => Box(
         const Text('selected id  : '),
         Text(model.selectedId ?? '—', style: const Style(fg: Color.green)),
       ]),
-      Line('selected rect: $selectedRect'),
+      Line('selected rect: ${_rectLabel(model.selectedRect)}'),
     ],
   ),
 );
 
-/// Demonstrates `HitMap.rectOf`: locate the selected swatch by id on the last
-/// painted frame. Returns `—` before anything is selected or painted.
-String _rectLabel(String? id, Frame? onScreen) {
-  final rect = id == null ? null : onScreen?.hits.rectOf(id);
+/// Formats the rect `HitMap.rectOf` reported for the selected swatch. Returns
+/// `—` before anything is selected.
+String _rectLabel(Rect? rect) {
   if (rect == null) return '—';
   return '(${rect.x}, ${rect.y}) ${rect.width}×${rect.height}';
 }

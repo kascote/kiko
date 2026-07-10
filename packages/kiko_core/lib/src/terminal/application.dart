@@ -8,6 +8,7 @@ import '../backend/backend.dart' show Backend, ColorProfile;
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
 import '../mvu/mvu_runtime.dart';
+import '../mvu/update_context.dart';
 import '../style_resolver.dart';
 import '../widgets/frame.dart';
 import 'terminal.dart';
@@ -26,8 +27,11 @@ typedef ErrorHandler =
 /// Cleanup callback type. Called before exit on all paths.
 typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 
-/// Update function for MVU: (model, msg) -> (model, cmd?)
-typedef Update<M> = (M, Cmd?) Function(M model, Msg msg);
+/// Update function for MVU: (model, msg, ctx) -> (model, cmd?)
+///
+/// [UpdateContext] carries what the runtime knows and the model does not — the
+/// hit map and the viewport. Take it as `_` when you have no use for it.
+typedef Update<M> = (M, Cmd?) Function(M model, Msg msg, UpdateContext ctx);
 
 /// View function for MVU: render model to frame.
 typedef Render<M> = void Function(M model, Frame frame);
@@ -44,7 +48,7 @@ const int _sigTerm = _baseError + 15;
 /// ```dart
 /// await Application(title: 'Counter').run(
 ///   init: CounterModel(),
-///   update: (model, msg) => switch (msg) {
+///   update: (model, msg, _) => switch (msg) {
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (model, Quit()),
 ///     _ => (model, null),
 ///   },
@@ -55,7 +59,7 @@ const int _sigTerm = _baseError + 15;
 /// For stateless demos (no model needed):
 /// ```dart
 /// await Application(title: 'Demo').runStateless(
-///   update: (_, msg) => switch (msg) {
+///   update: (_, msg, _) => switch (msg) {
 ///     KeyMsg(key: KeyEvent(code: KeyCode(char: 'q'))) => (null, Quit()),
 ///     _ => (null, null),
 ///   },
@@ -224,10 +228,17 @@ class Application {
       ..reset()
       ..subscribeToEvents(terminal.events);
 
+    // What update is allowed to know about the world outside its model.
+    UpdateContext context() => UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
+
+    // The map a mouse event resolves against is the one that painted the cells
+    // it was aimed at, so every draw hands its geometry back to the runtime.
+    void draw(M model) => runtime.lastHitMap = terminal.draw((frame) => view(model, frame)).hits;
+
     // 1. Send InitMsg, process, render immediately (before FrameTick starts)
-    var (model, initCmd) = update(init, const InitMsg());
+    var (model, initCmd) = update(init, const InitMsg(), context());
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
-    terminal.draw((frame) => view(model, frame));
+    draw(model);
 
     // 2. Start FrameTick timer
     runtime.startFrameTick(fps);
@@ -244,16 +255,14 @@ class Application {
       if (runtime.isStale(msg, fps)) continue;
 
       // Update model (all messages, including FrameTick)
-      final (newModel, cmd) = update(model, msg);
+      final (newModel, cmd) = update(model, msg, context());
       model = newModel;
 
       // Process command
       if (runtime.processCmd(cmd)) return runtime.exitCode;
 
       // Render only on FrameTick
-      if (msg is FrameTickMsg) {
-        terminal.draw((frame) => view(model, frame));
-      }
+      if (msg is FrameTickMsg) draw(model);
     }
   }
 

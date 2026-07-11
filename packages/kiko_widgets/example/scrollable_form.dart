@@ -1,36 +1,42 @@
-// A scrollable form, and the wheel that bubbles out of a TextInput.
+// A scrollable form built on ScrollView — the proof for spec 0166 / mikos 0177.
 //
-// The framework delivers a pointer event to the INNERMOST widget under it and
-// stops — kiko never bubbles. When you wheel over one of these text fields, the
-// event is addressed to that FIELD, not to the form scrolling behind it. A text
-// input has nothing to scroll vertically, so it DECLINES the wheel (returns
-// `Declined()`), leaving the message in flight.
+// Fields are composed inside a ScrollView exactly like any other content: no
+// hand-maintained "how many rows does the chrome take" constants, no manual
+// scroll clamp, no bubbling loop written by hand. The view measures its own
+// content every frame and reports the geometry back through the model
+// (`ScrollViewModel.setViewportMetrics`) — the same back-channel List/Table/
+// Tree already use for `visibleCount`.
 //
-// Bubbling is then the app's to build, from two primitives it already has:
+// Three things the ScrollView buys for free, each killing a bug the
+// hand-rolled version had (see specs/scrollable-form-findings.md):
 //
-//   1. The `Declined()` result — the field saying "not mine."
-//   2. `ctx.hits.hitPath(x, y)` — the tagged widgets stacked under that cell,
-//      outermost first. The last is the field that just declined; the ones
-//      before it are its enclosing regions.
+//   - Every field is always composed as a child; the Viewport windows and
+//     clips them. A short terminal simply shows fewer whole fields — there is
+//     no chrome/field-row arithmetic to get wrong, so the last field is
+//     ALWAYS reachable by scrolling (finding B, dead by construction).
+//   - The ScrollView tags its own content area — border-to-border, gaps
+//     included — so a wheel over a gap between fields already resolves to it
+//     directly (finding E's main case, dead for free).
+//   - `ensureVisible(id)` is one call for ANY tagged descendant: the Tab walk
+//     and the "scroll to the first invalid field" validation demo below are
+//     the exact same line, just a different id.
 //
-// So on a decline the app walks the hit path from the inside out and offers the
-// wheel to the first enclosing id that answers. Here that is the form, which
-// scrolls. This is the whole propagation story: deliver to the innermost, and
-// on a decline try the next id out. No frame is stashed, nothing re-hit-tests —
-// the router already resolved every id, and the app only chooses how far out to
-// carry a message its target refused.
+// A wheel over a FIELD still can't be handled by the ScrollView directly —
+// the field is the innermost target and the framework never bubbles. The
+// field declines the wheel (nothing to scroll horizontally), and the app
+// hands it outward with `offerOutward`, a ready-made walk over
+// `ctx.hits.hitPath` instead of a hand-rolled loop.
 //
-// A wheel over the form's own chrome — a field's border, the box, the gaps —
-// is a different, simpler case: it is addressed to the form directly (no field
-// declined it), so the form just scrolls. Bubbling is only for the wheel a
-// field refused; the two together mean the wheel scrolls wherever it lands over
-// the form.
+// The bordered frame around the fields demonstrates the "E-split" recipe for
+// user-composed chrome (spec 0166, gap G5): the ScrollView only tags its OWN
+// content area, so a border drawn around it needs its own `Tagged` — but that
+// tag can point at the SAME ScrollViewModel via a second `targets` entry, so a
+// wheel on the border scrolls the form exactly like a wheel over the content
+// does. Two ids, one Component: legal, because the frame's `Box` doesn't
+// self-tag (only wrapping an already self-tagging, model-backed widget would
+// trip the self-tag assert).
 //
-// Clicking a field still works (the input consumes the press to place its
-// caret, and the app focuses it); only the wheel, which the field cannot use,
-// bubbles to the form.
-//
-// tab / shift+tab move between fields · type to edit · wheel scrolls the form · esc quits
+// tab/shift+tab move · type to edit · wheel scrolls · enter validates · esc quits
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -44,14 +50,12 @@ const _labels = ['First name', 'Last name', 'Email', 'Phone', 'Company', 'Role',
 class AppModel {
   AppModel() {
     // Realize the lazily-built FocusGroup now, so the first field is focused —
-    // and drawn as such, with a cursor — on the very first frame. The view
-    // reads `field.focused` directly and never touches `focus`, so without this
-    // nothing would run the group's constructor until the first key arrived.
+    // and drawn as such, with a cursor — on the very first frame (finding A).
     focus.setIndex(0);
   }
 
-  /// One field per label. Their ids are the tags the router resolves a pointer
-  /// to, and the keys of both the routing map and the FocusGroup.
+  /// One field per label. Their ids are the tags the router resolves a
+  /// pointer to, and the keys of both [fields] and the [focus] group.
   late final List<TextInputModel> fieldList = [
     for (var i = 0; i < _labels.length; i++) TextInputModel(id: 'field-$i', placeholder: _labels[i]),
   ];
@@ -60,57 +64,35 @@ class AppModel {
 
   late final FocusGroup<TextInputModel> focus = FocusGroup(fieldList);
 
-  /// The id the whole scrollable region tags itself with — the ancestor a
-  /// declined wheel bubbles to.
-  final String formId = 'form';
+  /// Scrolls the field column. No app-owned offset, no clamp, no viewport
+  /// arithmetic — the view measures its own content and pushes the geometry
+  /// back in every frame.
+  final ScrollViewModel scroll = ScrollViewModel(id: 'scroll');
 
-  /// The viewport height the runtime last reported, in rows. The window derives
-  /// from it so however tall the terminal is, only whole fields are drawn and
-  /// the last one can always scroll fully into view.
-  int viewportHeight = 0;
+  /// Tags the bordered frame drawn AROUND the scroll view — see the header
+  /// comment's "E-split recipe." Resolves to the same model as [scroll]'s own
+  /// content-area tag, via [targets].
+  final String frameId = 'form-frame';
 
-  /// The chrome around the field column: the header line, its spacer, the
-  /// footer line, and the enclosing box's top and bottom borders.
-  static const int _chromeRows = 5;
+  /// Every id that routes to a [Component] generically. Fields are routed
+  /// separately below (via [fields]) — [TextInputModel] isn't a [Component].
+  late final Map<String, Component> targets = {scroll.id: scroll, frameId: scroll};
 
-  /// Each field is a bordered box: a top border, one content row, a bottom
-  /// border.
-  static const int _fieldRows = 3;
-
-  /// How many whole fields fit in the current viewport — at least one, never
-  /// more than there are. Derived, not a constant, so a shorter terminal shows
-  /// fewer fields instead of clipping the bottom one.
-  int get visibleCount => ((viewportHeight - _chromeRows) ~/ _fieldRows).clamp(1, fieldList.length);
-
-  /// The first field shown. The wheel moves it; it is the app's state, because
-  /// the form is the app's.
-  int scrollOffset = 0;
-
-  int get maxOffset => (fieldList.length - visibleCount).clamp(0, fieldList.length);
-
-  void scrollBy(int rows) => scrollOffset = (scrollOffset + rows).clamp(0, maxOffset);
-
-  /// Re-clamp after the viewport height (and so [maxOffset]) may have shrunk.
-  void clampScroll() => scrollOffset = scrollOffset.clamp(0, maxOffset);
-
-  /// Keep the focused field on screen when Tab walks off the visible window.
-  void scrollToFocused() {
-    if (focus.index < scrollOffset) scrollOffset = focus.index;
-    if (focus.index >= scrollOffset + visibleCount) scrollOffset = focus.index - visibleCount + 1;
-  }
+  /// Non-null while the last [validate] attempt failed on this field's id;
+  /// cleared once the field is no longer empty. Purely a display + scroll-to-
+  /// error demo — nothing here is required for ScrollView itself to work.
+  String? errorId;
 
   void focusOn(String id) {
     final i = fieldList.indexWhere((f) => f.id == id);
     if (i >= 0) focus.setIndex(i);
   }
 
-  /// Focus the field a press on the form's chrome landed on.
-  ///
-  /// Only a field's content is tagged with its id, so a press on its border or
-  /// label resolves to the form, not the field. Each field's box is its content
-  /// row with a border directly above and below, so a press within one row of a
-  /// visible field's content (read from the live hit map, not recomputed)
-  /// belongs to that field.
+  /// Focus the field a press on the form's chrome landed on (finding F): only
+  /// a field's content is tagged, so a press on its border or a gap resolves
+  /// to the scroll view or the frame, never a field directly. Match the
+  /// click's row against where each field is currently drawn, read from the
+  /// live hit map rather than recomputed.
   void focusFromChrome(int globalY, HitMap hits) {
     for (final f in fieldList) {
       final rect = hits.rectOf(f.id);
@@ -120,6 +102,22 @@ class AppModel {
       }
     }
   }
+
+  /// Focuses and scrolls to the first empty field. The scroll-to-error call
+  /// is `ensureVisible` — the exact one the Tab walk below uses — only the id
+  /// differs, because it works for any tagged descendant, not just the
+  /// focused one.
+  void validate() {
+    for (final f in fieldList) {
+      if (f.value.trim().isEmpty) {
+        errorId = f.id;
+        focusOn(f.id);
+        scroll.ensureVisible(f.id);
+        return;
+      }
+    }
+    errorId = null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -127,21 +125,13 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // How many fields fit depends on the real viewport height, which only the
-  // runtime knows — so read it from the context each turn, and keep the offset
-  // in range in case the terminal was resized shorter.
-  model
-    ..viewportHeight = ctx.area.height
-    ..clampScroll();
-
-  // A press focuses the field it landed on. The input consumes the press itself
-  // to place its caret; moving focus is the app's separate job. A press on a
-  // field's border or label lands on the form (only the content is field-tagged)
-  // — map it back to the nearest field so clicking the frame focuses it too.
+  // A press focuses the field it landed on, or (finding F) the nearest field
+  // when it lands on the form's chrome instead. The input consumes the press
+  // itself to place its caret; moving focus is the app's separate job.
   if (msg case final PointerMsg p when p.isDown) {
     if (p.targetId case final id? when model.fields.containsKey(id)) {
       model.focusOn(id);
-    } else if (p.targetId == model.formId) {
+    } else if (p.targetId == model.frameId || p.targetId == model.scroll.id) {
       model.focusFromChrome(p.global.y, ctx.hits);
     }
   }
@@ -151,58 +141,57 @@ class AppModel {
       return (model, const Quit());
     case KeyMsg(key: 'tab'):
       model.focus.cycle(1);
-      model.scrollToFocused();
+      model.scroll.ensureVisible(model.focus.focused.id);
       return (model, null);
     case KeyMsg(key: 'shift+tab'):
       model.focus.cycle(-1);
-      model.scrollToFocused();
+      model.scroll.ensureVisible(model.focus.focused.id);
+      return (model, null);
+    case KeyMsg(key: 'enter'):
+      model.validate();
       return (model, null);
 
-    // Keyboard drives the focused field.
+    // Keyboard drives the focused field; fixing the errored field's text
+    // clears its error mark.
     case final KeyMsg key:
-      return switch (model.focus.focused.update(key)) {
+      final result = model.focus.focused.update(key);
+      if (model.errorId == model.focus.focused.id && model.focus.focused.value.trim().isNotEmpty) {
+        model.errorId = null;
+      }
+      return switch (result) {
         Handled(:final cmd) => (model, cmd),
         Declined() => (model, null),
       };
 
-    // Pointer over a field: the field consumes a press to place its caret, but
-    // declines a wheel it cannot use.
+    // Pointer over a field: it consumes a press to place its caret, but
+    // declines a wheel it cannot use — hand a declined wheel outward instead
+    // of walking `ctx.hits.hitPath` by hand.
     case Routed(targetId: final id?) when model.fields.containsKey(id):
       switch (model.fields[id]!.update(msg)) {
         case Handled(:final cmd):
           return (model, cmd);
         case Declined():
-          // The field refused it — a wheel it cannot use. Bubble it outward.
-          return _bubble(model, msg, ctx);
+          if (msg case final PointerMsg p) {
+            return switch (offerOutward(p, ctx, model.targets)) {
+              Handled(:final cmd) => (model, cmd),
+              Declined() => (model, null),
+            };
+          }
+          return (model, null);
       }
 
-    // A wheel over the form's OWN chrome — a field's border, the gap between
-    // two fields, the enclosing box — is addressed to the form, not a field, so
-    // there is no decline to bubble: the form is the target and just scrolls.
-    case final PointerMsg p when p.isWheel && p.targetId == model.formId:
-      model.scrollBy(p.wheelDeltaY);
-      return (model, null);
+    // A wheel landing directly on the scroll view — its own content area, or
+    // the frame drawn around it (both route to it via `targets`) — is the
+    // same generic routing line every id-addressed widget uses.
+    case Routed(:final targetId?) when model.targets.containsKey(targetId):
+      return switch (model.targets[targetId]!.update(msg)) {
+        Handled(:final cmd) => (model, cmd),
+        Declined() => (model, null),
+      };
 
     default:
       return (model, null);
   }
-}
-
-/// Offers a declined pointer to the enclosing regions, inside out.
-///
-/// `hitPath` is outermost-first, so its last entry is the field that just
-/// declined; `.reversed.skip(1)` walks its ancestors from the inside out. The
-/// first one the app answers for — the form — consumes the wheel and scrolls.
-(AppModel, Cmd?) _bubble(AppModel model, Msg msg, UpdateContext ctx) {
-  if (msg case final PointerMsg p when p.isWheel) {
-    for (final hit in ctx.hits.hitPath(p.global.x, p.global.y).reversed.skip(1)) {
-      if (hit.id == model.formId) {
-        model.scrollBy(p.wheelDeltaY);
-        return (model, null);
-      }
-    }
-  }
-  return (model, null);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -215,55 +204,60 @@ void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
   frame.buffer.setStyle(frame.area, Style(bg: _theme.background.color));
 
-  final rows = <View>[
-    for (var i = model.scrollOffset; i < model.scrollOffset + model.visibleCount && i < model.fieldList.length; i++)
-      _field(model.fieldList[i], i, resolver),
-  ];
+  final fieldColumn = Column(
+    crossAxis: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < model.fieldList.length; i++) ...[
+        if (i > 0) const SizedBox(height: 1),
+        _field(model.fieldList[i], i, model, resolver),
+      ],
+    ],
+  );
 
-  final last = model.scrollOffset + model.visibleCount;
+  final statusLine = model.errorId == null
+      ? ' tab/shift+tab move · type to edit · wheel scrolls · enter validates · esc quits'
+      : ' ${_labels[model.fieldList.indexWhere((f) => f.id == model.errorId)]} is required — enter validates';
+
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
       Center(child: Line('Scrollable form — wheel over a field scrolls the form behind it', style: _theme.muted.ink)),
       const SizedBox(height: 1),
-      // The scroll container: the id a declined wheel bubbles to, and the
-      // target a wheel over the form's own chrome addresses. Tagging the whole
-      // box — border, titles and all — makes every cell of the Profile region
-      // resolve to the form, with each field's self-tag nested inside it, so
-      // `hitPath` over a field reports the form just outside it and a wheel
-      // anywhere else over the box still finds the form.
+      // The frame's OWN tag (see the header comment's E-split recipe) — a
+      // second id routed to the same ScrollViewModel as the content area's
+      // self-tag, so a wheel on the border scrolls the form too.
       Expanded(
         child: Tagged(
-          model.formId,
+          model.frameId,
           Box(
             border: BorderType.plain,
             borderStyle: resolver.border(const {}),
             topTitles: [Line(' Profile ', style: _theme.muted.ink)],
             bottomTitles: [
-              Line(
-                ' ${model.scrollOffset + 1}–${last.clamp(0, model.fieldList.length)} of ${model.fieldList.length} ',
-                style: _theme.muted.ink,
-              ),
+              Line(' field ${model.focus.index + 1} of ${model.fieldList.length} ', style: _theme.muted.ink),
             ],
-            child: Column(crossAxis: CrossAxisAlignment.stretch, children: rows),
+            child: ScrollView(model: model.scroll, child: fieldColumn),
           ),
         ),
       ),
-      Line(' tab/shift+tab move · type to edit · wheel scrolls · esc quits', style: _theme.muted.ink),
+      Line(statusLine, style: model.errorId == null ? _theme.muted.ink : _theme.error.ink),
     ],
   );
 
   frame.render(ui);
 }
 
-View _field(TextInputModel input, int index, StyleResolver resolver) => Box(
+View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Box(
   border: BorderType.plain,
-  borderStyle: resolver.border({if (input.focused) WidgetState.focused}),
+  borderStyle: resolver.border({
+    if (input.focused) WidgetState.focused,
+    if (input.id == model.errorId) WidgetState.error,
+  }),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(' ${_labels[index]} ', style: input.focused ? _theme.focus.ink : _theme.muted.ink)],
-  // The TextInput tags its own content with its model id, so it needs no
-  // `Tagged` wrapper — that self-tag nests inside the form's tag, so `hitPath`
-  // over a field reports the form just outside it.
+  // The TextInput tags its own content with its model id — no `Tagged`
+  // wrapper needed; that self-tag nests inside the ScrollView's content-area
+  // tag, so `hitPath` over a field reports the scroll view just outside it.
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
     child: TextInput(model: input, theme: _theme),

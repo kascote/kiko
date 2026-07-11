@@ -1,11 +1,76 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
+/// A routed wheel/button message over the widget, at local (0, 0).
+PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+
 void main() {
+  group('mouse wheel + scroll', () {
+    test('a wheel notch scrolls an unfocused list without moving the cursor', () {
+      final model = ListViewModel<String, String>(
+        dataView: DataView.fromList(List.generate(20, (i) => 'item$i')),
+      )..setVisibleCount(5);
+
+      final result = model.update(pointer(MouseButton.wheelDown()));
+
+      expect(result, isA<Handled>());
+      expect(model.scrollOffset, equals(3), reason: 'one notch is three rows');
+      expect(model.cursor, equals(0), reason: 'the wheel never touches the keyboard cursor');
+    });
+
+    test('scrollBy clamps at both ends', () {
+      final model = ListViewModel<String, String>(
+        dataView: DataView.fromList(List.generate(10, (i) => 'item$i')),
+      )..setVisibleCount(4);
+
+      expect((model..scrollBy(-5)).scrollOffset, equals(0), reason: 'cannot scroll above the first row');
+      expect((model..scrollBy(100)).scrollOffset, equals(6), reason: 'stops at length - visibleCount (10 - 4)');
+      expect((model..scrollBy(50)).scrollOffset, equals(6), reason: 'already at the bottom edge');
+    });
+
+    test('localToRow maps a local position to the item row', () {
+      final model =
+          ListViewModel<String, String>(
+              dataView: DataView.fromList(List.generate(10, (i) => 'item$i')),
+            )
+            ..setVisibleCount(5)
+            ..scrollBy(2);
+
+      expect(model.localToRow(Position.origin), equals(2));
+      expect(model.localToRow(const Position(3, 3)), equals(5), reason: 'row = scrollOffset + local.y');
+      expect(model.localToRow(const Position(0, -1)), isNull, reason: 'above the first row');
+      expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last item');
+    });
+
+    test('a horizontal wheel and other pointers are declined', () {
+      final model = ListViewModel<String, String>(
+        dataView: DataView.fromList(['a', 'b', 'c']),
+        focused: true,
+      )..setVisibleCount(2);
+
+      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
+      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
+    });
+
+    test('a wheel to the bottom edge returns a LoadRequest (unfocused)', () {
+      final model = ListViewModel<String, String>(
+        dataView: DataBuffer<String>(List.generate(8, (i) => 'item$i'))..hasMore = true,
+        loadMoreThreshold: 2,
+      )..setVisibleCount(5);
+
+      final result = model.update(pointer(MouseButton.wheelDown()));
+
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
+      expect(model.isLoading(), isTrue, reason: 'wheel alone crossed the load threshold');
+    });
+  });
+
   group('ListViewModel', () {
     group('initialization', () {
       test('default state', () {
@@ -370,11 +435,15 @@ void main() {
     });
 
     group('load requests', () {
+      // Viewport of 2 over 5 items: the load threshold keys on the viewport's
+      // bottom edge, so the list must be taller than the viewport for scrolling
+      // to bring that edge near the end (a fully visible list would sit at the
+      // edge from the start).
       ListViewModel<String, String> paginated() => ListViewModel<String, String>(
         dataView: DataBuffer<String>(['a', 'b', 'c', 'd', 'e'])..hasMore = true,
         loadMoreThreshold: 2,
         focused: true,
-      )..setVisibleCount(5);
+      )..setVisibleCount(2);
 
       test('returns a LoadRequest when the cursor nears the end', () {
         final model = paginated()

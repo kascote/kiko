@@ -1,7 +1,9 @@
 import 'package:kiko/kiko.dart';
+import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 
 import '../../load/data_view.dart';
 import '../../load/load.dart';
+import '../scrollable_model.dart';
 import 'table_column.dart';
 import 'table_data_source.dart';
 import 'types.dart';
@@ -32,7 +34,7 @@ import 'types.dart';
 ///   focused: true,
 /// );
 /// ```
-class TableViewModel implements Component, Loadable {
+class TableViewModel with ScrollableModel implements Component, Loadable {
   /// Stable address for this model, carried by value in the [TableActionCmd] it
   /// emits and the [LoadRequest] it returns when a page is needed.
   ///
@@ -212,6 +214,33 @@ class TableViewModel implements Component, Loadable {
   /// Current scroll column offset.
   int get scrollCol => _scrollCol;
 
+  /// First visible row, aliasing [scrollRow] for the shared scroll surface.
+  @override
+  int get scrollOffset => _scrollRow;
+
+  /// Rows the viewport shows, as last pushed in by the renderer.
+  @override
+  int get visibleCount => _visibleRows;
+
+  /// Moves the viewport by [rows], clamped to the loaded window so the wheel
+  /// never scrolls past the rows currently in the cache.
+  @override
+  void scrollBy(int rows) {
+    final maxOffset = _loadedEnd - _visibleRows;
+    _scrollRow = (_scrollRow + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+  }
+
+  /// The data row at [local], or null when the click lands on the sticky header
+  /// or past the loaded window. The header occupies row 0 when [stickyHeader].
+  @override
+  int? localToRow(Position local) {
+    final headerRows = stickyHeader ? 1 : 0;
+    if (local.y < headerRows) return null;
+    final row = _scrollRow + local.y - headerRows;
+    if (row < _loadedStart || row >= _loadedEnd) return null;
+    return row;
+  }
+
   // ─────────────────────────────────────────────
   // Getters - State
   // ─────────────────────────────────────────────
@@ -383,13 +412,31 @@ class TableViewModel implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  ///
+  /// A wheel notch scrolls the viewport whether or not the table is focused, so
+  /// the pointer branch sits above the focus gate; scrolling to a near edge pages
+  /// the next batch in exactly as cursor navigation does. Every other pointer
+  /// message is declined so the app can offer it to the next widget under the
+  /// pointer. The keyboard path stays behind the gate.
   ///
   /// Navigation is never frozen by a load: a fetch in flight only stops the same
   /// direction from being requested again, so the cursor keeps moving and a
   /// forward and backward page can load at once.
   @override
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      final direction = switch (pointer.action) {
+        MouseButtonAction.wheelUp => -1,
+        MouseButtonAction.wheelDown => 1,
+        _ => 0,
+      };
+      if (direction == 0) return const Declined();
+      scrollBy(wheelScrollLines * direction);
+      return Handled(_checkLoadThreshold());
+    }
+    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
@@ -489,8 +536,14 @@ class TableViewModel implements Component, Loadable {
   Cmd? _checkLoadThreshold() {
     if (_cache.isEmpty) return null;
 
-    final distToStart = _cursorRow - _loadedStart;
-    final distToEnd = _loadedEnd - _cursorRow;
+    // Key on the viewport edges, not the cursor: a wheel scroll pages the next
+    // batch in without ever moving the cursor. Cursor navigation is the special
+    // case where an edge tracks the cursor (the bottom edge equals the cursor row
+    // once it reaches the last visible row).
+    final backwardEdge = _scrollRow;
+    final forwardEdge = _scrollRow + _visibleRows - 1;
+    final distToStart = backwardEdge - _loadedStart;
+    final distToEnd = _loadedEnd - forwardEdge;
 
     // Near the start: pull the previous page, unless one is already on its way.
     if (distToStart < loadThreshold && _loadedStart > 0 && !_loads.isLoading(TableLoadKey.backward)) {

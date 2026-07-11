@@ -1,9 +1,17 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
+
+/// A routed wheel/button message over the widget, at local (0, 0).
+PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+
+/// [count] leaf roots, enough to fill more than one viewport.
+List<TreeNode<String>> leaves(int count) =>
+    List.generate(count, (i) => TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true));
 
 /// Builds a focused-by-default model with [roots] already applied — what the
 /// app does after its `getRoots` task resolves (the model performs no I/O).
@@ -26,6 +34,50 @@ void expandLoaded(
   ..applyChildren(path, children);
 
 void main() {
+  group('mouse wheel + scroll', () {
+    test('a wheel notch scrolls an unfocused tree without moving the cursor', () {
+      final model = modelWith(leaves(20), focused: false, visibleCount: 5);
+
+      final result = model.update(pointer(MouseButton.wheelDown()));
+
+      expect(
+        result,
+        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        reason: 'a tree pages on expand, not on scroll',
+      );
+      expect(model.scrollOffset, equals(3), reason: 'one notch is three rows');
+      expect(model.cursor, equals(0), reason: 'the wheel never touches the keyboard cursor');
+    });
+
+    test('scrollBy clamps at both ends', () {
+      final model = modelWith(leaves(10), visibleCount: 4);
+
+      expect((model..scrollBy(-5)).scrollOffset, equals(0), reason: 'cannot scroll above the first node');
+      expect(
+        (model..scrollBy(100)).scrollOffset,
+        equals(6),
+        reason: 'stops at flattened length - visibleCount (10 - 4)',
+      );
+    });
+
+    test('localToRow maps a local position to the flattened node row', () {
+      final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(2);
+
+      expect(model.localToRow(Position.origin), equals(2));
+      expect(model.localToRow(const Position(2, 3)), equals(5), reason: 'row = scrollOffset + local.y');
+      expect(model.localToRow(const Position(0, -1)), isNull, reason: 'above the first node');
+      expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last node');
+    });
+
+    test('a horizontal wheel and other pointers are declined', () {
+      final model = modelWith(leaves(10), visibleCount: 4);
+
+      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
+      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
+    });
+  });
+
   group('TreeViewModel', () {
     group('initialization', () {
       test('default state', () {

@@ -10,6 +10,7 @@ export 'src/widgets/list_view/types.dart';
 export 'src/widgets/modal/modal_model.dart';
 export 'src/widgets/modal/modal_view.dart';
 export 'src/widgets/modal/types.dart';
+export 'src/widgets/scrollable_model.dart';
 export 'src/widgets/table_view/table_column.dart';
 export 'src/widgets/table_view/table_data_source.dart';
 export 'src/widgets/table_view/table_renderer.dart';

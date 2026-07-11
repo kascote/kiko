@@ -1,9 +1,13 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
+
+/// A routed wheel/button message over the widget, at local (0, 0).
+PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
 
 /// Sample rows for testing.
 List<Map<String, Object?>> sampleRows([int count = 5]) => List.generate(
@@ -19,6 +23,110 @@ List<TableColumn> sampleColumns() => [
 ];
 
 void main() {
+  group('mouse wheel + scroll', () {
+    test('a wheel notch scrolls an unfocused table without moving the cursor', () {
+      final model =
+          TableViewModel(
+              dataSource: TableDataSource.fromList(sampleRows(20)),
+              keyField: 'id',
+              columns: sampleColumns(),
+            )
+            ..setVisibleDimensions(5, 3)
+            ..insertRows(sampleRows(20), 0);
+
+      final result = model.update(pointer(MouseButton.wheelDown()));
+
+      expect(result, isA<Handled>());
+      expect(model.scrollRow, equals(3), reason: 'one notch is three rows');
+      expect(model.cursorRow, equals(0), reason: 'the wheel never touches the keyboard cursor');
+    });
+
+    test('scrollBy clamps to the loaded window', () {
+      final model =
+          TableViewModel(
+              dataSource: TableDataSource.fromList(sampleRows(10)),
+              keyField: 'id',
+              columns: sampleColumns(),
+            )
+            ..setVisibleDimensions(4, 3)
+            ..insertRows(sampleRows(10), 0);
+
+      expect((model..scrollBy(-5)).scrollRow, equals(0), reason: 'cannot scroll above the first row');
+      expect((model..scrollBy(100)).scrollRow, equals(6), reason: 'stops at loadedEnd - visibleRows (10 - 4)');
+    });
+
+    test('localToRow subtracts the sticky header', () {
+      final model =
+          TableViewModel(
+              dataSource: TableDataSource.fromList(sampleRows(20)),
+              keyField: 'id',
+              columns: sampleColumns(),
+              focused: true,
+            )
+            ..setVisibleDimensions(5, 3)
+            ..insertRows(sampleRows(20), 0)
+            ..scrollBy(2);
+
+      expect(model.localToRow(Position.origin), isNull, reason: 'row 0 is the sticky header');
+      expect(model.localToRow(const Position(1, 1)), equals(2), reason: 'first data row = scrollRow');
+      expect(model.localToRow(const Position(1, 3)), equals(4), reason: 'row = scrollRow + local.y - 1');
+    });
+
+    test('localToRow without a sticky header maps row 0', () {
+      final model =
+          TableViewModel(
+              dataSource: TableDataSource.fromList(sampleRows(10)),
+              keyField: 'id',
+              columns: sampleColumns(),
+              stickyHeader: false,
+              focused: true,
+            )
+            ..setVisibleDimensions(5, 3)
+            ..insertRows(sampleRows(10), 0);
+
+      expect(model.localToRow(Position.origin), equals(0), reason: 'no header to skip');
+      expect(model.localToRow(const Position(0, 9)), equals(9));
+      expect(model.localToRow(const Position(0, 10)), isNull, reason: 'past the loaded window');
+    });
+
+    test('a horizontal wheel and other pointers are declined', () {
+      final model =
+          TableViewModel(
+              dataSource: TableDataSource.fromList(sampleRows(10)),
+              keyField: 'id',
+              columns: sampleColumns(),
+              focused: true,
+            )
+            ..setVisibleDimensions(4, 3)
+            ..insertRows(sampleRows(10), 0);
+
+      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
+      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.scrollRow, equals(0), reason: 'neither moved the viewport');
+    });
+
+    test('a wheel to the bottom edge returns a LoadRequest (unfocused)', () {
+      final model =
+          TableViewModel(
+              dataSource: _PaginatedSource(sampleRows(120)),
+              keyField: 'id',
+              columns: sampleColumns(),
+              pageSize: 10,
+              loadThreshold: 3,
+            )
+            ..setVisibleDimensions(5, 3)
+            ..insertRows(sampleRows(10), 0)
+            // The first notch scrolls the viewport toward the bottom.
+            ..update(pointer(MouseButton.wheelDown()));
+
+      // The second notch carries the viewport's bottom edge within the threshold.
+      final result = model.update(pointer(MouseButton.wheelDown()));
+
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
+      expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'wheel alone crossed the load threshold');
+    });
+  });
+
   group('TableViewModel', () {
     group('initialization', () {
       test('default state', () {

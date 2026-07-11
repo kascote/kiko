@@ -1,7 +1,9 @@
 import 'package:kiko/kiko.dart';
+import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 
 import '../../load/data_view.dart';
 import '../../load/load.dart';
+import '../scrollable_model.dart';
 import 'types.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -36,7 +38,7 @@ import 'types.dart';
 ///   focused: true,
 /// );
 /// ```
-class ListViewModel<T, K> implements Component, Loadable {
+class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// Stable address for this model, carried by value in the widget→app commands
   /// it emits ([ListActionCmd]) and the [LoadRequest] it returns when more data
   /// is needed.
@@ -145,7 +147,30 @@ class ListViewModel<T, K> implements Component, Loadable {
   Set<K> getSelectedKeys() => Set.unmodifiable(_selectedKeys);
 
   /// Current scroll offset.
+  @override
   int get scrollOffset => _scrollOffset;
+
+  /// Rows the viewport shows, as last pushed in by the view.
+  @override
+  int get visibleCount => _visibleCount;
+
+  /// Moves the viewport by [rows], clamped so it never leaves the loaded items.
+  @override
+  void scrollBy(int rows) {
+    final len = dataView.length;
+    final maxOffset = len == null ? _scrollOffset + rows : (len - _visibleCount).clamp(0, len);
+    _scrollOffset = (_scrollOffset + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+  }
+
+  /// The item row at [local], or null when the click falls past the last item.
+  @override
+  int? localToRow(Position local) {
+    if (local.y < 0) return null;
+    final row = _scrollOffset + local.y;
+    final len = dataView.length;
+    if (len != null && row >= len) return null;
+    return row;
+  }
 
   /// Item at cursor, or null if out of bounds.
   T? get cursorItem => _safeItemAt(_cursor);
@@ -225,9 +250,26 @@ class ListViewModel<T, K> implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  ///
+  /// A wheel notch scrolls the viewport whether or not the list is focused, so
+  /// the pointer branch sits above the focus gate. Every other pointer message is
+  /// declined for now, so the app can offer it to the next widget under the
+  /// pointer; the keyboard path stays behind the gate.
   @override
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      final direction = switch (pointer.action) {
+        MouseButtonAction.wheelUp => -1,
+        MouseButtonAction.wheelDown => 1,
+        _ => 0,
+      };
+      if (direction == 0) return const Declined();
+      scrollBy(wheelScrollLines * direction);
+      return Handled(_checkLoadThreshold());
+    }
+    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
@@ -281,7 +323,11 @@ class ListViewModel<T, K> implements Component, Loadable {
   Cmd? _checkLoadThreshold() {
     final len = dataView.length;
     if (dataView.hasMore && len != null && !_loads.isLoading(ListLoadKey.self)) {
-      if (_cursor >= len - loadMoreThreshold) {
+      // Key on the viewport's bottom edge, not the cursor: a wheel scroll pages
+      // the next batch in without ever moving the cursor. Cursor navigation is
+      // the special case where the edge tracks the cursor.
+      final forwardEdge = _scrollOffset + _visibleCount - 1;
+      if (forwardEdge >= len - loadMoreThreshold) {
         _loads.begin(ListLoadKey.self);
         return LoadRequest(id, key: ListLoadKey.self);
       }

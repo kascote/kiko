@@ -1,6 +1,8 @@
 import 'package:kiko/kiko.dart';
+import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 
 import '../../load/load.dart';
+import '../scrollable_model.dart';
 import 'tree_node.dart';
 import 'types.dart';
 
@@ -20,7 +22,7 @@ import 'types.dart';
 /// // app, on init:   final req = tree.loadRoots();  // → fetch getRoots()
 /// // app, on result: tree.applyLoad(LoadResult(tree.id, key: req.key, data: roots));
 /// ```
-class TreeViewModel<T> implements Component, Loadable {
+class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// Stable address for this model, carried by value in the widget→app commands
   /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd], [LoadRequest]).
   ///
@@ -112,7 +114,29 @@ class TreeViewModel<T> implements Component, Loadable {
   int get cursor => _cursor;
 
   /// Current scroll offset.
+  @override
   int get scrollOffset => _scrollOffset;
+
+  /// Rows the viewport shows, as last pushed in by the view.
+  @override
+  int get visibleCount => _visibleCount;
+
+  /// Moves the viewport by [rows], clamped to the flattened visible range.
+  @override
+  void scrollBy(int rows) {
+    final maxOffset = _flatNodes.length - _visibleCount;
+    _scrollOffset = (_scrollOffset + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+  }
+
+  /// The flattened node row at [local], or null when the click falls past the
+  /// last visible node.
+  @override
+  int? localToRow(Position local) {
+    if (local.y < 0) return null;
+    final row = _scrollOffset + local.y;
+    if (row >= _flatNodes.length) return null;
+    return row;
+  }
 
   /// Node at cursor, or null if empty.
   TreeNode<T>? get cursorNode => _cursor >= 0 && _cursor < _flatNodes.length ? _flatNodes[_cursor] : null;
@@ -354,9 +378,27 @@ class TreeViewModel<T> implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  ///
+  /// A wheel notch scrolls the viewport whether or not the tree is focused, so
+  /// the pointer branch sits above the focus gate. A tree pages children in on
+  /// expand, not on a scroll edge, so a wheel never triggers a load. Every other
+  /// pointer message is declined so the app can offer it to the next widget under
+  /// the pointer.
   @override
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      final direction = switch (pointer.action) {
+        MouseButtonAction.wheelUp => -1,
+        MouseButtonAction.wheelDown => 1,
+        _ => 0,
+      };
+      if (direction == 0) return const Declined();
+      scrollBy(wheelScrollLines * direction);
+      return const Handled();
+    }
+    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {

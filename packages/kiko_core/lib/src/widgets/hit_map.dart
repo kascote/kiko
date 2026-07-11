@@ -67,7 +67,7 @@ class HitMap {
     final frozen = List<plume.RenderNode<PaintToken>>.unmodifiable(roots);
     final rects = <String, Rect>{};
     for (final root in frozen) {
-      _collectRects(root, rects);
+      _collectRects(root, rects, null);
     }
     return HitMap._(frozen, Map<String, Rect>.unmodifiable(rects));
   }
@@ -125,14 +125,24 @@ class HitMap {
     return kids;
   }
 
-  /// Walks [node] in pre-order, recording the rect of every string-tagged node.
+  /// Walks [node] in pre-order, recording the rect of every string-tagged node
+  /// whose rect survives the [clip] carried down from a `clipsHits` ancestor,
+  /// or `null` when nothing upstream clips.
   ///
   /// A descendant is visited after its ancestor and a later sibling after an
   /// earlier one, so writing over a repeated id leaves the innermost — and, on
   /// a tie, the topmost — which is the node [hitId] would have named.
-  static void _collectRects(plume.RenderNode<PaintToken> node, Map<String, Rect> into) {
+  ///
+  /// Presence is visibility-true: a tagged node whose rect falls entirely
+  /// outside [clip] (for example, scrolled off a `Viewport`) is omitted
+  /// rather than recorded, so [rectOf] answers `null` for it — the signal
+  /// capture-cancel relies on. A node that IS recorded still gets its full,
+  /// unclipped rect: that rect is the widget's coordinate origin, and clipping
+  /// it would corrupt `local` math for a partially visible widget.
+  static void _collectRects(plume.RenderNode<PaintToken> node, Map<String, Rect> into, plume.Rect? clip) {
+    final ownRect = node.rect;
     final tag = node.tag;
-    if (tag is String) {
+    if (tag is String && (clip == null || !clip.intersect(ownRect).isEmpty)) {
       assert(
         !into.containsKey(tag),
         'Duplicate hit tag "$tag": a tag id must identify exactly one node per '
@@ -142,7 +152,8 @@ class HitMap {
       );
       into[tag] = _rectOf(node);
     }
-    node.visitChildren((child) => _collectRects(child, into));
+    final childClip = node.clipsHits ? (clip == null ? ownRect : clip.intersect(ownRect)) : clip;
+    node.visitChildren((child) => _collectRects(child, into, childClip));
   }
 
   /// Returns the innermost string tag under [point] within [node]'s subtree.

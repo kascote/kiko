@@ -16,7 +16,10 @@ export 'package:plume/plume.dart'
         Size,
         StackFit,
         TextAlign,
-        TextMeasurer;
+        TextMeasurer,
+        ViewportMeasureCallback,
+        ViewportMetrics,
+        ViewportTagRange;
 
 /// Kiko's plume vocabulary, pinned to [PaintToken].
 ///

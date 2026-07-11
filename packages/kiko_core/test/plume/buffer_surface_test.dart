@@ -183,5 +183,45 @@ void main() {
         expect(b[(x: 7, y: 0)].symbol, ' '); // past the clip's right edge
       });
     });
+
+    group('placeCursor', () {
+      test('records the position when no clip is active', () {
+        final s = BufferSurface(_buf(10, 3))..placeCursor(const Position(2, 1));
+        expect(s.cursor, const Position(2, 1));
+      });
+
+      test('records a position inside the active clip', () {
+        final s = BufferSurface(_buf(10, 3))
+          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..placeCursor(const Position(3, 2));
+        expect(s.cursor, const Position(3, 2));
+      });
+
+      test('drops a position outside the active clip', () {
+        // The caret row of a field half-scrolled off a Viewport: a cursor IS
+        // still claimed, but at a cell the clip has cut away.
+        final s = BufferSurface(_buf(10, 3))
+          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..placeCursor(const Position(5, 1));
+        expect(s.cursor, isNull);
+      });
+
+      test('a dropped claim does not erase an earlier valid one', () {
+        // The clip-gate must not reintroduce the erase-by-null bug 0168 fixed
+        // — a claim outside the clip is discarded, not written over the slot.
+        final s = BufferSurface(_buf(10, 3))
+          ..placeCursor(const Position(1, 1))
+          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..placeCursor(const Position(9, 1));
+        expect(s.cursor, const Position(1, 1));
+      });
+
+      test('a position on the clip boundary is dropped, right and bottom exclusive', () {
+        final s = BufferSurface(_buf(10, 3))
+          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..placeCursor(const Position(4, 0));
+        expect(s.cursor, isNull);
+      });
+    });
   });
 }

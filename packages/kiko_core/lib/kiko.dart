@@ -21,7 +21,9 @@ export 'src/mvu/focus.dart';
 // the runtime can hold one.
 export 'src/mvu/msg.dart' hide RawPointerMsg;
 export 'src/mvu/mvu_runtime.dart';
-export 'src/mvu/pointer_msg.dart';
+// isWheelAction is the router's own termparser-facing helper, marked
+// @internal; PointerMsg.isWheel is the public surface for the same question.
+export 'src/mvu/pointer_msg.dart' hide isWheelAction;
 export 'src/mvu/update_context.dart';
 export 'src/plume/aliases.dart';
 export 'src/plume/box.dart';
@@ -33,6 +35,7 @@ export 'src/plume/paint_token.dart';
 export 'src/plume/tagged.dart';
 export 'src/plume/term_unicode_measurer.dart';
 export 'src/plume/view.dart';
+export 'src/plume/viewport.dart';
 export 'src/style.dart';
 export 'src/style_resolver.dart';
 export 'src/terminal/application.dart';

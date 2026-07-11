@@ -241,5 +241,49 @@ void main() {
         const FocusMsg(FocusEvent(hasFocus: false)),
       ], reason: 'nothing is left waiting for a release that will never come');
     });
+
+    test('a captor scrolled out of a Viewport is told its gesture is over', () async {
+      // The doctrine payoff (spec 0166 / task 0174): presence-clipping in
+      // HitMap is the only change needed — this drives the real router path
+      // (mouse_router.dart untouched) through a real Application loop.
+      late final Msg cancelMsg;
+      final backend = TestBackend(size: const TermSize(6, 3));
+
+      // A 3-row viewport onto 6 rows of content: 'field' fills the window at
+      // scrollOffset 0, and is scrolled fully out of it at scrollOffset 6.
+      View content(int scrollOffset) => Viewport(
+        scrollOffset: scrollOffset,
+        child: const Column(
+          children: [Tagged('field', SizedBox(width: 6, height: 3)), SizedBox(width: 6, height: 3)],
+        ),
+      );
+
+      await Application(backend: backend, fps: 1).run<int>(
+        init: 0,
+        update: (step, msg, _) {
+          switch (msg) {
+            case InitMsg():
+              // Captured while 'field' fills the whole 3-row window.
+              backend.emit(MouseEvent(0, 0, _down()));
+              // Queued ahead of it: a frame that scrolls 'field' fully past
+              // the top.
+              return (step, Emit(FrameTickMsg(delta: Duration.zero, frameNumber: 1, timestamp: DateTime.now())));
+            case FrameTickMsg() when step == 0:
+              return (1, null);
+            case final PointerMsg p when p.targetId == 'field':
+              backend.emit(MouseEvent(0, 0, _drag()));
+              return (step, null);
+            case final PointerCancelMsg c:
+              cancelMsg = c;
+              return (step, const Quit());
+            default:
+              return (step, null);
+          }
+        },
+        view: (step, frame) => frame.render(content(step == 0 ? 0 : 6)),
+      );
+
+      expect(cancelMsg, const PointerCancelMsg('field'));
+    });
   });
 }

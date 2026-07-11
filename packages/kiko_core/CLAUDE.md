@@ -106,6 +106,48 @@ counted from the border, tag the content and it is counted from the content. Not
 downstream compensates. **An id names exactly one node per frame**; `HitMap` construction
 asserts it, so wrapping a widget that already self-tags with its model id trips in debug.
 
+### Viewports and the hit map
+
+A `Viewport` (`src/plume/viewport.dart`, a thin bridge over plume's `Viewport` render node)
+shows a scrolled window onto a taller child. Its rect clips hit **presence**, not hit
+**geometry** — the two are deliberately different questions:
+
+- **Presence is visibility-true.** A tagged descendant whose rect falls entirely outside a
+  `clipsHits` ancestor's window is *absent* from that frame's `HitMap` — `rectOf` answers
+  `null`, exactly as if it had never painted. This is not a convenience; it is what keeps
+  capture's abnormal terminator working (`latest.rectOf(id) == null` → `PointerCancelMsg`).
+  A `Viewport` lays its whole child out every frame regardless of scroll — unlike the
+  windowed data widgets, which never build off-screen rows — so without presence-clipping a
+  scrolled-away captor would look present forever and a gesture would never cancel.
+- **Geometry is placement-true.** A *partially* visible widget's `rectOf` is its full,
+  unclipped placement rect — including a negative top when scrolled above the window —
+  because that rect is the widget's coordinate origin: `local = global - targetRect.topLeft`
+  must anchor there, or a wrap-aware caret (TextArea) computes against content the user
+  cannot see. Point queries (`hitId`/`hitPath`) needed no change for any of this — every
+  node already prunes at its own rect on the way down.
+- **The accepted residual edge:** a press captured on a half-visible widget, released over
+  its *hidden* rows, still counts `inside` (placement rect says so) even though the user
+  visually released elsewhere. Small and deliberate; revisit only if it bites in practice.
+- **The trap:** never scroll something into view by reading `ctx.hits.rectOf(id)` —
+  presence-clipping makes a fully scrolled-off widget `null` in precisely the case that
+  matters. Scrolling to a widget — including scroll-to-focused — is model arithmetic
+  (`ScrollViewModel.ensureVisible`, in `kiko_widgets`), never a hit-map read.
+
+A node opts into this with `clipsHits => true` (plume's `RenderNode`, `false` by default);
+it is a node capability any future clipping container can adopt, not a `HitMap` special
+case. The terminal cursor gets the same treatment: `BufferSurface.placeCursor` drops a
+position outside the active clip, so a focused field whose caret row is scrolled off
+reports no cursor rather than one at the wrong cell.
+
+**A `Flexible`/`Expanded` under an unbounded main axis throws.** The classic contradiction
+— a flex child inside a scroll viewport, where there is no bounded space to take a share of
+— used to be a debug-only assert; asserts are compiled out under `dart run` and in AOT,
+exactly the modes a real TUI app runs in, and the release fallback silently collapsed the
+child to zero cells instead. It is now an always-on `StateError` naming the fix (bound the
+child's main axis, or make it inflexible). If paint culling is ever added to plume, it must
+never cull a `Viewport` node itself — its measurement callback depends on painting every
+frame to walk the tag-range map.
+
 ### Capture
 
 A button press hands the pointer to whatever was under it, and every move, drag and press

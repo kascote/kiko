@@ -15,6 +15,21 @@ plume.RenderNode<PaintToken> _box(String label, Object? tag) =>
 /// The ids of a hit path, outermost first.
 List<String> _ids(List<Hit> path) => path.map((h) => h.id).toList();
 
+/// A fixed [w]×[h] leaf tagged [tag], for building Viewport content directly
+/// with plume nodes.
+plume.RenderNode<PaintToken> _leaf(Object? tag, int w, int h) =>
+    plume.SizedBox<PaintToken>(width: w, height: h)..tag = tag;
+
+/// Three stacked rows — 'a', 'b', 'c' — each 3 rows tall and [w] wide, for a
+/// 9-row content total.
+plume.RenderNode<PaintToken> _threeRows(int w) =>
+    plume.Column<PaintToken>(children: [_leaf('a', w, 3), _leaf('b', w, 3), _leaf('c', w, 3)]);
+
+/// A [w]×[h] frame with a plume Viewport of [_threeRows] scrolled [scrollOffset]
+/// rows.
+Frame _viewportFrame(int w, int h, int scrollOffset) =>
+    _frame(w, h)..renderNode(plume.Viewport<PaintToken>(scrollOffset: scrollOffset, child: _threeRows(w)));
+
 void main() {
   group('hitId', () {
     test('resolves a point to the innermost tagged widget', () {
@@ -212,6 +227,68 @@ void main() {
 
       expect(before.rectOf('b'), isNull);
       expect(frame.hits.rectOf('b'), isNotNull);
+    });
+  });
+
+  group('presence across a clipping viewport (clipsHits)', () {
+    test('a row fully scrolled past the top is absent — rectOf is null', () {
+      // Content is 9 rows; scrolled fully past a 4-row window.
+      final frame = _viewportFrame(6, 4, 9);
+
+      expect(frame.hits.rectOf('a'), isNull);
+      expect(frame.hits.rectOf('b'), isNull);
+      expect(frame.hits.rectOf('c'), isNull);
+    });
+
+    test('a half-visible row keeps its full placement rect, negative top included', () {
+      // 'a' (content rows 0-3) is shifted up by 1: absolute rows [-1, 2).
+      final frame = _viewportFrame(6, 4, 1);
+
+      expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: -1, width: 6, height: 3));
+    });
+
+    test('hitId still resolves a partially visible row inside the window', () {
+      final frame = _viewportFrame(6, 4, 1);
+
+      expect(frame.hits.hitId(0, 0), 'a', reason: "a's second content row lands at absolute y=0");
+    });
+
+    test('a point outside the viewport rect resolves to nothing, same as any other node', () {
+      final frame = _viewportFrame(6, 4, 0);
+
+      expect(frame.hits.hitId(0, 4), isNull, reason: 'one row past the 4-row window');
+    });
+  });
+
+  group('nested clipsHits viewports', () {
+    /// An outer viewport ([outerScroll]) wrapping a 1-row filler, then an
+    /// inner 3-row viewport ([innerScroll]) holding a 5-row leaf tagged 'x'.
+    Frame nested(int outerScroll, int innerScroll) {
+      final content = plume.Column<PaintToken>(
+        children: [
+          plume.SizedBox<PaintToken>(width: 6, height: 1),
+          plume.ConstrainedBox<PaintToken>(
+            additionalConstraints: plume.BoxConstraints.tight(const plume.Size(6, 3)),
+            child: plume.Viewport<PaintToken>(scrollOffset: innerScroll, child: _leaf('x', 6, 5)),
+          ),
+        ],
+      );
+      return _frame(6, 4)..renderNode(plume.Viewport<PaintToken>(scrollOffset: outerScroll, child: content));
+    }
+
+    test('both windows aligned leaves the inner tag visible', () {
+      final frame = nested(0, 2);
+
+      expect(frame.hits.rectOf('x'), Rect.create(x: 0, y: -1, width: 6, height: 5));
+    });
+
+    test('the outer clip composes with the inner one, hiding a tag the inner window alone would show', () {
+      // Scrolling the outer viewport moves the whole inner viewport (rect
+      // [1, 4) at rest) up and out of the outer's [0, 4) window, even though
+      // 'x' stays inside the inner viewport's own local window.
+      final frame = nested(4, 2);
+
+      expect(frame.hits.rectOf('x'), isNull);
     });
   });
 

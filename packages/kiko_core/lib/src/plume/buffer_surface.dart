@@ -53,8 +53,16 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// sibling's claim earlier in the same frame. Only a focused node should
   /// call this; two claimants in one frame means two focused widgets, an app
   /// bug outside this surface's job to catch — last write wins.
-  // ignore: use_setters_to_change_properties
-  void placeCursor(Position position) => _cursor = position;
+  ///
+  /// [position] outside the active [clipRect] is dropped rather than
+  /// recorded: a focused field whose caret row is scrolled out of a
+  /// `Viewport` must not report a cursor at an off-viewport cell. No caller
+  /// needs to know this rule — it holds for every widget, not by convention.
+  void placeCursor(Position position) {
+    final clip = clipRect;
+    if (clip != null && !clip.contains(plume.Offset(position.x, position.y))) return;
+    _cursor = position;
+  }
 
   @override
   void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {

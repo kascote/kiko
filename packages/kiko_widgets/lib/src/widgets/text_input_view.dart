@@ -67,7 +67,7 @@ class _TextInputViewport extends Node {
     // RecordingSurface (goldens) has nothing to carry it to. Report only when
     // this field owns the cursor (it is focused); an unfocused field must not
     // write its null over a focused sibling's cursor earlier in the same frame.
-    if (surface is BufferSurface && cursor != null) surface.cursor = cursor;
+    if (surface is BufferSurface && cursor != null) surface.placeCursor(cursor);
   }
 
   Position? _paint(Rect area, Surface surface) {

@@ -37,12 +37,24 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// the draw-intent methods.
   Buffer get buffer => _buffer;
 
+  Position? _cursor;
+
   /// Where a painted node asked the terminal cursor to go, or `null` for none.
   ///
-  /// A node that draws a focused text field through [buffer] sets this so the
-  /// cursor position survives back to the frame driving the paint; other nodes
-  /// leave it null and the terminal cursor stays put.
-  Position? cursor;
+  /// A node that draws a focused text field through [buffer] calls
+  /// [placeCursor] so the cursor position survives back to the frame driving
+  /// the paint; other nodes never call it and the terminal cursor stays put.
+  Position? get cursor => _cursor;
+
+  /// Claims the terminal cursor for this frame at [position].
+  ///
+  /// A method, not a setter, on purpose: it takes no `null`, so an unfocused
+  /// node has nothing it *can* write here and cannot erase a focused
+  /// sibling's claim earlier in the same frame. Only a focused node should
+  /// call this; two claimants in one frame means two focused widgets, an app
+  /// bug outside this surface's job to catch — last write wins.
+  // ignore: use_setters_to_change_properties
+  void placeCursor(Position position) => _cursor = position;
 
   @override
   void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {

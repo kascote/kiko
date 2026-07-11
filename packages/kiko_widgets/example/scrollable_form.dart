@@ -47,6 +47,15 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 const _labels = ['First name', 'Last name', 'Email', 'Phone', 'Company', 'Role', 'City', 'Country'];
 
+/// The E-split recipe (see the header comment), applied per field: a field's
+/// `TextInput` self-tags only its own 1-row content, never the bordered `Box`
+/// drawn around it. Without this second tag, `ensureVisible` only knows about
+/// that 1 row and scrolls the minimum to fit it — clipping the box's own
+/// border on a short terminal. This tag gives the WHOLE field box a name
+/// `ensureVisible` can target, and doubles as its chrome's hit region (a
+/// border click resolves here, same as a click on the outer frame or a gap).
+String _fieldFrameId(String fieldId) => '$fieldId-frame';
+
 class AppModel {
   AppModel() {
     // Realize the lazily-built FocusGroup now, so the first field is focused —
@@ -62,6 +71,11 @@ class AppModel {
 
   late final Map<String, TextInputModel> fields = {for (final f in fieldList) f.id: f};
 
+  /// Every field's frame tag (see [_fieldFrameId]) — a click landing on one
+  /// is chrome, not content, so it routes through [focusFromChrome] exactly
+  /// like a click on [frameId] or the scroll view's own content-area tag.
+  late final Set<String> fieldFrameIds = {for (final f in fieldList) _fieldFrameId(f.id)};
+
   late final FocusGroup<TextInputModel> focus = FocusGroup(fieldList);
 
   /// Scrolls the field column. No app-owned offset, no clamp, no viewport
@@ -76,7 +90,14 @@ class AppModel {
 
   /// Every id that routes to a [Component] generically. Fields are routed
   /// separately below (via [fields]) — [TextInputModel] isn't a [Component].
-  late final Map<String, Component> targets = {scroll.id: scroll, frameId: scroll};
+  /// Every field's frame tag routes here too — the E-split recipe scaled down
+  /// to each field: a wheel on a field's own border is chrome, not content,
+  /// exactly like a wheel on the outer frame or a gap.
+  late final Map<String, Component> targets = {
+    scroll.id: scroll,
+    frameId: scroll,
+    for (final id in fieldFrameIds) id: scroll,
+  };
 
   /// Non-null while the last [validate] attempt failed on this field's id;
   /// cleared once the field is no longer empty. Purely a display + scroll-to-
@@ -88,11 +109,12 @@ class AppModel {
     if (i >= 0) focus.setIndex(i);
   }
 
-  /// Focus the field a press on the form's chrome landed on (finding F): only
-  /// a field's content is tagged, so a press on its border or a gap resolves
-  /// to the scroll view or the frame, never a field directly. Match the
-  /// click's row against where each field is currently drawn, read from the
-  /// live hit map rather than recomputed.
+  /// Focus the field a press on the form's chrome landed on (finding F): a
+  /// press on a field's own border resolves to its frame tag, and a press on
+  /// a gap or the outer frame resolves to the scroll view or the frame — none
+  /// of those name a field directly. Match the click's row against where each
+  /// field is currently drawn, read from the live hit map rather than
+  /// recomputed.
   void focusFromChrome(int globalY, HitMap hits) {
     for (final f in fieldList) {
       final rect = hits.rectOf(f.id);
@@ -112,7 +134,7 @@ class AppModel {
       if (f.value.trim().isEmpty) {
         errorId = f.id;
         focusOn(f.id);
-        scroll.ensureVisible(f.id);
+        scroll.ensureVisible(_fieldFrameId(f.id));
         return;
       }
     }
@@ -131,7 +153,9 @@ class AppModel {
   if (msg case final PointerMsg p when p.isDown) {
     if (p.targetId case final id? when model.fields.containsKey(id)) {
       model.focusOn(id);
-    } else if (p.targetId == model.frameId || p.targetId == model.scroll.id) {
+    } else if (p.targetId == model.frameId ||
+        p.targetId == model.scroll.id ||
+        model.fieldFrameIds.contains(p.targetId)) {
       model.focusFromChrome(p.global.y, ctx.hits);
     }
   }
@@ -141,11 +165,11 @@ class AppModel {
       return (model, const Quit());
     case KeyMsg(key: 'tab'):
       model.focus.cycle(1);
-      model.scroll.ensureVisible(model.focus.focused.id);
+      model.scroll.ensureVisible(_fieldFrameId(model.focus.focused.id));
       return (model, null);
     case KeyMsg(key: 'shift+tab'):
       model.focus.cycle(-1);
-      model.scroll.ensureVisible(model.focus.focused.id);
+      model.scroll.ensureVisible(_fieldFrameId(model.focus.focused.id));
       return (model, null);
     case KeyMsg(key: 'enter'):
       model.validate();
@@ -247,20 +271,28 @@ void view(AppModel model, Frame frame) {
   frame.render(ui);
 }
 
-View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Box(
-  border: BorderType.plain,
-  borderStyle: resolver.border({
-    if (input.focused) WidgetState.focused,
-    if (input.id == model.errorId) WidgetState.error,
-  }),
-  padding: const EdgeInsets.symmetric(horizontal: 1),
-  topTitles: [Line(' ${_labels[index]} ', style: input.focused ? _theme.focus.ink : _theme.muted.ink)],
-  // The TextInput tags its own content with its model id — no `Tagged`
-  // wrapper needed; that self-tag nests inside the ScrollView's content-area
-  // tag, so `hitPath` over a field reports the scroll view just outside it.
-  child: ConstrainedBox(
-    additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: TextInput(model: input, theme: _theme),
+View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Tagged(
+  // The frame tag: names the WHOLE box (borders included) so `ensureVisible`
+  // can bring it fully into view — see `_fieldFrameId`'s doc comment. Legal
+  // to wrap in `Tagged` here (unlike the TextInput below) because `Box`
+  // itself never self-tags; only the TextInput inside it does.
+  _fieldFrameId(input.id),
+  Box(
+    border: BorderType.plain,
+    borderStyle: resolver.border({
+      if (input.focused) WidgetState.focused,
+      if (input.id == model.errorId) WidgetState.error,
+    }),
+    padding: const EdgeInsets.symmetric(horizontal: 1),
+    topTitles: [Line(' ${_labels[index]} ', style: input.focused ? _theme.focus.ink : _theme.muted.ink)],
+    // The TextInput tags its own content with its model id — no `Tagged`
+    // wrapper needed; that self-tag nests inside the frame tag above, so
+    // `hitPath` over a field's content reports the frame, then the scroll
+    // view, just outside it.
+    child: ConstrainedBox(
+      additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
+      child: TextInput(model: input, theme: _theme),
+    ),
   ),
 );
 

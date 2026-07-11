@@ -333,35 +333,39 @@ void main() {
           dataView: DataView.fromList(['a', 'b']),
           focused: true,
         );
-        final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<ListActionCmd>());
+        final result = model.update(keyMsg('enter'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<ListActionCmd>()),
+        );
+        final cmd = (result as Handled).cmd;
         expect((cmd! as ListActionCmd).id, equals(model.id));
       });
 
-      test('unhandled key returns Unhandled', () {
+      test('unhandled key declines', () {
         final model = ListViewModel<String, String>(
           dataView: DataView.fromList(['a']),
           focused: true,
         );
-        final cmd = model.update(keyMsg('tab'));
-        expect(cmd, isA<Unhandled>());
+        final result = model.update(keyMsg('tab'));
+        expect(result, isA<Declined>());
       });
 
-      test('unfocused returns Unhandled', () {
+      test('unfocused declines', () {
         final model = ListViewModel<String, String>(
           dataView: DataView.fromList(['a']),
         );
-        final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<Unhandled>());
+        final result = model.update(keyMsg('down'));
+        expect(result, isA<Declined>());
       });
 
-      test('non-key message returns null', () {
+      test('non-key message is handled', () {
         final model = ListViewModel<String, String>(
           dataView: DataView.fromList(['a']),
           focused: true,
         );
-        final cmd = model.update(const NoneMsg());
-        expect(cmd, isNull);
+        final result = model.update(const NoneMsg());
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
     });
 
@@ -377,8 +381,12 @@ void main() {
           ..update(keyMsg('down')) // cursor 1
           ..update(keyMsg('down')); // cursor 2
 
-        final cmd = model.update(keyMsg('down')); // cursor 3 — within threshold
-        expect(cmd, isA<LoadRequest>());
+        final result = model.update(keyMsg('down')); // cursor 3 — within threshold
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+        );
+        final cmd = (result as Handled).cmd;
         expect((cmd! as LoadRequest).id, equals(model.id));
         expect((cmd as LoadRequest).key, equals(ListLoadKey.self));
         expect(model.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
@@ -391,8 +399,12 @@ void main() {
           ..update(keyMsg('down')); // first request emitted, slot now loading
         expect(model.isLoading(), isTrue);
 
-        final cmd = model.update(keyMsg('down'));
-        expect(cmd, isNull, reason: 'the slot is already loading');
+        final result = model.update(keyMsg('down'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'the slot is already loading',
+        );
       });
 
       test('not emitted when hasMore is false', () {
@@ -406,9 +418,9 @@ void main() {
               ..update(keyMsg('down'))
               ..update(keyMsg('down'));
 
-        final cmd = model.update(keyMsg('down'));
+        final result = model.update(keyMsg('down'));
         // A static fromList view has hasMore = false, so no request.
-        expect(cmd, isNull);
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
     });
 

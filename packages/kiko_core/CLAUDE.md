@@ -154,7 +154,10 @@ final targets = <String, Component>{'table-1': m.table, 'list-1': m.list};
 
 case PointerMsg(targetId: 'table-1') p => handleTableSpecially(model, p);  // domain case
 case Routed(:final targetId?) when targets.containsKey(targetId):          // generic
-  return (model, targets[targetId]!.update(msg));  // same update(Msg) keyboard uses
+  return switch (targets[targetId]!.update(msg)) {                         // same update(Msg) keyboard uses
+    Handled(:final cmd) => (model, cmd),                                   // consumed → run its effect
+    Declined() => (model, null),                                           // not consumed → could try the next id out
+  };
 case PointerMsg p => handleBackground(model, p);   // targetId == null → background
 ```
 
@@ -167,7 +170,7 @@ emits the same widget→app command a keyboard Enter would, addressed by the sam
 
 **Propagation is app-side.** Events deliver to the innermost target only; the framework
 never bubbles. Build it from `ctx.hits.hitPath(x, y)` plus the existing decline convention
-— the addressed model returns `Unhandled`, and the app tries the next id out.
+— the addressed model returns `Declined`, and the app tries the next id out.
 
 See `example/mouse.dart` (capture, leave, cancel) and `example/mouse_dispatch.dart`
 (one-line routing).
@@ -182,9 +185,11 @@ being painted.
 
 ## MVU Identity & Addressing
 
-- `Component` (`src/mvu/focus.dart`) is the widget-model contract: `Cmd? update(Msg)` **plus
-  `String get id`**. The `id` is the model's stable identity; widget→app commands carry it
-  as their address. A focus-only model still has an `id` — addressing is just one _use_ of identity.
+- `Component` (`src/mvu/focus.dart`) is the widget-model contract: `UpdateResult update(Msg)`
+  **plus `String get id`**. `update` reports whether the model consumed the message —
+  `Handled` (carrying an optional effect `Cmd`) or `Declined` — never a bare `Cmd?`. The `id`
+  is the model's stable identity; widget→app commands carry it as their address. A focus-only
+  model still has an `id` — addressing is just one _use_ of identity.
 - `autoId(String prefix)` (`src/mvu/auto_id.dart`) mints human-readable ids (`'tableview-1'`)
   from a single shared monotonic counter, used when a model is constructed without an
   explicit id. It is a **sequential per-isolate counter**: auto ids are **not stable across

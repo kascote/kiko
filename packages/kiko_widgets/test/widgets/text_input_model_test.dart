@@ -52,10 +52,10 @@ void main() {
   group('TextInputModel.update character input', () {
     test('character input inserts at cursor', () {
       final model = TextInputModel(focused: true);
-      final cmd = model.update(charMsg('a'));
+      final result = model.update(charMsg('a'));
       expect(model.value, equals('a'));
       expect(model.cursor, equals(1));
-      expect(cmd, isNull);
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('character input in middle', () {
@@ -89,10 +89,10 @@ void main() {
       expect(model.length, equals(5));
     });
 
-    test('unhandled message returns null cmd', () {
+    test('non-key message is handled with null cmd', () {
       final model = TextInputModel(initial: 'abc', focused: true);
-      final cmd = model.update(const NoneMsg());
-      expect(cmd, isNull);
+      final result = model.update(const NoneMsg());
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       expect(model.value, equals('abc')); // unchanged
     });
 
@@ -142,10 +142,10 @@ void main() {
   group('TextInputModel.update backspace', () {
     test('backspace deletes before cursor', () {
       final model = TextInputModel(initial: 'ab', focused: true);
-      final cmd = model.update(backspaceMsg());
+      final result = model.update(backspaceMsg());
       expect(model.value, equals('a'));
       expect(model.cursor, equals(1));
-      expect(cmd, isNull);
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('backspace at beginning does nothing', () {

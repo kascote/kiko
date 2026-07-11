@@ -64,7 +64,7 @@ void main() {
           table(id: 'tableB'),
         );
 
-        final cmd = app.b.update(keyMsg('enter'))! as TableActionCmd;
+        final cmd = (app.b.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
 
         expect(cmd.id, equals('tableB'));
         expect(app.resolve(cmd.id), same(app.b));
@@ -77,7 +77,7 @@ void main() {
           table(id: 'tableB', focused: false),
         );
 
-        final cmd = app.a.update(keyMsg('enter'))! as TableActionCmd;
+        final cmd = (app.a.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
 
         expect(cmd.id, equals('tableA'));
         expect(app.resolve(cmd.id), same(app.a));
@@ -89,7 +89,7 @@ void main() {
 
         expect(a.id, isNot(equals(b.id)));
 
-        final cmd = a.update(keyMsg('enter'))! as TableActionCmd;
+        final cmd = (a.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
         expect(cmd.id, equals(a.id));
         expect(cmd.id, isNot(equals(b.id)));
       });
@@ -125,8 +125,9 @@ void main() {
       // marks its own forward slot loading as it emits the request.
       LoadRequest? request;
       for (var i = 0; i < 12 && request == null; i++) {
-        final cmd = a.update(keyMsg('down'));
-        if (cmd is LoadRequest) request = cmd;
+        if (a.update(keyMsg('down')) case Handled(cmd: final LoadRequest r)) {
+          request = r;
+        }
       }
       expect(request, isNotNull, reason: 'expected a load request near the end');
       final id = request!.id;

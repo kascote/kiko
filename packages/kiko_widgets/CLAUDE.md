@@ -15,14 +15,14 @@ Kiko models are **mutable components** (Bubble Tea style, not Elm) — see root 
 Two update shapes coexist, asymmetric by design:
 
 - **App update** — `(M, Msg, UpdateContext) → (M, Cmd?)`: keeps a model slot so small value-like app models _may_ stay immutable.
-- **Widget update** — `Cmd? update(Msg)`: always mutable, so it returns only a `Cmd` (no model).
+- **Widget update** — `UpdateResult update(Msg)`: always mutable, so it returns no model — only whether it consumed the message (`Handled`, carrying an optional effect `Cmd`) or not (`Declined`). A parent switches on the result; a `Declined` message is still in flight and can be offered to the next candidate.
 
 Widgets follow MVU (Model-View-Update):
 
 ```dart
 // Model holds state + config
 class TextInputModel {
-  Cmd? update(Msg msg) { ... }  // handles messages, returns commands
+  UpdateResult update(Msg msg) { ... }  // reports Handled (with optional Cmd) or Declined
 }
 
 // Widget is a stateless View, built from the model
@@ -36,8 +36,10 @@ Usage in app's update/view:
 
 ```dart
 update: (model, msg, _) {
-  final cmd = model.textInput.update(msg);
-  return (model, cmd);
+  return switch (model.textInput.update(msg)) {
+    Handled(:final cmd) => (model, cmd),  // consumed → run its effect
+    Declined() => (model, null),          // not consumed → try app keys, or fall through
+  };
 }
 view: (model, frame) {
   frame.render(TextInput(model.textInput));

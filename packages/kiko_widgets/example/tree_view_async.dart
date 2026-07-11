@@ -248,7 +248,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   }
 
   // Widget update may return an expand event, a load request, or both (Batch).
-  final cmd = model.tree.update(msg);
+  final result = model.tree.update(msg);
+  final cmd = result is Handled ? result.cmd : null;
   Cmd? effect;
   for (final c in flattenCmd(cmd)) {
     switch (c) {
@@ -263,7 +264,7 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     }
   }
   if (effect != null) return (model, effect);
-  if (cmd is! Unhandled) return (model, null);
+  if (result is Handled) return (model, null);
 
   // Quit
   if (msg case KeyMsg(:final key)) {

@@ -76,17 +76,22 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  final cmd = model.list.update(msg);
+  final result = model.list.update(msg);
 
   // Handle confirm
-  if (cmd case ListActionCmd(:final id)) {
+  if (result case Handled(cmd: ListActionCmd(:final id))) {
     if (id == model.list.id) {
       model.selected = model.list.cursorItem;
     }
     return (model, null);
   }
 
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Quit
   if (msg case KeyMsg(:final key)) {

@@ -263,8 +263,6 @@ class MvuRuntime {
   bool processCmd(Cmd? cmd) {
     switch (cmd) {
       case null:
-      case None():
-      case Unhandled():
         return false;
       case Quit(:final code):
         _token.cancel();

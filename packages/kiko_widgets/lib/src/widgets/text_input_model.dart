@@ -62,7 +62,7 @@ class TextInputStyle {
 /// Model for a single-line text input.
 ///
 /// Holds both state (text, cursor, scroll) and config (placeholder, maxLength).
-/// Use [update] to handle messages. Returns [Unhandled] for keys it doesn't handle.
+/// Use [update] to handle messages. Returns [Declined] for keys it doesn't handle.
 class TextInputModel implements Focusable {
   Characters _text;
   int _cursor;
@@ -157,21 +157,21 @@ class TextInputModel implements Focusable {
 
   /// Updates the model based on the message.
   ///
-  /// Returns [Unhandled] for keys it doesn't handle (e.g., Tab).
-  /// Returns `null` for handled keys, non-key messages, or when not focused.
-  Cmd? update(Msg msg) {
-    if (!focused) return null;
+  /// Returns [Declined] for keys it doesn't handle (e.g., Tab) and when not
+  /// focused. Returns [Handled] for handled keys and non-key messages.
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return null; // ignore non-KeyMsg
+    return const Handled(); // ignore non-KeyMsg
   }
 
-  Cmd? _handleKey(KeyMsg msg) {
+  UpdateResult _handleKey(KeyMsg msg) {
     // Tab → let parent handle (focus cycling)
     if (msg.key == 'tab') {
-      return const Unhandled();
+      return const Declined();
     }
 
     final action = keyBinding.resolve(msg);
@@ -191,16 +191,16 @@ class TextInputModel implements Focusable {
         TextInputAction.deleteToLineStart => _deleteToLineStart(),
         TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
       };
-      return null;
+      return const Handled();
     }
 
     // Character input (single grapheme, no modifiers)
     if (msg.key.characters.length == 1) {
       _insertAt(msg.key);
-      return null;
+      return const Handled();
     }
 
-    return const Unhandled(); // unhandled key
+    return const Declined(); // unhandled key
   }
 
   void _insertAt(String input) {

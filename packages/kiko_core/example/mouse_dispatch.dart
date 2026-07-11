@@ -68,28 +68,28 @@ class MenuModel implements Component {
   set focused(bool value) => _focused = value;
 
   @override
-  Cmd? update(Msg msg) => switch (msg) {
-    KeyMsg(key: 'up') => _moveBy(-1),
-    KeyMsg(key: 'down') => _moveBy(1),
-    KeyMsg(key: 'enter') => MenuActivated(id, cursor),
+  UpdateResult update(Msg msg) => switch (msg) {
+    KeyMsg(key: 'up') => Handled(_moveBy(-1)),
+    KeyMsg(key: 'down') => Handled(_moveBy(1)),
+    KeyMsg(key: 'enter') => Handled(MenuActivated(id, cursor)),
 
     // The pointer has gone somewhere else and no event will address this menu
     // again, so nothing else in the app has to notice that hover ended.
-    PointerLeaveMsg() => _hoverOn(null),
+    PointerLeaveMsg() => Handled(_hoverOn(null)),
 
     // A press selects the row it landed on and activates it — emitting exactly
     // what Enter emits, so the app grew no second case for the mouse.
-    PointerMsg(isDown: true, inside: true, :final local) => _activate(local.y),
+    PointerMsg(isDown: true, inside: true, :final local) => Handled(_activate(local.y)),
 
-    PointerMsg(isMove: true, inside: true, :final local) => _hoverOn(local.y),
+    PointerMsg(isMove: true, inside: true, :final local) => Handled(_hoverOn(local.y)),
 
     // The wheel carries a direction, not a position, and `PointerMsg` re-encodes
     // nothing: read it off the terminal event the message wraps.
-    PointerMsg(action: evt.MouseButtonAction.wheelUp) => _moveBy(-1),
-    PointerMsg(action: evt.MouseButtonAction.wheelDown) => _moveBy(1),
+    PointerMsg(action: evt.MouseButtonAction.wheelUp) => Handled(_moveBy(-1)),
+    PointerMsg(action: evt.MouseButtonAction.wheelDown) => Handled(_moveBy(1)),
 
     // Everything else is declined, and the app may try something else with it.
-    _ => const Unhandled(),
+    _ => const Declined(),
   };
 
   Cmd? _moveBy(int delta) {
@@ -196,18 +196,18 @@ class AppModel {
 /// Receives what a component returned, wherever it came from.
 ///
 /// [MenuActivated] carries its owner's id, so one case serves both menus and
-/// both input devices. [Unhandled] is the component declining; here that ends
+/// both input devices. [Declined] is the component declining; here that ends
 /// the message, but it is also what an app walking `ctx.hits.hitPath` would use
 /// to try the next id out.
-(AppModel, Cmd?) _handle(AppModel model, Cmd? cmd) {
-  switch (cmd) {
-    case MenuActivated(:final id, :final index):
+(AppModel, Cmd?) _handle(AppModel model, UpdateResult result) {
+  switch (result) {
+    case Handled(cmd: MenuActivated(:final id, :final index)):
       model.note('$id · activated "${model.menu(id).items[index]}"');
       return (model, null);
-    case Unhandled():
-      return (model, null);
-    default:
+    case Handled(:final cmd):
       return (model, cmd);
+    case Declined():
+      return (model, null);
   }
 }
 

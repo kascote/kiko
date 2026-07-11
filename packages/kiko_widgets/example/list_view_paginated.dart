@@ -105,12 +105,17 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
   }
 
   // A near-edge navigation may request the next page.
-  final cmd = model.list.update(msg);
-  if (cmd case final LoadRequest r when r.id == model.list.id) {
+  final result = model.list.update(msg);
+  if (result case Handled(cmd: final LoadRequest r) when r.id == model.list.id) {
     return (model, fetchUsers(model, r));
   }
 
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Quit
   if (msg case KeyMsg(:final key)) {

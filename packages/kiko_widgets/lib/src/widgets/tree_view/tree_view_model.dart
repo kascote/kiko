@@ -354,14 +354,14 @@ class TreeViewModel<T> implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns command or [Unhandled].
+  /// Handles keyboard messages. Returns [Handled] or [Declined].
   @override
-  Cmd? update(Msg msg) {
-    if (!focused) return const Unhandled();
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       final action = keyBinding.resolve(msg);
-      if (action == null) return const Unhandled();
+      if (action == null) return const Declined();
 
       switch (action) {
         case TreeViewAction.up:
@@ -381,17 +381,17 @@ class TreeViewModel<T> implements Component, Loadable {
         case TreeViewAction.pageDown:
           _moveCursor(_visibleCount.clamp(1, 100));
         case TreeViewAction.expand:
-          return _handleExpand();
+          return Handled(_handleExpand());
         case TreeViewAction.collapse:
-          return _handleCollapse();
+          return Handled(_handleCollapse());
         case TreeViewAction.toggle:
-          return _handleToggle();
+          return Handled(_handleToggle());
         case TreeViewAction.confirm:
-          return _handleConfirm();
+          return Handled(_handleConfirm());
       }
     }
 
-    return null;
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────

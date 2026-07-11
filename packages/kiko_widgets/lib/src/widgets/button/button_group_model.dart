@@ -67,44 +67,44 @@ class ButtonGroupModel implements Focusable {
   /// Updates the model based on the message.
   ///
   /// Handles navigation between buttons and delegates to focused button.
-  Cmd? update(Msg msg) {
-    if (!_focused) return null;
-    if (buttons.isEmpty) return null;
+  UpdateResult update(Msg msg) {
+    if (!_focused) return const Declined();
+    if (buttons.isEmpty) return const Declined();
 
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return null;
+    return const Handled();
   }
 
-  Cmd? _handleKey(KeyMsg msg) {
+  UpdateResult _handleKey(KeyMsg msg) {
     // Check for navigation action
     final action = effectiveKeyBinding.resolve(msg);
     if (action != null) {
       return _handleNavigation(action);
     }
 
-    // Delegate to focused button
-    return focusedButton?.update(msg);
+    // Delegate to focused button, declining if there is no button to take it.
+    return focusedButton?.update(msg) ?? const Declined();
   }
 
-  Cmd? _handleNavigation(ButtonGroupAction action) {
+  UpdateResult _handleNavigation(ButtonGroupAction action) {
     final delta = action == ButtonGroupAction.prev ? -1 : 1;
     final newIndex = _focusedIndex + delta;
 
     // Check boundary
     if (newIndex < 0 || newIndex >= buttons.length) {
       if (!wrapNavigation) {
-        return const Unhandled();
+        return const Declined();
       }
       // Wrap around
       final wrappedIndex = newIndex < 0 ? buttons.length - 1 : 0;
       focusIndex(wrappedIndex);
-      return null;
+      return const Handled();
     }
 
     focusIndex(newIndex);
-    return null;
+    return const Handled();
   }
 
   void _updateButtonFocus() {

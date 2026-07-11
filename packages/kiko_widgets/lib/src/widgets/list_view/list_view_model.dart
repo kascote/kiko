@@ -225,14 +225,14 @@ class ListViewModel<T, K> implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns command or [Unhandled].
+  /// Handles keyboard messages. Returns [Handled] or [Declined].
   @override
-  Cmd? update(Msg msg) {
-    if (!focused) return const Unhandled();
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       final action = keyBinding.resolve(msg);
-      if (action == null) return const Unhandled();
+      if (action == null) return const Declined();
 
       switch (action) {
         case ListViewAction.up:
@@ -259,17 +259,17 @@ class ListViewModel<T, K> implements Component, Loadable {
         case ListViewAction.toggleSelect:
           _toggleSelectAtCursor();
         case ListViewAction.confirm:
-          return ListActionCmd(id);
+          return Handled(ListActionCmd(id));
         case ListViewAction.selectUp:
           if (multiSelect) _rangeSelect(-1);
         case ListViewAction.selectDown:
           if (multiSelect) _rangeSelect(1);
       }
 
-      return _checkLoadThreshold();
+      return Handled(_checkLoadThreshold());
     }
 
-    return null;
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────

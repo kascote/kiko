@@ -523,43 +523,46 @@ void main() {
         final page = await source.getPage(0, 5);
         model.insertRows(page, 0);
 
-        final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<TableActionCmd>());
-        final actionCmd = cmd! as TableActionCmd;
+        final result = model.update(keyMsg('enter'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TableActionCmd>()),
+        );
+        final actionCmd = (result as Handled).cmd! as TableActionCmd;
         expect(actionCmd.id, equals(model.id));
         expect(actionCmd.action, 'primary');
       });
 
-      test('unhandled key returns Unhandled', () {
+      test('declines unhandled key', () {
         final model = TableViewModel(
           dataSource: TableDataSource.fromList(sampleRows()),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         );
-        final cmd = model.update(keyMsg('tab'));
-        expect(cmd, isA<Unhandled>());
+        final result = model.update(keyMsg('tab'));
+        expect(result, isA<Declined>());
       });
 
-      test('unfocused returns Unhandled', () {
+      test('declines when unfocused', () {
         final model = TableViewModel(
           dataSource: TableDataSource.fromList(sampleRows()),
           keyField: 'id',
           columns: sampleColumns(),
         );
-        final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<Unhandled>());
+        final result = model.update(keyMsg('down'));
+        expect(result, isA<Declined>());
       });
 
-      test('non-key message returns null', () {
+      test('non-key message is handled', () {
         final model = TableViewModel(
           dataSource: TableDataSource.fromList(sampleRows()),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         );
-        final cmd = model.update(const NoneMsg());
-        expect(cmd, isNull);
+        final result = model.update(const NoneMsg());
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
 
       test('navigation continues while a page is loading', () {
@@ -578,8 +581,11 @@ void main() {
               ..insertRows(sampleRows(10), 0);
 
         // Reach the end to start a forward load.
-        final cmd = model.update(keyMsg('end'));
-        expect(cmd, isA<LoadRequest>());
+        final result = model.update(keyMsg('end'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+        );
         expect(model.isLoading(TableLoadKey.forward), isTrue);
 
         final rowBefore = model.cursorRow;
@@ -610,9 +616,12 @@ void main() {
         }
 
         // This step crosses the threshold and requests the next page.
-        final cmd = model.update(keyMsg('down'));
-        expect(cmd, isA<LoadRequest>());
-        final req = cmd! as LoadRequest;
+        final result = model.update(keyMsg('down'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+        );
+        final req = (result as Handled).cmd! as LoadRequest;
         expect(req.id, equals(model.id));
         expect(req.key, equals(TableLoadKey.forward));
         expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'self-marks on emit');
@@ -636,10 +645,19 @@ void main() {
           model.update(keyMsg('down'));
         }
         // First threshold crossing requests a forward page.
-        expect(model.update(keyMsg('down')), isA<LoadRequest>());
+        expect(
+          model.update(keyMsg('down')),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+        );
         // Further near-end keypresses do not re-request while it is in flight.
-        expect(model.update(keyMsg('down')), isNull);
-        expect(model.update(keyMsg('up')), isNull);
+        expect(
+          model.update(keyMsg('down')),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        );
+        expect(
+          model.update(keyMsg('up')),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        );
       });
 
       test('not emitted when hasMore is false', () async {
@@ -660,9 +678,9 @@ void main() {
           model.update(keyMsg('down'));
         }
 
-        final cmd = model.update(keyMsg('down'));
+        final result = model.update(keyMsg('down'));
         // fromList has hasMore = false
-        expect(cmd, isNull);
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
 
       test('nextPageNum returns correct value', () async {
@@ -716,7 +734,7 @@ void main() {
       test('applyLoad installs a forward page at its reserved offset', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        final req = model.update(keyMsg('end'))! as LoadRequest;
+        final req = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
         expect(model.isLoading(TableLoadKey.forward), isTrue);
 
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
@@ -729,7 +747,7 @@ void main() {
       test('applyLoad records an error, leaving the slot retryable', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        final req = model.update(keyMsg('end'))! as LoadRequest;
+        final req = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
         final boom = StateError('boom');
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, error: boom));
 
@@ -739,7 +757,10 @@ void main() {
 
         // The slot is no longer loading, so navigating near the edge retries it.
         final retry = model.update(keyMsg('end'));
-        expect(retry, isA<LoadRequest>());
+        expect(
+          retry,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+        );
         expect(model.isLoading(TableLoadKey.forward), isTrue);
         expect(model.errorFor(TableLoadKey.forward), isNull, reason: 'retry clears the error');
       });
@@ -773,12 +794,12 @@ void main() {
           ..insertRows(sampleRows(10), 2);
 
         // End → forward; the cursor near the end pulls the next page.
-        final fwd = model.update(keyMsg('end'))! as LoadRequest;
+        final fwd = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
         expect(fwd.key, equals(TableLoadKey.forward));
         expect(model.isLoading(TableLoadKey.forward), isTrue);
 
         // Home → backward, while the forward page is still in flight.
-        final back = model.update(keyMsg('home'))! as LoadRequest;
+        final back = (model.update(keyMsg('home')) as Handled).cmd! as LoadRequest;
         expect(back.key, equals(TableLoadKey.backward));
         expect(model.isLoading(TableLoadKey.backward), isTrue);
 

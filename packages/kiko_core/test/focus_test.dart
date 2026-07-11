@@ -22,7 +22,7 @@ class MockComponent implements Component {
   MockComponent(this.id);
 
   @override
-  Cmd? update(Msg msg) => null;
+  UpdateResult update(Msg msg) => const Handled();
 }
 
 void main() {
@@ -167,25 +167,29 @@ void main() {
 
     test('update is reachable generically through Component', () {
       final Component c = MockComponent('w');
-      expect(c.update(const NoneMsg()), isNull);
+      expect(c.update(const NoneMsg()), isA<Handled>());
     });
   });
 
-  group('Unhandled cmd', () {
-    test('Unhandled is a Cmd', () {
-      const unhandled = Unhandled();
-      expect(unhandled, isA<Cmd>());
+  group('UpdateResult', () {
+    test('Handled and Declined are UpdateResults', () {
+      expect(const Handled(), isA<UpdateResult>());
+      expect(const Declined(), isA<UpdateResult>());
     });
 
-    test('is check works correctly', () {
-      Cmd? cmd = const Unhandled();
-      expect(cmd is Unhandled, isTrue);
+    test('Handled carries an optional command', () {
+      expect(const Handled().cmd, isNull);
+      expect(const Handled(Quit()).cmd, isA<Quit>());
+    });
 
-      cmd = null;
-      expect(cmd is Unhandled, isFalse);
+    test('a decline is distinguishable from a handle', () {
+      UpdateResult result = const Declined();
+      expect(result is Declined, isTrue);
+      expect(result is Handled, isFalse);
 
-      cmd = const Quit();
-      expect(cmd is Unhandled, isFalse);
+      result = const Handled();
+      expect(result is Handled, isTrue);
+      expect(result is Declined, isFalse);
     });
   });
 }

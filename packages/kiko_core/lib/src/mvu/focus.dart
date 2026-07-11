@@ -11,6 +11,38 @@ abstract interface class Focusable {
   set focused(bool value);
 }
 
+/// The outcome of a widget model handling a message: whether it consumed the
+/// message, and any effect that consuming it produced.
+///
+/// A parent routes a message to a child through [Component.update] and switches
+/// on the result. A [Handled] result ends the message and its effect runs; a
+/// [Declined] result leaves the message in flight, so the parent may offer it
+/// to the next candidate — the next id under a pointer, or its own fallback keys.
+sealed class UpdateResult {
+  /// Const constructor for subclasses.
+  const UpdateResult();
+}
+
+/// The model consumed the message. [cmd] is the effect that handling it
+/// produced, or null when handling it produced no effect.
+class Handled extends UpdateResult {
+  /// The effect produced by handling the message, if any.
+  final Cmd? cmd;
+
+  /// Creates a [Handled] result carrying an optional effect.
+  const Handled([this.cmd]);
+}
+
+/// The model did not consume the message.
+///
+/// The message is still in flight, and a decliner has nothing to say about it —
+/// carrying no effect is deliberate, so that one message never produces effects
+/// from two responders.
+class Declined extends UpdateResult {
+  /// Creates a [Declined] result.
+  const Declined();
+}
+
 /// The widget-model contract: a [Focusable] model that handles messages and
 /// carries a stable identity.
 ///
@@ -30,8 +62,12 @@ abstract interface class Component implements Focusable {
   /// resolves to no model is observably dropped rather than silently mishandled.
   String get id;
 
-  /// Handles a message, optionally returning a command.
-  Cmd? update(Msg msg);
+  /// Handles a message, reporting whether it was consumed and any effect.
+  ///
+  /// Returns [Handled] (optionally carrying a command) when the model consumes
+  /// the message, and [Declined] when it does not — leaving the message for a
+  /// parent to route elsewhere.
+  UpdateResult update(Msg msg);
 }
 
 /// Manages focus among a list of [Focusable] items.
@@ -52,10 +88,11 @@ abstract interface class Component implements Focusable {
 /// }
 ///
 /// (FormModel, Cmd?) formUpdate(FormModel m, Msg msg) {
-///   final cmd = m.focus.focused.update(msg);
-///   if (cmd is! Unhandled) return (m, cmd);
+///   switch (m.focus.focused.update(msg)) {
+///     case Handled(:final cmd): return (m, cmd);
+///     case Declined(): break; // fall through to the keys below
+///   }
 ///
-///   // Handle unhandled keys
 ///   if (isTab(msg)) {
 ///     m.focus.cycle(1);  // automatically updates focused fields
 ///     return (m, null);

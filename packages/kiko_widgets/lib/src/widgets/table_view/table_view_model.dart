@@ -383,18 +383,18 @@ class TableViewModel implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard messages. Returns command or [Unhandled].
+  /// Handles keyboard messages. Returns [Handled] or [Declined].
   ///
   /// Navigation is never frozen by a load: a fetch in flight only stops the same
   /// direction from being requested again, so the cursor keeps moving and a
   /// forward and backward page can load at once.
   @override
-  Cmd? update(Msg msg) {
-    if (!focused) return const Unhandled();
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       final action = keyBinding.resolve(msg);
-      if (action == null) return const Unhandled();
+      if (action == null) return const Declined();
 
       switch (action) {
         case TableViewAction.up:
@@ -424,13 +424,13 @@ class TableViewModel implements Component, Loadable {
         case TableViewAction.toggleSelect:
           if (selectionEnabled) _toggleSelectAtCursor();
         case TableViewAction.confirm:
-          return TableActionCmd(id, 'primary');
+          return Handled(TableActionCmd(id, 'primary'));
       }
 
-      return _checkLoadThreshold();
+      return Handled(_checkLoadThreshold());
     }
 
-    return null;
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────

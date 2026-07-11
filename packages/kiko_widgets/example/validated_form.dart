@@ -118,8 +118,12 @@ class AppModel with ThemeSwitcher {
 
   // Route to focused widget
   final focused = model.focus.focused as TextInputModel;
-  final cmd = focused.update(msg);
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (focused.update(msg)) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   if (msg case KeyMsg(:final key)) {
     // Tab cycling

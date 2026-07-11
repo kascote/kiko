@@ -98,10 +98,10 @@ class SubmitComplete extends Msg {
   }
 
   // Route to current pane's button group
-  final cmd = model.currentGroup.update(msg);
+  final result = model.currentGroup.update(msg);
 
   // Handle button press
-  if (cmd case ButtonPressCmd(:final id)) {
+  if (result case Handled(cmd: ButtonPressCmd(:final id))) {
     if (id == 'submit' && !model.submitButton.loading) {
       // Simulate async action
       model.submitButton.loading = true;
@@ -118,7 +118,12 @@ class SubmitComplete extends Msg {
     return (model, null);
   }
 
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Handle pane switching and quit
   if (msg case KeyMsg(:final key)) {

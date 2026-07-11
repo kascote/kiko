@@ -68,7 +68,7 @@ class TextAreaStyle {
 /// Model for a multi-line text area with word wrapping.
 ///
 /// Wraps [TextAreaComponent] and adds MVU integration (update method), focus state,
-/// and configuration options. Returns [Unhandled] for keys it doesn't handle.
+/// and configuration options. Returns [Declined] for keys it doesn't handle.
 ///
 /// Note: Tab is consumed (inserts spaces for indentation), not passed to parent.
 class TextAreaModel implements Focusable {
@@ -159,36 +159,36 @@ class TextAreaModel implements Focusable {
 
   /// Updates model based on message.
   ///
-  /// Returns [Unhandled] for keys it doesn't handle.
-  /// Returns `null` for handled keys, non-key messages, or when not focused.
-  Cmd? update(Msg msg) {
-    if (!focused) return null;
+  /// Returns [Declined] for keys it doesn't handle and when not focused.
+  /// Returns [Handled] for handled keys and non-key messages.
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
     if (msg case PasteMsg(:final text)) {
       textArea.insert(text);
-      return null;
+      return const Handled();
     }
-    return null; // ignore other messages
+    return const Handled(); // ignore other messages
   }
 
-  Cmd? _handleKey(KeyMsg msg) {
+  UpdateResult _handleKey(KeyMsg msg) {
     final action = keyBinding.resolve(msg);
 
     if (action != null) {
       _executeAction(action);
-      return null;
+      return const Handled();
     }
 
     // Character input (single grapheme, no modifiers)
     if (msg.key.characters.length == 1) {
       textArea.insert(msg.key);
-      return null; // handled
+      return const Handled(); // handled
     }
 
-    return const Unhandled(); // unhandled key
+    return const Declined(); // unhandled key
   }
 
   void _executeAction(TextAreaAction action) {

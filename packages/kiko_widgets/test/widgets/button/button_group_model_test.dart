@@ -53,9 +53,9 @@ void main() {
       ];
     });
 
-    test('returns null when not focused', () {
+    test('declines when not focused', () {
       final group = ButtonGroupModel(buttons: buttons);
-      expect(group.update(const KeyMsg('right')), isNull);
+      expect(group.update(const KeyMsg('right')), isA<Declined>());
     });
 
     test('right moves focus to next button', () {
@@ -101,12 +101,12 @@ void main() {
       expect(group.focusedIndex, equals(0));
     });
 
-    test('returns Unhandled at boundary without wrap', () {
+    test('declines at boundary without wrap', () {
       final group = ButtonGroupModel(buttons: buttons, focused: true);
-      expect(group.update(const KeyMsg('left')), isA<Unhandled>());
+      expect(group.update(const KeyMsg('left')), isA<Declined>());
       expect(group.focusedIndex, equals(0));
       group.focusIndex(2);
-      expect(group.update(const KeyMsg('right')), isA<Unhandled>());
+      expect(group.update(const KeyMsg('right')), isA<Declined>());
       expect(group.focusedIndex, equals(2));
     });
 
@@ -135,7 +135,9 @@ void main() {
 
     test('delegates enter to focused button', () {
       final group = ButtonGroupModel(buttons: buttons, focused: true);
-      final cmd = group.update(const KeyMsg('enter'));
+      final result = group.update(const KeyMsg('enter'));
+      expect(result, isA<Handled>());
+      final cmd = (result as Handled).cmd;
       expect(cmd, isA<ButtonPressCmd>());
       expect((cmd! as ButtonPressCmd).id, equals('a'));
     });
@@ -146,7 +148,9 @@ void main() {
         focused: true,
         initialFocusIndex: 1,
       );
-      final cmd = group.update(const KeyMsg('enter'));
+      final result = group.update(const KeyMsg('enter'));
+      expect(result, isA<Handled>());
+      final cmd = (result as Handled).cmd;
       expect(cmd, isA<ButtonPressCmd>());
       expect((cmd! as ButtonPressCmd).id, equals('b'));
     });

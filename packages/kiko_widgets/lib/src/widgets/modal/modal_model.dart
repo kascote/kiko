@@ -41,16 +41,16 @@ class ModalModel implements Focusable {
 
   /// Updates the model based on the message.
   ///
-  /// Returns [ModalConfirmCmd] on Enter, [ModalCancelCmd] on Escape, and
-  /// [Unhandled] for anything else.
-  Cmd? update(Msg msg) {
-    if (!_focused) return null;
-    if (msg is! KeyMsg) return null;
+  /// Returns [Handled] with a [ModalConfirmCmd] on Enter and a [ModalCancelCmd]
+  /// on Escape, and [Declined] for any other key.
+  UpdateResult update(Msg msg) {
+    if (!_focused) return const Declined();
+    if (msg is! KeyMsg) return const Handled();
 
     return switch (effectiveKeyBinding.resolve(msg)) {
-      ModalAction.confirm => ModalConfirmCmd(id, confirmPayload),
-      ModalAction.cancel => ModalCancelCmd(id),
-      null => const Unhandled(),
+      ModalAction.confirm => Handled(ModalConfirmCmd(id, confirmPayload)),
+      ModalAction.cancel => Handled(ModalCancelCmd(id)),
+      null => const Declined(),
     };
   }
 }

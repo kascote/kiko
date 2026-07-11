@@ -16,12 +16,6 @@ abstract interface class AsyncCmd {
   Future<Msg> execute();
 }
 
-/// No operation - continue the loop.
-class None extends Cmd {
-  /// Creates a None command.
-  const None();
-}
-
 /// Quit the application with an exit code.
 class Quit extends Cmd {
   /// Exit code (default 0).
@@ -74,18 +68,6 @@ class Tick extends Cmd {
 class StopTick extends Cmd {
   /// Creates a StopTick command.
   const StopTick();
-}
-
-/// Signals that a focused model didn't handle a message.
-///
-/// Return this from `update()` when the model is focused but chooses not to
-/// handle the message. Parent can then handle it (e.g., Tab for focus cycling,
-/// global shortcuts).
-///
-/// Unfocused models should return `null` (ignored), not `Unhandled`.
-class Unhandled extends Cmd {
-  /// Creates an Unhandled command.
-  const Unhandled();
 }
 
 /// Run an async operation and send a message when complete.

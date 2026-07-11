@@ -98,27 +98,37 @@ class AppModel with ThemeSwitcher {
 
   // Route to search input if focused
   if (model.search.focused) {
-    final cmd = model.search.update(msg);
+    final result = model.search.update(msg);
 
     // Refresh filter after search processes the message
     model.refreshFilter();
 
-    if (cmd is! Unhandled) return (model, cmd);
+    switch (result) {
+      case Handled(:final cmd):
+        return (model, cmd);
+      case Declined():
+        break;
+    }
   }
 
   // Route to list if focused
   if (model.list.focused) {
-    final cmd = model.list.update(msg);
+    final result = model.list.update(msg);
 
     // Handle confirm
-    if (cmd case ListActionCmd(:final id)) {
+    if (result case Handled(cmd: ListActionCmd(:final id))) {
       if (id == model.list.id) {
         model.selected = model.list.cursorItem;
       }
       return (model, null);
     }
 
-    if (cmd is! Unhandled) return (model, cmd);
+    switch (result) {
+      case Handled(:final cmd):
+        return (model, cmd);
+      case Declined():
+        break;
+    }
   }
 
   if (msg case KeyMsg(:final key)) {

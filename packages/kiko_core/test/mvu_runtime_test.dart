@@ -70,10 +70,6 @@ void main() {
         expect(runtime.processCmd(null), isFalse);
       });
 
-      test('None returns false (continue)', () {
-        expect(runtime.processCmd(const None()), isFalse);
-      });
-
       test('Quit returns true (exit) with default code 0', () {
         expect(runtime.processCmd(const Quit()), isTrue);
         expect(runtime.exitCode, equals(0));
@@ -210,7 +206,7 @@ void main() {
 
       test('Batch returns Quit exit code', () {
         runtime.processCmd(
-          Batch([const None(), const Quit(99), const None()]),
+          Batch([const StopTick(), const Quit(99), const StopTick()]),
         );
         expect(runtime.exitCode, equals(99));
       });
@@ -243,9 +239,9 @@ void main() {
       test('nested Batch works correctly', () {
         final result = runtime.processCmd(
           Batch([
-            const None(),
-            Batch([const None(), const Quit(7)]),
-            const None(),
+            const StopTick(),
+            Batch([const StopTick(), const Quit(7)]),
+            const StopTick(),
           ]),
         );
 
@@ -299,8 +295,6 @@ void main() {
         Log(output: output, level: LogLevel.debug).runZoned(() {
           runtime
             ..processCmd(null)
-            ..processCmd(const None())
-            ..processCmd(const Unhandled())
             ..processCmd(const Emit(TestMsg('x')))
             ..processCmd(const StopTick());
         });

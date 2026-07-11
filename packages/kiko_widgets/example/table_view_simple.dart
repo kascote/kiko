@@ -150,10 +150,10 @@ String _formatNumber(int n) {
     }
   }
 
-  final cmd = model.table.update(msg);
+  final result = model.table.update(msg);
 
   // Handle confirm
-  if (cmd case TableActionCmd(:final id, action: 'primary')) {
+  if (result case Handled(cmd: TableActionCmd(:final id, action: 'primary'))) {
     if (id == model.table.id) {
       final row = model.table.cursorRowData;
       final field = model.table.cursorColField;
@@ -163,7 +163,12 @@ String _formatNumber(int n) {
     return (model, null);
   }
 
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Quit
   if (msg case KeyMsg(:final key)) {

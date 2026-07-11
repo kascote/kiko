@@ -53,8 +53,12 @@ class AppModel with ThemeSwitcher {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // Route to focused widget
-  final cmd = model.focused.update(msg);
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (model.focused.update(msg)) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Handle Tab / Shift+Tab
   if (msg case KeyMsg(:final key)) {

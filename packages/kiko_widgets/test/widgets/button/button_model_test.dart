@@ -31,23 +31,23 @@ void main() {
   });
 
   group('ButtonModel.update', () {
-    test('returns null when not focused', () {
+    test('declines when not focused', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
-      final cmd = button.update(const KeyMsg('enter'));
-      expect(cmd, isNull);
+      expect(button.update(const KeyMsg('enter')), isA<Declined>());
     });
 
     test('returns ButtonPressCmd on enter when focused', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
-      final cmd = button.update(const KeyMsg('enter'));
+      final result = button.update(const KeyMsg('enter'));
+      expect(result, isA<Handled>());
+      final cmd = (result as Handled).cmd;
       expect(cmd, isA<ButtonPressCmd>());
       expect((cmd! as ButtonPressCmd).id, equals('btn'));
     });
 
-    test('returns Unhandled for unhandled keys', () {
+    test('declines unhandled keys', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
-      final cmd = button.update(const KeyMsg('a'));
-      expect(cmd, isA<Unhandled>());
+      expect(button.update(const KeyMsg('a')), isA<Declined>());
     });
 
     test('ignores activation when disabled', () {
@@ -57,8 +57,11 @@ void main() {
         focused: true,
         disabled: true,
       );
-      final cmd = button.update(const KeyMsg('enter'));
-      expect(cmd, isNull); // silent ignore
+      // Silent ignore: consumed with no command.
+      expect(
+        button.update(const KeyMsg('enter')),
+        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+      );
     });
 
     test('ignores activation when loading', () {
@@ -68,14 +71,19 @@ void main() {
         focused: true,
         loading: true,
       );
-      final cmd = button.update(const KeyMsg('enter'));
-      expect(cmd, isNull); // silent ignore
+      // Silent ignore: consumed with no command.
+      expect(
+        button.update(const KeyMsg('enter')),
+        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+      );
     });
 
     test('ignores non-key messages', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
-      final cmd = button.update(const NoneMsg());
-      expect(cmd, isNull);
+      expect(
+        button.update(const NoneMsg()),
+        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+      );
     });
 
     test('custom key bindings work', () {
@@ -88,12 +96,13 @@ void main() {
       );
 
       // space should work
-      var cmd = button.update(const KeyMsg('space'));
-      expect(cmd, isA<ButtonPressCmd>());
+      expect(
+        button.update(const KeyMsg('space')),
+        isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()),
+      );
 
       // enter should not work with custom bindings
-      cmd = button.update(const KeyMsg('enter'));
-      expect(cmd, isA<Unhandled>());
+      expect(button.update(const KeyMsg('enter')), isA<Declined>());
     });
   });
 

@@ -381,9 +381,9 @@ void main() {
       });
 
       test('right requests expand', () {
-        final cmd = model.update(keyMsg('right'));
+        final result = model.update(keyMsg('right'));
         // Uncached → Batch(expand event + load request).
-        expect(cmd, isA<Batch>());
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<Batch>()));
         expect(model.isExpanded('/a'), isTrue);
       });
 
@@ -478,21 +478,25 @@ void main() {
       test('enter returns TreeActionCmd', () {
         final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
 
-        final cmd = model.update(keyMsg('enter'));
-        expect(cmd, isA<TreeActionCmd<String>>());
+        final result = model.update(keyMsg('enter'));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActionCmd<String>>()),
+        );
+        final cmd = (result as Handled).cmd;
         expect((cmd! as TreeActionCmd).path, equals('/a'));
       });
 
-      test('unhandled key returns Unhandled', () {
+      test('unhandled key declines', () {
         final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
-        expect(model.update(keyMsg('tab')), isA<Unhandled>());
+        expect(model.update(keyMsg('tab')), isA<Declined>());
       });
 
-      test('unfocused returns Unhandled', () {
+      test('unfocused declines', () {
         final model = modelWith([
           TreeNode(path: '/a', label: Line('A')),
         ], focused: false);
-        expect(model.update(keyMsg('down')), isA<Unhandled>());
+        expect(model.update(keyMsg('down')), isA<Declined>());
       });
     });
 

@@ -63,31 +63,32 @@ class ButtonModel implements Focusable {
 
   /// Updates the model based on the message.
   ///
-  /// Returns [ButtonPressCmd] when activated, [Unhandled] for unhandled keys.
-  Cmd? update(Msg msg) {
-    if (!focused) return null;
+  /// Returns [Handled] with a [ButtonPressCmd] when activated, and [Declined]
+  /// for keys it does not handle.
+  UpdateResult update(Msg msg) {
+    if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return null;
+    return const Handled();
   }
 
-  Cmd? _handleKey(KeyMsg msg) {
+  UpdateResult _handleKey(KeyMsg msg) {
     // Ignore activation when disabled or loading
     if (disabled || loading) {
       final action = effectiveKeyBinding.resolve(msg);
       if (action == ButtonAction.activate) {
-        return null; // Silent ignore
+        return const Handled(); // Silent ignore
       }
     }
 
     final action = effectiveKeyBinding.resolve(msg);
     if (action == ButtonAction.activate) {
-      return ButtonPressCmd(id);
+      return Handled(ButtonPressCmd(id));
     }
 
-    return const Unhandled();
+    return const Declined();
   }
 
   /// Creates a copy with the given fields replaced.

@@ -31,10 +31,14 @@ class AppModel with ThemeSwitcher {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // Route to focused input
-  final cmd = (model.focus.focused as TextInputModel).update(msg);
-  if (cmd is! Unhandled) return (model, cmd);
+  switch ((model.focus.focused as TextInputModel).update(msg)) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
-  // Unhandled key - check for Tab cycling and global shortcuts
+  // Declined key - check for Tab cycling and global shortcuts
   if (msg case KeyMsg(:final key)) {
     // Tab cycling
     if (key == 'tab') {

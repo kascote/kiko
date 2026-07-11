@@ -23,12 +23,12 @@ class AppModel with ThemeSwitcher {
   TextAreaModel get editor => focus.children[2] as TextAreaModel;
 
   /// Route update to focused item.
-  Cmd? updateFocused(Msg msg) {
+  UpdateResult updateFocused(Msg msg) {
     return switch (focus.index) {
       0 => title.update(msg),
       1 => author.update(msg),
       2 => editor.update(msg),
-      _ => null,
+      _ => const Declined(),
     };
   }
 }
@@ -41,10 +41,14 @@ class AppModel with ThemeSwitcher {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // Route to focused input
-  final cmd = model.updateFocused(msg);
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (model.updateFocused(msg)) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
-  // Unhandled key - check for Tab cycling and global shortcuts
+  // Declined key - check for Tab cycling and global shortcuts
   if (msg case KeyMsg(:final key)) {
     // Tab cycling (TextArea handles Tab for indentation, so only Shift+Tab bubbles from it)
     if (key == 'tab') {

@@ -223,12 +223,17 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
   }
 
   // A near-edge navigation may request the next or previous page.
-  final cmd = model.table.update(msg);
-  if (cmd case final LoadRequest r when r.id == model.table.id) {
+  final result = model.table.update(msg);
+  if (result case Handled(cmd: final LoadRequest r) when r.id == model.table.id) {
     return (model, fetchPage(model, r));
   }
 
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   // Quit
   if (msg case KeyMsg(:final key)) {

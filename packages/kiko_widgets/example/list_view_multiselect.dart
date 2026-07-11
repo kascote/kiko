@@ -63,8 +63,12 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  final cmd = model.list.update(msg);
-  if (cmd is! Unhandled) return (model, cmd);
+  switch (model.list.update(msg)) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break;
+  }
 
   if (msg case KeyMsg(:final key)) {
     if (key == 'escape' || key == 'ctrl+q') {

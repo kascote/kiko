@@ -93,6 +93,7 @@ class TableRenderer {
 
       final isCursorRow = rowIdx == model.cursorRow;
       final isSelected = model.isSelected(rowIdx);
+      final isHover = model.hoverRow == rowIdx;
 
       _renderRow(
         surface,
@@ -107,6 +108,7 @@ class TableRenderer {
         visibleCols,
         isCursorRow,
         isSelected,
+        isHover,
       );
     }
   }
@@ -173,11 +175,12 @@ class TableRenderer {
   /// Renders a data row.
   ///
   /// Per-cell paint order is honest anatomy, not borrowed states: row base,
-  /// then [_selectedRowStyle] (a fill) if the row is selected, then the
-  /// crosshair washes ([_cursorRowStyle] always, [_cursorColumnStyle] only
-  /// when [TableViewModel.showCrosshair] is on) if the cell is on the
-  /// cursor's row/column, then [_cursorCellStyle] (a fill) if this is the
-  /// exact cursor cell — patched last, so it wins outright. Each wash is a
+  /// then the [_hoverRowStyle] wash (weakest, so selection/cursor read over
+  /// it) if the row is hovered, then [_selectedRowStyle] (a fill) if the row is
+  /// selected, then the crosshair washes ([_cursorRowStyle] always,
+  /// [_cursorColumnStyle] only when [TableViewModel.showCrosshair] is on) if the
+  /// cell is on the cursor's row/column, then [_cursorCellStyle] (a fill) if this
+  /// is the exact cursor cell — patched last, so it wins outright. Each wash is a
   /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
   /// a custom [TableColumn.render]) already painted untouched.
   void _renderRow(
@@ -188,6 +191,7 @@ class TableRenderer {
     List<TableColumn> visibleCols,
     bool isCursorRow,
     bool isSelected,
+    bool isHover,
   ) {
     var x = area.x;
     final scrollCol = model.scrollCol;
@@ -215,6 +219,7 @@ class TableRenderer {
       final isCursorCell = isCursorRow && isCursorColumn;
 
       var style = col.style ?? model.styles.row ?? const Style();
+      if (isHover) style = style.patch(_hoverRowStyle());
       if (isSelected) style = style.patch(_selectedRowStyle());
       if (isCursorRow) style = style.patch(_cursorRowStyle());
       if (model.showCrosshair && isCursorColumn) style = style.patch(_cursorColumnStyle());
@@ -258,6 +263,12 @@ class TableRenderer {
 
   /// The empty-state line.
   Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
+
+  /// The hovered row — `hover` × `wash`. A bg-only wash (hover resolves for no
+  /// other paint class), so it tints the row without clobbering its foreground.
+  /// No anatomy slot: hover is a generic state, not a TableView-specific part.
+  Style _hoverRowStyle() =>
+      _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedRowStyle() =>

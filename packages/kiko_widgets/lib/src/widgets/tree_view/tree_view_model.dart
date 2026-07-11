@@ -45,6 +45,14 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   int _visibleCount = 0;
   bool _rootsLoaded = false;
 
+  /// The flattened node row the pointer is hovering, or null when it is over no
+  /// node.
+  ///
+  /// Set from any pointer message the tree receives and cleared when the pointer
+  /// leaves. The view folds it into the hovered row's style as the weakest state,
+  /// so a hovered cursor node still reads cursor.
+  int? hoverRow;
+
   /// Whether the tree is focused.
   @override
   bool focused;
@@ -378,13 +386,17 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and pointer messages. Returns [Handled] or [Declined].
   ///
-  /// A wheel notch scrolls the viewport whether or not the tree is focused, so
-  /// the pointer branch sits above the focus gate. A tree pages children in on
-  /// expand, not on a scroll edge, so a wheel never triggers a load. Every other
-  /// pointer message is declined so the app can offer it to the next widget under
-  /// the pointer.
+  /// The pointer branch sits above the focus gate, so a wheel scrolls, a click
+  /// selects or toggles, and a hover highlights whether or not the tree is
+  /// focused. A wheel notch scrolls the viewport without touching the cursor (a
+  /// tree pages children in on expand, not on a scroll edge, so a wheel never
+  /// triggers a load); a button-down moves the cursor to the node, then toggles
+  /// its expansion if it hit the expand indicator or activates it (as Enter does)
+  /// if it hit the body; any other pointer only refreshes the hovered row. A
+  /// pointer past the last node is declined so the app can offer it to the next
+  /// widget.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -393,11 +405,36 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
         MouseButtonAction.wheelDown => 1,
         _ => 0,
       };
-      if (direction == 0) return const Declined();
-      scrollBy(wheelScrollLines * direction);
+      if (direction != 0) {
+        scrollBy(wheelScrollLines * direction);
+        return const Handled();
+      }
+      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
+
+      final row = localToRow(pointer.local);
+      if (pointer.isDown) {
+        // A click past the last node is not ours; let the app bubble it.
+        if (row == null) return const Declined();
+        hoverRow = row;
+        // Move the cursor to the clicked node, then reuse the keyboard helpers:
+        // a click on the expand indicator toggles, a click on the body activates.
+        _cursor = row;
+        _adjustScrollToCursor();
+        final node = _flatNodes[row];
+        if (!node.isLeaf && _isIndicatorHit(node, pointer.local.x)) {
+          return Handled(_handleToggle());
+        }
+        return Handled(_handleConfirm());
+      }
+      // A move, drag, or the release half of a click only refreshes the hover.
+      hoverRow = row;
       return const Handled();
     }
-    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+    if (msg is PointerLeaveMsg) {
+      hoverRow = null;
+      return const Handled();
+    }
+    if (msg is PointerCancelMsg) return const Declined();
 
     if (!focused) return const Declined();
 
@@ -439,6 +476,15 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   // ─────────────────────────────────────────────
   // Private helpers
   // ─────────────────────────────────────────────
+
+  /// Whether [localX] falls on [node]'s expand/collapse indicator.
+  ///
+  /// The view paints the two-cell `'$char '` indicator at the node's indent, so
+  /// a click in that span toggles expansion while one past it activates the node.
+  bool _isIndicatorHit(TreeNode<T> node, int localX) {
+    final indent = node.depth * indentWidth;
+    return localX >= indent && localX < indent + 2;
+  }
 
   void _rebuildFlatNodes() {
     _flatNodes = [];

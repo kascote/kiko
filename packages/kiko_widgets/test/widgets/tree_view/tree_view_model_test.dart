@@ -9,6 +9,10 @@ KeyMsg keyMsg(String key) => KeyMsg(key);
 /// A routed wheel/button message over the widget, at local (0, 0).
 PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
 
+/// A routed button/move message at a given local cell.
+PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
+    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+
 /// [count] leaf roots, enough to fill more than one viewport.
 List<TreeNode<String>> leaves(int count) =>
     List.generate(count, (i) => TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true));
@@ -69,12 +73,80 @@ void main() {
       expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last node');
     });
 
-    test('a horizontal wheel and other pointers are declined', () {
+    test('a horizontal wheel and a click past the last node are declined', () {
       final model = modelWith(leaves(10), visibleCount: 4);
 
       expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>(), reason: 'no node under the click');
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
+    });
+  });
+
+  group('mouse click + hover', () {
+    // A branch root followed by two leaves; the branch's expand indicator sits
+    // at local columns 0-1 (depth 0), its body from column 2 on.
+    TreeViewModel<String> tree({bool focused = true}) => TreeViewModel<String>(id: 'nav', focused: focused)
+      ..setVisibleCount(10)
+      ..applyRoots(<TreeNode<String>>[
+        TreeNode(path: '/A', label: Line('Alpha')),
+        TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
+        TreeNode(path: '/c', label: Line('Gamma'), isLeaf: true),
+      ]);
+
+    test('a click on a node body moves the cursor there and emits TreeActionCmd', () {
+      final model = tree();
+
+      // Column 4 on row 1 is well past the leaf's two-space indent — the body.
+      final down = model.update(pointerAt(MouseButton.down(), x: 4, y: 1));
+
+      expect(
+        down,
+        isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActionCmd<String>>().having((c) => c.path, 'path', '/b')),
+      );
+      expect(model.cursor, equals(1));
+    });
+
+    test('a click on the expand indicator toggles the node', () {
+      final model = tree();
+
+      // Column 0 on row 0 is the branch's expand arrow.
+      final down = model.update(pointer(MouseButton.down()));
+
+      expect(model.isExpanded('/A'), isTrue, reason: 'the indicator click expanded the node');
+      expect(
+        down,
+        isA<Handled>().having((h) => h.cmd, 'cmd', isA<Batch>()),
+        reason: 'expanding an uncached node emits the expand event plus a load request',
+      );
+
+      // A second indicator click collapses it, emitting a collapse event.
+      final again = model.update(pointer(MouseButton.down()));
+      expect(model.isExpanded('/A'), isFalse);
+      expect(
+        again,
+        isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeCollapseCmd<String>>().having((c) => c.path, 'path', '/A')),
+      );
+    });
+
+    test('a click past the last node is declined', () {
+      expect(tree().update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>());
+    });
+
+    test('a click activates on an unfocused tree', () {
+      final model = tree(focused: false)..update(pointerAt(MouseButton.down(), x: 4, y: 2));
+
+      expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
+    });
+
+    test('a pointer sets the hover row; a leave clears it', () {
+      final model = tree()..update(pointerAt(MouseButton.moved(), y: 2));
+      expect(model.hoverRow, equals(2));
+
+      model.update(pointerAt(MouseButton.moved(), y: 20));
+      expect(model.hoverRow, isNull, reason: 'a move past the last node clears the hover');
+
+      model.update(const PointerLeaveMsg('nav'));
+      expect(model.hoverRow, isNull);
     });
   });
 

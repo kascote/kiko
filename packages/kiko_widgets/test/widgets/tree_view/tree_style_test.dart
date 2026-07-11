@@ -59,6 +59,23 @@ void main() {
       expect(cell.modifier.has(Modifier.bold), isFalse);
     });
 
+    test('a hovered node derives the hover wash', () {
+      // Hover node 1, away from the cursor at node 0, so only the hover wash paints.
+      final model = _tree()..hoverRow = 1;
+      final buffer = _render(model);
+
+      final hoverCell = buffer[(x: 9, y: 1)];
+      expect(hoverCell.bg, equals(Theme.dark.hover.color));
+    });
+
+    test('hover is the weakest state: a hovered cursor node still reads cursor', () {
+      final model = _tree()..hoverRow = 0;
+      final buffer = _render(model);
+
+      final cell = buffer[(x: 9, y: 0)];
+      expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor fill wins over the hover wash');
+    });
+
     test('a node whose children are loading blinks warning over the row', () {
       // Expanding an uncached branch marks it loading; its own row then carries
       // the loading state (warning ink + slow blink) from the state matrix.

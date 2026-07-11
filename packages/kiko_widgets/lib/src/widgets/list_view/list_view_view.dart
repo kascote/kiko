@@ -138,10 +138,15 @@ class _ListViewport<T, K> extends Node {
       if (itemArea.isEmpty) break;
 
       // Honest anatomy, not borrowed states: the base item style, then the
+      // hover wash (weakest, so selection/cursor read over it), then the
       // selection fill, then the cursor fill (so the cursor stays visible over
       // a selected run), then the disabled dim — each layer patches the last.
       var rowStyle = m.styles.item ?? const Style();
       var styled = m.styles.item != null;
+      if (m.hoverRow == i) {
+        rowStyle = rowStyle.patch(_hoverItemStyle());
+        styled = true;
+      }
       if (isChecked) {
         rowStyle = rowStyle.patch(_selectedItemStyle());
         styled = true;
@@ -176,6 +181,12 @@ class _ListViewport<T, K> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
+
+  /// The hovered row — `hover` × `wash`. A bg-only wash (hover resolves for no
+  /// other paint class), so it tints the row without clobbering its foreground.
+  /// No anatomy slot: hover is a generic state, not a ListView-specific part.
+  Style _hoverItemStyle() =>
+      _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedItemStyle() =>

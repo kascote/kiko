@@ -66,6 +66,13 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   int? _selectionAnchor;
   int _visibleCount = 0;
 
+  /// The item row the pointer is hovering, or null when it is over no row.
+  ///
+  /// Set from any pointer message the list receives and cleared when the pointer
+  /// leaves. The view folds it into the hovered row's style as the weakest state,
+  /// so a hovered selected or cursor row still reads selected or cursor.
+  int? hoverRow;
+
   final _loads = LoadTracker<ListLoadKey>();
 
   /// Whether the list is focused.
@@ -250,12 +257,15 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and pointer messages. Returns [Handled] or [Declined].
   ///
-  /// A wheel notch scrolls the viewport whether or not the list is focused, so
-  /// the pointer branch sits above the focus gate. Every other pointer message is
-  /// declined for now, so the app can offer it to the next widget under the
-  /// pointer; the keyboard path stays behind the gate.
+  /// The pointer branch sits above the focus gate, so a wheel scrolls, a click
+  /// selects, and a hover highlights whether or not the list is focused. A
+  /// wheel notch scrolls the viewport without touching the cursor; a button-down
+  /// on an item moves the cursor there and activates it, exactly as Enter does;
+  /// any other pointer only refreshes the hovered row. A pointer that lands on no
+  /// item is declined so the app can offer it to the next widget. The keyboard
+  /// path stays behind the gate.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -264,11 +274,32 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
         MouseButtonAction.wheelDown => 1,
         _ => 0,
       };
-      if (direction == 0) return const Declined();
-      scrollBy(wheelScrollLines * direction);
-      return Handled(_checkLoadThreshold());
+      if (direction != 0) {
+        scrollBy(wheelScrollLines * direction);
+        return Handled(_checkLoadThreshold());
+      }
+      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
+
+      final row = localToRow(pointer.local);
+      if (pointer.isDown) {
+        // A click below the last item is not ours; let the app bubble it.
+        if (row == null) return const Declined();
+        hoverRow = row;
+        // A click is the keyboard's cursor-move + confirm collapsed into one
+        // event: move to the row, then emit the same command Enter emits.
+        _cursor = row;
+        _adjustScrollToCursor();
+        return Handled(ListActionCmd(id));
+      }
+      // A move, drag, or the release half of a click only refreshes the hover.
+      hoverRow = row;
+      return const Handled();
     }
-    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+    if (msg is PointerLeaveMsg) {
+      hoverRow = null;
+      return const Handled();
+    }
+    if (msg is PointerCancelMsg) return const Declined();
 
     if (!focused) return const Declined();
 

@@ -9,6 +9,10 @@ KeyMsg keyMsg(String key) => KeyMsg(key);
 /// A routed wheel/button message over the widget, at local (0, 0).
 PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
 
+/// A routed button/move message at a given local cell.
+PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
+    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+
 void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused list without moving the cursor', () {
@@ -47,14 +51,14 @@ void main() {
       expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last item');
     });
 
-    test('a horizontal wheel and other pointers are declined', () {
+    test('a horizontal wheel and a click past the last item are declined', () {
       final model = ListViewModel<String, String>(
         dataView: DataView.fromList(['a', 'b', 'c']),
         focused: true,
       )..setVisibleCount(2);
 
       expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.update(pointerAt(MouseButton.down(), y: 9)), isA<Declined>(), reason: 'no item under the click');
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
     });
 
@@ -68,6 +72,51 @@ void main() {
 
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
       expect(model.isLoading(), isTrue, reason: 'wheel alone crossed the load threshold');
+    });
+  });
+
+  group('mouse click + hover', () {
+    ListViewModel<String, String> menu({bool focused = true}) => ListViewModel<String, String>(
+      id: 'menu',
+      dataView: DataView.fromList(List.generate(6, (i) => 'item$i')),
+      focused: focused,
+    )..setVisibleCount(6);
+
+    test('a click on row N moves the cursor there and emits ListActionCmd', () {
+      final model = menu();
+
+      final down = model.update(pointerAt(MouseButton.down(), y: 3));
+
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActionCmd('menu')));
+      expect(model.cursor, equals(3));
+
+      // The release half only refreshes hover — it does not fire a second time.
+      final up = model.update(pointerAt(MouseButton.up(), y: 3));
+      expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+    });
+
+    test('a click below the last item is declined', () {
+      expect(menu().update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>());
+    });
+
+    test('a click selects on an unfocused list', () {
+      final model = menu(focused: false)..update(pointerAt(MouseButton.down(), y: 2));
+
+      expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
+    });
+
+    test('a pointer sets the hover row; a leave clears it', () {
+      final model = menu()..update(pointerAt(MouseButton.moved(), y: 4));
+      expect(model.hoverRow, equals(4));
+
+      model.update(pointerAt(MouseButton.moved(), y: 20));
+      expect(model.hoverRow, isNull, reason: 'a move over no row clears the hover');
+
+      model.update(pointerAt(MouseButton.moved(), y: 1));
+      expect(model.hoverRow, equals(1));
+
+      model.update(const PointerLeaveMsg('menu'));
+      expect(model.hoverRow, isNull, reason: 'a leave clears the hover');
     });
   });
 

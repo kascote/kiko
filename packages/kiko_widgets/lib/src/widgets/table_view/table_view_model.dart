@@ -106,6 +106,14 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   int _visibleRows = 0;
   int _visibleCols = 0;
 
+  /// The data row the pointer is hovering, or null when it is over the header or
+  /// no row.
+  ///
+  /// Set from any pointer message the table receives and cleared when the pointer
+  /// leaves. The renderer folds it into the hovered row's style as the weakest
+  /// state, so a hovered selected or cursor row still reads selected or cursor.
+  int? hoverRow;
+
   final _loads = LoadTracker<TableLoadKey>();
   final _pendingPage = <TableLoadKey, int>{};
   bool _hasMore = false;
@@ -412,13 +420,16 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard and wheel messages. Returns [Handled] or [Declined].
+  /// Handles keyboard and pointer messages. Returns [Handled] or [Declined].
   ///
-  /// A wheel notch scrolls the viewport whether or not the table is focused, so
-  /// the pointer branch sits above the focus gate; scrolling to a near edge pages
-  /// the next batch in exactly as cursor navigation does. Every other pointer
-  /// message is declined so the app can offer it to the next widget under the
-  /// pointer. The keyboard path stays behind the gate.
+  /// The pointer branch sits above the focus gate, so a wheel scrolls, a click
+  /// selects, and a hover highlights whether or not the table is focused. A wheel
+  /// notch scrolls the viewport without touching the cursor, and scrolling to a
+  /// near edge pages the next batch in exactly as cursor navigation does; a
+  /// button-down on a data row moves the cursor there and activates it, exactly
+  /// as Enter does; any other pointer only refreshes the hovered row. A pointer
+  /// on the header or off the loaded rows is declined so the app can offer it to
+  /// the next widget. The keyboard path stays behind the gate.
   ///
   /// Navigation is never frozen by a load: a fetch in flight only stops the same
   /// direction from being requested again, so the cursor keeps moving and a
@@ -431,11 +442,32 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
         MouseButtonAction.wheelDown => 1,
         _ => 0,
       };
-      if (direction == 0) return const Declined();
-      scrollBy(wheelScrollLines * direction);
-      return Handled(_checkLoadThreshold());
+      if (direction != 0) {
+        scrollBy(wheelScrollLines * direction);
+        return Handled(_checkLoadThreshold());
+      }
+      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
+
+      final row = localToRow(pointer.local);
+      if (pointer.isDown) {
+        // A click on the header or past the loaded rows is not ours; bubble it.
+        if (row == null) return const Declined();
+        hoverRow = row;
+        // A click is the keyboard's cursor-move + confirm collapsed into one
+        // event: move to the row, then emit the same command Enter emits.
+        _cursorRow = row;
+        _adjustScrollToCursor();
+        return Handled(TableActionCmd(id, 'primary'));
+      }
+      // A move, drag, or the release half of a click only refreshes the hover.
+      hoverRow = row;
+      return const Handled();
     }
-    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Declined();
+    if (msg is PointerLeaveMsg) {
+      hoverRow = null;
+      return const Handled();
+    }
+    if (msg is PointerCancelMsg) return const Declined();
 
     if (!focused) return const Declined();
 

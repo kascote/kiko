@@ -128,10 +128,15 @@ class _TreeViewport<T> extends Node {
       if (rowArea.isEmpty) break;
 
       // Honest anatomy, not borrowed states: the base item style, then the
-      // cursor fill, then the loading state (warning ink + blink) for a node
-      // whose children are being fetched — each layer patches the last.
+      // hover wash (weakest, so the cursor reads over it), then the cursor fill,
+      // then the loading state (warning ink + blink) for a node whose children
+      // are being fetched — each layer patches the last.
       var rowStyle = m.styles.item ?? const Style();
       var styled = m.styles.item != null;
+      if (m.hoverRow == i) {
+        rowStyle = rowStyle.patch(_hoverItemStyle());
+        styled = true;
+      }
       if (isCursor) {
         rowStyle = rowStyle.patch(_cursorItemStyle());
         styled = true;
@@ -179,6 +184,12 @@ class _TreeViewport<T> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
+
+  /// The hovered node — `hover` × `wash`. A bg-only wash (hover resolves for no
+  /// other paint class), so it tints the row without clobbering its foreground.
+  /// No anatomy slot: hover is a generic state, not a TreeView-specific part.
+  Style _hoverItemStyle() =>
+      _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides);
 
   /// The current node — `cursor` × `fill`.
   Style _cursorItemStyle() =>

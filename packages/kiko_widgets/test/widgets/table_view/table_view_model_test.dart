@@ -9,6 +9,10 @@ KeyMsg keyMsg(String key) => KeyMsg(key);
 /// A routed wheel/button message over the widget, at local (0, 0).
 PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
 
+/// A routed button/move message at a given local cell.
+PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
+    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+
 /// Sample rows for testing.
 List<Map<String, Object?>> sampleRows([int count = 5]) => List.generate(
   count,
@@ -124,6 +128,60 @@ void main() {
 
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
       expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'wheel alone crossed the load threshold');
+    });
+  });
+
+  group('mouse click + hover', () {
+    TableViewModel table({bool focused = true}) =>
+        TableViewModel(
+            id: 'grid',
+            dataSource: TableDataSource.fromList(sampleRows(10)),
+            keyField: 'id',
+            columns: sampleColumns(),
+            focused: focused,
+          )
+          ..setVisibleDimensions(6, 3)
+          ..insertRows(sampleRows(10), 0);
+
+    test('a click on a data row moves the cursor there and emits TableActionCmd', () {
+      final model = table();
+
+      // local.y 3 is data row 2 — the sticky header occupies local.y 0.
+      final down = model.update(pointerAt(MouseButton.down(), y: 3));
+
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActionCmd('grid', 'primary')));
+      expect(model.cursorRow, equals(2));
+    });
+
+    test('the click accounts for the sticky header', () {
+      // A click at local.y 2 selects data row 1, not row 2: the header at
+      // local.y 0 shifts every data row down by one.
+      final model = table()..update(pointerAt(MouseButton.down(), y: 2));
+      expect(model.cursorRow, equals(1));
+
+      // A click on the header row itself (local.y 0) hits no data row.
+      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+    });
+
+    test('a click past the loaded rows is declined', () {
+      expect(table().update(pointerAt(MouseButton.down(), y: 40)), isA<Declined>());
+    });
+
+    test('a click selects on an unfocused table', () {
+      final model = table(focused: false)..update(pointerAt(MouseButton.down(), y: 2));
+
+      expect(model.cursorRow, equals(1), reason: 'selection changes without a prior focus');
+    });
+
+    test('a pointer sets the hover row; a leave clears it', () {
+      final model = table()..update(pointerAt(MouseButton.moved(), y: 3));
+      expect(model.hoverRow, equals(2), reason: 'the hover row is header-adjusted');
+
+      model.update(pointer(MouseButton.moved()));
+      expect(model.hoverRow, isNull, reason: 'a move over the header clears the hover');
+
+      model.update(const PointerLeaveMsg('grid'));
+      expect(model.hoverRow, isNull);
     });
   });
 

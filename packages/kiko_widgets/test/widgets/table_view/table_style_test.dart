@@ -85,6 +85,27 @@ void main() {
         expect(cell.bg, equals(Color.reset));
       });
 
+      test('hover row wash preserves a custom render fg', () {
+        // Hover data row 2 (screen y=3), away from the cursor at row 0.
+        final model = _model()..hoverRow = 2;
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 0, y: 3)];
+        expect(cell.fg, equals(Color.red), reason: 'custom fg must survive the hover wash');
+        expect(cell.bg, equals(Theme.dark.hover.color));
+      });
+
+      test('hover is the weakest state: the cursor row wash wins over it', () {
+        // Row 0 is both hovered and the cursor; on a non-cursor column its wash
+        // is the cursor tone, not the hover tone.
+        final model = _model()..hoverRow = 0;
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        // Column "b" (x=6) on the cursor row (y=1): cursor row wash, not hover.
+        final cell = buffer[(x: 6, y: 1)];
+        expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor wash wins over the hover wash');
+      });
+
       test('crosshair column wash also preserves fg', () {
         final model = _model(showCrosshair: true)
           ..update(const KeyMsg('down')) // cursorRow = 1

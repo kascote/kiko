@@ -19,6 +19,7 @@ export 'src/render/layout_context.dart';
 export 'src/render/render_frame.dart';
 export 'src/render/render_node.dart';
 export 'src/render/single_child_node.dart';
+export 'src/render/viewport.dart';
 export 'src/widgets/align.dart';
 export 'src/widgets/alignment.dart';
 export 'src/widgets/border_box.dart';

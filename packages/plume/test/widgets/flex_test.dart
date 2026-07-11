@@ -165,9 +165,22 @@ void main() {
       expect(() => Flexible<String>(flex: -1, child: _box(1, 1)), throwsA(isA<AssertionError>()));
     });
 
-    test('asserts a flexible child under an unbounded main axis', () {
+    test('throws (not just asserts) a flexible child under an unbounded main axis', () {
+      // An always-on throw, not an assert: it must fire the same way whether
+      // or not asserts are enabled, so this checks the type is StateError
+      // (never AssertionError) and that the message names the axis and both
+      // remedies.
       final row = Row<String>(children: [Expanded<String>(child: _box(0, 1))]);
-      expect(() => row.layout(const BoxConstraints(maxH: 5), _ctx), throwsA(isA<AssertionError>()));
+      expect(
+        () => row.layout(const BoxConstraints(maxH: 5), _ctx),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('unbounded'), contains('bounded main-axis constraint'), contains('inflexible')),
+          ),
+        ),
+      );
     });
 
     test('an unbounded main axis is fine when no child is flexible', () {

@@ -107,6 +107,10 @@ class Expanded<T> extends Flexible<T> {
 /// [mainAxisAlignment] distributes any remaining space, [crossAxisAlignment]
 /// positions or stretches children on the cross axis, and [mainAxisSize]
 /// decides whether the line fills the main axis or shrink-wraps its children.
+///
+/// A [Flexible] child under an unbounded main axis (for example, inside a
+/// scroll viewport) throws a [StateError] — there is no bounded space for it
+/// to take a share of.
 class Flex<T> extends RenderNode<T> {
   /// Creates a flex line along [direction].
   Flex({
@@ -189,14 +193,21 @@ class Flex<T> extends RenderNode<T> {
 
     // A flexible child divides the leftover main-axis space, but an unbounded
     // main axis has no leftover to divide — the child would silently collapse
-    // to zero. That is almost always an author mistake, so fail loudly.
-    assert(
-      maxMain != null || totalFlex == 0,
-      'A flexible child cannot be laid out along an unbounded $direction main '
-      'axis: it has no bounded space to take a share of and would collapse to '
-      'zero. Give the flex a bounded main-axis constraint, or make the child '
-      'inflexible.',
-    );
+    // to zero. That is almost always an author mistake, so this fails loudly
+    // and unconditionally: asserts are compiled out under `dart run` and in
+    // AOT binaries, exactly the modes a real TUI app runs in, and the
+    // release-mode fallback below (`free = 0`) is the worst failure mode —
+    // invisible content with no error.
+    if (maxMain == null && totalFlex > 0) {
+      throw StateError(
+        'A flexible child cannot be laid out along an unbounded $direction '
+        'main axis: it has no bounded space to take a share of and would '
+        'silently collapse to zero cells. This commonly happens when a '
+        'Flexible or Expanded child sits inside an unbounded container, such '
+        'as a scroll viewport. Give the flex a bounded main-axis constraint, '
+        'or make the child inflexible.',
+      );
+    }
 
     // Pass 2: share the leftover main-axis space among flexible children.
     final free = (maxMain == null || maxMain - allocatedMain < 0) ? 0 : maxMain - allocatedMain;

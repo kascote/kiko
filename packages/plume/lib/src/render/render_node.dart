@@ -39,6 +39,18 @@ abstract class RenderNode<T> {
   /// node that carries it.
   Object? tag;
 
+  /// Whether this node's [rect] clips its descendants' hit *presence*.
+  ///
+  /// Plume itself does not consume this — [hitTest] and [tagAt] already prune
+  /// independently at each node's own [rect] regardless of this flag. It is a
+  /// capability a host layer reads instead: a widget host that also tracks
+  /// whether an id is reachable at all (not merely what a point resolves to)
+  /// can use it to treat a descendant scrolled outside a clipping ancestor as
+  /// absent. `false` for every node by default, so nothing changes for an
+  /// existing tree; a clipping container such as a scrolling viewport
+  /// overrides it `true`.
+  bool get clipsHits => false;
+
   /// The child nodes, in paint order (front-most last). Empty for leaves.
   @protected
   List<RenderNode<T>> get children => <RenderNode<T>>[];
@@ -89,7 +101,9 @@ abstract class RenderNode<T> {
   /// This node's [rect] is pushed as the active clip before painting and popped
   /// after, so a node — or any descendant — only affects cells inside the box
   /// layout assigned it (intersected with every ancestor's rect). Clipping is a
-  /// paint-only guarantee: [hitTest] is deliberately not clipped.
+  /// paint-only guarantee: it constrains where a node may draw, not whether
+  /// [hitTest] or [tagAt] can reach it — those prune independently at each
+  /// node's own [rect] (see [hitTest]).
   void paint(Surface<T> surface) {
     surface.pushClip(rect);
     paintSelf(surface);
@@ -108,9 +122,11 @@ abstract class RenderNode<T> {
   /// Returns the top-most node whose [rect] contains [point], searching
   /// children front-to-back. Returns `null` when [point] is outside this node.
   ///
-  /// Hit testing is not clipped: a child whose rect spills past this node's is
-  /// still hit where it was placed. Clipping is a paint-only guarantee (see
-  /// [paint]).
+  /// There is no accumulated clip stack here: each node visited gates its own
+  /// descent at its own [rect], so a point outside an ancestor's rect never
+  /// reaches that ancestor's children, no matter where a descendant is placed
+  /// relative to it. This is independent of paint clipping (see [paint]),
+  /// which only constrains where a node may draw.
   RenderNode<T>? hitTest(Offset point) {
     if (!_rect.contains(point)) {
       return null;
@@ -134,8 +150,8 @@ abstract class RenderNode<T> {
   /// node physically under a point is usually an untagged leaf, so
   /// `hitTest(point)?.tag` would miss the enclosing widget this finds.
   ///
-  /// Not clipped, matching [hitTest]: a child placed past this node's rect is
-  /// still found where it sits.
+  /// Prunes the same way as [hitTest]: each node visited gates its own descent
+  /// at its own [rect], independent of paint clipping.
   Object? tagAt(Offset point) {
     if (!_rect.contains(point)) {
       return null;

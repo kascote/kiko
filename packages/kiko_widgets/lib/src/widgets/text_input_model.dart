@@ -157,9 +157,33 @@ class TextInputModel implements Focusable {
 
   /// Updates the model based on the message.
   ///
-  /// Returns [Declined] for keys it doesn't handle (e.g., Tab) and when not
-  /// focused. Returns [Handled] for handled keys and non-key messages.
+  /// The pointer branch sits above the focus gate, so a click places the caret
+  /// whether or not the input is focused (the app focuses it). A button-down
+  /// maps the clicked column to a grapheme and moves the caret there; a wheel is
+  /// declined so a scrollable ancestor gets it, and any other pointer traffic is
+  /// declined too. The keyboard path stays behind the gate.
+  ///
+  /// Returns [Declined] for keys it doesn't handle (e.g., Tab), for pointers it
+  /// doesn't consume, and when not focused. Returns [Handled] for handled keys,
+  /// a click that moves the caret, and other non-key messages.
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      // Nothing to scroll vertically — decline so a scrollable ancestor gets
+      // the wheel.
+      if (pointer.isWheel) return const Declined();
+      if (pointer.isDown) {
+        // local.x is a display column; add the horizontal scroll to reach the
+        // absolute text column, then map it to a grapheme. A caret move is
+        // internal state, so the click is consumed with no widget→app command.
+        _cursor = _columnToIndex(pointer.local.x + _scrollOffset);
+        return const Handled();
+      }
+      // A move, drag, or release half of a click is not ours.
+      return const Declined();
+    }
+    if (msg is PointerLeaveMsg) return const Declined(); // no hover to clear
+    if (msg is PointerCancelMsg) return const Declined();
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
@@ -294,6 +318,25 @@ class TextInputModel implements Focusable {
       i++;
     }
     return width;
+  }
+
+  /// Maps a display column to a grapheme index — the inverse of [_widthUpTo].
+  ///
+  /// Walks the rendered graphemes (obscure characters when [obscureText] is set)
+  /// summing cell width; the caret lands on the grapheme whose cell span
+  /// contains [column], so a click on either cell of a 2-wide grapheme resolves
+  /// to that grapheme. A column past the last grapheme lands at [length].
+  int _columnToIndex(int column) {
+    if (column <= 0) return 0;
+    final displayText = obscureText ? Characters(obscureChar * length) : _text;
+    var width = 0;
+    var i = 0;
+    for (final g in displayText) {
+      width += widthChars(Characters(g));
+      if (column < width) return i;
+      i++;
+    }
+    return length;
   }
 }
 

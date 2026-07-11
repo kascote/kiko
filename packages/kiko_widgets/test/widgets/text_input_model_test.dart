@@ -1,6 +1,7 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg for a character.
@@ -8,6 +9,10 @@ KeyMsg charMsg(String c) => KeyMsg(c);
 
 /// Helper to create a KeyMsg for backspace.
 KeyMsg backspaceMsg() => const KeyMsg('backSpace');
+
+/// A routed pointer message at a given local cell.
+PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
+    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
 
 void main() {
   group('TextInputModel', () {
@@ -340,6 +345,71 @@ void main() {
       // Unknown Ctrl combo should not modify text
       expect(model.value, equals('hello'));
       expect(model.cursor, equals(5));
+    });
+  });
+
+  group('mouse click → caret', () {
+    test('a click places the caret at the grapheme covering the column', () {
+      final model = TextInputModel(initial: 'hello', focused: true);
+
+      expect(model.update(pointerAt(MouseButton.down())), isA<Handled>());
+      expect(model.cursor, equals(0));
+
+      model.update(pointerAt(MouseButton.down(), x: 3));
+      expect(model.cursor, equals(3));
+    });
+
+    test('a click consumes without emitting a command', () {
+      final model = TextInputModel(initial: 'hello', focused: true);
+      final result = model.update(pointerAt(MouseButton.down(), x: 2));
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+    });
+
+    test('a click on the right cell of a 2-wide grapheme resolves to it', () {
+      // Columns: a=0, あ=1-2, b=3.
+      final model = TextInputModel(initial: 'aあb', focused: true)..update(pointerAt(MouseButton.down(), x: 1));
+      expect(model.cursor, equals(1), reason: 'left cell of あ');
+
+      model.update(pointerAt(MouseButton.down(), x: 2));
+      expect(model.cursor, equals(1), reason: 'right cell still lands on あ, not b');
+
+      model.update(pointerAt(MouseButton.down(), x: 3));
+      expect(model.cursor, equals(2), reason: 'b');
+    });
+
+    test('a click past the end lands at the text length', () {
+      final model = TextInputModel(initial: 'abc', focused: true)..update(pointerAt(MouseButton.down(), x: 20));
+      expect(model.cursor, equals(3));
+    });
+
+    test('a click maps through a non-zero horizontal scroll offset', () {
+      final model = TextInputModel(initial: '0123456789', focused: true)
+        // Window the view: cursor at end, only 5 cells wide → scrolled by 6.
+        ..adjustScroll(5)
+        ..update(pointerAt(MouseButton.down()));
+      expect(model.cursor, equals(6), reason: 'local column 0 is absolute column 6');
+    });
+
+    test('a click on an unfocused input still places the caret', () {
+      final model = TextInputModel(initial: 'hello');
+      final result = model.update(pointerAt(MouseButton.down(), x: 2));
+      expect(result, isA<Handled>());
+      expect(model.cursor, equals(2));
+    });
+
+    test('a wheel is declined so a scrollable ancestor gets it', () {
+      final model = TextInputModel(initial: 'hello', focused: true);
+      expect(model.update(pointerAt(MouseButton.wheelDown())), isA<Declined>());
+      expect(model.update(pointerAt(MouseButton.wheelUp())), isA<Declined>());
+      expect(model.cursor, equals(5), reason: 'the wheel never touches the caret');
+    });
+
+    test('non-consuming pointer traffic is declined', () {
+      final model = TextInputModel(initial: 'hello', focused: true);
+      expect(model.update(pointerAt(MouseButton.moved(), x: 2)), isA<Declined>());
+      expect(model.update(pointerAt(MouseButton.up(), x: 2)), isA<Declined>());
+      expect(model.update(const PointerLeaveMsg('x')), isA<Declined>());
+      expect(model.update(const PointerCancelMsg('x')), isA<Declined>());
     });
   });
 }

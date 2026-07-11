@@ -1,6 +1,7 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
+import 'package:termunicode/termunicode.dart';
 
 import 'selection.dart';
 import 'textarea.dart';
@@ -159,9 +160,30 @@ class TextAreaModel implements Focusable {
 
   /// Updates model based on message.
   ///
-  /// Returns [Declined] for keys it doesn't handle and when not focused.
-  /// Returns [Handled] for handled keys and non-key messages.
+  /// The pointer branch sits above the focus gate, so a click places the caret
+  /// whether or not the area is focused (the app focuses it). A button-down maps
+  /// the clicked cell to a buffer position and moves the caret there; a wheel is
+  /// declined so a scrollable ancestor gets it, and any other pointer traffic is
+  /// declined too. The keyboard path stays behind the gate.
+  ///
+  /// Returns [Declined] for keys it doesn't handle, for pointers it doesn't
+  /// consume, and when not focused. Returns [Handled] for handled keys, a click
+  /// that moves the caret, and other non-key messages.
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      // Nothing to scroll vertically — decline so a scrollable ancestor gets
+      // the wheel.
+      if (pointer.isWheel) return const Declined();
+      if (pointer.isDown) {
+        caretAt(pointer.local);
+        return const Handled();
+      }
+      // A move, drag, or release half of a click is not ours.
+      return const Declined();
+    }
+    if (msg is PointerLeaveMsg) return const Declined(); // no hover to clear
+    if (msg is PointerCancelMsg) return const Declined();
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {
@@ -172,6 +194,61 @@ class TextAreaModel implements Focusable {
       return const Handled();
     }
     return const Handled(); // ignore other messages
+  }
+
+  /// Places the caret at the buffer cell under [local].
+  ///
+  /// [local] is a view cell counted from the editor's top-left, the line-number
+  /// gutter included. The row is resolved through the wrapped-line layout — one
+  /// buffer line can occupy several visual rows — and the vertical scroll; the
+  /// column is walked with cell widths, so a click on either cell of a 2-wide
+  /// grapheme lands on that grapheme. A click below the last line lands at the
+  /// document end; a click left of the text (in the gutter) lands at the line
+  /// start.
+  void caretAt(Position local) {
+    final ta = textArea;
+    final gutter = showLineNumbers ? _gutterWidth(ta.lineCount) : 0;
+    final targetRow = _scrollOffset + (local.y < 0 ? 0 : local.y);
+    final targetColumn = local.x - gutter;
+
+    var visualRow = 0;
+    for (var bufferRow = 0; bufferRow < ta.lineCount; bufferRow++) {
+      final wrapped = ta.wrappedLines(bufferRow, bufferRow + 1).first;
+      // Grapheme index in the buffer line where this wrapped segment starts.
+      var startColumn = 0;
+      for (final segment in wrapped) {
+        if (visualRow == targetRow) {
+          ta
+            ..row = bufferRow
+            ..column = startColumn + _columnToIndex(segment, targetColumn);
+          return;
+        }
+        startColumn += segment.length;
+        visualRow++;
+      }
+    }
+    // Below the last visual row → caret at the document end.
+    ta.setCursorEndBuffer();
+  }
+
+  /// Width of the line-number gutter, mirroring the renderer's own sizing.
+  int _gutterWidth(int lineCount) => lineCount.toString().length + 1;
+
+  /// Maps a display column to a grapheme index within [text].
+  ///
+  /// The caret lands on the grapheme whose cell span contains [column], so a
+  /// click on either cell of a 2-wide grapheme resolves to that grapheme. A
+  /// column past the last grapheme lands at its end.
+  int _columnToIndex(Characters text, int column) {
+    if (column <= 0) return 0;
+    var width = 0;
+    var i = 0;
+    for (final g in text) {
+      width += widthChars(Characters(g));
+      if (column < width) return i;
+      i++;
+    }
+    return text.length;
   }
 
   UpdateResult _handleKey(KeyMsg msg) {

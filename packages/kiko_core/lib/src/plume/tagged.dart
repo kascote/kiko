@@ -39,5 +39,14 @@ final class Tagged implements View {
   final View child;
 
   @override
-  Node build() => child.build()..tag = id;
+  Node build() {
+    final node = child.build();
+    assert(
+      node.tag == null,
+      'Tagged("$id", ...) would overwrite the tag "${node.tag}" its child '
+      'already carries. Built-in widgets tag themselves with their model id — '
+      'wrap a container around one instead, or address it by its own id.',
+    );
+    return node..tag = id;
+  }
 }

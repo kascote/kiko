@@ -10,6 +10,17 @@ Frame _frame(int width, int height) {
 /// A bordered box holding [label].
 View _box(String label) => Box(border: BorderType.plain, child: Line(label));
 
+/// A widget that tags its own root node, like a self-tagging built-in widget
+/// (e.g. `TextInputView`'s `..tag = model.id`).
+final class _SelfTagging implements View {
+  const _SelfTagging(this.id);
+
+  final String id;
+
+  @override
+  Node build() => _box('').build()..tag = id;
+}
+
 void main() {
   group('Tagged', () {
     test('makes its child addressable after render', () {
@@ -87,6 +98,21 @@ void main() {
         );
 
       expect(() => frame.hits, throwsA(isA<AssertionError>()));
+    });
+
+    test('asserts against wrapping a child that already tags itself', () {
+      final frame = _frame(4, 3);
+
+      expect(
+        () => frame.render(const Tagged('outer', _SelfTagging('inner'))),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('still works when wrapped around an untagged child', () {
+      final frame = _frame(4, 3)..render(Tagged('t', _box('')));
+
+      expect(frame.hits.hitId(0, 0), 't');
     });
   });
 }

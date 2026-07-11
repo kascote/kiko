@@ -74,13 +74,10 @@ void main() {
       List.filled(4, MouseEvent(2, 3, MouseButton.wheelDown())),
       list.update,
       (step, frame) => frame.render(
-        Tagged(
-          'list',
-          ListView<String, String>(
-            model: list,
-            theme: Theme.dark,
-            itemBuilder: (item, index, state) => [Line(item)],
-          ),
+        ListView<String, String>(
+          model: list,
+          theme: Theme.dark,
+          itemBuilder: (item, index, state) => [Line(item)],
         ),
       ),
     );
@@ -108,9 +105,7 @@ void main() {
       backend,
       List.filled(6, MouseEvent(3, 3, MouseButton.wheelDown())),
       table.update,
-      (step, frame) => frame.render(
-        Tagged('table', TableView(model: table, theme: Theme.dark)),
-      ),
+      (step, frame) => frame.render(TableView(model: table, theme: Theme.dark)),
     );
 
     expect(requests, isNotEmpty, reason: 'wheel alone should page the next batch in');

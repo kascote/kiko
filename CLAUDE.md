@@ -131,9 +131,9 @@ solver. See `packages/plume/README.md` for the model and API.
 <!-- mikos:start -->
 ## Task tracking — mikos
 
-This project tracks specs, plans, notes, and tasks in **mikos**. Start a session with
-`mikos context` to orient (`mikos context --json` for the machine view), and
-`mikos next` for the next actionable task.
+This project tracks specs, plans, notes, and tasks in **mikos**. Start with
+`mikos agent --json` to discover the machine interface, then run
+`mikos context --json` to orient and `mikos next --json` for actionable work.
 
 A mikos **task** is a durable, tracked work item (it has a status and lineage) — not
 your ephemeral session to-do list. When the user says "the task," they mean a mikos

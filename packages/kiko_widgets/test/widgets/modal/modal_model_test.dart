@@ -52,4 +52,15 @@ void main() {
       );
     });
   });
+
+  group('ModalModel.dismiss', () {
+    test('a click outside dismisses via the same cancel command as Escape', () {
+      final modal = ModalModel(id: 'm');
+      // The app detects the outside click (an app-side hitPath decision) and
+      // fires this — the same event, same id, that Escape emits.
+      final escapeCmd = (modal.update(const KeyMsg('escape')) as Handled).cmd;
+      expect(modal.dismiss(), equals(const ModalCancelCmd('m')));
+      expect(modal.dismiss(), equals(escapeCmd));
+    });
+  });
 }

@@ -33,6 +33,19 @@ class ButtonModel implements Focusable {
   /// Whether the button is in loading state.
   bool loading;
 
+  /// Whether a pointer is currently pressing the button.
+  ///
+  /// Set on a `down`, cleared on the `up`, on a [PointerCancelMsg], or on a
+  /// release that slid off. Drives the pressed face in `button_view`; it is
+  /// deliberately not a [WidgetState] (the enum has no `pressed`).
+  bool pressed = false;
+
+  /// Whether the pointer is over the button.
+  ///
+  /// Set from any pointer the button receives while not pressed, cleared on
+  /// [PointerLeaveMsg]; `button_view` folds it into [WidgetState.hover].
+  bool hovered = false;
+
   /// Default loading text.
   static final _defaultLoadingText = Line('⏳');
 
@@ -63,9 +76,52 @@ class ButtonModel implements Focusable {
 
   /// Updates the model based on the message.
   ///
-  /// Returns [Handled] with a [ButtonPressCmd] when activated, and [Declined]
-  /// for keys it does not handle.
+  /// The pointer branch sits above the focus gate, so a click presses and
+  /// activates whether or not the button is focused (the app focuses it on the
+  /// down). A `down` arms the press; an `up` fires [ButtonPressCmd] only when it
+  /// lands [PointerMsg.inside] — a press slid off and released does nothing — and
+  /// a [PointerCancelMsg] ends the gesture without firing. Hover tracks any
+  /// pointer over the button and clears on [PointerLeaveMsg]. Capture (spec 0141)
+  /// returns the `up`/`cancel` to this button even after the cursor leaves, and
+  /// [PointerMsg.targetRect] answers `inside` against its current cells, so the
+  /// model stores no grab state. The keyboard path stays behind the gate.
+  ///
+  /// Returns [Handled] with a [ButtonPressCmd] on a release inside; [Handled]
+  /// with no command for a press, a slid-off release, a cancel, hover traffic
+  /// and non-key messages; [Declined] for the wheel (nothing to scroll) and for
+  /// keys it does not handle or when not focused.
   UpdateResult update(Msg msg) {
+    if (msg case final PointerMsg pointer) {
+      // Nothing to scroll — decline the wheel so a scrollable ancestor gets it.
+      if (pointer.isWheel) return const Declined();
+      // A disabled or loading button consumes the gesture but never presses,
+      // activates, or hovers — the keyboard's silent ignore, for the mouse.
+      if (disabled || loading) return const Handled();
+      if (pointer.isDown) {
+        pressed = true;
+        return const Handled();
+      }
+      if (pointer.isUp) {
+        pressed = false;
+        // Fire only when the release lands inside: capture returns the up here
+        // even once the cursor has left, so a press slid off does not activate.
+        return pointer.inside ? Handled(ButtonPressCmd(id)) : const Handled();
+      }
+      // A move or drag over the button only refreshes the hover.
+      hovered = true;
+      return const Handled();
+    }
+    if (msg is PointerLeaveMsg) {
+      hovered = false;
+      return const Handled();
+    }
+    if (msg is PointerCancelMsg) {
+      // The gesture was torn off (off-window, unmounted, focus lost): end it
+      // without committing — a captured press never becomes an activation.
+      pressed = false;
+      return const Handled();
+    }
+
     if (!focused) return const Declined();
 
     if (msg case KeyMsg()) {

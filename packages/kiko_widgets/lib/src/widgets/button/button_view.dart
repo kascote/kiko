@@ -8,8 +8,9 @@ import 'button_model.dart';
 /// the label sits inside a symmetric horizontal [ButtonModel.padding], and the
 /// built subtree is stamped with the model's id so a click resolves back to it
 /// through [HitMap.hitId]. Styles come from the [theme] and the model's state
-/// (focused / disabled / loading) through the built-in matrix over a primary
-/// resting face; [styleOverrides] fully replaces the style for a given state.
+/// (hover / focused / disabled / loading) through the built-in matrix over a
+/// primary resting face, with a local inverted face while [ButtonModel.pressed];
+/// [styleOverrides] fully replaces the style for a given state.
 ///
 /// The content area is pinned to the label's width so the button keeps its size
 /// while loading, when the [ButtonModel.loadingText] indicator sits in that same
@@ -55,12 +56,18 @@ final class Button implements View {
 /// action) with the state contributions coming straight from the built-in
 /// matrix, so a focused button lights up in the focus tone and a loading one
 /// blinks — no per-widget default overrides to keep in sync with the doctrine.
+///
+/// A held-down press has no [WidgetState] slot (the enum has no `pressed`), so
+/// it is rendered locally: the resolved face inverted, reading as the button
+/// pushed in. It is kept out of the state matrix until a second widget needs it.
 Style _resolveStyle(ButtonModel model, Theme theme, Map<WidgetState, Style>? styleOverrides) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{
+    if (model.hovered) WidgetState.hover,
     if (model.focused) WidgetState.focused,
     if (model.disabled) WidgetState.disabled,
     if (model.loading) WidgetState.loading,
   };
-  return resolver.resolve(theme.primary.fill, states, overrides: styleOverrides);
+  final style = resolver.resolve(theme.primary.fill, states, overrides: styleOverrides);
+  return model.pressed ? style.inverted : style;
 }

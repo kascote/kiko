@@ -74,6 +74,60 @@ Non-obvious rules a contributor will otherwise miss:
 - **An id that resolves to no owner is logged + dropped, never silently ignored** — the
   observable failure that reference-addressing could not give you.
 
+## Widget mouse handling
+
+A widget CONSUMES the resolved `PointerMsg` the framework delivers (spec 0143, Layer 3).
+The framework half — router, hit map, capture, `hitPath`, `PointerLeaveMsg`/`PointerCancelMsg` —
+is in `kiko_core/CLAUDE.md` under **Mouse: the Hit Map and the Router**; read it first, this
+does not restate it. What follows is what a widget model does with what arrives, and the few
+rules a contributor forgets. Worked end to end in `example/mouse_widgets.dart` (a Table and a
+List driven by the mouse in one routing line) and `example/scrollable_form.dart` (a wheel a
+TextInput declines, bubbled app-side to the enclosing form).
+
+- **The pointer branch sits ABOVE the focus gate.** Every `update` opens with
+  `if (!focused) return const Declined();` so an unfocused widget ignores the keyboard. Mouse
+  is different: a wheel scrolls, a click selects and a hover highlights whether or not the
+  widget is focused. So the pointer branch (and the leave/cancel arms) run _above_ that gate;
+  only the keyboard stays below it. This is a structural edit to `update`, not a new method.
+- **Consume with `Handled`, refuse with `Declined` — the rule that gets forgotten.** A pointer
+  the widget uses returns `Handled([cmd])`; a pointer it does not use returns `Declined()`. The
+  old habit is a blanket `return const Handled()` that silently swallows anything unmatched —
+  harmless before mouse routing, fatal now: it kills app-side bubbling. A wheel a `TextInput`
+  cannot use must come back as `Declined()`, or the app's `ctx.hits.hitPath(x, y)` walk has
+  nothing to bubble to and the wheel never reaches the scrollable form around the input. Decline
+  every pointer you do not consume — a wheel with nothing to scroll, a click that hits no row, a
+  leave for a widget that tracks no hover.
+- **Click emits the keyboard's command; focus is the app's.** A click is the keyboard's
+  cursor-move-plus-confirm collapsed into one event: the widget moves its cursor to the clicked
+  row and returns the SAME id-addressed command Enter returns (`TableActionCmd(id, 'primary')`,
+  `ListActionCmd(id)`), handled in the app's one place, ignorant of which device produced it. A
+  widget NEVER emits a focus command — a `Declined` carries no payload (0142) and a widget cannot
+  see its siblings. Click-to-focus is one app-side line: on any `PointerMsg(targetId: id?, isDown:
+  true)` the app moves focus to `id` before delegating, because it owns the `FocusGroup`.
+- **Hover is a plain model field, no `Hoverable`.** Only the widget knows which of its ROWS is
+  hovered — the router knows only which WIDGET is — so hover state lives on the model as an
+  `int? hoverRow`, set from the pointer's `local` in `update` and folded into the `WidgetState`
+  set in `build` (`if (row == model.hoverRow) WidgetState.hover`). `WidgetState.hover` is the
+  weakest state, so a hovered _selected_ row still shows `selected`. A `PointerLeaveMsg` clears
+  it; there is no enter message — the first `PointerMsg` addressed to the widget IS the enter.
+- **Scrolling: `ScrollableModel`, viewport not cursor.** List, Table and Tree
+  `mixin ScrollableModel` (`lib/src/widgets/scrollable_model.dart`) for a uniform scroll surface:
+  `scrollOffset`/`visibleCount` getters, `scrollBy(rows)` (clamped to the model's own length — a
+  list's items, a table's loaded window), `localToRow(local)` (the row under a pointer, with the
+  table's sticky header and the tree's indent accounted for), and `wheelScrollLines` (3). A wheel
+  notch moves the VIEWPORT and leaves the cursor where it is; the next keypress snaps the viewport
+  back to the cursor (Vim behaviour, free). Scrolling to a near edge pages the next batch in
+  exactly as cursor navigation does — the A7 `_checkLoadThreshold` is re-keyed to the viewport
+  edge, not the cursor (see **Async Loading**).
+- **The tag is the widget's; `Tagged` is for the app's own regions.** A built-in widget tags its
+  own subtree with its model id (`..tag = model.id` in its `build`), so the router resolves a
+  pointer to it with nothing wrapped around it — routing is free the moment `mouseEvents: true`.
+  `Tagged(id, child)` is for a region the APP composes that no model owns (a panel, a form): in
+  `scrollable_form.dart` the app tags the scroll container `'form'` so a declined wheel has an
+  ancestor to bubble to. Never wrap a self-tagging widget in a `Tagged` of a _different_ id — it
+  relocates the id to the outer node, and the same id on two nodes trips the one-tag-per-frame
+  assert.
+
 ## Async Loading
 
 ListView, TableView, and TreeView load data the **same way**: one keyed load-slot state

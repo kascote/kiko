@@ -5,6 +5,20 @@ import '../layout/position.dart';
 import '../layout/rect.dart';
 import 'msg.dart';
 
+/// Whether [action] is one of the four wheel notches.
+///
+/// The one definition [PointerMsg.isWheel] and the router share: the router
+/// must ask before a [PointerMsg] exists to wrap the answer in, so it cannot
+/// go through the getter and needs this instead.
+@internal
+bool isWheelAction(evt.MouseButtonAction action) => switch (action) {
+  evt.MouseButtonAction.wheelUp ||
+  evt.MouseButtonAction.wheelDown ||
+  evt.MouseButtonAction.wheelLeft ||
+  evt.MouseButtonAction.wheelRight => true,
+  _ => false,
+};
+
 /// A message the mouse router addressed to a widget.
 ///
 /// Match on it to forward every kind of pointer traffic in one line, whatever
@@ -98,12 +112,25 @@ class PointerMsg extends Msg implements Routed {
   /// A wheel event carries no button: read [action] for the direction. It
   /// always addresses whatever is under the pointer, never the widget holding a
   /// gesture, because the wheel is not part of one.
-  bool get isWheel => switch (action) {
-    evt.MouseButtonAction.wheelUp ||
-    evt.MouseButtonAction.wheelDown ||
-    evt.MouseButtonAction.wheelLeft ||
-    evt.MouseButtonAction.wheelRight => true,
-    _ => false,
+  bool get isWheel => isWheelAction(action);
+
+  /// The vertical wheel notch: `-1` up, `1` down, `0` off-axis or non-wheel.
+  ///
+  /// A delta, not a position: one event is one notch, and the router never
+  /// coalesces wheel events, so summing every [wheelDeltaY] seen is exact —
+  /// unlike [global], which only the latest of a coalesced run reflects.
+  int get wheelDeltaY => switch (action) {
+    evt.MouseButtonAction.wheelUp => -1,
+    evt.MouseButtonAction.wheelDown => 1,
+    _ => 0,
+  };
+
+  /// The horizontal wheel notch: `-1` left, `1` right, `0` off-axis or
+  /// non-wheel. See [wheelDeltaY].
+  int get wheelDeltaX => switch (action) {
+    evt.MouseButtonAction.wheelLeft => -1,
+    evt.MouseButtonAction.wheelRight => 1,
+    _ => 0,
   };
 
   /// Whether the pointer landed within the target.

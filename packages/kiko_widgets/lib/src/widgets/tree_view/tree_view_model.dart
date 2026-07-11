@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' show MouseButtonAction;
 
 import '../../load/load.dart';
 import '../scrollable_model.dart';
@@ -400,13 +399,8 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
-      final direction = switch (pointer.action) {
-        MouseButtonAction.wheelUp => -1,
-        MouseButtonAction.wheelDown => 1,
-        _ => 0,
-      };
-      if (direction != 0) {
-        scrollBy(wheelScrollLines * direction);
+      if (pointer.wheelDeltaY != 0) {
+        scrollBy(wheelScrollLines * pointer.wheelDeltaY);
         return const Handled();
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours

@@ -108,7 +108,7 @@ class MouseRouter {
 
     // The wheel is not part of a button gesture, so it addresses what is under
     // the pointer even while another widget holds it.
-    final captured = _capturing && !_isWheel(action);
+    final captured = _capturing && !isWheelAction(action);
     final target = captured ? _captureId : hit;
 
     // A press with no gesture in flight captures the resolution, background and
@@ -180,12 +180,4 @@ class MouseRouter {
     _capturing = false;
     _captureId = null;
   }
-
-  static bool _isWheel(evt.MouseButtonAction action) => switch (action) {
-    evt.MouseButtonAction.wheelUp ||
-    evt.MouseButtonAction.wheelDown ||
-    evt.MouseButtonAction.wheelLeft ||
-    evt.MouseButtonAction.wheelRight => true,
-    _ => false,
-  };
 }

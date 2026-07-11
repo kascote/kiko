@@ -83,10 +83,10 @@ class MenuModel implements Component {
 
     PointerMsg(isMove: true, inside: true, :final local) => Handled(_hoverOn(local.y)),
 
-    // The wheel carries a direction, not a position, and `PointerMsg` re-encodes
-    // nothing: read it off the terminal event the message wraps.
-    PointerMsg(action: evt.MouseButtonAction.wheelUp) => Handled(_moveBy(-1)),
-    PointerMsg(action: evt.MouseButtonAction.wheelDown) => Handled(_moveBy(1)),
+    // The wheel carries a direction, not a position: `wheelDeltaY` is `PointerMsg`'s
+    // own signed notch, `-1`/`1`, so no case here reads the terminal event's enum.
+    PointerMsg(wheelDeltaY: -1) => Handled(_moveBy(-1)),
+    PointerMsg(wheelDeltaY: 1) => Handled(_moveBy(1)),
 
     // Everything else is declined, and the app may try something else with it.
     _ => const Declined(),

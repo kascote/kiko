@@ -34,7 +34,6 @@
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -181,17 +180,13 @@ class AppModel {
     // two fields, the enclosing box — is addressed to the form, not a field, so
     // there is no decline to bubble: the form is the target and just scrolls.
     case final PointerMsg p when p.isWheel && p.targetId == model.formId:
-      model.scrollBy(_wheelDir(p));
+      model.scrollBy(p.wheelDeltaY);
       return (model, null);
 
     default:
       return (model, null);
   }
 }
-
-/// Which way a wheel notch scrolls: up toward the first field, down toward the
-/// last.
-int _wheelDir(PointerMsg p) => p.action == evt.MouseButtonAction.wheelUp ? -1 : 1;
 
 /// Offers a declined pointer to the enclosing regions, inside out.
 ///
@@ -202,7 +197,7 @@ int _wheelDir(PointerMsg p) => p.action == evt.MouseButtonAction.wheelUp ? -1 : 
   if (msg case final PointerMsg p when p.isWheel) {
     for (final hit in ctx.hits.hitPath(p.global.x, p.global.y).reversed.skip(1)) {
       if (hit.id == model.formId) {
-        model.scrollBy(_wheelDir(p));
+        model.scrollBy(p.wheelDeltaY);
         return (model, null);
       }
     }

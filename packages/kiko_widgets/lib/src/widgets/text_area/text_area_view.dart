@@ -61,7 +61,9 @@ class _TextAreaViewport extends Node {
 
     final cursor = TextAreaRenderer(model, theme, styleOverrides, measurer: _measurer).paint(area, surface);
     // Only the real BufferSurface has a terminal cursor to report — a
-    // RecordingSurface (goldens) has nothing to carry it to.
-    if (surface is BufferSurface) surface.cursor = cursor;
+    // RecordingSurface (goldens) has nothing to carry it to. Report only when
+    // this editor owns the cursor (it is focused); an unfocused editor must not
+    // write its null over a focused sibling's cursor earlier in the same frame.
+    if (surface is BufferSurface && cursor != null) surface.cursor = cursor;
   }
 }

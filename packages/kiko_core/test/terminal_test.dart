@@ -156,6 +156,17 @@ void main() {
 
       expect(backend.cursorVisible, isFalse);
     });
+
+    test('hides the cursor it showed once a later frame reports none', () async {
+      final t = await terminal()
+        ..draw((frame) => frame.cursorPosition = const Position(3, 1));
+      expect(backend.cursorVisible, isTrue, reason: 'the first frame showed a cursor');
+
+      // The focused widget scrolled off / lost focus: this frame reports none,
+      // so the runtime hides the cursor it had shown instead of stranding it.
+      t.draw((frame) => paint(frame, 0, 0, 'a'));
+      expect(backend.cursorVisible, isFalse);
+    });
   });
 
   group('Terminal.autoResize', () {

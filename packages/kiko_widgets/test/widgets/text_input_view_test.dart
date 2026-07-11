@@ -58,6 +58,42 @@ void main() {
       expect(frame.cursorPosition, isNull);
     });
 
+    test('a focused field keeps its cursor when an unfocused field renders after it', () {
+      // Two fields in one frame — the first focused, the second not, as in any
+      // form. The unfocused field reports no cursor; it must not write that null
+      // over the focused field's cursor earlier in the same frame.
+      final focused = TextInputModel(id: 'a', initial: 'hi', focused: true);
+      final blurred = TextInputModel(id: 'b', initial: 'yo');
+      final frame = _frame(10, 2)
+        ..render(
+          Column(
+            children: [
+              for (final m in [focused, blurred])
+                ConstrainedBox(
+                  additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
+                  child: TextInput(model: m, theme: Theme.dark),
+                ),
+            ],
+          ),
+        );
+
+      // The focused field's caret (end of 'hi' on row 0) survives.
+      expect(frame.cursorPosition, const Position(2, 0));
+    });
+
+    test('focused text tints the foreground, never floods a background fill', () {
+      final model = TextInputModel(initial: 'hi', focused: true);
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final cell = frame.buffer[(x: 0, y: 0)];
+
+      expect(cell.symbol, 'h');
+      // Focus tints the glyph foreground (ink)...
+      expect(cell.fg, equals(Theme.dark.focus.color));
+      // ...and does not paint a focus-colored background over the text, which
+      // would hide the characters and the terminal cursor.
+      expect(cell.bg, isNot(equals(Theme.dark.focus.color)));
+    });
+
     test('places the cursor mid-text when the model starts scrolled to the middle', () {
       final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
       final frame = _frame(20, 1)..render(TextInput(model: model, theme: Theme.dark));

@@ -64,8 +64,10 @@ class _TextInputViewport extends Node {
 
     final cursor = _paint(area, surface);
     // Only the real BufferSurface has a terminal cursor to report — a
-    // RecordingSurface (goldens) has nothing to carry it to.
-    if (surface is BufferSurface) surface.cursor = cursor;
+    // RecordingSurface (goldens) has nothing to carry it to. Report only when
+    // this field owns the cursor (it is focused); an unfocused field must not
+    // write its null over a focused sibling's cursor earlier in the same frame.
+    if (surface is BufferSurface && cursor != null) surface.cursor = cursor;
   }
 
   Position? _paint(Rect area, Surface surface) {
@@ -137,12 +139,18 @@ class _TextInputViewport extends Node {
   }
 
   /// Resolves the input text style from the theme and the model's focus state.
+  ///
+  /// Text is glyphs, so states are projected as [PaintClass.ink] — a focused
+  /// field tints its text foreground, it does not flood it with a background
+  /// fill (which would hide both the characters and the terminal cursor). Focus
+  /// as a surface belongs on the field's border, resolved by the caller.
   Style _resolveStyle() {
     final resolver = StyleResolver(theme);
     final states = <WidgetState>{if (model.focused) WidgetState.focused};
     return resolver.resolve(
       Style(fg: theme.background.on),
       states,
+      cls: PaintClass.ink,
       overrides: <WidgetState, Style>{...?styleOverrides},
     );
   }

@@ -20,6 +20,12 @@
 // the router already resolved every id, and the app only chooses how far out to
 // carry a message its target refused.
 //
+// A wheel over the form's own chrome — a field's border, the box, the gaps —
+// is a different, simpler case: it is addressed to the form directly (no field
+// declined it), so the form just scrolls. Bubbling is only for the wheel a
+// field refused; the two together mean the wheel scrolls wherever it lands over
+// the form.
+//
 // Clicking a field still works (the input consumes the press to place its
 // caret, and the app focuses it); only the wheel, which the field cannot use,
 // bubbles to the form.
@@ -37,6 +43,14 @@ import 'package:termparser/termparser_events.dart' as evt;
 const _labels = ['First name', 'Last name', 'Email', 'Phone', 'Company', 'Role', 'City', 'Country'];
 
 class AppModel {
+  AppModel() {
+    // Realize the lazily-built FocusGroup now, so the first field is focused —
+    // and drawn as such, with a cursor — on the very first frame. The view
+    // reads `field.focused` directly and never touches `focus`, so without this
+    // nothing would run the group's constructor until the first key arrived.
+    focus.setIndex(0);
+  }
+
   /// One field per label. Their ids are the tags the router resolves a pointer
   /// to, and the keys of both the routing map and the FocusGroup.
   late final List<TextInputModel> fieldList = [
@@ -51,14 +65,34 @@ class AppModel {
   /// declined wheel bubbles to.
   final String formId = 'form';
 
-  /// How many fields fit in the viewport, and the first one shown. The wheel
-  /// moves the window; it is the app's state, because the form is the app's.
-  final int visibleCount = 4;
+  /// The viewport height the runtime last reported, in rows. The window derives
+  /// from it so however tall the terminal is, only whole fields are drawn and
+  /// the last one can always scroll fully into view.
+  int viewportHeight = 0;
+
+  /// The chrome around the field column: the header line, its spacer, the
+  /// footer line, and the enclosing box's top and bottom borders.
+  static const int _chromeRows = 5;
+
+  /// Each field is a bordered box: a top border, one content row, a bottom
+  /// border.
+  static const int _fieldRows = 3;
+
+  /// How many whole fields fit in the current viewport — at least one, never
+  /// more than there are. Derived, not a constant, so a shorter terminal shows
+  /// fewer fields instead of clipping the bottom one.
+  int get visibleCount => ((viewportHeight - _chromeRows) ~/ _fieldRows).clamp(1, fieldList.length);
+
+  /// The first field shown. The wheel moves it; it is the app's state, because
+  /// the form is the app's.
   int scrollOffset = 0;
 
   int get maxOffset => (fieldList.length - visibleCount).clamp(0, fieldList.length);
 
   void scrollBy(int rows) => scrollOffset = (scrollOffset + rows).clamp(0, maxOffset);
+
+  /// Re-clamp after the viewport height (and so [maxOffset]) may have shrunk.
+  void clampScroll() => scrollOffset = scrollOffset.clamp(0, maxOffset);
 
   /// Keep the focused field on screen when Tab walks off the visible window.
   void scrollToFocused() {
@@ -70,6 +104,23 @@ class AppModel {
     final i = fieldList.indexWhere((f) => f.id == id);
     if (i >= 0) focus.setIndex(i);
   }
+
+  /// Focus the field a press on the form's chrome landed on.
+  ///
+  /// Only a field's content is tagged with its id, so a press on its border or
+  /// label resolves to the form, not the field. Each field's box is its content
+  /// row with a border directly above and below, so a press within one row of a
+  /// visible field's content (read from the live hit map, not recomputed)
+  /// belongs to that field.
+  void focusFromChrome(int globalY, HitMap hits) {
+    for (final f in fieldList) {
+      final rect = hits.rectOf(f.id);
+      if (rect != null && (globalY - rect.y).abs() <= 1) {
+        focusOn(f.id);
+        return;
+      }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -77,9 +128,24 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
+  // How many fields fit depends on the real viewport height, which only the
+  // runtime knows — so read it from the context each turn, and keep the offset
+  // in range in case the terminal was resized shorter.
+  model
+    ..viewportHeight = ctx.area.height
+    ..clampScroll();
+
   // A press focuses the field it landed on. The input consumes the press itself
-  // to place its caret; moving focus is the app's separate, one-line job.
-  if (msg case PointerMsg(targetId: final id?, isDown: true)) model.focusOn(id);
+  // to place its caret; moving focus is the app's separate job. A press on a
+  // field's border or label lands on the form (only the content is field-tagged)
+  // — map it back to the nearest field so clicking the frame focuses it too.
+  if (msg case final PointerMsg p when p.isDown) {
+    if (p.targetId case final id? when model.fields.containsKey(id)) {
+      model.focusOn(id);
+    } else if (p.targetId == model.formId) {
+      model.focusFromChrome(p.global.y, ctx.hits);
+    }
+  }
 
   switch (msg) {
     case KeyMsg(key: 'escape'):
@@ -100,7 +166,8 @@ class AppModel {
         Declined() => (model, null),
       };
 
-    // Pointer: offer it to the field under the cursor first.
+    // Pointer over a field: the field consumes a press to place its caret, but
+    // declines a wheel it cannot use.
     case Routed(targetId: final id?) when model.fields.containsKey(id):
       switch (model.fields[id]!.update(msg)) {
         case Handled(:final cmd):
@@ -110,10 +177,21 @@ class AppModel {
           return _bubble(model, msg, ctx);
       }
 
+    // A wheel over the form's OWN chrome — a field's border, the gap between
+    // two fields, the enclosing box — is addressed to the form, not a field, so
+    // there is no decline to bubble: the form is the target and just scrolls.
+    case final PointerMsg p when p.isWheel && p.targetId == model.formId:
+      model.scrollBy(_wheelDir(p));
+      return (model, null);
+
     default:
       return (model, null);
   }
 }
+
+/// Which way a wheel notch scrolls: up toward the first field, down toward the
+/// last.
+int _wheelDir(PointerMsg p) => p.action == evt.MouseButtonAction.wheelUp ? -1 : 1;
 
 /// Offers a declined pointer to the enclosing regions, inside out.
 ///
@@ -122,10 +200,9 @@ class AppModel {
 /// first one the app answers for — the form — consumes the wheel and scrolls.
 (AppModel, Cmd?) _bubble(AppModel model, Msg msg, UpdateContext ctx) {
   if (msg case final PointerMsg p when p.isWheel) {
-    final dir = p.action == evt.MouseButtonAction.wheelUp ? -1 : 1;
     for (final hit in ctx.hits.hitPath(p.global.x, p.global.y).reversed.skip(1)) {
       if (hit.id == model.formId) {
-        model.scrollBy(dir);
+        model.scrollBy(_wheelDir(p));
         return (model, null);
       }
     }
@@ -154,22 +231,26 @@ void view(AppModel model, Frame frame) {
     children: [
       Center(child: Line('Scrollable form — wheel over a field scrolls the form behind it', style: _theme.muted.ink)),
       const SizedBox(height: 1),
+      // The scroll container: the id a declined wheel bubbles to, and the
+      // target a wheel over the form's own chrome addresses. Tagging the whole
+      // box — border, titles and all — makes every cell of the Profile region
+      // resolve to the form, with each field's self-tag nested inside it, so
+      // `hitPath` over a field reports the form just outside it and a wheel
+      // anywhere else over the box still finds the form.
       Expanded(
-        child: Box(
-          border: BorderType.plain,
-          borderStyle: resolver.border(const {}),
-          topTitles: [Line(' Profile ', style: _theme.muted.ink)],
-          bottomTitles: [
-            Line(
-              ' ${model.scrollOffset + 1}–${last.clamp(0, model.fieldList.length)} of ${model.fieldList.length} ',
-              style: _theme.muted.ink,
-            ),
-          ],
-          // The scroll container: the id a declined wheel bubbles to. It wraps
-          // every field tag, so `hitPath` reports it just outside the field.
-          child: Tagged(
-            model.formId,
-            Column(crossAxis: CrossAxisAlignment.stretch, children: rows),
+        child: Tagged(
+          model.formId,
+          Box(
+            border: BorderType.plain,
+            borderStyle: resolver.border(const {}),
+            topTitles: [Line(' Profile ', style: _theme.muted.ink)],
+            bottomTitles: [
+              Line(
+                ' ${model.scrollOffset + 1}–${last.clamp(0, model.fieldList.length)} of ${model.fieldList.length} ',
+                style: _theme.muted.ink,
+              ),
+            ],
+            child: Column(crossAxis: CrossAxisAlignment.stretch, children: rows),
           ),
         ),
       ),

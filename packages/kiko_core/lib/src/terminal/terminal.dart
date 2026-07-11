@@ -103,6 +103,11 @@ class Terminal {
   /// Whether the cursor is currently hidden
   bool _hiddenCursor;
 
+  /// Whether the last [draw] showed a cursor because the frame reported a
+  /// position. Lets a later cursorless frame hide that runtime-shown cursor
+  /// without touching a cursor an app manages itself.
+  bool _frameCursorShown = false;
+
   /// Terminal's viewport
   late final ViewPort _viewPort;
 
@@ -292,6 +297,14 @@ class Terminal {
       backend
         ..showCursor()
         ..setCursorPosition(cursorPosition);
+      _frameCursorShown = true;
+    } else if (_frameCursorShown) {
+      // A previous frame showed a cursor for a focused widget; this one reports
+      // none — the widget lost focus or scrolled out of view — so hide it,
+      // rather than strand it at the last write position. Only a cursor this
+      // loop showed is hidden; one the app manages itself is left alone.
+      backend.hideCursor();
+      _frameCursorShown = false;
     }
 
     swapBuffers();

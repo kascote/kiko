@@ -113,12 +113,19 @@ TextInput declines, bubbled app-side to the enclosing form).
 - **Scrolling: `ScrollableModel`, viewport not cursor.** List, Table and Tree
   `mixin ScrollableModel` (`lib/src/widgets/scrollable_model.dart`) for a uniform scroll surface:
   `scrollOffset`/`visibleCount` getters, `scrollBy(rows)` (clamped to the model's own length — a
-  list's items, a table's loaded window), `localToRow(local)` (the row under a pointer, with the
-  table's sticky header and the tree's indent accounted for), and `wheelScrollLines` (3). A wheel
-  notch moves the VIEWPORT and leaves the cursor where it is; the next keypress snaps the viewport
-  back to the cursor (Vim behaviour, free). Scrolling to a near edge pages the next batch in
-  exactly as cursor navigation does — the A7 `_checkLoadThreshold` is re-keyed to the viewport
-  edge, not the cursor (see **Async Loading**).
+  list's items, a table's loaded window — and returning rows actually moved), `localToRow(local)`
+  (the row under a pointer, with the table's sticky header and the tree's indent accounted for),
+  and `wheelScrollLines` (3). A wheel notch moves the VIEWPORT and leaves the cursor where it is;
+  the next keypress snaps the viewport back to the cursor (Vim behaviour, free). Scrolling to a
+  near edge pages the next batch in exactly as cursor navigation does — the A7
+  `_checkLoadThreshold` is re-keyed to the viewport edge, not the cursor (see **Async Loading**).
+  A notch that moves nothing in that direction — `scrollBy` returned `0`, meaning the viewport was
+  already at the edge the notch pushed toward — is `Declined()`, per-direction: wheel-up declines
+  at the top while wheel-down still handles, and the reverse at the bottom. Only a strict no-op
+  declines; a partial scroll (3-line notch, 1 row left) still consumes. This is what makes nested
+  scrolling work: an inner container at its limit declines, and the app's own `hitPath` bubbling
+  walk offers the notch to the next scrollable ancestor out — consuming unconditionally at the
+  limit would make nesting permanently dead.
 - **The tag is the widget's; `Tagged` is for the app's own regions.** A built-in widget tags its
   own subtree with its model id (`..tag = model.id` in its `build`), so the router resolves a
   pointer to it with nothing wrapped around it — routing is free the moment `mouseEvents: true`.

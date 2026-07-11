@@ -73,6 +73,50 @@ void main() {
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
       expect(model.isLoading(), isTrue, reason: 'wheel alone crossed the load threshold');
     });
+
+    group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
+      ListViewModel<String, String> scrollable({int items = 10, int visible = 5}) => ListViewModel<String, String>(
+        dataView: DataView.fromList(List.generate(items, (i) => 'item$i')),
+      )..setVisibleCount(visible);
+
+      test('at the top, wheel-up declines while wheel-down handles', () {
+        final model = scrollable();
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.scrollOffset, equals(0), reason: 'a declined notch moves nothing');
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+      });
+
+      test('at the bottom, wheel-down declines while wheel-up handles', () {
+        final model = scrollable()..scrollBy(100); // pin to the bottom edge
+        final atBottom = model.scrollOffset;
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.scrollOffset, equals(atBottom), reason: 'a declined notch moves nothing');
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+      });
+
+      test('content that fits entirely declines both directions', () {
+        final model = scrollable(items: 3);
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+      });
+
+      test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
+        // scrollOffset 4, max 5 (10 items - 5 visible): a 3-row notch down can
+        // only move 1 row, but 1 row is not a no-op, so it must still handle.
+        final model = scrollable()..scrollBy(4);
+        expect(model.scrollOffset, equals(4));
+
+        final result = model.update(pointer(MouseButton.wheelDown()));
+        expect(result, isA<Handled>());
+        expect(model.scrollOffset, equals(5), reason: 'moved the 1 remaining row');
+      });
+
+      test('mid-content, both directions handle', () {
+        final model = scrollable()..scrollBy(2);
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+      });
+    });
   });
 
   group('mouse click + hover', () {

@@ -129,10 +129,13 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   int get visibleCount => _visibleCount;
 
   /// Moves the viewport by [rows], clamped to the flattened visible range.
+  /// Returns rows actually moved (see [ScrollableModel.scrollBy]).
   @override
-  void scrollBy(int rows) {
+  int scrollBy(int rows) {
     final maxOffset = _flatNodes.length - _visibleCount;
+    final before = _scrollOffset;
     _scrollOffset = (_scrollOffset + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+    return _scrollOffset - before;
   }
 
   /// The flattened node row at [local], or null when the click falls past the
@@ -391,7 +394,9 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// selects or toggles, and a hover highlights whether or not the tree is
   /// focused. A wheel notch scrolls the viewport without touching the cursor (a
   /// tree pages children in on expand, not on a scroll edge, so a wheel never
-  /// triggers a load); a button-down moves the cursor to the node, then toggles
+  /// triggers a load); a notch that moves nothing in that direction (already at
+  /// the edge) is declined, so a nesting scroll ancestor gets the chance. A
+  /// button-down moves the cursor to the node, then toggles
   /// its expansion if it hit the expand indicator or activates it (as Enter does)
   /// if it hit the body; any other pointer only refreshes the hovered row. A
   /// pointer past the last node is declined so the app can offer it to the next
@@ -400,8 +405,13 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
       if (pointer.wheelDeltaY != 0) {
-        scrollBy(wheelScrollLines * pointer.wheelDeltaY);
-        return const Handled();
+        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+        // Nothing moved in that direction (already at the edge) — decline so a
+        // nesting scroll ancestor gets the notch; consuming at the limit would
+        // make nesting permanently dead. A tree never pages on a wheel (only on
+        // expand), so there is no load-threshold check to run on the handled
+        // path.
+        return moved == 0 ? const Declined() : const Handled();
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 

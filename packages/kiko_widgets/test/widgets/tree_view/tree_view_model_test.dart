@@ -80,6 +80,46 @@ void main() {
       expect(model.update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>(), reason: 'no node under the click');
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
     });
+
+    group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
+      test('at the top, wheel-up declines while wheel-down handles', () {
+        final model = modelWith(leaves(10), visibleCount: 5);
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.scrollOffset, equals(0), reason: 'a declined notch moves nothing');
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+      });
+
+      test('at the bottom, wheel-down declines while wheel-up handles', () {
+        final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(100); // pin to the bottom edge
+        final atBottom = model.scrollOffset;
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.scrollOffset, equals(atBottom), reason: 'a declined notch moves nothing');
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+      });
+
+      test('content that fits entirely declines both directions', () {
+        final model = modelWith(leaves(3), visibleCount: 5);
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+      });
+
+      test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
+        // scrollOffset 4, max 5 (10 leaves - 5 visible): a 3-row notch down can
+        // only move 1 row, but 1 row is not a no-op, so it must still handle.
+        final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(4);
+        expect(model.scrollOffset, equals(4));
+
+        final result = model.update(pointer(MouseButton.wheelDown()));
+        expect(result, isA<Handled>());
+        expect(model.scrollOffset, equals(5), reason: 'moved the 1 remaining row');
+      });
+
+      test('mid-content, both directions handle', () {
+        final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(2);
+        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+      });
+    });
   });
 
   group('mouse click + hover', () {

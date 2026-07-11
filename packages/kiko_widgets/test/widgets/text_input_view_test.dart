@@ -180,6 +180,30 @@ void main() {
     });
   });
 
+  group('text input view under a partial clip (viewport)', () {
+    test('anchors content at the placement rect, not the clip sub-rect', () {
+      // A field only ever paints one row, so the meaningful partial clip is
+      // horizontal — the same bug a Viewport's vertical clip causes elsewhere.
+      // Content must be computed against the full 10-wide placement (so column
+      // 3 shows the placeholder's 4th character, matching where layout put the
+      // field), not re-anchored at the clip's 4-wide origin — that would show
+      // the placeholder's FIRST four characters shifted into view instead.
+      final model = TextInputModel(id: 'in', placeholder: '0123456789');
+      final node = TextInput(model: model, theme: Theme.dark).build()
+        ..layout(plume.BoxConstraints.tight(const plume.Size(10, 1)), _ctx)
+        ..place(plume.Offset.zero);
+
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
+      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(3, 0, 4, 1));
+      node.paint(surface);
+      surface.popClip();
+
+      // Columns left of the clip are absent; columns 3-6 show the placeholder's
+      // OWN characters '3456', not '0123' shifted over from the field's start.
+      expect(_dump(buffer), '   3456\n');
+    });
+  });
+
   group('text input view / fill and style overrides', () {
     test('fills remaining space after the placeholder', () {
       final model = TextInputModel(placeholder: 'Hi', fillChar: '.');

@@ -28,14 +28,20 @@ mixin ScrollableModel {
   int get wheelScrollLines => 3;
 
   /// Moves the viewport by [rows] — positive scrolls down — and stops it at the
-  /// content edges.
+  /// content edges. Returns how many rows the offset actually moved, which is
+  /// `0` when the viewport was already at the edge [rows] pushed toward.
   ///
   /// The offset is clamped to `[0, length - visibleCount]` over the model's own
   /// notion of length: a list's item count, a table's loaded window, a tree's
   /// flattened range. The keyboard cursor is left where it is; a wheel scroll and
   /// the cursor move independently, and the next keypress snaps the viewport back
   /// to the cursor.
-  void scrollBy(int rows);
+  ///
+  /// The return value is what lets a wheel handler decline a notch that moved
+  /// nothing in that direction (per-direction: wheel-up declines at the top,
+  /// wheel-down at the bottom), so a nesting scroll ancestor gets the chance —
+  /// consuming at the limit would make nesting permanently dead.
+  int scrollBy(int rows);
 
   /// The row the pointer at [local] falls on, or null when it lands on no row.
   ///

@@ -230,11 +230,14 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   int get visibleCount => _visibleRows;
 
   /// Moves the viewport by [rows], clamped to the loaded window so the wheel
-  /// never scrolls past the rows currently in the cache.
+  /// never scrolls past the rows currently in the cache. Returns rows actually
+  /// moved (see [ScrollableModel.scrollBy]).
   @override
-  void scrollBy(int rows) {
+  int scrollBy(int rows) {
     final maxOffset = _loadedEnd - _visibleRows;
+    final before = _scrollRow;
     _scrollRow = (_scrollRow + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+    return _scrollRow - before;
   }
 
   /// The data row at [local], or null when the click lands on the sticky header
@@ -425,10 +428,12 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// selects, and a hover highlights whether or not the table is focused. A wheel
   /// notch scrolls the viewport without touching the cursor, and scrolling to a
   /// near edge pages the next batch in exactly as cursor navigation does; a
-  /// button-down on a data row moves the cursor there and activates it, exactly
-  /// as Enter does; any other pointer only refreshes the hovered row. A pointer
-  /// on the header or off the loaded rows is declined so the app can offer it to
-  /// the next widget. The keyboard path stays behind the gate.
+  /// notch that moves nothing in that direction (already at the edge) is
+  /// declined, so a nesting scroll ancestor gets the chance. A button-down on a
+  /// data row moves the cursor there and activates it, exactly as Enter does;
+  /// any other pointer only refreshes the hovered row. A pointer on the header
+  /// or off the loaded rows is declined so the app can offer it to the next
+  /// widget. The keyboard path stays behind the gate.
   ///
   /// Navigation is never frozen by a load: a fetch in flight only stops the same
   /// direction from being requested again, so the cursor keeps moving and a
@@ -437,7 +442,11 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
       if (pointer.wheelDeltaY != 0) {
-        scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+        // Nothing moved in that direction (already at the edge) — decline so a
+        // nesting scroll ancestor gets the notch; consuming at the limit would
+        // make nesting permanently dead.
+        if (moved == 0) return const Declined();
         return Handled(_checkLoadThreshold());
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours

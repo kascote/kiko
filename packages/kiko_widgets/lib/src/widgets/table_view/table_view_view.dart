@@ -54,9 +54,13 @@ class _TableViewport extends Node {
 
   @override
   void paintSelf(Surface surface) {
-    final clip = surface.clipRect ?? rect;
-    final area = Rect.create(x: clip.x, y: clip.y, width: clip.width, height: clip.height);
-    if (area.isEmpty) return;
+    final clip = surface.clipRect;
+    if (clip == null || clip.isEmpty) return;
+    // Anchor at the placement rect, not the (possibly narrower) clip: a
+    // clipping ancestor trims which cells actually draw, but the row/column
+    // windowing must stay keyed to the widget's own laid-out size, or a
+    // partially scrolled-off table pins its content to the viewport edge.
+    final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
     TableRenderer(model, theme, styleOverrides, measurer: _measurer).paint(area, surface);
   }
 }

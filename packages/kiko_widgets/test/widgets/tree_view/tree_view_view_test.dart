@@ -111,6 +111,32 @@ void main() {
     });
   });
 
+  group('tree view under a partial clip (viewport)', () {
+    test('anchors content at the placement rect, not the clip sub-rect', () {
+      // Simulates a Viewport ancestor showing only rows 2-4 of a tree placed at
+      // (0, 0) with height 5: content must be computed against the full
+      // placement (row 2 lands at screen row 2, matching where layout put it),
+      // not re-anchored at the clip's origin — that would pin node0 to the top
+      // of the visible window instead of scrolling it off.
+      final model = TreeViewModel<String>()
+        ..setVisibleCount(10)
+        ..applyRoots(<TreeNode<String>>[
+          for (var i = 0; i < 5; i++) TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true),
+        ]);
+      final node = TreeView<String>(model: model, theme: Theme.dark).build()
+        ..layout(plume.BoxConstraints.tight(const plume.Size(4, 5)), _ctx)
+        ..place(plume.Offset.zero);
+
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 5));
+      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 4, 3));
+      node.paint(surface);
+      surface.popClip();
+
+      // Rows scrolled above the clip are absent, not shown squeezed at the top.
+      expect(_dump(buffer), '\n\n  n2\n  n3\n  n4\n');
+    });
+  });
+
   group('tree view click routing', () {
     test('a click in the tree resolves to its id', () {
       final model = TreeViewModel<String>(id: 'files')

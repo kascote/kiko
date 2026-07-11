@@ -63,6 +63,28 @@ void main() {
     });
   });
 
+  group('text area under a partial clip (viewport)', () {
+    test('anchors content at the placement rect, not the clip sub-rect', () {
+      // Simulates a Viewport ancestor showing only rows 2-4 of a 5-line editor
+      // placed at (0, 0) with height 5: content must be computed against the
+      // full placement (line 2 lands at screen row 2, matching where layout
+      // put it), not re-anchored at the clip's origin — that would pin line0
+      // to the top of the visible window instead of scrolling it off.
+      final model = TextAreaModel(id: 'ta', initial: 'line0\nline1\nline2\nline3\nline4');
+      final node = TextArea(model: model, theme: Theme.dark).build()
+        ..layout(plume.BoxConstraints.tight(const plume.Size(6, 5)), _ctx)
+        ..place(plume.Offset.zero);
+
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 5));
+      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 6, 3));
+      node.paint(surface);
+      surface.popClip();
+
+      // Rows scrolled above the clip are absent, not shown squeezed at the top.
+      expect(_dump(buffer), '\n\nline2\nline3\nline4\n');
+    });
+  });
+
   group('text area click routing', () {
     test('a click in the editor resolves to its id', () {
       final model = TextAreaModel(id: 'notes', initial: 'ab\ncd', focused: true);

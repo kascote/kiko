@@ -161,11 +161,14 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   int get visibleCount => _visibleCount;
 
   /// Moves the viewport by [rows], clamped so it never leaves the loaded items.
+  /// Returns rows actually moved (see [ScrollableModel.scrollBy]).
   @override
-  void scrollBy(int rows) {
+  int scrollBy(int rows) {
     final len = dataView.length;
     final maxOffset = len == null ? _scrollOffset + rows : (len - _visibleCount).clamp(0, len);
+    final before = _scrollOffset;
     _scrollOffset = (_scrollOffset + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
+    return _scrollOffset - before;
   }
 
   /// The item row at [local], or null when the click falls past the last item.
@@ -260,8 +263,10 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   ///
   /// The pointer branch sits above the focus gate, so a wheel scrolls, a click
   /// selects, and a hover highlights whether or not the list is focused. A
-  /// wheel notch scrolls the viewport without touching the cursor; a button-down
-  /// on an item moves the cursor there and activates it, exactly as Enter does;
+  /// wheel notch scrolls the viewport without touching the cursor; a notch that
+  /// moves nothing in that direction (already at the edge) is declined, so a
+  /// nesting scroll ancestor gets the chance. A button-down on an item moves the
+  /// cursor there and activates it, exactly as Enter does;
   /// any other pointer only refreshes the hovered row. A pointer that lands on no
   /// item is declined so the app can offer it to the next widget. The keyboard
   /// path stays behind the gate.
@@ -269,7 +274,11 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
       if (pointer.wheelDeltaY != 0) {
-        scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+        // Nothing moved in that direction (already at the edge) — decline so a
+        // nesting scroll ancestor gets the notch; consuming at the limit would
+        // make nesting permanently dead.
+        if (moved == 0) return const Declined();
         return Handled(_checkLoadThreshold());
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours

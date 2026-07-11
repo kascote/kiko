@@ -95,6 +95,37 @@ void main() {
     });
   });
 
+  group('table view under a partial clip (viewport)', () {
+    test('anchors content at the placement rect, not the clip sub-rect', () async {
+      // Simulates a Viewport ancestor showing only rows 2-4 of a table placed
+      // at (0, 0) with height 5: the node's own paint() pushes its full rect as
+      // a clip, intersecting with an already-narrower ancestor clip. Content
+      // must still be computed against the full placement (so row 2 lands at
+      // screen row 2, matching where layout put it), not re-anchored at the
+      // clip's origin — that would pin row 0 to the top of the visible window
+      // instead of scrolling it off.
+      final rows = List.generate(5, (i) => <String, Object?>{'id': '$i', 'name': 'r$i'});
+      final source = TableDataSource.fromList(rows);
+      final page = await source.getPage(0, 5);
+      final model = TableViewModel(dataSource: source, keyField: 'id', columns: _columns(), stickyHeader: false)
+        ..insertRows(page, 0);
+
+      final node = TableView(model: model, theme: Theme.dark).build()
+        ..layout(plume.BoxConstraints.tight(const plume.Size(7, 5)), _ctx)
+        ..place(plume.Offset.zero);
+
+      final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 7, height: 5));
+      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 7, 3));
+      node.paint(surface);
+      surface.popClip();
+
+      // Rows scrolled above the clip are absent, not shown squeezed at the top:
+      // screen row 2 shows model row 2 (where layout placed it), not model row
+      // 0 pinned to the clip's edge.
+      expect(_dump(buffer), '\n\n2  r2\n3  r3\n4  r4\n');
+    });
+  });
+
   group('table view click routing', () {
     test('a click in the table resolves to its id', () async {
       final model = await _seededTable(id: 'grid');

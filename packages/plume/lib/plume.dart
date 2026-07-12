@@ -22,7 +22,6 @@ export 'src/render/single_child_node.dart';
 export 'src/render/viewport.dart';
 export 'src/widgets/align.dart';
 export 'src/widgets/alignment.dart';
-export 'src/widgets/border_box.dart';
 export 'src/widgets/constrained_box.dart';
 export 'src/widgets/container.dart';
 export 'src/widgets/flex.dart';

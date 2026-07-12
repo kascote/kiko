@@ -23,8 +23,8 @@ String _render(plume.RenderNode<PaintToken> node, int width, int height) {
 
 void main() {
   group('Box mapping', () {
-    test('no border produces a BorderBox with no border token', () {
-      final node = const Box(child: SizedBox(width: 1, height: 1)).build() as plume.BorderBox<PaintToken>;
+    test('no border produces a Container with no border token', () {
+      final node = const Box(child: SizedBox(width: 1, height: 1)).build() as plume.Container<PaintToken>;
       expect(node.border, isNull);
       expect(node.background, isNull);
     });
@@ -36,7 +36,7 @@ void main() {
                 borderStyle: Style(fg: Color.red),
                 child: SizedBox(width: 1, height: 1),
               ).build()
-              as plume.BorderBox<PaintToken>;
+              as plume.Container<PaintToken>;
 
       expect(node.border, PaintToken(const Style(fg: Color.red), border: BorderType.plain.symbols));
     });
@@ -47,7 +47,7 @@ void main() {
                 background: Style(bg: Color.blue),
                 child: SizedBox(width: 1, height: 1),
               ).build()
-              as plume.BorderBox<PaintToken>;
+              as plume.Container<PaintToken>;
       expect(node.background, const PaintToken(Style(bg: Color.blue)));
     });
 
@@ -58,7 +58,7 @@ void main() {
                 bottomTitles: <Line>[Line('Bot')],
                 child: const SizedBox(width: 1, height: 1),
               ).build()
-              as plume.BorderBox<PaintToken>;
+              as plume.Container<PaintToken>;
 
       expect(node.labels, hasLength(2));
       expect(node.labels[0].side, plume.EdgeSide.top);

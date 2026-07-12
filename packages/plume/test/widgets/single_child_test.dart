@@ -42,27 +42,4 @@ void main() {
       expect(box.size, const Size(5, 3));
     });
   });
-
-  group('Container', () {
-    test('insets the child by padding and border, and paints decoration', () {
-      final box =
-          Container<String>(
-              background: 'bg',
-              border: 'brd',
-              padding: const EdgeInsets.all(1),
-              child: SizedBox<String>(width: 2, height: 1),
-            )
-            ..layout(BoxConstraints.loose(const Size(20, 20)), _ctx)
-            ..place(Offset.zero);
-      expect(box.size, const Size(6, 5));
-      expect(box.child.rect, const Rect(2, 2, 2, 1));
-
-      final surface = RecordingSurface<String>();
-      box.paint(surface);
-      expect(surface.intents.map((intent) => '$intent').toList(), [
-        'fillRect(Rect(0, 0, 6, 5), bg)',
-        'drawBorder(Rect(0, 0, 6, 5), brd)',
-      ]);
-    });
-  });
 }

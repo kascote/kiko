@@ -11,7 +11,7 @@ import 'view.dart';
 ///
 /// A [Box] draws a border and an optional background around a single [child]
 /// view, with [topTitles] and [bottomTitles] riding on its edges. It is the
-/// view wrapper over plume's [plume.BorderBox]: [build] maps kiko's own
+/// view wrapper over plume's [plume.Container]: [build] maps kiko's own
 /// vocabulary onto it — a [border] type and [borderStyle] become the one border
 /// token, a non-empty [background] style becomes the fill, and each title line
 /// becomes a label on its edge. Titles keep their multi-colour styling because
@@ -58,7 +58,7 @@ final class Box implements View {
   Node build() {
     final borderToken = border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols);
     final backgroundToken = background == const Style() ? null : PaintToken(background);
-    return plume.BorderBox<PaintToken>(
+    return plume.Container<PaintToken>(
       child: child.build(),
       border: borderToken,
       background: backgroundToken,

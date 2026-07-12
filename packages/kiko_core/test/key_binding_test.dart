@@ -128,4 +128,27 @@ void main() {
       );
     });
   });
+
+  // Regression guard: 'space'/'plus'/'minus' are word-aliased specs for the
+  // literal ' '/'+'/'-' characters (see KeyMsg.char), needed because '+' is
+  // the modifier separator in a spec like 'ctrl+s'. KeyBinding and
+  // KeyMsg.char read the SAME spec string but answer different questions —
+  // "is this bound?" vs "what text would this insert?" — and both must stay
+  // correct independently. List/Table bind 'space' to toggleSelect today.
+  group('KeyBinding aliased literal keys (space/plus/minus)', () {
+    test('space, plus, and minus are valid, bindable specs', () {
+      expect(KeyBinding.isValidKey('space'), true);
+      expect(KeyBinding.isValidKey('plus'), true);
+      expect(KeyBinding.isValidKey('minus'), true);
+    });
+
+    test('a binding on space resolves against a real space KeyMsg', () {
+      final binding = KeyBinding<TestAction>()..map(['space'], TestAction.search);
+
+      expect(binding.resolve(const KeyMsg('space')), TestAction.search);
+      // Whether or not 'space' is bound to an action, KeyMsg.char must still
+      // answer independently — the two systems share a string, not a result.
+      expect(const KeyMsg('space').char, equals(' '));
+    });
+  });
 }

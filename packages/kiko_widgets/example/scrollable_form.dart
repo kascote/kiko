@@ -38,6 +38,8 @@
 //
 // tab/shift+tab move · type to edit · wheel scrolls · enter validates · esc quits
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -302,10 +304,12 @@ View _field(TextInputModel input, int index, AppModel model, StyleResolver resol
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Scrollable form', mouseEvents: true).run(
-    init: AppModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Scrollable form', mouseEvents: true).run(
+      init: AppModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

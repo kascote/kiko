@@ -8,6 +8,8 @@
 // - Click the search box to place the caret, click a result to select it
 //   (same as Enter), wheel-scroll and per-row hover on the list
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -305,10 +307,12 @@ void appView(AppModel model, Frame frame) {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Searchable List Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Searchable List Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

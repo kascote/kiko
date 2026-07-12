@@ -32,6 +32,8 @@
 //
 // tab switches focus · ↑/↓ or the wheel moves · enter or a click activates · q quits
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -231,10 +233,12 @@ View _log(AppModel model) => Container(
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Mouse-driven widgets', mouseEvents: true).run(
-    init: AppModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Mouse-driven widgets', mouseEvents: true).run(
+      init: AppModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

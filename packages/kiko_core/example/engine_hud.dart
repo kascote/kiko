@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 
@@ -164,10 +166,12 @@ View _hint(HudModel model) => Line(
   style: const Style(fg: Color.darkGray),
 );
 
-void main() async {
-  await Application(title: 'Engine HUD').run(
-    init: HudModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Engine HUD').run(
+      init: HudModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

@@ -6,6 +6,8 @@
 // - Show submit status based on validity
 // - Click any field to place the caret there and move focus to it
 
+import 'dart:io';
+
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -275,10 +277,12 @@ View _fieldWithValidation(
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Validated Form Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Validated Form Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

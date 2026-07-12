@@ -6,6 +6,8 @@
 // - Create app-level keybindings
 // - Click either field to place the caret there and move focus to it
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -201,10 +203,12 @@ extension on TextInputModel {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Custom Keybindings Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Custom Keybindings Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

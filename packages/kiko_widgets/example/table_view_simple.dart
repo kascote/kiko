@@ -12,6 +12,8 @@
 //   theme-derived crosshair with a fixed warm look, independent of theme
 // - Click-to-select, wheel-scroll, per-row hover
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -279,10 +281,12 @@ void appView(AppModel model, Frame frame) {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'TableView Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'TableView Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

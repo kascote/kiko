@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -172,10 +174,12 @@ String _colorHex(Color? color) {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Theme Viewer').run(
-    init: Model(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Theme Viewer').run(
+      init: Model(),
+      update: update,
+      view: view,
+    ),
   );
 }

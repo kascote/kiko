@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -160,10 +162,12 @@ View _sampleCell(_Sample s) => ConstrainedBox(
   ),
 );
 
-void main() async {
-  await Application(title: 'Unicode gallery').run(
-    init: const UnicodeModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Unicode gallery').run(
+      init: const UnicodeModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

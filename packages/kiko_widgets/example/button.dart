@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -366,10 +368,12 @@ View _buildVerticalButtons(
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Button Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Button Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

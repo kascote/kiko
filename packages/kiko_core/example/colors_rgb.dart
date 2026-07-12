@@ -1,14 +1,18 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 Future<void> main() async {
-  await Application(
-    title: 'Colors RGB Example',
-  ).runStateless(
-    update: (_, msg, _) => switch (msg) {
-      KeyMsg(key: 'q') => (null, const Quit()),
-      _ => (null, null),
-    },
-    view: (_, frame) => frame.render(_ui()),
+  exit(
+    await Application(
+      title: 'Colors RGB Example',
+    ).runStateless(
+      update: (_, msg, _) => switch (msg) {
+        KeyMsg(key: 'q') => (null, const Quit()),
+        _ => (null, null),
+      },
+      view: (_, frame) => frame.render(_ui()),
+    ),
   );
 }
 

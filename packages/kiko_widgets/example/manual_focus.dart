@@ -8,6 +8,8 @@
 // Mouse: click any field to place the caret there and move focus to it —
 // the same setFocus() call Tab uses.
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -167,10 +169,12 @@ View _field(TextInputModel input, String label, Theme theme) => Container(
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Manual Focus Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Manual Focus Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

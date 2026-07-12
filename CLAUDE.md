@@ -44,16 +44,25 @@ make cover                          # coverage report
 Kiko uses MVU in the **Bubble Tea** style (Go), _not_ Elm: models are mutable components, not immutable values. `update` returns `(model, cmd)`, but you are expected to mutate `model` in place and return the same reference — purity is neither assumed nor rewarded here (the widget models beneath you are mutable too). You therefore do _not_ get Elm-style guarantees: no time-travel, identity memoization, or free snapshots.
 
 ```dart
-await Application(title: 'App').run(
-  init: MyModel(),
-  update: (model, msg, ctx) => switch (msg) {
-    KeyMsg(key: 'q') => (model, const Quit()),
-    TickMsg(:final elapsed) => (model.tick(elapsed), null),
-    _ => (model, null),
-  },
-  view: (model, frame) => frame.render(myWidget(model)),
+exit(
+  await Application(title: 'App').run(
+    init: MyModel(),
+    update: (model, msg, ctx) => switch (msg) {
+      KeyMsg(key: 'q') => (model, const Quit()),
+      TickMsg(:final elapsed) => (model.tick(elapsed), null),
+      _ => (model, null),
+    },
+    view: (model, frame) => frame.render(myWidget(model)),
+  ),
 );
 ```
+
+`run()` completes with the exit code under every backend — the framework never calls
+`exit()` itself. Terminating the process is the app's call: `exit(await
+Application(...).run(...))`. Two gotchas: Dart ignores `main`'s return value (`run()`'s
+result must reach `exit()` or a top-level `exitCode` assignment, or nothing happens), and
+if the app prints anything after `run()` completes, `await stdout.flush()` before calling
+`exit()` — termlib writes through `dart:io stdout`'s async buffer.
 
 `update`'s third argument is an `UpdateContext`: the read-only environment the runtime
 supplies for a turn (the frame's `HitMap` and the viewport `Rect`). Take it as `_` when

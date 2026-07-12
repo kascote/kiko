@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:kiko/kiko.dart';
@@ -158,10 +159,12 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════
-void main() async {
-  await Application(title: 'Async example').run(
-    init: const AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Async example').run(
+      init: const AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

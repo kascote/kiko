@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 
@@ -245,10 +247,12 @@ String _rectLabel(Rect? rect) {
   return '(${rect.x}, ${rect.y}) ${rect.width}×${rect.height}';
 }
 
-void main() async {
-  await Application(title: 'Mouse playground', mouseEvents: true).run(
-    init: MouseModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Mouse playground', mouseEvents: true).run(
+      init: MouseModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

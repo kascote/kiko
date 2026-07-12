@@ -15,7 +15,7 @@ import 'terminal.dart';
 
 /// Error handler callback type.
 ///
-/// Called after terminal state is restored but before exit.
+/// Called after terminal state is restored but before `run()` completes.
 /// Returns exit code to use.
 typedef ErrorHandler =
     FutureOr<int> Function(
@@ -24,7 +24,7 @@ typedef ErrorHandler =
       StackTrace stack,
     );
 
-/// Cleanup callback type. Called before exit on all paths.
+/// Cleanup callback type. Called before `run()` completes on all paths.
 typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 
 /// Update function for MVU: (model, msg, ctx) -> (model, cmd?)
@@ -94,7 +94,7 @@ class Application {
   /// Custom error handler. Called after terminal restored.
   final ErrorHandler? onError;
 
-  /// Cleanup callback. Called before exit on all paths.
+  /// Cleanup callback. Called before `run()` completes on all paths.
   final CleanupCallback? onCleanup;
 
   /// Backend the terminal draws through. If null, draws on the real terminal.

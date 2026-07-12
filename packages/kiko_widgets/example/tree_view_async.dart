@@ -10,6 +10,8 @@
 // - Click a node to expand/select, wheel-scroll, per-node hover — scrolling
 //   near the edge does NOT page (Tree loads on expand, not on threshold)
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -371,10 +373,12 @@ void appView(AppModel model, Frame frame) {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Async TreeView Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Async TreeView Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

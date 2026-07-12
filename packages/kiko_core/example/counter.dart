@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -45,10 +47,12 @@ void counterView(CounterModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════
-void main() async {
-  await Application(title: 'Counter MVU').run(
-    init: const CounterModel(),
-    update: counterUpdate,
-    view: counterView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Counter MVU').run(
+      init: const CounterModel(),
+      update: counterUpdate,
+      view: counterView,
+    ),
   );
 }

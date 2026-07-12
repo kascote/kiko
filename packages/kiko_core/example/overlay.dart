@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -108,10 +110,12 @@ View _modal() => Center(
   ),
 );
 
-void main() async {
-  await Application(title: 'Overlay demo').run(
-    init: const OverlayModel(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Overlay demo').run(
+      init: const OverlayModel(),
+      update: update,
+      view: view,
+    ),
   );
 }

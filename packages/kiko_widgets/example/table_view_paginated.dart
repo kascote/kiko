@@ -9,6 +9,8 @@
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
 //   pages the next/previous batch in, same as cursor nav
 
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
@@ -353,10 +355,12 @@ void appView(AppModel model, Frame frame) {
 // MAIN
 // ═══════════════════════════════════════════════════════════
 
-void main() async {
-  await Application(title: 'Paginated TableView Demo', mouseEvents: true).run(
-    init: AppModel(),
-    update: appUpdate,
-    view: appView,
+Future<void> main() async {
+  exit(
+    await Application(title: 'Paginated TableView Demo', mouseEvents: true).run(
+      init: AppModel(),
+      update: appUpdate,
+      view: appView,
+    ),
   );
 }

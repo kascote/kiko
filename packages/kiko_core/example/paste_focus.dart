@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:kiko/kiko.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -133,14 +135,16 @@ List<String> _preview(String text) {
   return [...lines.take(6), '… +${lines.length - 6} more line(s)'];
 }
 
-void main() async {
-  await Application(
-    title: 'Paste + focus echo',
-    bracketedPaste: true,
-    focusEvents: true,
-  ).run(
-    init: Model(),
-    update: update,
-    view: view,
+Future<void> main() async {
+  exit(
+    await Application(
+      title: 'Paste + focus echo',
+      bracketedPaste: true,
+      focusEvents: true,
+    ).run(
+      init: Model(),
+      update: update,
+      view: view,
+    ),
   );
 }

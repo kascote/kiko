@@ -262,7 +262,7 @@ class Terminal {
 
   /// Queries the backend for size and resizes if it doesn't match the
   /// previous size.
-  void autoResize() {
+  Future<void> autoResize() async {
     switch (_viewPort) {
       case ViewPortFullScreen() || ViewPortInline():
         const origin = Position.origin;
@@ -273,7 +273,7 @@ class Terminal {
           width: size.width,
           height: size.height,
         );
-        if (_lastKnowArea != area) unawaited(resize(area));
+        if (_lastKnowArea != area) await resize(area);
       default:
         return;
     }
@@ -286,8 +286,13 @@ class Terminal {
   /// Applications should call [draw] in a loop to continuously render the
   /// terminal. These methods are the main entry points for drawing to the
   /// terminal.
-  CompletedFrame draw(WidgetRenderCallback renderCallback) {
-    autoResize();
+  ///
+  /// Awaits [autoResize] before building the frame, so an inline viewport
+  /// never paints against a stale size. Callers must await each [draw]
+  /// before starting the next — that serialization, not any internal latch,
+  /// is what keeps at most one resize in flight.
+  Future<CompletedFrame> draw(WidgetRenderCallback renderCallback) async {
+    await autoResize();
     final frame = getFrame();
     renderCallback(frame);
 

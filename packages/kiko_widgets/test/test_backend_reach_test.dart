@@ -17,7 +17,7 @@ void main() {
     final backend = TestBackend(size: const TermSize(4, 1));
     final terminal = await Terminal.create(backend: backend);
 
-    terminal.draw(
+    await terminal.draw(
       (frame) => frame.render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK')),

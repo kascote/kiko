@@ -237,20 +237,27 @@ class Application {
     final terminal = _terminal!;
     final runtime = _runtime = MvuRuntime()
       ..reset()
-      ..subscribeToEvents(terminal.events);
+      ..subscribeToEvents(terminal.events)
+      // The initial draw below is now genuinely asynchronous, so an event a
+      // handler emits while processing InitMsg can arrive before that draw
+      // has committed a frame to stamp it against. Hold it until it has.
+      ..holdEventsForFirstFrame();
 
     // The map a mouse event resolves against is the one that painted the cells
     // it was aimed at, so every draw hands its geometry back to the runtime.
-    void draw(M model) => runtime.lastHitMap = terminal.draw((frame) => view(model, frame)).hits;
+    Future<void> draw(M model) async {
+      runtime.lastHitMap = (await terminal.draw((frame) => view(model, frame))).hits;
+    }
 
     // 1. Send InitMsg, process, render immediately (before FrameTick starts)
     final initCtx = UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
     var (model, initCmd) = update(init, const InitMsg(), initCtx);
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
-    draw(model);
-
-    // 2. Start FrameTick timer
-    runtime.startFrameTick(fps);
+    await draw(model);
+    runtime
+      ..flushStartupEvents()
+      // 2. Start FrameTick timer
+      ..startFrameTick(fps);
 
     // 3. Main loop
     while (true) {
@@ -285,7 +292,7 @@ class Application {
       }
 
       // Render only on FrameTick, and only for the message that was dequeued.
-      if (msg is FrameTickMsg) draw(model);
+      if (msg is FrameTickMsg) await draw(model);
     }
   }
 

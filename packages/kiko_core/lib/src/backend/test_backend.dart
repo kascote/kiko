@@ -53,6 +53,9 @@ class TestBackend implements Backend {
   /// Total lines requested through [insertNewLines].
   int insertedNewLines = 0;
 
+  /// How many times [insertNewLines] has been called.
+  int insertNewLinesCount = 0;
+
   /// The cursor position, as last set by [setCursorPosition].
   Position cursor = Position.origin;
 
@@ -130,7 +133,10 @@ class TestBackend implements Backend {
   void clearRegion(ClearType type) => clears.add(type);
 
   @override
-  void insertNewLines(int n) => insertedNewLines += n;
+  void insertNewLines(int n) {
+    insertedNewLines += n;
+    insertNewLinesCount++;
+  }
 
   @override
   void hideCursor() => cursorVisible = false;

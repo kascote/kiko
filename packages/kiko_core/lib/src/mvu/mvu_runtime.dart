@@ -50,6 +50,15 @@ class MvuRuntime {
   /// Subscription to terminal events stream.
   StreamSubscription<Event>? _eventSubscription;
 
+  /// Terminal events that arrived while delivery was held by
+  /// [holdEventsForFirstFrame], waiting on [flushStartupEvents] to stamp and
+  /// queue them.
+  final List<Event> _startupEvents = [];
+
+  /// Whether an incoming event is stamped and queued immediately, rather than
+  /// held in [_startupEvents]. See [holdEventsForFirstFrame].
+  bool _liveDelivery = true;
+
   /// Exit code set by Quit command.
   int exitCode = 0;
 
@@ -84,6 +93,8 @@ class MvuRuntime {
     _frameNumber = 0;
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = null;
+    _startupEvents.clear();
+    _liveDelivery = true;
     _token = _CancellationToken();
   }
 
@@ -94,11 +105,40 @@ class MvuRuntime {
   ///
   /// A mouse event is stamped as it arrives with the geometry then on screen,
   /// so it stays aimed at the cells the user aimed it at however long it waits.
+  /// See [holdEventsForFirstFrame] for the one window where that geometry
+  /// does not exist yet.
   void subscribeToEvents(Stream<Event> events) {
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = events.listen((event) {
-      queueMsg(eventToMsg(event, hits: lastHitMap));
+      if (_liveDelivery) {
+        queueMsg(eventToMsg(event, hits: lastHitMap));
+      } else {
+        _startupEvents.add(event);
+      }
     });
+  }
+
+  /// Holds incoming events instead of stamping and queuing them immediately,
+  /// until [flushStartupEvents] is called.
+  ///
+  /// A message handler can emit a terminal event (a synthetic click, say)
+  /// before the runtime has ever drawn a frame — there is no committed
+  /// geometry yet to stamp it against. Call this right after
+  /// [subscribeToEvents] and before that first draw runs, so nothing slips
+  /// through and gets stamped against an empty [lastHitMap].
+  void holdEventsForFirstFrame() => _liveDelivery = false;
+
+  /// Stamps and queues events held by [holdEventsForFirstFrame], then resumes
+  /// immediate delivery for everything after.
+  ///
+  /// Call once, right after the runtime's first draw commits — the geometry
+  /// those held events were always meant to resolve against.
+  void flushStartupEvents() {
+    for (final event in _startupEvents) {
+      queueMsg(eventToMsg(event, hits: lastHitMap));
+    }
+    _startupEvents.clear();
+    _liveDelivery = true;
   }
 
   /// Resolves a dequeued [msg] into the messages `update` should see, and the

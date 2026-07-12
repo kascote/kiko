@@ -156,9 +156,10 @@ abstract interface class Backend {
   /// The set of colors this backend can render.
   ColorProfile get profile;
 
-  /// Flushes any buffered output and then exits the process with [status].
-  Future<void> flushThenExit(int status);
-
   /// Releases the backend's resources.
+  ///
+  /// Flushes pending output before returning. Closes nothing and exits
+  /// nothing — terminating the process is the app's call, made after this
+  /// completes.
   Future<void> dispose();
 }

@@ -53,10 +53,16 @@ exported) and `TestBackend` (in-memory, `package:kiko/testing.dart`).
   `Application({@visibleForTesting Backend? backend})` both take an injected backend, so the
   render loop and the full MVU drain run under `dart test`. `TestBackend` keeps a `screen`
   buffer that every `draw` applies onto (assert what was *rendered*), a `lastDiff` (assert
-  the double buffer redrew only what changed), `emit(event)` to drive the loop, and a
-  recorded `exitCode` — `flushThenExit` never exits the test process. It is **not a terminal
-  emulator**: it parses no escape sequences, and every call but `draw` is recorded, not
-  simulated. See `test/terminal_test.dart` and `test/application_test.dart`.
+  the double buffer redrew only what changed), and `emit(event)` to drive the loop. It is
+  **not a terminal emulator**: it parses no escape sequences, and every call but `draw` is
+  recorded, not simulated. See `test/terminal_test.dart` and `test/application_test.dart`.
+- **`Backend.dispose()` flushes.** The framework never calls `exit()` — `Application.run`
+  completes with the exit code on every path, and terminating the process is the caller's
+  line (`exit(await Application(...).run(...))`). `dispose()` flushes pending output, closes
+  nothing, and exits nothing; `TermlibBackend.dispose` flushes termlib's sink before
+  disposing the terminal, since termlib writes through `dart:io stdout`'s async buffer and an
+  app-side `exit()` right after `run()` could otherwise truncate the terminal-restore bytes
+  this backend just wrote.
 
 ## Mouse: the Hit Map and the Router
 

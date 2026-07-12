@@ -127,6 +127,19 @@ class Application {
   StreamSubscription<ProcessSignal>? _sigtermSub;
   bool _disposed = false;
 
+  // Set the instant a shutdown starts, from whichever path triggers it —
+  // possibly while the drain loop in _runLoop is still running concurrently
+  // (a signal, or a caller's dispose(code)). The loop checks this the moment
+  // it regains control (see _runLoop) and returns without touching the
+  // terminal again, since _shutdown may already be restoring or disposing it.
+  bool _stopped = false;
+
+  // The single completer `run()`'s Future<int> resolves through. `_shutdown`
+  // is the only place that completes it, so every exit path — Quit, an
+  // uncaught error, a signal, or a public `dispose(code)` — reports the same
+  // way regardless of who triggered it.
+  late Completer<int> _completer;
+
   // MVU runtime (lazy initialized)
   MvuRuntime? _runtime;
 
@@ -157,9 +170,9 @@ class Application {
   /// [update] transforms model based on messages, returns (model, cmd?).
   /// [view] renders model to frame.
   ///
-  /// Completes with the exit code, which [onError] may have replaced. On a real
-  /// terminal the backend exits the process first, so this only ever completes
-  /// under a backend that does not, such as a `TestBackend`.
+  /// Completes with the exit code, which [onError] may have replaced, under
+  /// every backend — the framework never calls `exit()`. Terminating the
+  /// process is the caller's line: `exit(await Application(...).run(...))`.
   Future<int> run<M>({
     required M init,
     required Update<M> update,
@@ -177,7 +190,7 @@ class Application {
           )
         : Log(output: const NullOutput(), level: logLevel);
 
-    final completer = Completer<int>();
+    _completer = Completer<int>();
 
     unawaited(
       runZonedGuarded(
@@ -187,19 +200,17 @@ class Application {
           _initTerminal();
           _setupSignalHandlers();
           final rc = await _runLoop(init, update, view);
-          completer.complete(await _shutdown(exitCode: rc));
+          await _shutdown(exitCode: rc);
         },
         (error, stackTrace) async {
           Log.error('Uncaught error', error, stackTrace);
-          // onError may replace the code, so report what _shutdown settled on.
-          final code = await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
-          if (!completer.isCompleted) completer.complete(code);
+          await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
         },
         zoneValues: {#kiko.log: log},
       ),
     );
 
-    final exitCode = await completer.future;
+    final exitCode = await _completer.future;
     await log.output.close();
     return exitCode;
   }
@@ -248,6 +259,12 @@ class Application {
 
       // Get next message
       final msg = await runtime.nextMsg(timeout: eventTimeout);
+
+      // A concurrent _shutdown (signal, dispose(code)) may have started, and
+      // possibly already restored or disposed the terminal, while this await
+      // was pending — stop before touching it again. nextMsg always returns
+      // within eventTimeout, so this is checked promptly.
+      if (_stopped) return runtime.exitCode;
 
       // Drop stale frames to prevent backlog
       if (runtime.isStale(msg, fps)) continue;
@@ -312,13 +329,20 @@ class Application {
 
   /// Single shutdown path - all exits go through here.
   ///
-  /// Handles normal exit, errors, and signals uniformly. Returns the code the
-  /// application exits with, which [onError] may have replaced.
+  /// Handles normal exit, errors, signals, and a public [dispose] call
+  /// uniformly. Completes [_completer] exactly once with the code the
+  /// application exits with, which [onError] may have replaced, and returns
+  /// that same code.
   Future<int> _shutdown({
     required int exitCode,
     Object? error,
     StackTrace? stack,
   }) async {
+    // Tell a concurrently running _runLoop to stop before it touches the
+    // terminal again, regardless of whether this call goes on to do the
+    // shutdown work itself (see the _disposed guard right below).
+    _stopped = true;
+
     if (_disposed) return exitCode;
     _disposed = true;
 
@@ -344,7 +368,8 @@ class Application {
     }
 
     await _terminal?.dispose();
-    await _exit(finalCode);
+
+    if (!_completer.isCompleted) _completer.complete(finalCode);
     return finalCode;
   }
 
@@ -381,10 +406,6 @@ class Application {
     _sigtermSub = null;
   }
 
-  Future<void> _exit(int exitCode) async {
-    await _terminal?.flushThenExit(exitCode);
-  }
-
-  /// Clean up terminal state and exit.
+  /// Clean up terminal state and complete [run]'s future with [exitCode].
   Future<void> dispose(int exitCode) => _shutdown(exitCode: exitCode);
 }

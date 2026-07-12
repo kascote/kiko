@@ -347,9 +347,6 @@ class Terminal {
   /// Provides push-based event delivery for subscribers.
   Stream<evt.Event> get events => backend.events;
 
-  /// Flush the stdout and stderr buffers and exits the application
-  Future<void> flushThenExit(int status) async => backend.flushThenExit(status);
-
   /// Queries the backend for the current cursor position
   Future<Position?> getCursorPosition() => backend.getCursorPosition();
 

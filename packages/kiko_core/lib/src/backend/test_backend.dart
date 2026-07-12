@@ -80,9 +80,6 @@ class TestBackend implements Backend {
   /// The title last set through [setTitle].
   String? title;
 
-  /// The status [flushThenExit] was called with, or `null` if it never was.
-  int? exitCode;
-
   /// Whether [dispose] has been called.
   bool disposed = false;
 
@@ -233,12 +230,6 @@ class TestBackend implements Backend {
 
   @override
   void setTitle(String title) => this.title = title;
-
-  /// Records [status] as [exitCode]. Never exits the process.
-  @override
-  Future<void> flushThenExit(int status) async {
-    exitCode = status;
-  }
 
   @override
   Future<void> dispose() async {

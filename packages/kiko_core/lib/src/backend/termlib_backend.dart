@@ -222,14 +222,16 @@ class TermlibBackend implements Backend {
   @override
   Stream<tle.Event> get events => _term.events.map(toBufferCoords);
 
-  /// Flushes any buffered output and then exits the application with the given [status] code.
-  @override
-  Future<void> flushThenExit(int status) async => _term.flushThenExit(status);
-
-  /// Disposes of the terminal resources.
+  /// Flushes pending output, then disposes of the terminal resources.
+  ///
+  /// termlib writes through `dart:io stdout`, which buffers asynchronously —
+  /// without this flush, an app-side `exit(code)` right after `run()`
+  /// completes could truncate the terminal-restore bytes this backend just
+  /// wrote.
   @override
   Future<void> dispose() async {
-    return _term.dispose();
+    await _term.flush();
+    await _term.dispose();
   }
 
   /// Enables mouse event tracking.

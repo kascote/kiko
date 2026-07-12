@@ -92,11 +92,10 @@ void main() {
   });
 
   group('the exit path', () {
-    test('a Quit code is returned and handed to the backend', () async {
+    test('a Quit code is returned', () async {
       final rc = await runApp(Application(backend: backend), update: quitOnInit(3));
 
       expect(rc, 3);
-      expect(backend.exitCode, 3);
       expect(backend.disposed, isTrue);
     });
 
@@ -130,6 +129,47 @@ void main() {
 
       expect(views, 0);
       expect(backend.drawCount, 0);
+    });
+  });
+
+  group('external shutdown while the loop is running', () {
+    // A real signal drives the same `_shutdown` call `dispose(code)` does —
+    // see application.dart's `_setupSignalHandlers`. Self-sending SIGINT is
+    // not exercised here: it proved unreliable under the `dart test` runner
+    // (the watcher registered in-process never observed it), so this covers
+    // the shared mechanism through the public entry point instead.
+    test('dispose(code) completes run() with that code', () async {
+      final app = Application(backend: backend);
+      final runFuture = runApp(app, update: (model, _, _) => (model, null));
+
+      // Let the app clear init and settle into the drain loop.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      await app.dispose(9);
+
+      expect(await runFuture, 9);
+      expect(backend.disposed, isTrue);
+    });
+
+    test('the loop stops drawing once shutdown has started', () async {
+      final app = Application(backend: backend);
+      final runFuture = runApp(app, update: (model, _, _) => (model, null));
+
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      final drawsBeforeDispose = backend.drawCount;
+
+      await app.dispose(0);
+      await runFuture;
+
+      // A couple more frame intervals: if the loop were still drawing, this
+      // would catch it.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        backend.drawCount,
+        drawsBeforeDispose,
+        reason: 'shutdown restored/disposed the terminal; the loop must not touch it again',
+      );
     });
   });
 
@@ -260,7 +300,6 @@ void main() {
 
       expect(seenError, isA<StateError>());
       expect(rc, 7, reason: 'onError replaces defaultErrorCode');
-      expect(backend.exitCode, 7, reason: 'and the process exits with the same code');
       expect(backend.rawMode, isFalse, reason: 'the terminal is restored even on the error path');
       expect(backend.disposed, isTrue);
     });
@@ -271,7 +310,6 @@ void main() {
       final rc = await runApp(app, update: (_, _, _) => throw StateError('boom'));
 
       expect(rc, 2);
-      expect(backend.exitCode, 2);
     });
   });
 }

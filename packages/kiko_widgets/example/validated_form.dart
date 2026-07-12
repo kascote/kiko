@@ -179,7 +179,7 @@ void appView(AppModel model, Frame frame) {
   final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final ui = Box(
+  final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
     topTitles: [Line('Validated Form Demo', style: theme.muted.ink)],
@@ -249,7 +249,7 @@ View _fieldWithValidation(
   return Row(
     children: [
       Expanded(
-        child: Box(
+        child: Container(
           border: BorderType.plain,
           borderStyle: effectiveBorder,
           padding: const EdgeInsets.symmetric(horizontal: 1),

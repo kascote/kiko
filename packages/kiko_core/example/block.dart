@@ -66,28 +66,28 @@ final _placeHolder = Line(
   style: const Style(fg: Color.darkGray),
 );
 
-View _bordersAll() => Box(border: BorderType.plain, topTitles: [Line('Borders::ALL')], child: _placeHolder);
+View _bordersAll() => Container(border: BorderType.plain, topTitles: [Line('Borders::ALL')], child: _placeHolder);
 
-View _bordersNone() => Box(topTitles: [Line('Borders::NONE')], child: _placeHolder);
+View _bordersNone() => Container(topTitles: [Line('Borders::NONE')], child: _placeHolder);
 
 View _borderType(BorderType type, String name) =>
-    Box(border: type, topTitles: [Line('BorderType::$name')], child: _placeHolder);
+    Container(border: type, topTitles: [Line('BorderType::$name')], child: _placeHolder);
 
-View _styledBlock() => Box(
+View _styledBlock() => Container(
   border: BorderType.plain,
   background: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
   topTitles: [Line('Styled block')],
   child: _placeHolder,
 );
 
-View _styledBorder() => Box(
+View _styledBorder() => Container(
   border: BorderType.plain,
   borderStyle: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
   topTitles: [Line('Styled borders')],
   child: _placeHolder,
 );
 
-View _styledTitle() => Box(
+View _styledTitle() => Container(
   border: BorderType.plain,
   topTitles: [
     Line(
@@ -98,7 +98,7 @@ View _styledTitle() => Box(
   child: _placeHolder,
 );
 
-View _styledTitleContent() => Box(
+View _styledTitleContent() => Container(
   border: BorderType.plain,
   topTitles: [
     Line.fromTexts([
@@ -115,7 +115,7 @@ View _styledTitleContent() => Box(
   child: _placeHolder,
 );
 
-View _multipleTitles() => Box(
+View _multipleTitles() => Container(
   border: BorderType.plain,
   topTitles: [
     Line(
@@ -133,22 +133,22 @@ View _multipleTitles() => Box(
 /// Per-title side positioning (left/center/right) had no plume-native
 /// replacement — [Box] packs every title at the start of its edge — so this
 /// now just shows several titles riding both the top and bottom edges.
-View _titlesBothEdges() => Box(
+View _titlesBothEdges() => Container(
   border: BorderType.plain,
   topTitles: [Line('top one'), Line('top two'), Line('top three')],
   bottomTitles: [Line('bottom one'), Line('bottom two'), Line('bottom three')],
   child: _placeHolder,
 );
 
-View _padding() => Box(
+View _padding() => Container(
   border: BorderType.plain,
   padding: const EdgeInsets.only(left: 5, top: 1, right: 10),
   topTitles: [Line('Padding')],
   child: _placeHolder,
 );
 
-View _nestedBlocks() => Box(
+View _nestedBlocks() => Container(
   border: BorderType.plain,
   topTitles: [Line('Outer block')],
-  child: Box(border: BorderType.plain, topTitles: [Line('Inner block')], child: _placeHolder),
+  child: Container(border: BorderType.plain, topTitles: [Line('Inner block')], child: _placeHolder),
 );

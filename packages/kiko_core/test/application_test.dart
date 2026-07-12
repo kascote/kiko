@@ -15,7 +15,8 @@ Update<int> quitOnInit([int code = 0]) =>
     (model, msg, _) => (model, msg is InitMsg ? Quit(code) : null);
 
 /// A view whose one widget fills the viewport and answers to the id `ok`.
-void tagWholeArea(int _, Frame frame) => frame.render(Tagged('ok', Box(border: BorderType.plain, child: Line(''))));
+void tagWholeArea(int _, Frame frame) =>
+    frame.render(Tagged('ok', Container(border: BorderType.plain, child: Line(''))));
 
 void main() {
   late TestBackend backend;

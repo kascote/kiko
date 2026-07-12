@@ -65,7 +65,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       // Timer pane (left)
       Expanded(
-        child: Box(
+        child: Container(
           border: BorderType.plain,
           topTitles: [Line('Timer (space/r)')],
           child: Column(
@@ -83,7 +83,7 @@ void appView(AppModel model, Frame frame) {
       ),
       // Counter pane (right)
       Expanded(
-        child: Box(
+        child: Container(
           border: BorderType.plain,
           topTitles: [Line('Counter (↑/↓)')],
           child: Center(child: Line('Count: ${model.counter}')),
@@ -92,7 +92,7 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  final outer = Box(border: BorderType.plain, topTitles: [Line('q=quit')], child: ui);
+  final outer = Container(border: BorderType.plain, topTitles: [Line('q=quit')], child: ui);
   frame.render(outer);
 }
 

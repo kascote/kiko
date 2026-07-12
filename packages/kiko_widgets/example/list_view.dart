@@ -119,13 +119,13 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('ListView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
             topTitles: [Line('Fruits (${fruits.length})', style: theme.focus.ink)],
@@ -138,7 +138,7 @@ void appView(AppModel model, Frame frame) {
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: model.selected != null ? theme.success.ink : theme.border.ink,
             padding: const EdgeInsets.symmetric(horizontal: 1),

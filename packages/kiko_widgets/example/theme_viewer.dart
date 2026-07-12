@@ -47,7 +47,7 @@ void view(Model model, Frame frame) {
     crossAxis: CrossAxisAlignment.stretch,
     children: [
       // Header
-      Box(
+      Container(
         border: BorderType.plain,
         borderStyle: resolver.border(const {}),
         child: Row(
@@ -110,7 +110,7 @@ View _styleSection(Theme theme, String title, List<(String, Style)> styles) {
   for (final (name, style) in styles) {
     rows.add(_styleRow(theme, name, style));
   }
-  return Box(
+  return Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {}),
     padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -153,7 +153,7 @@ View _col(int width, View child) => ConstrainedBox(
 /// A color chip: [width] cells of [style]'s background with [label] over it.
 View _swatch(int width, Style style, String label) => ConstrainedBox(
   additionalConstraints: BoxConstraints(minW: width, maxW: width),
-  child: Box(
+  child: Container(
     background: style,
     child: Line(' $label ', style: style),
   ),

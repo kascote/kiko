@@ -196,7 +196,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final tableWidget = Box(
+  final tableWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [Line('Employees (${employees.length})', style: theme.focus.ink)],
@@ -215,7 +215,7 @@ void appView(AppModel model, Frame frame) {
 
   final selectedBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: Box(
+    child: Container(
       border: BorderType.plain,
       borderStyle: selectedCount > 0 ? theme.success.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -230,7 +230,7 @@ void appView(AppModel model, Frame frame) {
   // Confirmed cell info
   final confirmedBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: Box(
+    child: Container(
       border: BorderType.plain,
       borderStyle: model.confirmedCell != null ? theme.accent.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -259,7 +259,7 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('TableView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,

@@ -9,7 +9,7 @@ import 'view.dart';
 /// painted. Wrap whatever should answer for a click.
 ///
 /// ```dart
-/// Tagged('save-button', Box(child: Line('Save')))
+/// Tagged('save-button', Container(child: Line('Save')))
 /// ```
 ///
 /// This is the one place a hit tag is set. The underlying plume `tag` field is

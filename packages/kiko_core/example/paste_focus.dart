@@ -60,7 +60,7 @@ void view(Model model, Frame frame) {
           style: Style(fg: Color.black, bg: Color.yellow, addModifier: Modifier.bold),
         );
 
-  final ui = Box(
+  final ui = Container(
     border: BorderType.plain,
     borderStyle: Style(fg: model.focused ? Color.green : Color.darkGray),
     topTitles: [Line('Paste + focus echo')],
@@ -95,7 +95,7 @@ void view(Model model, Frame frame) {
   frame.render(ui);
 }
 
-View _pastePanel(Model model) => Box(
+View _pastePanel(Model model) => Container(
   border: BorderType.rounded,
   topTitles: [Line('last paste (#${model.pasteCount})')],
   child: model.lastPaste == null
@@ -110,7 +110,7 @@ View _pastePanel(Model model) => Box(
         ),
 );
 
-View _logPanel(Model model) => Box(
+View _logPanel(Model model) => Container(
   border: BorderType.rounded,
   topTitles: [Line('event log')],
   child: Column(

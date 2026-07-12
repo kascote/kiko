@@ -117,9 +117,9 @@ selected pane border is `selection.ink`, a selected row is `selection.fill` — 
 tone, different projection).
 
 A **derived** border therefore never carries a background — pass `resolver.border`
-(or a `.ink`) to `Box.borderStyle`. An **explicit** `Style(fg: …, bg: …)` handed to
+(or a `.ink`) to `Container.borderStyle`. An **explicit** `Style(fg: …, bg: …)` handed to
 a border is a deliberate design choice (a filled dialog frame, a status strip) and
-is always allowed. `Box` takes a plain, unrestricted `Style`; the theme-awareness
+is always allowed. `Container` takes a plain, unrestricted `Style`; the theme-awareness
 lives one level up in the resolver.
 
 ## 5. Expose per-state `styleOverrides`

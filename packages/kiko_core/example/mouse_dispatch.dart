@@ -249,7 +249,7 @@ void view(AppModel model, Frame frame) {
 /// rows makes `local.y` a row index, where tagging the box would make it a row
 /// index off by the border. Neither is more correct; nothing downstream
 /// compensates.
-View _menu(MenuModel model) => Box(
+View _menu(MenuModel model) => Container(
   border: BorderType.plain,
   borderStyle: Style(fg: model.focused ? Color.cyan : Color.darkGray),
   topTitles: [Line(' ${model.id} ', style: Style(fg: model.focused ? Color.cyan : Color.darkGray))],
@@ -281,14 +281,14 @@ View _row(MenuModel model, int index) {
 View _clearButton() => Center(
   child: Tagged(
     'clear',
-    Box(
+    Container(
       border: BorderType.plain,
       child: Line(' clear log ', style: const Style(fg: Color.yellow)),
     ),
   ),
 );
 
-View _log(AppModel model) => Box(
+View _log(AppModel model) => Container(
   border: BorderType.plain,
   topTitles: [Line('events')],
   child: Column(

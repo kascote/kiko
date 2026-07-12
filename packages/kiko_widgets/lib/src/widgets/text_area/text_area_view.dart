@@ -10,8 +10,8 @@ import 'text_area_renderer.dart';
 /// gutter, selection, and the placeholder — through the plume paint protocol.
 /// That rendering is the text area's own [TextAreaRenderer]. The terminal cursor
 /// the editor asks for is carried back to the surface when painting through the
-/// real `BufferSurface` (plume itself has no cursor concept). Wrap it in a [Box]
-/// for a border or edge titles. The node is stamped with the model id so a click
+/// real `BufferSurface` (plume itself has no cursor concept). Wrap it in a
+/// [Container] for a border or edge titles. The node is stamped with the model id so a click
 /// routes back through [HitMap.hitId].
 final class TextArea implements View {
   /// Creates a text area over [model], styled by [theme].

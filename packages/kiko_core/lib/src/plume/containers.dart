@@ -1,9 +1,9 @@
 import 'package:plume/plume.dart' as plume;
 
 import '../style.dart';
+import '../text/line.dart';
 import '../widgets/border_type.dart';
 import 'aliases.dart';
-import 'box.dart';
 import 'paint_token.dart';
 import 'view.dart';
 
@@ -216,14 +216,18 @@ final class ConstrainedBox implements View {
   );
 }
 
-/// A single-child box that can size itself, pad its child, and paint a
-/// background and border.
+/// A single-child box that can size itself, pad its child, paint a background
+/// and border, and carry titles on its top and bottom edges.
 ///
-/// Decoration is described the same way [Box] describes it: a [border] type and
+/// Decoration is described in kiko's own vocabulary: a [border] type and
 /// [borderStyle] for the frame, a [background] style for the fill. [build] turns
 /// each into the paint token plume carries — no caller assembles one.
+/// [topTitles] and [bottomTitles] are the one TUI-specific extension over the
+/// Flutter shape — each title line becomes a label riding its edge, packed from
+/// the start, and keeps its multi-colour styling because every title inflates
+/// through [Line.build] into a real text node.
 final class Container implements View {
-  /// Wraps [child] with optional sizing and decoration.
+  /// Wraps [child] with optional sizing, decoration, and edge titles.
   const Container({
     required this.child,
     this.padding = plume.EdgeInsets.zero,
@@ -232,6 +236,8 @@ final class Container implements View {
     this.background = const Style(),
     this.border = BorderType.none,
     this.borderStyle = const Style(),
+    this.topTitles = const <Line>[],
+    this.bottomTitles = const <Line>[],
   });
 
   /// The wrapped child.
@@ -256,6 +262,12 @@ final class Container implements View {
   /// The colour and modifiers of the border glyphs.
   final Style borderStyle;
 
+  /// The titles riding on the top edge, packed from the start.
+  final List<Line> topTitles;
+
+  /// The titles riding on the bottom edge, packed from the start.
+  final List<Line> bottomTitles;
+
   @override
   Node build() => plume.Container<PaintToken>(
     padding: padding,
@@ -264,7 +276,15 @@ final class Container implements View {
     background: background == const Style() ? null : PaintToken(background),
     border: border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols),
     child: child.build(),
+    labels: <plume.EdgeLabel<PaintToken>>[
+      for (final line in topTitles) _titleLabel(line, plume.EdgeSide.top),
+      for (final line in bottomTitles) _titleLabel(line, plume.EdgeSide.bottom),
+    ],
   );
+
+  /// Wraps a title [line] as an edge label at the start of [side].
+  static plume.EdgeLabel<PaintToken> _titleLabel(Line line, plume.EdgeSide side) =>
+      plume.EdgeLabel<PaintToken>(child: line.build(), side: side);
 }
 
 /// Insets its child by [insets], reporting a size that includes the padding.

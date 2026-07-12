@@ -33,7 +33,7 @@ class CounterModel {
 // VIEW
 // ═══════════════════════════════════════════════════════════
 void counterView(CounterModel model, Frame frame) {
-  final ui = Box(
+  final ui = Container(
     border: BorderType.plain,
     topTitles: [Line('Counter (↑/↓ to change, q to quit)')],
     child: Center(child: Line('Count: ${model.count}')),

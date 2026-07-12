@@ -18,7 +18,7 @@ Node modalDialog({
   Style? background,
   List<Line> topTitles = const <Line>[],
 }) {
-  return Box(
+  return Container(
     border: border,
     borderStyle: borderStyle ?? StyleResolver(theme).border(const {}),
     background: background ?? theme.surface.fill,

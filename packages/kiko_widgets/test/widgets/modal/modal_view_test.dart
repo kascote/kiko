@@ -54,7 +54,7 @@ void main() {
     });
 
     test('dims the backdrop then paints the dialog on top', () {
-      final base = const Box(
+      final base = const Container(
         background: Style(bg: Color.rgb(0xC8C8C8)),
         child: SizedBox(width: 10, height: 3),
       ).build();

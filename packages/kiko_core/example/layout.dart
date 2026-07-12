@@ -69,7 +69,7 @@ View _cell(String title, View demo) => ConstrainedBox(
     minH: _cellHeight,
     maxH: _cellHeight,
   ),
-  child: Box(
+  child: Container(
     border: BorderType.plain,
     borderStyle: const Style(fg: Color.darkGray),
     topTitles: [Line(title, style: const Style(fg: Color.green))],

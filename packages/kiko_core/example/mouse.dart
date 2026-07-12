@@ -207,7 +207,7 @@ View _swatch(MouseModel model, int i) {
 
 View _panel(MouseModel model) => Tagged(
   'panel',
-  Box(
+  Container(
     border: BorderType.double,
     borderStyle: Style(fg: model.dragging ? Color.yellow : Color.cyan),
     topTitles: [Line('drag me', style: const Style(fg: Color.cyan))],
@@ -220,7 +220,7 @@ View _panel(MouseModel model) => Tagged(
   ),
 );
 
-View _readout(MouseModel model) => Box(
+View _readout(MouseModel model) => Container(
   border: BorderType.plain,
   topTitles: [Line('routed event readout')],
   child: Column(

@@ -128,7 +128,7 @@ void appView(AppModel model, Frame frame) {
 
   final resultText = model.result != null ? 'Last result: ${model.result}' : 'No result yet';
 
-  final ui = Box(
+  final ui = Container(
     border: BorderType.plain,
     topTitles: [Line('Async Task Demo')],
     child: Column(

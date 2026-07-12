@@ -206,14 +206,14 @@ void view(AppModel model, Frame frame) {
   frame.render(ui);
 }
 
-View _pane(String title, bool focused, StyleResolver resolver, View child) => Box(
+View _pane(String title, bool focused, StyleResolver resolver, View child) => Container(
   border: BorderType.plain,
   borderStyle: resolver.border({if (focused) WidgetState.focused}),
   topTitles: [Line(' $title ', style: focused ? _theme.focus.ink : _theme.muted.ink)],
   child: child,
 );
 
-View _log(AppModel model) => Box(
+View _log(AppModel model) => Container(
   border: BorderType.plain,
   topTitles: [Line(' activations ', style: _theme.muted.ink)],
   child: Column(

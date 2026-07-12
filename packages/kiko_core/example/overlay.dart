@@ -44,7 +44,7 @@ void view(OverlayModel model, Frame frame) {
   }
 }
 
-View _base(OverlayModel model) => Box(
+View _base(OverlayModel model) => Container(
   border: BorderType.plain,
   topTitles: [Line('Overlay demo')],
   child: Column(
@@ -71,7 +71,7 @@ View _base(OverlayModel model) => Box(
   ),
 );
 
-View _tile(String title, String value, Color color) => Box(
+View _tile(String title, String value, Color color) => Container(
   border: BorderType.rounded,
   borderStyle: Style(fg: color),
   topTitles: [Line(title, style: Style(fg: color))],
@@ -86,7 +86,7 @@ View _modal() => Center(
     child: Container(
       // A solid fill makes the modal opaque over the dimmed backdrop.
       background: const Style(bg: Color.black),
-      child: Box(
+      child: Container(
         border: BorderType.double,
         borderStyle: const Style(fg: Color.yellow),
         background: const Style(bg: Color.black),

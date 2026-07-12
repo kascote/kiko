@@ -40,7 +40,7 @@ final class Button implements View {
     final labelWidth = model.label.width;
     final content = model.loading ? model.loadingText.patchStyle(style) : model.label.patchStyle(style);
 
-    return Box(
+    return Container(
       background: style,
       padding: EdgeInsets.symmetric(horizontal: model.padding),
       child: ConstrainedBox(

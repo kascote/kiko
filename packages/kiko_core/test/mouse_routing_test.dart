@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 // or hand-sets the geometry it resolves against.
 
 /// Something that fills whatever slot it is given.
-View _pane() => Box(border: BorderType.plain, child: Line(''));
+View _pane() => Container(border: BorderType.plain, child: Line(''));
 
 /// One tagged pane, [width] wide and 2 tall, at [left].
 View _panel(String id, {int left = 0, int width = 4}) => Stack(

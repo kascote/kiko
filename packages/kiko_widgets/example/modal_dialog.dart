@@ -76,7 +76,7 @@ void appView(AppModel model, Frame frame) {
   final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final base = Box(
+  final base = Container(
     border: BorderType.rounded,
     borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.all(1),

@@ -836,7 +836,8 @@ void main() {
 
     test('stamps a mouse event with the map it was aimed at', () {
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 2));
-      final frame = Frame(buffer.area, buffer, 0)..render(Tagged('a', Box(border: BorderType.plain, child: Line(''))));
+      final frame = Frame(buffer.area, buffer, 0)
+        ..render(Tagged('a', Container(border: BorderType.plain, child: Line(''))));
 
       final msg = eventToMsg(MouseEvent(0, 0, MouseButton.moved()), hits: frame.hits);
 

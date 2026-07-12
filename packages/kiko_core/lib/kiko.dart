@@ -26,7 +26,6 @@ export 'src/mvu/mvu_runtime.dart';
 export 'src/mvu/pointer_msg.dart' hide isWheelAction;
 export 'src/mvu/update_context.dart';
 export 'src/plume/aliases.dart';
-export 'src/plume/box.dart';
 export 'src/plume/buffer_surface.dart';
 export 'src/plume/containers.dart';
 export 'src/plume/node_view.dart';

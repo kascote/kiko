@@ -274,7 +274,7 @@ void appView(AppModel model, Frame frame) {
   // layered on top, rather than replacing the focus look outright.
   final paneBorder = StyleResolver(theme).border({WidgetState.focused, if (loading) WidgetState.loading});
 
-  final tableWidget = Box(
+  final tableWidget = Container(
     border: BorderType.plain,
     borderStyle: paneBorder,
     topTitles: [Line(titleText, style: paneBorder)],
@@ -289,7 +289,7 @@ void appView(AppModel model, Frame frame) {
 
   final statusBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: Box(
+    child: Container(
       border: BorderType.plain,
       borderStyle: model.error != null
           ? theme.error.ink
@@ -334,7 +334,7 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('Paginated TableView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,

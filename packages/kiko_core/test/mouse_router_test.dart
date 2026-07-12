@@ -7,7 +7,7 @@ import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Something that fills whatever slot it is given.
-View _pane() => Box(border: BorderType.plain, child: Line(''));
+View _pane() => Container(border: BorderType.plain, child: Line(''));
 
 /// A frame's geometry: two 4×2 panes side by side on a 9×3 surface, so the
 /// bottom row and the last column belong to nobody.

@@ -125,7 +125,7 @@ void appView(AppModel model, Frame frame) {
   final resolver = StyleResolver(theme);
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final ui = Box(
+  final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
     topTitles: [Line('Custom Keybindings Demo', style: theme.muted.ink)],
@@ -172,7 +172,7 @@ void appView(AppModel model, Frame frame) {
 }
 
 /// A bordered, titled field wrapping a fixed-height [TextInput].
-View _field(TextInputModel input, String label, Theme theme) => Box(
+View _field(TextInputModel input, String label, Theme theme) => Container(
   border: BorderType.plain,
   borderStyle: StyleResolver(theme).border({if (input.focused) WidgetState.focused}),
   padding: const EdgeInsets.symmetric(horizontal: 1),

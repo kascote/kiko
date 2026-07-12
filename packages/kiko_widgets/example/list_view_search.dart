@@ -229,7 +229,7 @@ void appView(AppModel model, Frame frame) {
 
   final items = model.filteredItems;
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('Searchable List Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
@@ -237,7 +237,7 @@ void appView(AppModel model, Frame frame) {
         // Search box
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: resolver.border({if (model.search.focused) WidgetState.focused}),
             padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -250,7 +250,7 @@ void appView(AppModel model, Frame frame) {
         ),
         // List area using ListView
         Expanded(
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: resolver.border({if (model.list.focused) WidgetState.focused}),
             topTitles: [Line('Results')],
@@ -268,7 +268,7 @@ void appView(AppModel model, Frame frame) {
         // Selected item display
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: model.selected != null ? theme.success.ink : theme.border.ink,
             padding: const EdgeInsets.symmetric(horizontal: 1),

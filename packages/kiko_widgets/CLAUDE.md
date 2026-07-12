@@ -368,8 +368,8 @@ Every widget is styled the same way: **states pick tones, parts pick projections
   home (Tree's expand glyph stays on `indicatorStyle`; its loading/error placeholders
   carry their style on the `Line`s).
 - **Never hand a derived bg to a border.** Pass `resolver.border(...)` (an ink) to
-  `Box.borderStyle`. An *explicit* `Style(fg:, bg:)` on a border is a deliberate
-  choice and is fine — `Box` takes an unrestricted `Style`; theme-awareness lives one
+  `Container.borderStyle`. An *explicit* `Style(fg:, bg:)` on a border is a deliberate
+  choice and is fine — `Container` takes an unrestricted `Style`; theme-awareness lives one
   level up in the resolver.
 - **Never handle NO_COLOR yourself.** The resolver carries a `RenderPolicy`;
   `Application` sets `StyleResolver.defaultPolicy` from the terminal profile, so every

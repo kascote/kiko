@@ -20,7 +20,7 @@ void main() async {
         children: [
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 20, maxW: 20),
-            child: Box(
+            child: Container(
               border: BorderType.rounded,
               topTitles: [Line('Kiko', style: const Style(fg: Color.green))],
               child: greeting,

@@ -10,7 +10,7 @@ Frame _frame(int width, int height) {
 
 /// A bordered box tagged [tag], sized by whatever lays it out.
 plume.RenderNode<PaintToken> _box(String label, Object? tag) =>
-    Box(border: BorderType.plain, child: Line(label)).build()..tag = tag;
+    Container(border: BorderType.plain, child: Line(label)).build()..tag = tag;
 
 /// The ids of a hit path, outermost first.
 List<String> _ids(List<Hit> path) => path.map((h) => h.id).toList();

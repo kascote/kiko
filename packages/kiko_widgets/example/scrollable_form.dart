@@ -253,7 +253,7 @@ void view(AppModel model, Frame frame) {
       Expanded(
         child: Tagged(
           model.frameId,
-          Box(
+          Container(
             border: BorderType.plain,
             borderStyle: resolver.border(const {}),
             topTitles: [Line(' Profile ', style: _theme.muted.ink)],
@@ -277,7 +277,7 @@ View _field(TextInputModel input, int index, AppModel model, StyleResolver resol
   // to wrap in `Tagged` here (unlike the TextInput below) because `Box`
   // itself never self-tags; only the TextInput inside it does.
   _fieldFrameId(input.id),
-  Box(
+  Container(
     border: BorderType.plain,
     borderStyle: resolver.border({
       if (input.focused) WidgetState.focused,

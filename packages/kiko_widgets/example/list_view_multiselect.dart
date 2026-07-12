@@ -101,13 +101,13 @@ void appView(AppModel model, Frame frame) {
   final selectedNames = contacts.where((c) => selectedKeys.contains(c.id)).map((c) => c.name);
   final summary = selectedKeys.isEmpty ? 'No contacts checked' : 'Checked: ${selectedNames.join(', ')}';
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('Multi-Select Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: resolver.border(const {WidgetState.focused}),
             topTitles: [Line('Contacts', style: theme.focus.ink)],
@@ -131,7 +131,7 @@ void appView(AppModel model, Frame frame) {
         ),
         ConstrainedBox(
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-          child: Box(
+          child: Container(
             border: BorderType.plain,
             borderStyle: selectedKeys.isNotEmpty ? theme.success.ink : theme.border.ink,
             padding: const EdgeInsets.symmetric(horizontal: 1),

@@ -141,7 +141,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
 
-  final treeWidget = Box(
+  final treeWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [Line('File Browser', style: theme.focus.ink)],
@@ -153,7 +153,7 @@ void appView(AppModel model, Frame frame) {
 
   final infoBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-    child: Box(
+    child: Container(
       border: BorderType.plain,
       borderStyle: model.selectedPath != null ? theme.success.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -180,7 +180,7 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('TreeView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,

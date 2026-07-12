@@ -8,7 +8,7 @@ Frame _frame(int width, int height) {
 }
 
 /// A bordered box holding [label].
-View _box(String label) => Box(border: BorderType.plain, child: Line(label));
+View _box(String label) => Container(border: BorderType.plain, child: Line(label));
 
 /// A widget that tags its own root node, like a self-tagging built-in widget
 /// (e.g. `TextInputView`'s `..tag = model.id`).
@@ -50,7 +50,7 @@ void main() {
         ..render(
           Tagged(
             'outer',
-            Box(
+            Container(
               border: BorderType.plain,
               child: Tagged('inner', _box('')),
             ),
@@ -66,7 +66,7 @@ void main() {
         ..render(
           Tagged(
             'outer',
-            Box(
+            Container(
               border: BorderType.plain,
               child: Tagged('inner', _box('')),
             ),

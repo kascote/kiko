@@ -299,7 +299,7 @@ void appView(AppModel model, Frame frame) {
       ? '${model.tree.flatNodes.length} nodes'
       : 'Not loaded';
 
-  final treeWidget = Box(
+  final treeWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [
@@ -317,7 +317,7 @@ void appView(AppModel model, Frame frame) {
 
   final infoBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 4, maxH: 4),
-    child: Box(
+    child: Container(
       border: BorderType.plain,
       borderStyle: model.selectedPath != null ? theme.success.ink : theme.border.ink,
       padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -352,7 +352,7 @@ void appView(AppModel model, Frame frame) {
     ],
   );
 
-  final ui = Box(
+  final ui = Container(
     topTitles: [Line('Async TreeView Demo', style: theme.muted.ink)],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,

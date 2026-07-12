@@ -126,7 +126,7 @@ View _hud(HudModel model, Frame frame) {
   final total = frame.area.width * frame.area.height;
   final pct = total > 0 ? (100 * cells / total) : 0;
 
-  return Box(
+  return Container(
     border: BorderType.double,
     borderStyle: const Style(fg: Color.cyan),
     topTitles: [Line('engine', style: const Style(fg: Color.cyan))],

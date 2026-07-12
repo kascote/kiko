@@ -92,7 +92,7 @@ View _mixedRuns() => Column(
   crossAxis: CrossAxisAlignment.stretch,
   children: [
     Line('Mixed runs — each line ends flush at the right border', style: const Style(fg: Color.green)),
-    Box(
+    Container(
       border: BorderType.rounded,
       borderStyle: const Style(fg: Color.darkGray),
       child: Column(
@@ -152,7 +152,7 @@ View _section(String title, List<_Sample> samples) => Column(
 
 View _sampleCell(_Sample s) => ConstrainedBox(
   additionalConstraints: const BoxConstraints(minW: 18, maxW: 18, minH: 4, maxH: 4),
-  child: Box(
+  child: Container(
     border: BorderType.rounded,
     borderStyle: const Style(fg: Color.darkGray),
     topTitles: [Line(s.label, style: const Style(fg: Color.blue))],

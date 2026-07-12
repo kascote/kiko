@@ -297,7 +297,7 @@ View _buildPane(
 ) {
   final borderStyle = StyleResolver(theme).border({if (focused) WidgetState.focused});
   final titleStyle = focused ? theme.focus.ink : theme.muted.ink;
-  return Box(
+  return Container(
     border: BorderType.plain,
     borderStyle: borderStyle,
     padding: const EdgeInsets.all(1),

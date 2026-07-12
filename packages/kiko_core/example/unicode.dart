@@ -3,7 +3,7 @@ import 'package:kiko/kiko.dart';
 // ═══════════════════════════════════════════════════════════
 // A grapheme "torture gallery".
 //
-// Every sample sits in a fixed-width Box. The box's right border only lines up
+// Every sample sits in a fixed-width Container. Its right border only lines up
 // if the width measurer counts the sample's cells correctly, so a measurement
 // bug shears the borders instead of hiding — the eye is the test oracle.
 //

@@ -64,8 +64,9 @@ const List<String> _colorNames = [
 ];
 
 /// A centered header line — the plume-native stand-in for the old
-/// top-border-only, titled `Block`; [Box] only ever draws a uniform border on
-/// all four sides or none, so a single-edge rule is no longer expressible.
+/// top-border-only, titled `Block`; [Container] only ever draws a uniform
+/// border on all four sides or none, so a single-edge rule is no longer
+/// expressible.
 View _sectionTitle(String title) => Center(child: Line(title));
 
 // ─── Named colors ────────────────────────────────────────────────────────

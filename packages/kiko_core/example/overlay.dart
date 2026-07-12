@@ -81,33 +81,29 @@ View _tile(String title, String value, Color color) => Container(
 );
 
 View _modal() => Center(
-  child: ConstrainedBox(
-    additionalConstraints: const BoxConstraints(minW: 40, maxW: 40, minH: 7, maxH: 7),
-    child: Container(
-      // A solid fill makes the modal opaque over the dimmed backdrop.
-      background: const Style(bg: Color.black),
-      child: Container(
-        border: BorderType.double,
-        borderStyle: const Style(fg: Color.yellow),
-        background: const Style(bg: Color.black),
-        topTitles: [
-          Line(
-            ' Confirm ',
-            style: const Style(fg: Color.yellow, addModifier: Modifier.bold),
-          ),
-        ],
-        child: Column(
-          crossAxis: CrossAxisAlignment.stretch,
-          children: [
-            const Expanded(child: SizedBox()),
-            Center(child: Line('This modal sits above a dimmed base.')),
-            const Expanded(child: SizedBox()),
-            Center(
-              child: Line('Esc / m to close', style: const Style(fg: Color.darkGray)),
-            ),
-          ],
-        ),
+  child: Container(
+    width: 40,
+    height: 7,
+    // A solid fill makes the modal opaque over the dimmed backdrop.
+    background: const Style(bg: Color.black),
+    border: BorderType.double,
+    borderStyle: const Style(fg: Color.yellow),
+    topTitles: [
+      Line(
+        ' Confirm ',
+        style: const Style(fg: Color.yellow, addModifier: Modifier.bold),
       ),
+    ],
+    child: Column(
+      crossAxis: CrossAxisAlignment.stretch,
+      children: [
+        const Expanded(child: SizedBox()),
+        Center(child: Line('This modal sits above a dimmed base.')),
+        const Expanded(child: SizedBox()),
+        Center(
+          child: Line('Esc / m to close', style: const Style(fg: Color.darkGray)),
+        ),
+      ],
     ),
   ),
 );

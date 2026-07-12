@@ -2,7 +2,7 @@ import 'package:kiko/kiko.dart';
 
 Future<void> main() async {
   await Application(
-    title: 'Block Example',
+    title: 'Container Example',
   ).runStateless(
     update: (_, msg, _) => switch (msg) {
       KeyMsg(key: 'q') => (null, const Quit()),
@@ -16,7 +16,7 @@ void draw(Frame frame) {
   final rows = <View>[
     Center(
       child: Line(
-        'Block example. Press q to quit',
+        'Container example. Press q to quit',
         style: const Style(fg: Color.darkGray),
       ),
     ),
@@ -42,8 +42,8 @@ void draw(Frame frame) {
 }
 
 /// Demo cells, two per grid row. `Borders.left/right/top/bottom` had no
-/// plume-native replacement — [Box] only ever draws a uniform border on all
-/// four sides or none — so only the ALL/NONE cases from that old demo survive.
+/// plume-native replacement — [Container] only ever draws a uniform border on
+/// all four sides or none — so only the ALL/NONE cases from that old demo survive.
 final _demos = <View Function()>[
   _bordersAll,
   _bordersNone,
@@ -131,8 +131,8 @@ View _multipleTitles() => Container(
 );
 
 /// Per-title side positioning (left/center/right) had no plume-native
-/// replacement — [Box] packs every title at the start of its edge — so this
-/// now just shows several titles riding both the top and bottom edges.
+/// replacement — [Container] packs every title at the start of its edge — so
+/// this now just shows several titles riding both the top and bottom edges.
 View _titlesBothEdges() => Container(
   border: BorderType.plain,
   topTitles: [Line('top one'), Line('top two'), Line('top three')],

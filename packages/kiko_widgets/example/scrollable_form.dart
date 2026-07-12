@@ -32,7 +32,7 @@
 // content area, so a border drawn around it needs its own `Tagged` — but that
 // tag can point at the SAME ScrollViewModel via a second `targets` entry, so a
 // wheel on the border scrolls the form exactly like a wheel over the content
-// does. Two ids, one Component: legal, because the frame's `Box` doesn't
+// does. Two ids, one Component: legal, because the frame's `Container` doesn't
 // self-tag (only wrapping an already self-tagging, model-backed widget would
 // trip the self-tag assert).
 //
@@ -48,12 +48,13 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 const _labels = ['First name', 'Last name', 'Email', 'Phone', 'Company', 'Role', 'City', 'Country'];
 
 /// The E-split recipe (see the header comment), applied per field: a field's
-/// `TextInput` self-tags only its own 1-row content, never the bordered `Box`
-/// drawn around it. Without this second tag, `ensureVisible` only knows about
-/// that 1 row and scrolls the minimum to fit it — clipping the box's own
-/// border on a short terminal. This tag gives the WHOLE field box a name
-/// `ensureVisible` can target, and doubles as its chrome's hit region (a
-/// border click resolves here, same as a click on the outer frame or a gap).
+/// `TextInput` self-tags only its own 1-row content, never the bordered
+/// `Container` drawn around it. Without this second tag, `ensureVisible` only
+/// knows about that 1 row and scrolls the minimum to fit it — clipping the
+/// container's own border on a short terminal. This tag gives the WHOLE field
+/// container a name `ensureVisible` can target, and doubles as its chrome's
+/// hit region (a border click resolves here, same as a click on the outer
+/// frame or a gap).
 String _fieldFrameId(String fieldId) => '$fieldId-frame';
 
 class AppModel {
@@ -272,10 +273,11 @@ void view(AppModel model, Frame frame) {
 }
 
 View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Tagged(
-  // The frame tag: names the WHOLE box (borders included) so `ensureVisible`
-  // can bring it fully into view — see `_fieldFrameId`'s doc comment. Legal
-  // to wrap in `Tagged` here (unlike the TextInput below) because `Box`
-  // itself never self-tags; only the TextInput inside it does.
+  // The frame tag: names the WHOLE container (borders included) so
+  // `ensureVisible` can bring it fully into view — see `_fieldFrameId`'s doc
+  // comment. Legal to wrap in `Tagged` here (unlike the TextInput below)
+  // because `Container` itself never self-tags; only the TextInput inside it
+  // does.
   _fieldFrameId(input.id),
   Container(
     border: BorderType.plain,

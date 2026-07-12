@@ -260,8 +260,8 @@ class TextAreaModel implements Focusable {
     }
 
     // Character input (single grapheme, no modifiers)
-    if (msg.key.characters.length == 1) {
-      textArea.insert(msg.key);
+    if (msg.char case final ch?) {
+      textArea.insert(ch);
       return const Handled(); // handled
     }
 

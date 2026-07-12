@@ -83,6 +83,21 @@ void main() {
       expect(model.length, equals(2));
     });
 
+    test('space key inserts a literal space', () {
+      final model = TextInputModel(focused: true)
+        ..update(charMsg('a'))
+        ..update(const KeyMsg('space'))
+        ..update(charMsg('b'));
+      expect(model.value, equals('a b'));
+    });
+
+    test('plus and minus keys insert their literal characters', () {
+      final model = TextInputModel(focused: true)
+        ..update(const KeyMsg('plus'))
+        ..update(const KeyMsg('minus'));
+      expect(model.value, equals('+-'));
+    });
+
     test('respects maxLength', () {
       final model = TextInputModel(initial: 'abc', maxLength: 5, focused: true)
         ..update(charMsg('d'))

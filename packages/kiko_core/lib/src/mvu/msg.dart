@@ -62,8 +62,28 @@ class KeyMsg extends Msg {
   /// Creates a KeyMsg for key repeat.
   const KeyMsg.repeat(this.key) : type = KeyEventType.repeat;
 
-  /// Returns the character if key is a single grapheme, null otherwise.
-  String? get char => key.characters.length == 1 ? key : null;
+  /// The literal character this key would insert as typed text, or `null`
+  /// if it names a shortcut/named key with no text form.
+  ///
+  /// `key` doubles as a `KeyBinding` spec string, and `KeyEvent.toSpec`
+  /// aliases exactly three printable characters to word specs (`'space'`,
+  /// `'plus'`, `'minus'`) so they can appear in a spec like `'ctrl+s'`
+  /// without colliding with the `+` modifier separator. This reverses that
+  /// aliasing through termparser's own spec parser — the same one
+  /// `KeyBinding` uses to validate specs — rather than hardcoding the three
+  /// names here, so it stays correct if termparser ever aliases more.
+  String? get char {
+    if (key.characters.length == 1) return key;
+    try {
+      final event = evt.KeyEvent.fromString(key);
+      if (event.modifiers != evt.KeyModifiers.none) return null;
+      return event.code.kind == evt.KeyCodeKind.char ? event.code.char : null;
+      // KeyEvent.fromString throws ArgumentError for invalid specs
+      // ignore: avoid_catching_errors
+    } on ArgumentError {
+      return null;
+    }
+  }
 
   @override
   bool operator ==(Object other) => identical(this, other) || other is KeyMsg && key == other.key && type == other.type;

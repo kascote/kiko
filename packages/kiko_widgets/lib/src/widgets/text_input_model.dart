@@ -219,8 +219,8 @@ class TextInputModel implements Focusable {
     }
 
     // Character input (single grapheme, no modifiers)
-    if (msg.key.characters.length == 1) {
-      _insertAt(msg.key);
+    if (msg.char case final ch?) {
+      _insertAt(ch);
       return const Handled();
     }
 

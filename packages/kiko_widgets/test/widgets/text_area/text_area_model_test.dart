@@ -8,6 +8,28 @@ PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
     PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
 
 void main() {
+  group('TextAreaModel.update character input', () {
+    test('character input inserts at cursor', () {
+      final model = TextAreaModel(focused: true)..update(const KeyMsg('a'));
+      expect(model.value, equals('a'));
+    });
+
+    test('space key inserts a literal space', () {
+      final model = TextAreaModel(focused: true)
+        ..update(const KeyMsg('a'))
+        ..update(const KeyMsg('space'))
+        ..update(const KeyMsg('b'));
+      expect(model.value, equals('a b'));
+    });
+
+    test('plus and minus keys insert their literal characters', () {
+      final model = TextAreaModel(focused: true)
+        ..update(const KeyMsg('plus'))
+        ..update(const KeyMsg('minus'));
+      expect(model.value, equals('+-'));
+    });
+  });
+
   group('TextAreaModel mouse click → caret', () {
     test('a click places the caret at the clicked (row, column)', () {
       final model = TextAreaModel(initial: 'foo\nbar\nbaz', focused: true);

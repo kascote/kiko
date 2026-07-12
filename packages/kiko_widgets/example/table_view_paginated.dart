@@ -6,6 +6,8 @@
 // - Sliding window (keeps windowSize rows in memory)
 // - Loading state indicator
 // - Total count as a benign one-shot
+// - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
+//   pages the next/previous batch in, same as cursor nav
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -222,6 +224,13 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
     );
   }
 
+  // A pointer only reaches the table when it's actually the target — a click
+  // on unrelated chrome (the status box, the help row) has a different
+  // target (or none) and must not be treated as a click on the table.
+  if (msg case Routed(:final targetId) when targetId != model.table.id) {
+    return (model, null);
+  }
+
   // A near-edge navigation may request the next or previous page.
   final result = model.table.update(msg);
   if (result case Handled(cmd: final LoadRequest r) when r.id == model.table.id) {
@@ -314,7 +323,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓←→/hjkl nav | PgUp/PgDn | $scrollInfo | $cursorInfo | Esc quit',
+          '↑↓←→/hjkl/click nav | PgUp/PgDn/wheel page | $scrollInfo | $cursorInfo | Esc quit',
           style: theme.muted.ink,
         ),
       ),
@@ -345,7 +354,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Paginated TableView Demo').run(
+  await Application(title: 'Paginated TableView Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

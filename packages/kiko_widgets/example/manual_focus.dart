@@ -4,6 +4,9 @@
 // each widget's `focused` property manually.
 //
 // Compare with text_input.dart which uses FocusGroup.
+//
+// Mouse: click any field to place the caret there and move focus to it —
+// the same setFocus() call Tab uses.
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -52,7 +55,19 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Route to focused widget
+  // A pointer reaches whichever field it's actually addressed to; a
+  // down-click also moves focus there via setFocus (the app's call).
+  if (msg case Routed(:final targetId)) {
+    final i = model.fields.indexWhere((f) => f.id == targetId);
+    if (i < 0) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.setFocus(i);
+    return switch (model.fields[i].update(msg)) {
+      Handled(:final cmd) => (model, cmd),
+      Declined() => (model, null),
+    };
+  }
+
+  // Route to focused widget (keyboard)
   switch (model.focused.update(msg)) {
     case Handled(:final cmd):
       return (model, cmd);
@@ -118,7 +133,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab/Shift+Tab to cycle | Esc quit', style: theme.muted.ink),
+              child: Line('Tab/Shift+Tab/click to cycle | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -153,7 +168,7 @@ View _field(TextInputModel input, String label, Theme theme) => Box(
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Manual Focus Demo').run(
+  await Application(title: 'Manual Focus Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

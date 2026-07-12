@@ -5,6 +5,8 @@
 // - Handle focus between search and list using FocusGroup
 // - Swap the list's data view when the filter changes
 // - Select items with Enter via ListConfirmCmd
+// - Click the search box to place the caret, click a result to select it
+//   (same as Enter), wheel-scroll and per-row hover on the list
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -96,7 +98,33 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Route to search input if focused
+  // A pointer reaches whichever widget it's actually addressed to — a wheel
+  // scrolls and a hover highlights the list even while search holds
+  // keyboard focus. A down-click also moves keyboard focus (the app's call).
+  if (msg case Routed(:final targetId)) {
+    if (targetId == model.search.id) {
+      if (msg case final PointerMsg pointer when pointer.isDown) {
+        model.search.focused = true;
+        model.list.focused = false;
+      }
+      final result = model.search.update(msg);
+      model.refreshFilter();
+      return switch (result) {
+        Handled(:final cmd) => (model, cmd),
+        Declined() => (model, null),
+      };
+    }
+    if (targetId == model.list.id) {
+      if (msg case final PointerMsg pointer when pointer.isDown) {
+        model.list.focused = true;
+        model.search.focused = false;
+      }
+      return _handleListResult(model, model.list.update(msg));
+    }
+    return (model, null); // addressed to neither widget we own
+  }
+
+  // Route to search input if focused (keyboard)
   if (model.search.focused) {
     final result = model.search.update(msg);
 
@@ -111,7 +139,7 @@ class AppModel with ThemeSwitcher {
     }
   }
 
-  // Route to list if focused
+  // Route to list if focused (keyboard)
   if (model.list.focused) {
     final result = model.list.update(msg);
 
@@ -175,6 +203,19 @@ class AppModel with ThemeSwitcher {
   }
 
   return (model, null);
+}
+
+/// Shared by the pointer and keyboard paths: installs a confirmed selection,
+/// or otherwise just runs the result's effect.
+(AppModel, Cmd?) _handleListResult(AppModel model, UpdateResult result) {
+  if (result case Handled(cmd: ListActionCmd(:final id)) when id == model.list.id) {
+    model.selected = model.list.cursorItem;
+    return (model, null);
+  }
+  return switch (result) {
+    Handled(:final cmd) => (model, cmd),
+    Declined() => (model, null),
+  };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -242,7 +283,10 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab switch | ↑↓/jk nav | Enter select | / search | Esc quit', style: theme.muted.ink),
+              child: Line(
+                'Tab/click switch | ↑↓/jk nav | Enter/click select | wheel scroll | / search | Esc quit',
+                style: theme.muted.ink,
+              ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -262,7 +306,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Searchable List Demo').run(
+  await Application(title: 'Searchable List Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

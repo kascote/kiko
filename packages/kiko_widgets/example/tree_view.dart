@@ -5,6 +5,7 @@
 // - Expand/collapse navigation (arrows, h/l)
 // - Icons for folders and files
 // - Confirm action (Enter)
+// - Click a node to expand/select, wheel-scroll, per-node hover
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -98,6 +99,13 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     return (model, fetchFor(model, model.tree.loadRoots()));
   }
 
+  // A pointer only reaches the tree when it's actually the target — a click
+  // on unrelated chrome (the "Selected" box, the help row) has a different
+  // target (or none) and must not be treated as a click on the tree.
+  if (msg case Routed(:final targetId) when targetId != model.tree.id) {
+    return (model, null);
+  }
+
   // Widget update may return an expand event, a load request, or both (Batch).
   final result = model.tree.update(msg);
   final cmd = result is Handled ? result.cmd : null;
@@ -161,7 +169,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | Esc quit',
+          '↑↓/jk nav | →/l or click indicator expand | ←/h collapse | Enter/click select | wheel scroll | Esc quit',
           style: theme.muted.ink,
         ),
       ),
@@ -192,7 +200,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'TreeView Demo').run(
+  await Application(title: 'TreeView Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

@@ -3,6 +3,10 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 import 'shared/theme_switcher.dart';
 
+// Mouse: click any field to place the caret there and move keyboard focus to
+// it — 2D-aware in the editor (row + column), not just column like the two
+// single-line fields above it.
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
@@ -22,15 +26,22 @@ class AppModel with ThemeSwitcher {
   TextInputModel get author => focus.children[1] as TextInputModel;
   TextAreaModel get editor => focus.children[2] as TextAreaModel;
 
-  /// Route update to focused item.
-  UpdateResult updateFocused(Msg msg) {
-    return switch (focus.index) {
+  /// The three fields' ids, in focus order — lets a click resolve straight
+  /// to an index without checking each field's type by hand.
+  List<String> get fieldIds => [title.id, author.id, editor.id];
+
+  /// Routes [msg] to the field at [index].
+  UpdateResult updateAt(int index, Msg msg) {
+    return switch (index) {
       0 => title.update(msg),
       1 => author.update(msg),
       2 => editor.update(msg),
       _ => const Declined(),
     };
   }
+
+  /// Route update to focused item.
+  UpdateResult updateFocused(Msg msg) => updateAt(focus.index, msg);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -40,7 +51,19 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Route to focused input
+  // A pointer reaches whichever field it's actually addressed to; a
+  // down-click also moves keyboard focus there (the app's call).
+  if (msg case Routed(:final targetId)) {
+    final i = model.fieldIds.indexWhere((id) => id == targetId);
+    if (i < 0) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
+    return switch (model.updateAt(i, msg)) {
+      Handled(:final cmd) => (model, cmd),
+      Declined() => (model, null),
+    };
+  }
+
+  // Route to focused input (keyboard)
   switch (model.updateFocused(msg)) {
     case Handled(:final cmd):
       return (model, cmd);
@@ -123,7 +146,7 @@ void appView(AppModel model, Frame frame) {
         // Help
         Center(
           child: Line(
-            'Tab/Shift+Tab to switch | Esc quit',
+            'Tab/Shift+Tab/click to switch | Esc quit',
             style: theme.muted.ink,
           ),
         ),
@@ -158,7 +181,7 @@ String _focusName(int index) => switch (index) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'TextArea Demo').run(
+  await Application(title: 'TextArea Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

@@ -4,6 +4,7 @@
 // - Add vim-style navigation (h/l for left/right)
 // - Override default bindings
 // - Create app-level keybindings
+// - Click either field to place the caret there and move focus to it
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -70,7 +71,19 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Route to focused widget first
+  // A pointer reaches whichever field it's actually addressed to; a
+  // down-click also moves keyboard focus there (the app's call).
+  if (msg case Routed(:final targetId)) {
+    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
+    if (i < 0) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
+    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
+      Handled(:final cmd) => (model, cmd),
+      Declined() => (model, null),
+    };
+  }
+
+  // Route to focused widget first (keyboard)
   final focused = model.focus.focused as TextInputModel;
   switch (focused.update(msg)) {
     case Handled(:final cmd):
@@ -140,7 +153,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to switch | Ctrl+Q/Esc quit', style: theme.muted.ink),
+              child: Line('Tab/click to switch | Ctrl+Q/Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -189,7 +202,7 @@ extension on TextInputModel {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Custom Keybindings Demo').run(
+  await Application(title: 'Custom Keybindings Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

@@ -10,6 +10,7 @@
 //   row and cell
 // - Custom anatomy toggle (y): a TableViewStyle override replaces the
 //   theme-derived crosshair with a fixed warm look, independent of theme
+// - Click-to-select, wheel-scroll, per-row hover
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -150,6 +151,13 @@ String _formatNumber(int n) {
     }
   }
 
+  // A pointer only reaches the table when it's actually the target — a click
+  // on unrelated chrome (the selection/confirmed boxes, the help row) has a
+  // different target (or none) and must not be treated as a click on the table.
+  if (msg case Routed(:final targetId) when targetId != model.table.id) {
+    return (model, null);
+  }
+
   final result = model.table.update(msg);
 
   // Handle confirm
@@ -238,7 +246,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓←→/hjkl nav | Space select | Enter confirm | c crosshair'
+          '↑↓←→/hjkl/click nav | Space select | Enter confirm | wheel scroll | c crosshair'
           '${model.table.showCrosshair ? " (on)" : ""} | y style'
           '${model.customStyleOn ? " (on)" : ""} | Esc quit',
           style: theme.muted.ink,
@@ -272,7 +280,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'TableView Demo').run(
+  await Application(title: 'TableView Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

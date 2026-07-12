@@ -3,6 +3,13 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 import 'shared/theme_switcher.dart';
 
+// Mouse: a down-press arms whichever button it lands on, in any pane — focus
+// follows the click, since ButtonGroupModel only forwards the keyboard and
+// mouse routing bypasses it (kiko_widgets/CLAUDE.md → Widget mouse
+// handling). The release fires the same ButtonPressCmd Enter does, but only
+// when it lands back inside; hover tracks whichever button is under the
+// cursor.
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
@@ -75,6 +82,27 @@ class AppModel with ThemeSwitcher {
     focusedPane = (focusedPane - 1 + paneCount) % paneCount;
     currentGroup.focused = true;
   }
+
+  /// Every button across all panes, keyed by id. `ButtonGroupModel` only
+  /// forwards the keyboard, so a click bypasses it and targets this map
+  /// directly.
+  late final Map<String, ButtonModel> buttonsById = {
+    for (final g in allGroups)
+      for (final b in g.buttons) b.id: b,
+  };
+
+  /// Moves keyboard focus to the pane + button owning [id] — one app-side
+  /// line, since a widget cannot see its siblings.
+  void focusButton(String id) {
+    final pane = allGroups.indexWhere((g) => g.buttons.any((b) => b.id == id));
+    if (pane < 0) return;
+    if (pane != focusedPane) {
+      currentGroup.focused = false;
+      focusedPane = pane;
+      currentGroup.focused = true;
+    }
+    currentGroup.focusButton(id);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -97,8 +125,20 @@ class SubmitComplete extends Msg {
     return (model, null);
   }
 
-  // Route to current pane's button group
-  final result = model.currentGroup.update(msg);
+  // A pointer is addressed to one specific button — ButtonGroupModel never
+  // forwards pointer traffic, so mouse routing bypasses it and dispatches
+  // straight to the owning ButtonModel. A down-click also focuses that
+  // button's pane (the app's call).
+  UpdateResult result;
+  if (msg case Routed(:final targetId)) {
+    final button = model.buttonsById[targetId];
+    if (button == null) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.focusButton(targetId!);
+    result = button.update(msg);
+  } else {
+    // Route to current pane's button group (keyboard)
+    result = model.currentGroup.update(msg);
+  }
 
   // Handle button press
   if (result case Handled(cmd: ButtonPressCmd(:final id))) {
@@ -238,7 +278,7 @@ void appView(AppModel model, Frame frame) {
             additionalConstraints: const BoxConstraints(minW: 30, maxW: 30),
             child: Align(
               alignment: Alignment.centerRight,
-              child: Line('Tab: pane | Esc: quit', style: theme.muted.ink),
+              child: Line('Tab: pane | click/hover buttons | Esc: quit', style: theme.muted.ink),
             ),
           ),
         ],
@@ -327,7 +367,7 @@ View _buildVerticalButtons(
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Button Demo').run(
+  await Application(title: 'Button Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

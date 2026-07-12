@@ -4,6 +4,11 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 import 'shared/theme_switcher.dart';
 
+// Mouse: click either field to place the caret there and move keyboard focus
+// to it — a click is addressed to the field under it, not whichever field
+// the keyboard currently has focused (kiko_widgets/CLAUDE.md → Widget mouse
+// handling).
+
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
@@ -30,7 +35,21 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Route to focused input
+  // A pointer reaches whichever field it's actually addressed to — never
+  // just whichever field the keyboard currently has focused. A down-click
+  // also moves keyboard focus there (the app's call; a widget cannot see
+  // its siblings).
+  if (msg case Routed(:final targetId)) {
+    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
+    if (i < 0) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
+    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
+      Handled(:final cmd) => (model, cmd),
+      Declined() => (model, null),
+    };
+  }
+
+  // Route to focused input (keyboard)
   switch ((model.focus.focused as TextInputModel).update(msg)) {
     case Handled(:final cmd):
       return (model, cmd);
@@ -95,7 +114,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to switch | Esc quit', style: theme.muted.ink),
+              child: Line('Tab/click to switch | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -130,7 +149,7 @@ View _field(TextInputModel input, String label, Theme theme) => Box(
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'TextInput Demo').run(
+  await Application(title: 'TextInput Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

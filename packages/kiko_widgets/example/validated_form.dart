@@ -4,6 +4,7 @@
 // - Use input filters for format constraints
 // - Display real-time validation errors
 // - Show submit status based on validity
+// - Click any field to place the caret there and move focus to it
 
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
@@ -111,12 +112,24 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
+  // A pointer reaches whichever field it's actually addressed to; a
+  // down-click also moves keyboard focus there (the app's call).
+  if (msg case Routed(:final targetId)) {
+    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
+    if (i < 0) return (model, null);
+    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
+    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
+      Handled(:final cmd) => (model, cmd),
+      Declined() => (model, null),
+    };
+  }
+
   // Clear submit message on any input
   if (msg is KeyMsg && model.submitMessage != null) {
     model.submitMessage = null;
   }
 
-  // Route to focused widget
+  // Route to focused widget (keyboard)
   final focused = model.focus.focused as TextInputModel;
   switch (focused.update(msg)) {
     case Handled(:final cmd):
@@ -198,7 +211,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab to cycle | Enter submit | Esc quit', style: theme.muted.ink),
+              child: Line('Tab/click to cycle | Enter submit | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -263,7 +276,7 @@ View _fieldWithValidation(
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Validated Form Demo').run(
+  await Application(title: 'Validated Form Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

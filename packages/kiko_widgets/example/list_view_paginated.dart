@@ -5,6 +5,8 @@
 // - LoadRequest / LoadResult handling for infinite scroll
 // - Loading + error state via the LoadTracker (no app-managed flag)
 // - The app owns the fetcher closure; the widget never awaits
+// - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
+//   pages the next batch in, same as cursor nav
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -102,6 +104,13 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
     return (model, fetchUsers(model, model.list.loadFirstPage()));
+  }
+
+  // A pointer only reaches the list when it's actually the target — a click
+  // on unrelated chrome (the status box, the help row) has a different
+  // target (or none) and must not be treated as a click on the list.
+  if (msg case Routed(:final targetId) when targetId != model.list.id) {
+    return (model, null);
   }
 
   // A near-edge navigation may request the next page.
@@ -204,7 +213,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk nav | PgUp/PgDn page | $scrollInfo | Esc quit', style: theme.muted.ink),
+              child: Line('↑↓/jk/click nav | PgUp/PgDn/wheel page | $scrollInfo | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -224,7 +233,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Paginated ListView Demo').run(
+  await Application(title: 'Paginated ListView Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

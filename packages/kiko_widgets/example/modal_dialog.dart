@@ -17,13 +17,31 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
   // While a modal is open it captures all input: route to it and swallow
   // anything that isn't a confirm/cancel result, so background keys ('q',
   // 'm') don't leak through underneath it.
   if (model.modal case final modal?) {
+    // A down-click outside the dialog's rendered rect dismisses it — the
+    // same ModalCancelCmd Escape emits — before the capture below would
+    // otherwise swallow it as a click on the modal's own chrome.
+    if (msg case final PointerMsg pointer when pointer.isDown) {
+      final rect = ctx.hits.rectOf(modal.id);
+      if (rect == null || !rect.contains(pointer.global)) {
+        return switch (modal.dismiss()) {
+          ModalCancelCmd() => (
+            model
+              ..modal = null
+              ..lastAction = 'Cancelled',
+            null,
+          ),
+          _ => (model, null),
+        };
+      }
+    }
+
     return switch (modal.update(msg)) {
       ModalConfirmCmd(:final payload) => (
         model
@@ -74,7 +92,9 @@ void appView(AppModel model, Frame frame) {
         Line('  Blue', style: const Style(fg: Color.blue)),
         const Expanded(child: SizedBox()),
         Line(
-          model.lastAction.isEmpty ? '[m] open dialog   [q] quit' : 'Last: ${model.lastAction}   [m] again   [q] quit',
+          model.lastAction.isEmpty
+              ? '[m] open dialog   click outside or [Esc] to cancel   [q] quit'
+              : 'Last: ${model.lastAction}   [m] again   [q] quit',
           style: theme.muted.ink,
         ),
       ],
@@ -91,7 +111,7 @@ void appView(AppModel model, Frame frame) {
         children: [
           Center(child: Line('Add 10 to the counter?')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] OK   [Esc] Cancel', style: theme.muted.ink)),
+          Center(child: Line('[Enter] OK   [Esc]/click outside Cancel', style: theme.muted.ink)),
         ],
       ).build(),
     ),
@@ -106,5 +126,8 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'Modal Dialog Example').run(init: AppModel(), update: appUpdate, view: appView);
+  await Application(
+    title: 'Modal Dialog Example',
+    mouseEvents: true,
+  ).run(init: AppModel(), update: appUpdate, view: appView);
 }

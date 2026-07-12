@@ -5,6 +5,7 @@
 // - Cursor navigation (arrows, j/k, pageUp/pageDown)
 // - Item rendering via itemBuilder
 // - Confirm action (Enter)
+// - Click to select (same ListActionCmd as Enter), wheel-scroll, per-row hover
 
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
@@ -76,6 +77,13 @@ class AppModel with ThemeSwitcher {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
+  // A pointer only reaches the list when it's actually the target — a click
+  // on unrelated chrome (the "Selected" box, the help row) has a different
+  // target (or none) and must not be treated as a click on the list.
+  if (msg case Routed(:final targetId) when targetId != model.list.id) {
+    return (model, null);
+  }
+
   final result = model.list.update(msg);
 
   // Handle confirm
@@ -144,7 +152,7 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk navigate | Enter select | Esc quit', style: theme.muted.ink),
+              child: Line('↑↓/jk navigate | Enter/click select | wheel scroll | Esc quit', style: theme.muted.ink),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
@@ -164,7 +172,7 @@ void appView(AppModel model, Frame frame) {
 // ═══════════════════════════════════════════════════════════
 
 void main() async {
-  await Application(title: 'ListView Demo').run(
+  await Application(title: 'ListView Demo', mouseEvents: true).run(
     init: AppModel(),
     update: appUpdate,
     view: appView,

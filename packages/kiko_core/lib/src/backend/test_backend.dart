@@ -83,6 +83,9 @@ class TestBackend implements Backend {
   /// The title last set through [setTitle].
   String? title;
 
+  /// Whether [init] has been called.
+  bool initialized = false;
+
   /// Whether [dispose] has been called.
   bool disposed = false;
 
@@ -99,6 +102,11 @@ class TestBackend implements Backend {
   }
 
   static Rect _areaOf(TermSize size) => Rect.create(x: 0, y: 0, width: size.width, height: size.height);
+
+  @override
+  Future<void> init() async {
+    initialized = true;
+  }
 
   @override
   TermSize size() => _size;

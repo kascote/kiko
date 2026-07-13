@@ -223,6 +223,61 @@ class FrameTickMsg extends Msg {
   bool get droppable => true;
 }
 
+/// Wrapper for terminal resize events.
+///
+/// Sent when the terminal window changes size. Carries the new size in
+/// cells, plus a pixel size when the terminal reports one.
+///
+/// A resize is position-valued, not delta-valued: it names an absolute
+/// size, not a change in size. That is why [coalesceable] is true — if
+/// several resizes back up in the queue, only the latest describes the
+/// terminal's actual current size, so the earlier ones are redundant and
+/// safe to drop.
+///
+/// [width] and [height] are always meaningful. [widthPixels] and
+/// [heightPixels] are 0 when the terminal does not report pixel
+/// dimensions, which most terminals do not.
+@immutable
+class ResizeMsg extends Msg {
+  /// The new terminal width, in cells.
+  final int width;
+
+  /// The new terminal height, in cells.
+  final int height;
+
+  /// The new terminal width, in pixels, or 0 if not reported.
+  final int widthPixels;
+
+  /// The new terminal height, in pixels, or 0 if not reported.
+  final int heightPixels;
+
+  /// Creates a ResizeMsg.
+  const ResizeMsg({
+    required this.width,
+    required this.height,
+    this.widthPixels = 0,
+    this.heightPixels = 0,
+  });
+
+  @override
+  bool get coalesceable => true;
+
+  @override
+  String get coalesceKey => 'resize';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResizeMsg &&
+          width == other.width &&
+          height == other.height &&
+          widthPixels == other.widthPixels &&
+          heightPixels == other.heightPixels;
+
+  @override
+  int get hashCode => Object.hash(width, height, widthPixels, heightPixels);
+}
+
 /// Wrapper for unknown/unhandled events.
 class UnknownMsg extends Msg {
   /// The underlying event.
@@ -246,6 +301,12 @@ Msg eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
     final evt.FocusEvent e => FocusMsg(e),
     final evt.PasteEvent e => PasteMsg(e),
     evt.NoneEvent() => const NoneMsg(),
+    final evt.WindowResizeEvent e => ResizeMsg(
+      width: e.widthChars,
+      height: e.heightChars,
+      widthPixels: e.widthPixels,
+      heightPixels: e.heightPixels,
+    ),
     final e => UnknownMsg(e),
   };
 }

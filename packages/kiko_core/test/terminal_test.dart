@@ -18,6 +18,21 @@ String read(Buffer buffer, int x, int y, int length) {
   return out.toString();
 }
 
+/// A [TestBackend] that records whether [init] had already completed the
+/// moment [size] was read — the ordering `Terminal.create` must honor.
+class _InitOrderBackend extends TestBackend {
+  _InitOrderBackend({required super.size});
+
+  /// Whether [initialized] was already `true` when [size] last ran.
+  bool sizeCalledAfterInit = false;
+
+  @override
+  TermSize size() {
+    sizeCalledAfterInit = initialized;
+    return super.size();
+  }
+}
+
 void main() {
   late TestBackend backend;
 
@@ -41,6 +56,21 @@ void main() {
       final t = await terminal(viewport: ViewPortFixed(fixed));
 
       expect(t.viewportArea, fixed);
+    });
+
+    test('calls init() on the backend', () async {
+      await terminal();
+
+      expect(backend.initialized, isTrue);
+    });
+
+    test('awaits init() before reading size', () async {
+      final ordered = _InitOrderBackend(size: const TermSize(10, 3));
+
+      await Terminal.create(backend: ordered);
+
+      expect(ordered.initialized, isTrue);
+      expect(ordered.sizeCalledAfterInit, isTrue);
     });
   });
 

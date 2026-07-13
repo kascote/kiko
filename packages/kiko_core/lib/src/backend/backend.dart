@@ -59,6 +59,13 @@ enum ColorProfile {
 /// backend that speaks to one, which translates on the way out and on the way
 /// in. No caller of this interface ever sees a 1-based coordinate.
 abstract interface class Backend {
+  /// A one-time async warm-up.
+  ///
+  /// `Terminal.create` awaits this right after construction, before anything
+  /// reads size or capabilities. A backend that speaks to a real terminal
+  /// gathers terminal capabilities here; the test backend records the call.
+  Future<void> init();
+
   /// The current size of the terminal, in cells.
   TermSize size();
 

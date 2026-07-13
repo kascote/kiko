@@ -49,6 +49,15 @@ class TermlibBackend implements Backend {
     throw StateError('TermlibBackend requires an interactive terminal (stdin must be a TTY).');
   }
 
+  /// Probes the terminal once, so capability-dependent behavior — like
+  /// termlib's resize-event fallback decision — reads a cached answer instead
+  /// of querying live. Replies are consumed internally by termlib and never
+  /// surface as events.
+  @override
+  Future<void> init() async {
+    await _term.probe();
+  }
+
   /// Clears a region of the terminal based on the specified [ClearType].
   @override
   void clearRegion(ClearType type) {

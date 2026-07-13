@@ -133,8 +133,17 @@ class MvuRuntime {
   ///
   /// Call once, right after the runtime's first draw commits — the geometry
   /// those held events were always meant to resolve against.
+  ///
+  /// A held [WindowResizeEvent] is dropped instead of queued. Enabling
+  /// in-band resize reporting makes the terminal send one immediately, and
+  /// that report lands inside this hold window — it is not news, just an
+  /// echo of the size the first draw already used. A resize that arrives
+  /// after this flush is delivered normally; a terminal slow enough to get
+  /// its enable-time report past the flush costs the app one redundant
+  /// resize carrying the size it already has, which is harmless.
   void flushStartupEvents() {
     for (final event in _startupEvents) {
+      if (event is WindowResizeEvent) continue;
       queueMsg(eventToMsg(event, hits: lastHitMap));
     }
     _startupEvents.clear();

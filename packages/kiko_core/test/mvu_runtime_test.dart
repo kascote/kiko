@@ -818,6 +818,66 @@ void main() {
         expect(msg.coalesceable, isFalse);
         expect(msg.coalesceKey, equals(''));
       });
+
+      test('resizes are coalesced to latest', () async {
+        runtime
+          ..queueMsg(const ResizeMsg(width: 80, height: 24))
+          ..queueMsg(const ResizeMsg(width: 100, height: 30))
+          ..queueMsg(const ResizeMsg(width: 120, height: 40))
+          ..coalesceQueue();
+
+        // Only the latest should remain
+        final msg = await runtime.nextMsg(timeout: 100);
+        expect(msg, isA<ResizeMsg>());
+        expect((msg as ResizeMsg).width, equals(120));
+        expect(msg.height, equals(40));
+
+        // Queue should be empty now (only timeout)
+        final next = await runtime.nextMsg(timeout: 10);
+        expect(next, isA<NoneMsg>());
+      });
+
+      test('ResizeMsg is coalesceable under the resize key', () {
+        const msg = ResizeMsg(width: 80, height: 24);
+        expect(msg.coalesceable, isTrue);
+        expect(msg.coalesceKey, equals('resize'));
+      });
+    });
+
+    group('startup event hold', () {
+      test('a resize held for the first frame is swallowed on flush, other events are not', () async {
+        runtime.holdEventsForFirstFrame();
+
+        events
+          ..emit(const WindowResizeEvent(24, 80))
+          ..emit(const KeyEvent(KeyCode.char('x')));
+
+        // Allow stream to deliver into the startup hold
+        await Future<void>.delayed(Duration.zero);
+
+        runtime.flushStartupEvents();
+
+        // The key event flushed; the resize did not.
+        final msg = await runtime.nextMsg(timeout: 100);
+        expect(msg, isA<KeyMsg>());
+
+        final next = await runtime.nextMsg(timeout: 10);
+        expect(next, isA<NoneMsg>(), reason: 'the held resize should have been dropped, not queued');
+      });
+
+      test('a resize arriving after the flush is delivered normally', () async {
+        runtime
+          ..holdEventsForFirstFrame()
+          ..flushStartupEvents();
+
+        events.emit(const WindowResizeEvent(24, 80));
+
+        // Allow stream to deliver
+        await Future<void>.delayed(Duration.zero);
+
+        final msg = await runtime.nextMsg(timeout: 100);
+        expect(msg, isA<ResizeMsg>());
+      });
     });
   });
 
@@ -862,6 +922,28 @@ void main() {
 
     test('converts unknown event to UnknownMsg', () {
       final msg = eventToMsg(const CursorPositionEvent(0, 0));
+      expect(msg, isA<UnknownMsg>());
+    });
+
+    test('converts WindowResizeEvent to ResizeMsg', () {
+      // The event constructor is height-first; the message fields are not.
+      final msg = eventToMsg(const WindowResizeEvent(24, 80));
+      expect(msg, isA<ResizeMsg>());
+      expect((msg as ResizeMsg).height, equals(24));
+      expect(msg.width, equals(80));
+      expect(msg.widthPixels, equals(0));
+      expect(msg.heightPixels, equals(0));
+    });
+
+    test('converts WindowResizeEvent pixel dimensions through unchanged', () {
+      final msg = eventToMsg(const WindowResizeEvent(24, 80, 480, 800));
+      expect(msg, isA<ResizeMsg>());
+      expect((msg as ResizeMsg).heightPixels, equals(480));
+      expect(msg.widthPixels, equals(800));
+    });
+
+    test('QueryWindowResizeEvent (a DECRPM status reply) stays UnknownMsg', () {
+      final msg = eventToMsg(QueryWindowResizeEvent(1));
       expect(msg, isA<UnknownMsg>());
     });
   });

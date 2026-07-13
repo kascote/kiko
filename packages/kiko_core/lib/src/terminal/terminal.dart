@@ -158,6 +158,9 @@ class Terminal {
   /// Draws through [backend], defaulting to a [TermlibBackend] on the real
   /// terminal. Pass one to draw somewhere else — an in-memory screen, say —
   /// which is what makes the render loop reachable without a TTY.
+  ///
+  /// Awaits `backend.init()` before reading size or capabilities, so the
+  /// backend's one-time warm-up has already run by the time this returns.
   static Future<Terminal> create({
     Backend? backend,
     bool hiddenCursor = false,
@@ -165,6 +168,7 @@ class Terminal {
     Position lastKnowCursorPosition = Position.origin,
   }) async {
     final resolvedBackend = backend ?? TermlibBackend();
+    await resolvedBackend.init();
     const origin = Position.origin;
     final screenSize = resolvedBackend.size();
     final area = switch (viewport) {

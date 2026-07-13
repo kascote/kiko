@@ -157,6 +157,17 @@ abstract interface class Backend {
   /// Disables focus reporting.
   void disableFocusTracking();
 
+  /// Enables terminal resize reporting, so a window resize arrives as an
+  /// event.
+  ///
+  /// On a real terminal this uses in-band reporting, with a signal fallback
+  /// where in-band reporting is not supported. The backend decides which
+  /// mechanism fires; callers never know which one did.
+  void enableWindowResizeEvents();
+
+  /// Disables terminal resize reporting.
+  void disableWindowResizeEvents();
+
   /// Sets the terminal title.
   void setTitle(String title);
 

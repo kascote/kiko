@@ -80,6 +80,9 @@ class TestBackend implements Backend {
   /// Whether focus reporting is enabled.
   bool focusTracking = false;
 
+  /// Whether terminal resize reporting is enabled.
+  bool windowResizeEvents = false;
+
   /// The title last set through [setTitle].
   String? title;
 
@@ -241,6 +244,12 @@ class TestBackend implements Backend {
 
   @override
   void disableFocusTracking() => focusTracking = false;
+
+  @override
+  void enableWindowResizeEvents() => windowResizeEvents = true;
+
+  @override
+  void disableWindowResizeEvents() => windowResizeEvents = false;
 
   @override
   void setTitle(String title) => this.title = title;

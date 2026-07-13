@@ -64,6 +64,25 @@ exported) and `TestBackend` (in-memory, `package:kiko/testing.dart`).
   app-side `exit()` right after `run()` could otherwise truncate the terminal-restore bytes
   this backend just wrote.
 
+## Resize events
+
+A window resize reaches `update` as `ResizeMsg` — `width`/`height` in cells plus
+`widthPixels`/`heightPixels` (0 when the terminal does not report pixel dimensions, which
+most terminals do not). `Application` enables resize reporting **unconditionally** at
+startup, with no constructor flag: the backend owns the choice between in-band reporting and
+a signal fallback, seeded by the one-time probe in `Backend.init()`, and callers never see
+which mechanism fired. A resize is position-valued, so several queued resizes coalesce to
+the latest.
+
+The enable-time size report that in-band mode sends back is startup noise, not a real resize;
+`MvuRuntime.flushStartupEvents` drops any resize held before the first frame commits. A
+resize emitted after that reaches `update` normally.
+
+Rendering never depends on any of this: `Terminal.draw` polls the backend's size before
+building every frame, as the correctness backstop on terminals that report no resize events
+at all. `ResizeMsg` is purely informational — the app uses it to react (recompute a scroll
+clamp, reflow content), never to make resizing work. See `example/resize.dart`.
+
 ## Mouse: the Hit Map and the Router
 
 A mouse event reaches `update` **already resolved** — it knows which widget it belongs to,

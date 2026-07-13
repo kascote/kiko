@@ -89,6 +89,27 @@ void main() {
       expect(backend.focusTracking, isFalse);
       expect(backend.cursorVisible, isTrue);
     });
+
+    test('enables window-resize reporting on the way in with no constructor flag, and '
+        'restores it on the way out', () async {
+      late final bool resizeOnInit;
+
+      // No windowEvents-style flag exists on Application at all — unlike
+      // mouseEvents/keyboardEnhancement/bracketedPaste/focusEvents above, this
+      // mode is unconditional.
+      final app = Application(backend: backend);
+
+      await runApp(
+        app,
+        update: (model, msg, _) {
+          if (msg is InitMsg) resizeOnInit = backend.windowResizeEvents;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(resizeOnInit, isTrue);
+      expect(backend.windowResizeEvents, isFalse, reason: 'restored on the way out');
+    });
   });
 
   group('the exit path', () {
@@ -215,6 +236,38 @@ void main() {
       expect(seenKey, 'q');
       expect(rc, 5);
     });
+
+    test('a resize emitted after the first frame reaches update as a ResizeMsg', () async {
+      ResizeMsg? seenResize;
+      var ticks = 0;
+
+      final rc = await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          switch (msg) {
+            case FrameTickMsg():
+              ticks++;
+              // Emitted only once the first frame has committed and the
+              // startup hold has flushed — a WindowResizeEvent emitted any
+              // earlier is startup noise and is dropped, never queued.
+              if (ticks == 1) backend.emit(const WindowResizeEvent(30, 100, 640, 2000));
+              return (model, null);
+            case ResizeMsg():
+              seenResize = msg;
+              return (model, const Quit());
+            default:
+              return (model, null);
+          }
+        },
+      );
+
+      expect(rc, 0);
+      expect(seenResize, isNotNull);
+      expect(seenResize!.width, 100);
+      expect(seenResize!.height, 30);
+      expect(seenResize!.widthPixels, 2000);
+      expect(seenResize!.heightPixels, 640);
+    });
   });
 
   group('the update context', () {
@@ -301,6 +354,7 @@ void main() {
       expect(seenError, isA<StateError>());
       expect(rc, 7, reason: 'onError replaces defaultErrorCode');
       expect(backend.rawMode, isFalse, reason: 'the terminal is restored even on the error path');
+      expect(backend.windowResizeEvents, isFalse, reason: 'window-resize reporting is disabled too');
       expect(backend.disposed, isTrue);
     });
 

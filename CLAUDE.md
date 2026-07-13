@@ -72,7 +72,7 @@ you have no use for it.
 
 **Key types:**
 
-- `Msg` - events (KeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, custom)
+- `Msg` - events (KeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, ResizeMsg, custom)
 - `Cmd` - side effects (Quit, Tick, AsyncCmd, Batch, Emit)
 - `MvuRuntime` - unified message queue, frame/tick timers, async task handling
 
@@ -86,7 +86,7 @@ Unified stream architecture where all sources push to single FIFO queue:
 
 - **FrameTick** (internal, 60fps default) - drives render loop
 - **Tick** (user timer) - for app logic (clocks, polling)
-- **Terminal events** - keys, mouse, focus, paste
+- **Terminal events** - keys, mouse, focus, paste, resize
 
 Processing flow:
 

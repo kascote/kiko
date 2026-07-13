@@ -314,6 +314,10 @@ class Application {
     if (keyboardEnhancement) terminal.enableKeyboardEnhancement();
     if (bracketedPaste) terminal.enableBracketedPaste();
     if (focusEvents) terminal.enableFocusTracking();
+    // Unconditional, unlike the flagged pairs above: an unsupported terminal
+    // silently ignores this, and the backend self-manages the in-band/signal
+    // fallback, so there is nothing for a constructor flag to gate.
+    terminal.enableWindowResizeEvents();
     if (title != null) terminal.setTitle(title!);
   }
 
@@ -326,6 +330,7 @@ class Application {
     if (mouseEvents) terminal.disableMouseEvents();
     if (bracketedPaste) terminal.disableBracketedPaste();
     if (focusEvents) terminal.disableFocusTracking();
+    terminal.disableWindowResizeEvents();
     if (viewport is ViewPortFullScreen) {
       terminal
         ..disableRawMode()

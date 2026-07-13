@@ -275,6 +275,14 @@ class TermlibBackend implements Backend {
   @override
   void disableFocusTracking() => _term.endFocusTracking();
 
+  /// Enables terminal resize reporting.
+  @override
+  void enableWindowResizeEvents() => _term.enableResizeEvents();
+
+  /// Disables terminal resize reporting.
+  @override
+  void disableWindowResizeEvents() => _term.disableResizeEvents();
+
   /// Sets the terminal title.
   @override
   void setTitle(String title) => _term.setTerminalTitle(title);

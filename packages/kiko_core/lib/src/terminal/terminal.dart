@@ -496,6 +496,12 @@ class Terminal {
   /// Disables terminal focus in/out reporting
   void disableFocusTracking() => backend.disableFocusTracking();
 
+  /// Enables terminal resize reporting, so a window resize arrives as an event
+  void enableWindowResizeEvents() => backend.enableWindowResizeEvents();
+
+  /// Disables terminal resize reporting
+  void disableWindowResizeEvents() => backend.disableWindowResizeEvents();
+
   /// Sets the terminal title
   void setTitle(String title) => backend.setTitle(title);
 

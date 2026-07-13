@@ -299,6 +299,7 @@ void main() {
         ..enableKeyboardEnhancement()
         ..enableBracketedPaste()
         ..enableFocusTracking()
+        ..enableWindowResizeEvents()
         ..setTitle('kiko');
 
       expect(backend.alternateScreen, isTrue);
@@ -307,6 +308,7 @@ void main() {
       expect(backend.keyboardEnhancement, isTrue);
       expect(backend.bracketedPaste, isTrue);
       expect(backend.focusTracking, isTrue);
+      expect(backend.windowResizeEvents, isTrue);
       expect(backend.title, 'kiko');
 
       t
@@ -315,7 +317,8 @@ void main() {
         ..disableMouseEvents()
         ..disableKeyboardEnhancement()
         ..disableBracketedPaste()
-        ..disableFocusTracking();
+        ..disableFocusTracking()
+        ..disableWindowResizeEvents();
 
       expect(backend.alternateScreen, isFalse);
       expect(backend.rawMode, isFalse);
@@ -323,6 +326,7 @@ void main() {
       expect(backend.keyboardEnhancement, isFalse);
       expect(backend.bracketedPaste, isFalse);
       expect(backend.focusTracking, isFalse);
+      expect(backend.windowResizeEvents, isFalse);
     });
 
     test('hideCursor and showCursor track state on both sides', () async {

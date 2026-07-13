@@ -8,7 +8,7 @@
 ///
 /// final backend = TestBackend(size: const TermSize(20, 5));
 /// final terminal = await Terminal.create(backend: backend);
-/// terminal.draw((frame) => frame.render(Line('hello')));
+/// await terminal.draw((frame) => frame.render(Line('hello')));
 /// expect(backend.screen[(x: 0, y: 0)].symbol, 'h');
 /// ```
 ///

@@ -213,9 +213,9 @@ void main() {
           ..insertNewLinesCount = 0
           ..clears.clear()
           ..resizeTo(const TermSize(4, 2));
-        // The inline resize path suspends mid-flight on the backend's cursor
-        // round trip; only the first of these two draws should observe the
-        // size change and actually resize.
+        // An awaited draw completes its resize (including the cursor round
+        // trip) before returning, so the second draw finds the size already
+        // reconciled and must not resize again.
         await t.draw((_) {});
         await t.draw((_) {});
 

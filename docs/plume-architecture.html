@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plume Architecture</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #1c2126;
+    --muted: #5b6670;
+    --border: #d8dee4;
+    --surface: #f4f6f8;
+    --code-bg: #f0f2f5;
+    --acc: #0b6bcb;      /* constraints, primary accent */
+    --acc2: #9a4fc0;     /* sizes, secondary accent */
+    --warn-bg: #fdf3e3;
+    --warn-edge: #c98a1b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181b;
+      --ink: #e4e8ec;
+      --muted: #98a2ab;
+      --border: #313840;
+      --surface: #1d2226;
+      --code-bg: #20262b;
+      --acc: #6cb1ef;
+      --acc2: #c493e6;
+      --warn-bg: #2b2417;
+      --warn-edge: #d9a441;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0 auto;
+    max-width: 47rem;
+    padding: 2.5rem 1.5rem 6rem;
+    color: var(--ink);
+    background: var(--bg);
+    font: 16px/1.65 "Iosevka Aile", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .25rem; }
+  .subtitle { color: var(--muted); margin: 0 0 2rem; font-size: 1.05rem; }
+  h2 { font-size: 1.45rem; margin: 3rem 0 1rem; padding-bottom: .35rem; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.12rem; margin: 2rem 0 .75rem; }
+  p { margin: .8rem 0; }
+  a { color: var(--acc); }
+  code {
+    font: .875em/1.5 "Iosevka Fixed 009", "Iosevka Fixed SS09", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    padding: .1em .35em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1.1rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; font-size: .85rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid var(--border); padding: .45rem .65rem; text-align: left; vertical-align: top; }
+  th { background: var(--surface); }
+  td code { white-space: nowrap; }
+  .pointer {
+    border-left: 3px solid var(--acc);
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    padding: .65rem 1rem;
+    margin: 1.25rem 0;
+    font-size: .88rem;
+  }
+  .pointer strong { color: var(--acc); font-weight: 600; }
+  .callout {
+    border-left: 3px solid var(--warn-edge);
+    background: var(--warn-bg);
+    border-radius: 0 8px 8px 0;
+    padding: .65rem 1rem;
+    margin: 1.25rem 0;
+    font-size: .92rem;
+  }
+  figure { margin: 1.75rem 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: .85rem; margin-top: .5rem; }
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    font-size: .93rem;
+  }
+  nav.toc ol { margin: .25rem 0; padding-left: 1.25rem; }
+  dl.gloss dt { font-weight: 600; margin-top: .8rem; }
+  dl.gloss dd { margin: .15rem 0 0 0; color: var(--ink); }
+  .meta { color: var(--muted); font-size: .82rem; margin-top: 4rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+
+  /* diagram styles (SVG inherits page CSS) */
+  .nb  { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+  .nbA { fill: var(--surface); stroke: var(--acc);  stroke-width: 1.5; }
+  .ghost { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  .band { fill: var(--acc); opacity: .14; stroke: none; }
+  .band2 { fill: var(--acc2); opacity: .16; stroke: none; }
+  .t   { fill: var(--ink);   font: 12.5px "Iosevka Fixed 009", "Iosevka Fixed SS09", ui-monospace, Menlo, Consolas, monospace; }
+  .ts  { fill: var(--muted); font: 11.5px "Iosevka Fixed 009", "Iosevka Fixed SS09", ui-monospace, Menlo, Consolas, monospace; }
+  .tA  { fill: var(--acc);   font: 11.5px "Iosevka Fixed 009", "Iosevka Fixed SS09", ui-monospace, Menlo, Consolas, monospace; }
+  .tB  { fill: var(--acc2);  font: 11.5px "Iosevka Fixed 009", "Iosevka Fixed SS09", ui-monospace, Menlo, Consolas, monospace; }
+  .mid { text-anchor: middle; }
+  .ln  { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+  .lnA { stroke: var(--acc);   stroke-width: 1.4; fill: none; marker-end: url(#arrA); }
+  .lnB { stroke: var(--acc2);  stroke-width: 1.4; fill: none; marker-end: url(#arrB); }
+  .lnD { stroke: var(--muted); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; marker-end: url(#arr); }
+  #arr path  { fill: var(--muted); }
+  #arrA path { fill: var(--acc); }
+  #arrB path { fill: var(--acc2); }
+</style>
+</head>
+<body>
+
+<!-- shared arrowhead markers for every diagram below -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arr"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+</svg>
+
+<h1>Plume Architecture</h1>
+<p class="subtitle">How the layout engine works: the tree, the four passes, and every widget — explained from the source.</p>
+
+<nav class="toc">
+<strong>Contents</strong>
+<ol>
+  <li><a href="#what">What Plume is (and what it leaves out)</a></li>
+  <li><a href="#vocab">A short vocabulary</a></li>
+  <li><a href="#passes">One frame, four passes</a></li>
+  <li><a href="#layout">Layout: constraints down, sizes up</a></li>
+  <li><a href="#place">Place: from relative offsets to absolute rectangles</a></li>
+  <li><a href="#paint">Paint: draw intents and clipping</a></li>
+  <li><a href="#hit">Hit testing and tags</a></li>
+  <li><a href="#seams">The two injected seams: TextMeasurer and Surface</a></li>
+  <li><a href="#viewport">Scrolling: the Viewport</a></li>
+  <li><a href="#widgets">The widget catalog</a></li>
+  <li><a href="#endtoend">A frame, end to end</a></li>
+  <li><a href="#files">Where things live</a></li>
+</ol>
+</nav>
+
+<h2 id="what">1. What Plume is (and what it leaves out)</h2>
+
+<p>Plume lays out user interfaces on a <em>cell grid</em> — the character grid of a
+terminal. You give it a tree of nodes (“put a border around a column of two text
+lines”) and a rectangle to work in; it decides where every box goes and tells a
+drawing target what to draw. That is the whole job: <strong>geometry in, drawing
+instructions out</strong>.</p>
+
+<p>Just as important is what Plume deliberately does <em>not</em> do:</p>
+
+<ul>
+  <li><strong>It never talks to a terminal.</strong> Drawing goes through an abstract
+      <code>Surface</code> that the caller provides. Tests provide a
+      <code>RecordingSurface</code> that just collects the calls; a real backend
+      provides one that writes into a screen buffer.</li>
+  <li><strong>It never measures text itself.</strong> “How many cells does this string
+      occupy?” is the one question that depends on the terminal (some characters are
+      two cells wide), so the answer is injected as a <code>TextMeasurer</code>.</li>
+  <li><strong>It knows nothing about colors or styles.</strong> Every node carries an
+      opaque value of type <code>T</code> — the <em>paint token</em> — that the engine
+      passes through to the surface untouched, like a sticker it carries but never
+      reads. Only the surface, at the far end, interprets it.</li>
+  <li><strong>It keeps no state between frames.</strong> Every frame the caller builds a
+      fresh tree and runs it through the same passes. There is no retained tree, no
+      dirty-tracking, no cache to invalidate. Even scrolling is stateless from Plume’s
+      point of view (<a href="#viewport">§9</a>).</li>
+</ul>
+
+<p>All coordinates are whole cells — plain Dart <code>int</code>s. There are no
+fractional sizes, which is why you will see integer division (<code>~/</code>) and
+explicit “who gets the leftover cell” policies throughout the code.</p>
+
+<p>The name “solver-free” in the package description means there is no constraint
+solver: no system of equations relating all the boxes, solved globally (the approach
+used by, e.g., Cassowary-based layout systems). Instead each parent makes a local
+decision — “given the room I was offered, here is the room each child gets” — in one
+walk down and up the tree. If you know Flutter’s box model this is the same idea; if
+you don’t, the next three sections are all you need.</p>
+
+<div class="pointer"><strong>In the code:</strong> the package summary is the library
+doc of <code>packages/plume/lib/plume.dart</code>; the node base class with the
+four passes is <code>lib/src/render/render_node.dart</code> (<code>RenderNode</code>).</div>
+
+<h2 id="vocab">2. A short vocabulary</h2>
+
+<p>Ten words cover everything. Each is defined here once, in plain terms, and used
+consistently after that.</p>
+
+<dl class="gloss">
+  <dt>cell</dt>
+  <dd>One character position on the terminal grid. The unit of every coordinate and size.</dd>
+
+  <dt>node / tree / leaf</dt>
+  <dd>A <em>node</em> is one box in the layout (<code>RenderNode</code>). Nodes with
+      children form the <em>tree</em>; a node with no children is a <em>leaf</em>.
+      Leaves are the ones that actually draw (text, spacers); everything above them
+      only arranges.</dd>
+
+  <dt>constraint</dt>
+  <dd>The size limits a parent hands a child: minimum and maximum width, minimum and
+      maximum height (<code>BoxConstraints</code>). “You may be 0 to 25 cells wide and
+      exactly 2 tall.” A child must pick a size inside those limits.</dd>
+
+  <dt>unbounded</dt>
+  <dd>A constraint axis with no maximum (<code>maxW</code> or <code>maxH</code> is
+      <code>null</code>): “be as wide/tall as you like.” Normal in the middle of a
+      tree — a column asks each child for its natural height this way.</dd>
+
+  <dt>natural size</dt>
+  <dd>The size a node picks when nothing forces it bigger: a text line is as wide as
+      its characters, a padded box is its child plus the padding.</dd>
+
+  <dt>paint token</dt>
+  <dd>The opaque style value <code>T</code> attached to text runs, borders, and fills.
+      Plume carries it; the surface interprets it. In kiko it is a style object; in
+      Plume’s own tests it is literally a <code>String</code>.</dd>
+
+  <dt>draw intent</dt>
+  <dd>One drawing instruction emitted during paint: “draw this text at (x, y)”, “fill
+      this rectangle”, “draw a border around this rectangle”. The paint pass produces a
+      stream of these — it never touches pixels or cells itself.</dd>
+
+  <dt>clip</dt>
+  <dd>The region a node is allowed to draw in. Anything a node tries to draw outside
+      its own box (or any ancestor’s box) is trimmed or dropped.</dd>
+
+  <dt>grapheme cluster</dt>
+  <dd>What a reader perceives as one character — a letter, an accented letter, an
+      emoji — even when it is several Unicode code points. All text handling works
+      cluster by cluster, because a cluster is the smallest thing you can put in
+      a cell (or two cells, for wide characters).</dd>
+
+  <dt>viewport</dt>
+  <dd>A window onto content taller than itself — the mechanism behind scrolling.</dd>
+</dl>
+
+<p>One notation note: rectangles are <em>half-open</em>. A <code>Rect</code> at
+<code>x&nbsp;=&nbsp;0</code> with <code>width&nbsp;=&nbsp;3</code> covers columns 0, 1, 2 — column 3 is
+outside. <code>right</code> and <code>bottom</code> are the first column/row <em>past</em>
+the edge. This convention makes widths add up without ±1 adjustments and is used
+everywhere (<code>lib/src/geometry/rect.dart</code>).</p>
+
+<h2 id="passes">3. One frame, four passes</h2>
+
+<p>Every frame does the same thing. The caller builds a fresh tree of nodes, then
+drives it through three passes in one call; the fourth pass runs later, per input
+event:</p>
+
+<figure>
+<svg viewBox="0 0 760 205" role="img" aria-label="Pipeline: build tree, then layout, place, paint into a surface; hit testing runs separately per input event">
+  <rect class="nb" x="8"   y="38" width="150" height="52" rx="8"/>
+  <text class="t mid"  x="83"  y="60">your code builds</text>
+  <text class="t mid"  x="83"  y="76">a fresh tree</text>
+
+  <rect class="nbA" x="196" y="38" width="120" height="52" rx="8"/>
+  <text class="t mid"  x="256" y="60">1 · layout</text>
+  <text class="ts mid" x="256" y="76">sizes chosen</text>
+
+  <rect class="nbA" x="354" y="38" width="120" height="52" rx="8"/>
+  <text class="t mid"  x="414" y="60">2 · place</text>
+  <text class="ts mid" x="414" y="76">rects fixed</text>
+
+  <rect class="nbA" x="512" y="38" width="120" height="52" rx="8"/>
+  <text class="t mid"  x="572" y="60">3 · paint</text>
+  <text class="ts mid" x="572" y="76">intents emitted</text>
+
+  <rect class="nb" x="670" y="38" width="84" height="52" rx="8"/>
+  <text class="t mid"  x="712" y="60">Surface</text>
+  <text class="ts mid" x="712" y="76">draws</text>
+
+  <line class="ln" x1="158" y1="64" x2="192" y2="64"/>
+  <line class="ln" x1="316" y1="64" x2="350" y2="64"/>
+  <line class="ln" x1="474" y1="64" x2="508" y2="64"/>
+  <line class="ln" x1="632" y1="64" x2="666" y2="64"/>
+
+  <text class="ts" x="196" y="26">renderFrame(tree, area, surface) runs these three</text>
+
+  <rect class="nb" x="196" y="138" width="120" height="44" rx="8"/>
+  <text class="t mid" x="256" y="164">input event</text>
+  <rect class="nb" x="354" y="138" width="180" height="44" rx="8"/>
+  <text class="t mid"  x="444" y="156">4 · hitTest / tagAt</text>
+  <text class="ts mid" x="444" y="172">per event, not per frame</text>
+  <line class="ln" x1="316" y1="160" x2="350" y2="160"/>
+  <path class="lnD" d="M 534 160 L 592 160 L 592 96"/>
+  <text class="ts" x="546" y="150">reads the rects</text>
+  <text class="ts" x="546" y="197">pass 2 fixed</text>
+</svg>
+<figcaption>The frame pipeline. <code>renderFrame</code> is the whole driver — the
+function body is three lines, one per pass.</figcaption>
+</figure>
+
+<ol>
+  <li><strong>layout</strong> — each node picks its size within the limits its parent
+      gave it, sizing its children along the way. Constraints flow down, sizes flow
+      up. After this pass every node knows how big it is and where its children sit
+      <em>relative to itself</em> — but nothing knows its absolute position yet.</li>
+  <li><strong>place</strong> — a cheap recursive walk turns those relative offsets into
+      absolute rectangles on the grid.</li>
+  <li><strong>paint</strong> — each node emits its draw intents, then its children
+      paint on top, all clipped to the boxes layout assigned.</li>
+  <li><strong>hitTest / tagAt</strong> — when input arrives, find the node (or the
+      logical widget) under a point, using the rectangles the last frame fixed.</li>
+</ol>
+
+<p>The driver really is this small (<code>lib/src/render/render_frame.dart</code>):</p>
+
+<pre><code>void renderFrame&lt;T&gt;(RenderNode&lt;T&gt; node, Rect area, Surface&lt;T&gt; surface,
+    {TextMeasurer measurer = const MonospaceMeasurer()}) {
+  node
+    ..layout(BoxConstraints.tight(area.size), LayoutContext(measurer: measurer))
+    ..place(area.topLeft)
+    ..paint(surface);
+}</code></pre>
+
+<p>The root is laid out <em>tight</em> to the frame area — it must be exactly that
+size — and hit testing is left to the caller, because it belongs to the input path,
+not the render path.</p>
+
+<div class="pointer"><strong>In the code:</strong>
+<code>renderFrame</code> in <code>lib/src/render/render_frame.dart</code>;
+the four pass methods are <code>RenderNode.layout</code>, <code>.place</code>,
+<code>.paint</code>, <code>.hitTest</code> in <code>lib/src/render/render_node.dart</code>.</div>
+
+<h2 id="layout">4. Layout: constraints down, sizes up</h2>
+
+<p>This is the heart of the engine, and it is one rule applied recursively:</p>
+
+<blockquote><p><em>A parent hands each child a <code>BoxConstraints</code> — the box of
+allowed sizes. The child picks a <code>Size</code> within it (consulting its own
+children the same way first) and reports it back. The parent then decides where each
+child sits inside itself.</em></p></blockquote>
+
+<p>A <code>BoxConstraints</code> is four integers: <code>minW</code>, <code>maxW</code>,
+<code>minH</code>, <code>maxH</code>, where a <code>null</code> maximum means
+“unbounded — as large as you like.” Three named shapes cover most uses:</p>
+
+<ul>
+  <li><code>BoxConstraints.tight(size)</code> — min equals max: “be exactly this size.”</li>
+  <li><code>BoxConstraints.loose(size)</code> — zero up to size: “anything up to this.”</li>
+  <li><code>BoxConstraints.unbounded()</code> — no limits at all.</li>
+</ul>
+
+<p>Parents derive child constraints from their own using a small toolkit on
+<code>BoxConstraints</code> (<code>lib/src/geometry/box_constraints.dart</code>):
+<code>deflate(h, v)</code> shrinks the space to leave room for chrome like borders and
+padding; <code>loosen()</code> drops the minimums to ask a child for its natural size;
+<code>enforce(outer)</code> clamps one set of constraints inside another, so a widget
+can tighten what its parent allowed but never escape it; <code>constrain(size)</code>
+clamps a size into range — implementations call it before returning, which upholds the
+central invariant: <strong>a node’s reported size always satisfies the constraints it
+was given</strong>.</p>
+
+<p>Here is the flow for the tree in Plume’s own example — a bordered container holding
+a column of two text lines, laid out in a 27×4 frame (all numbers below are what the
+engine actually computes):</p>
+
+<figure>
+<svg viewBox="0 0 660 330" role="img" aria-label="Constraints flow down the tree, sizes flow back up">
+  <text class="tA" x="10" y="16">constraints go down</text>
+  <text class="tB" x="650" y="16" text-anchor="end">sizes come back up</text>
+
+  <rect class="nb" x="230" y="34" width="200" height="40" rx="8"/>
+  <text class="t mid" x="330" y="59">Container (border)</text>
+
+  <rect class="nb" x="230" y="140" width="200" height="40" rx="8"/>
+  <text class="t mid" x="330" y="165">Column</text>
+
+  <rect class="nb" x="30" y="256" width="260" height="40" rx="8"/>
+  <text class="t mid" x="160" y="281">Text “Hello, Plume”</text>
+
+  <rect class="nb" x="350" y="256" width="290" height="40" rx="8"/>
+  <text class="t mid" x="495" y="281">Text “layout without a solver”</text>
+
+  <!-- root in/out -->
+  <line class="lnA" x1="300" y1="4"  x2="300" y2="30"/>
+  <text class="tA" x="292" y="20" text-anchor="end">exactly 27×4</text>
+  <line class="lnB" x1="360" y1="30" x2="360" y2="4"/>
+  <text class="tB" x="370" y="20">27×4</text>
+
+  <!-- container -> column -->
+  <line class="lnA" x1="300" y1="74" x2="300" y2="136"/>
+  <text class="tA" x="286" y="108" text-anchor="end">exactly 25×2 (27×4 minus the border)</text>
+  <line class="lnB" x1="360" y1="140" x2="360" y2="78"/>
+  <text class="tB" x="374" y="108">25×2</text>
+
+  <!-- column -> text1 -->
+  <line class="lnA" x1="230" y1="180" x2="170" y2="252"/>
+  <text class="tA" x="30" y="215">w: 0..25</text>
+  <text class="tA" x="30" y="230">h: unbounded</text>
+  <line class="lnB" x1="210" y1="256" x2="270" y2="184"/>
+  <text class="tB" x="228" y="228">12×1</text>
+
+  <!-- column -> text2 -->
+  <line class="lnA" x1="400" y1="180" x2="460" y2="252"/>
+  <text class="tA" x="378" y="222" text-anchor="end">same</text>
+  <line class="lnB" x1="500" y1="256" x2="440" y2="184"/>
+  <text class="tB" x="505" y="228">23×1</text>
+</svg>
+<figcaption>Constraints down (blue), sizes up (purple). Note the column offering its
+children unbounded height — mid-tree, “unbounded” is routine, not an error.</figcaption>
+</figure>
+
+<p>Three things in that picture are worth pausing on:</p>
+
+<ul>
+  <li><strong>The parent never looks inside a child.</strong> All it learns is the
+      returned size. A column doesn’t know whether a child is text, a bordered box, or
+      a whole sub-application.</li>
+  <li><strong>The child never knows where it will be.</strong> During layout, the
+      parent stores each child’s position <em>relative to itself</em> in
+      <code>child.offset</code>. Absolute positions don’t exist until the place pass.</li>
+  <li><strong>Unbounded is normal.</strong> The column asks “how tall would you
+      naturally be at up to 25 wide?” by handing down an unbounded height. Only a few
+      combinations are actual errors, and those fail loudly (see the Flex rule in
+      <a href="#widgets">§10</a>).</li>
+</ul>
+
+<h3>The node protocol</h3>
+
+<p>Every node type implements one method, <code>performLayout</code>. The public
+<code>layout</code> is a thin, non-overridable wrapper that (a) asserts the incoming
+constraints are well-formed — every layout in the app passes through this single
+funnel, so a negative or inverted range fails immediately in debug builds at zero
+release cost — and (b) records the result in <code>size</code>:</p>
+
+<pre><code>// RenderNode (render_node.dart), simplified:
+Size layout(BoxConstraints constraints, LayoutContext context) {
+  assert(constraints.isNormalized, ...);
+  return size = performLayout(constraints, context);
+}</code></pre>
+
+<p>A complete real node is small. This is all of <code>Padding</code>
+(<code>lib/src/widgets/padding.dart</code>):</p>
+
+<pre><code>Size performLayout(BoxConstraints constraints, LayoutContext context) {
+  final childSize =
+      child.layout(constraints.deflate(insets.horizontal, insets.vertical), context);
+  child.offset = Offset(insets.left, insets.top);
+  return constraints.constrain(
+      Size(childSize.w + insets.horizontal, childSize.h + insets.vertical));
+}</code></pre>
+
+<p>Shrink the room by the insets, lay the child out in what remains, shift it past the
+top-left insets, report child-plus-insets (clamped into the parent’s limits). Every
+other widget is this pattern with different arithmetic.</p>
+
+<div class="pointer"><strong>In the code:</strong>
+<code>RenderNode.layout</code> / <code>performLayout</code> in
+<code>lib/src/render/render_node.dart</code>;
+the constraint toolkit in <code>lib/src/geometry/box_constraints.dart</code>
+(<code>tight</code>, <code>loose</code>, <code>deflate</code>, <code>loosen</code>,
+<code>enforce</code>, <code>constrain</code>, <code>isNormalized</code>);
+<code>LayoutContext</code> in <code>lib/src/render/layout_context.dart</code>
+carries the one ambient input, the text measurer.</div>
+
+<h2 id="place">5. Place: from relative offsets to absolute rectangles</h2>
+
+<p>After layout, the tree holds sizes and parent-relative offsets. <code>place</code>
+is one mechanical walk that pins everything to the grid:</p>
+
+<pre><code>// RenderNode.place (render_node.dart) — not overridable:
+void place(Offset origin) {
+  _rect = Rect.fromOriginSize(origin, size);
+  for (final child in children) {
+    child.place(origin + child.offset);
+  }
+}</code></pre>
+
+<p>Each node’s absolute <code>rect</code> is its parent’s origin plus its own offset.
+There is no per-widget logic here at all — all placement <em>decisions</em> happened
+during layout; place just adds them up. The resulting <code>rect</code> is what paint
+draws inside and what hit testing reads later.</p>
+
+<p>Keeping this pass separate is what lets layout stay position-free: a node sized deep
+inside a column would be laid out identically whether the column ends up at the top of
+the screen or the bottom.</p>
+
+<h2 id="paint">6. Paint: draw intents and clipping</h2>
+
+<p>Paint walks the tree in order: a node first emits its own drawing
+(<code>paintSelf</code> — the default draws nothing), then its children paint on top,
+in list order, so the <em>last child wins an overlap</em>. The node’s rect is pushed as
+the active clip around all of it:</p>
+
+<pre><code>// RenderNode.paint (render_node.dart):
+void paint(Surface&lt;T&gt; surface) {
+  surface.pushClip(rect);
+  paintSelf(surface);
+  for (final child in children) {
+    child.paint(surface);
+  }
+  surface.popClip();
+}</code></pre>
+
+<p>The clip is a guarantee, not a suggestion: after a frame, <strong>no cell is
+written outside the intersection of a node’s rect with all of its ancestors’
+rects</strong>. A node cannot draw outside the box layout gave it, and neither can
+anything below it.</p>
+
+<figure>
+<svg viewBox="0 0 660 240" role="img" aria-label="A child overflowing its parent box is trimmed at the clip edge">
+  <rect class="nbA" x="40" y="36" width="300" height="168" rx="4"/>
+  <text class="tA" x="46" y="26">parent rect = active clip</text>
+
+  <rect class="band" x="200" y="96" width="140" height="52"/>
+  <rect class="ghost" x="200" y="96" width="230" height="52"/>
+  <text class="t" x="212" y="126">visible part</text>
+  <text class="ts" x="348" y="126">cut off</text>
+
+  <text class="ts" x="460" y="60">what reaches the surface:</text>
+  <text class="ts" x="460" y="86">· fill / border with no</text>
+  <text class="ts" x="472" y="102">  overlap → dropped whole</text>
+  <text class="ts" x="460" y="128">· partial overlap → passed</text>
+  <text class="ts" x="472" y="144">  with the clip attached</text>
+  <text class="ts" x="460" y="170">· text: leaf trims to whole</text>
+  <text class="ts" x="472" y="186">  characters, then emits</text>
+</svg>
+<figcaption>Clipping is enforced at the surface boundary, so no leaf can bypass it.</figcaption>
+</figure>
+
+<p>The enforcement lives in <code>ClippingSurface</code>
+(<code>lib/src/painting/clipping_surface.dart</code>), the base class every concrete
+surface extends. It owns the clip stack (<code>pushClip</code> intersects with the
+current top, so the active clip is always the running intersection) and applies three
+per-call rules:</p>
+
+<ul>
+  <li><strong>Fills and borders</strong> with no overlap with the clip are dropped.
+      Otherwise they are passed through with the clip attached when the clip does not
+      fully contain them — and a border always keeps its <em>original</em> rectangle.
+      The backend drops the border cells that fall outside rather than drawing a
+      shrunken border, which would fabricate a false edge along the clip line.</li>
+  <li><strong>Text</strong> on a row outside the clip is dropped whole, with no
+      measuring. Horizontal trimming, though, needs to know how wide each character is
+      — knowledge the surface doesn’t have — so the <em>leaf</em> trims text to whole
+      grapheme clusters before emitting (see <code>trimToClip</code> /
+      <code>paintClusterLine</code> in <code>lib/src/widgets/line_painter.dart</code>),
+      and the surface attaches the clip only as a backstop when a run starts left of
+      it.</li>
+  <li>When the clip fully contains a draw call, the attached clip is <code>null</code>
+      — an unclipped draw records exactly as it would if clipping didn’t exist, which
+      keeps test goldens clean.</li>
+</ul>
+
+<p>What comes out of the paint pass is a sequence of three intent kinds
+(<code>lib/src/painting/draw_intent.dart</code>): <code>TextIntent</code> (a run of
+characters at a cell), <code>FillIntent</code> (a filled rectangle), and
+<code>BorderIntent</code> (a border around a rectangle), each carrying its paint token
+and, if needed, the clip to honor. A <code>RecordingSurface</code> is nothing more
+than a list of these — which is exactly how Plume’s tests assert on rendering without
+any terminal.</p>
+
+<div class="pointer"><strong>In the code:</strong>
+<code>RenderNode.paint</code> / <code>paintSelf</code> in
+<code>lib/src/render/render_node.dart</code>;
+<code>Surface</code> in <code>lib/src/painting/surface.dart</code>;
+clip rules in <code>ClippingSurface</code>
+(<code>lib/src/painting/clipping_surface.dart</code>);
+intent types in <code>lib/src/painting/draw_intent.dart</code>;
+<code>RecordingSurface</code> in <code>lib/src/painting/recording_surface.dart</code>.</div>
+
+<h2 id="hit">7. Hit testing and tags</h2>
+
+<p>When input arrives — a click at some cell — two questions come up, and Plume
+answers each with a small tree search over the rects the last <code>place</code> pass
+fixed. Neither runs during rendering; they run per event.</p>
+
+<h3>“Which node is under this point?” — <code>hitTest</code></h3>
+
+<p>Descend the tree checking children <em>front-to-back</em> (the reverse of paint
+order), and return the first, deepest node whose rect contains the point. Because
+paint order is list order, the node drawn on top is found first — a click on an
+overlap lands on what the user actually sees.</p>
+
+<p>Descent at each node is <em>gated by that node’s own rect</em>: a point outside a
+parent never reaches the parent’s children, no matter where a child was placed. This
+is deliberately independent of paint clipping — there is no accumulated clip stack
+here; each node prunes locally at its own box.</p>
+
+<h3>“Which <em>widget</em> is under this point?” — <code>tagAt</code></h3>
+
+<p>The physically top-most node under a point is usually an anonymous leaf — a piece
+of text inside a button inside a form. To make hits mean something, whoever builds
+the tree can stamp any node with a <code>tag</code>: an opaque value (a widget id, in
+practice) that Plume never interprets, only compares. <code>tagAt</code> descends
+exactly like <code>hitTest</code> but reports the deepest <em>tag</em> it finds,
+falling back to the enclosing node’s own tag when nothing below carries one. That
+fallback is the whole point — <code>hitTest(point)?.tag</code> would land on the
+untagged leaf and answer <code>null</code>; <code>tagAt</code> answers “the button.”</p>
+
+<figure>
+<svg viewBox="0 0 660 250" role="img" aria-label="Left: front-to-back hit testing on an overlap. Right: tagAt falls back to the innermost enclosing tag">
+  <!-- left panel: hitTest overlap -->
+  <text class="ts" x="30" y="22">hitTest — front-most wins</text>
+  <rect class="nb"  x="30"  y="40" width="180" height="120" rx="4"/>
+  <text class="ts" x="40" y="60">A (painted first)</text>
+  <rect class="nbA" x="120" y="90" width="170" height="110" rx="4"/>
+  <text class="tA" x="132" y="112">B (painted last)</text>
+  <text class="t"  x="168" y="146">✕ click</text>
+  <text class="ts" x="30" y="232">checked in reverse paint order → B</text>
+
+  <!-- right panel: tagAt fallback -->
+  <text class="ts" x="380" y="22">tagAt — innermost tag encloses the point</text>
+  <rect class="nbA" x="380" y="40"  width="250" height="160" rx="4"/>
+  <text class="tA" x="390" y="60">Container · tag: 'form'</text>
+  <rect class="nb"  x="400" y="76" width="210" height="106" rx="4"/>
+  <text class="ts" x="410" y="96">Column · no tag</text>
+  <rect class="nb"  x="416" y="110" width="178" height="52" rx="4"/>
+  <text class="ts" x="426" y="130">Text · no tag</text>
+  <text class="t"  x="470" y="150">✕ click</text>
+  <text class="ts" x="380" y="232">nothing below is tagged → 'form'</text>
+</svg>
+<figcaption>Both searches prune at each node’s own rect and check children front-to-back.</figcaption>
+</figure>
+
+<p>Two smaller pieces round out the tag machinery:</p>
+
+<ul>
+  <li><code>nodeForTag(target)</code> is the reverse lookup — find the node carrying a
+      tag, then read its <code>rect</code> to anchor a popup to a widget or scroll it
+      into view. Tags are assumed unique within a frame.</li>
+  <li><code>clipsHits</code> is a per-node flag (<code>false</code> by default,
+      <code>true</code> on <code>Viewport</code>) declaring “my rect clips whether my
+      descendants are present at all.” Plume itself never consumes it —
+      <code>hitTest</code>/<code>tagAt</code> already prune geometrically — it exists
+      for a host layer that additionally tracks whether a widget is reachable
+      (e.g. scrolled out of view) rather than merely what one point resolves to.</li>
+</ul>
+
+<div class="pointer"><strong>In the code:</strong> all in
+<code>lib/src/render/render_node.dart</code> —
+<code>hitTest</code>, <code>tagAt</code>, <code>nodeForTag</code>,
+the <code>tag</code> field, and <code>clipsHits</code>.</div>
+
+<h2 id="seams">8. The two injected seams: TextMeasurer and Surface</h2>
+
+<p>Everything backend-specific enters through two small interfaces, both provided by
+the caller. This is why the engine runs identically under tests, a terminal, or
+anything else.</p>
+
+<h3>TextMeasurer — the one question about text</h3>
+
+<p><code>TextMeasurer</code> (<code>lib/src/painting/text_measurer.dart</code>) has a
+single method: <code>widthOf(text)</code> — how many cells does this string occupy?
+It is injected once at the root (via <code>LayoutContext</code>) and threaded down to
+every node. Tests use <code>MonospaceMeasurer</code>, which counts every grapheme
+cluster as one cell; a terminal backend supplies one that knows CJK characters and
+emoji are two cells wide.</p>
+
+<p>There is one contract to respect when implementing a measurer: widths must be
+<strong>additive over grapheme clusters</strong> — a string’s width must equal the sum
+of its clusters’ widths. The <code>Text</code> widget measures cluster by cluster and
+trims lines on those per-cluster totals; a measurer whose whole-string answer exceeds
+the per-cluster sum could let a run paint past its box. (Under-counting the whole
+string is merely wasteful: text over-reserves space.)</p>
+
+<p>Line <em>breaking</em>, notably, is not in the measurer: it lives in the
+<code>Text</code> widget, because breaking needs the per-cluster paint tokens that a
+plain-string interface can’t carry. Width is genuinely the only backend-specific
+primitive.</p>
+
+<h3>Surface — where the drawing goes</h3>
+
+<p><code>Surface</code> (<code>lib/src/painting/surface.dart</code>) is the sink:
+<code>drawText</code>, <code>fillRect</code>, <code>drawBorder</code>, plus the clip
+stack (<code>pushClip</code>/<code>popClip</code>/<code>clipRect</code>). It is also
+the <em>one</em> place the opaque paint token is interpreted. Concrete surfaces extend
+<code>ClippingSurface</code> and implement only the three raw sinks, so the clip rules
+of <a href="#paint">§6</a> can’t be bypassed or re-implemented inconsistently.</p>
+
+<p>The test surface doubles as the testing story for the whole engine: paint into a
+<code>RecordingSurface</code>, and the recorded intent list — in call order — <em>is</em>
+the golden to assert on. No terminal, no snapshots of cells, just data.</p>
+
+<h2 id="viewport">9. Scrolling: the Viewport</h2>
+
+<p>Scrolling falls out of the pieces above with almost no new machinery.
+<code>Viewport</code> (<code>lib/src/render/viewport.dart</code>) shows a window onto
+a child taller than itself:</p>
+
+<ul>
+  <li>During layout it gives the child a <strong>tight width and unbounded height</strong>
+      — “be exactly this wide, and as tall as you naturally are” — so the child reports
+      its full content height.</li>
+  <li>It then places the child at <code>Offset(0, -scrollOffset)</code>: scrolled
+      content simply starts above the viewport’s top edge.</li>
+  <li>It sizes itself to whatever box its parent gave it.</li>
+</ul>
+
+<p>And that’s it — no clipping code at all, because the ordinary paint pass already
+pushes the viewport’s rect as the active clip before descending: rows above or below
+the window are cut off by the same mechanism that clips everything else.</p>
+
+<figure>
+<svg viewBox="0 0 660 270" role="img" aria-label="A viewport shows a 5-row window onto 12 rows of content, scrolled down by 4">
+  <!-- content column -->
+  <rect class="ghost" x="90" y="20" width="190" height="228"/>
+  <text class="ts" x="90" y="14">content: 12 rows</text>
+  <line class="ln" x1="72" y1="20" x2="72" y2="93" stroke-dasharray="3 3"/>
+  <text class="ts" x="10" y="60">rows 0–3</text>
+  <text class="ts" x="10" y="76">scrolled</text>
+  <text class="ts" x="10" y="92">past</text>
+
+  <!-- rows -->
+  <g class="ts">
+    <text x="100" y="36">row 0</text><text x="100" y="55">row 1</text>
+    <text x="100" y="74">row 2</text><text x="100" y="93">row 3</text>
+    <text x="100" y="112">row 4</text><text x="100" y="131">row 5</text>
+    <text x="100" y="150">row 6</text><text x="100" y="169">row 7</text>
+    <text x="100" y="188">row 8</text><text x="100" y="207">row 9</text>
+    <text x="100" y="226">row 10</text><text x="100" y="245">row 11</text>
+  </g>
+
+  <!-- window -->
+  <rect class="band" x="90" y="98" width="190" height="95"/>
+  <rect class="nbA" x="90" y="98" width="190" height="95" rx="2" fill="none"/>
+  <text class="tA" x="292" y="112">viewport rect (5 rows)</text>
+  <text class="ts" x="292" y="132">child placed at Offset(0, −4)</text>
+  <text class="ts" x="292" y="152">paint clip cuts the rest</text>
+
+  <!-- metrics -->
+  <text class="ts" x="292" y="196">onMeasure reports:</text>
+  <text class="ts" x="292" y="214">viewportRows: 5 · contentRows: 12</text>
+  <text class="ts" x="292" y="232">tagRanges: content-relative rows</text>
+  <text class="ts" x="292" y="250">per tagged descendant</text>
+</svg>
+<figcaption>scrollOffset = 4: the child starts 4 rows above the window; only rows 4–8 paint.</figcaption>
+</figure>
+
+<p>Two design points matter more than the mechanics:</p>
+
+<ul>
+  <li><strong>Plume holds no scroll state.</strong> <code>scrollOffset</code> is a
+      plain constructor argument the owner computes and clamps each frame. Since a
+      fresh tree is built every frame anyway, there is nothing to reset or
+      synchronize — scrolling is just building next frame’s tree with a different
+      number.</li>
+  <li><strong>Measurement flows out through a callback.</strong> The owner usually
+      needs geometry to clamp that offset (“how tall is the content, really?”) or to
+      scroll a widget into view. If given an <code>onMeasure</code> callback, the
+      viewport reports a <code>ViewportMetrics</code> after each paint: its own height,
+      the content’s full height, and every tagged descendant’s row range. Ranges are
+      <em>content-relative</em> — measured from the top of the content, not the window —
+      so they stay stable while scrolling.</li>
+</ul>
+
+<p><code>Viewport</code> is also the one node that overrides
+<code>clipsHits → true</code>, declaring to host layers that descendants scrolled
+outside its window should count as absent (<a href="#hit">§7</a>).</p>
+
+<div class="pointer"><strong>In the code:</strong> <code>Viewport</code>,
+<code>ViewportMetrics</code>, <code>ViewportTagRange</code> in
+<code>lib/src/render/viewport.dart</code>. The layout trick is
+<code>Viewport.performLayout</code>; the tag walk is in its <code>paintSelf</code>.</div>
+
+<h2 id="widgets">10. The widget catalog</h2>
+
+<p>Every widget is a <code>RenderNode</code> subclass; most are a page of code. Here is
+the full set, grouped by role, with deeper dives where the algorithm is interesting.</p>
+
+<table>
+  <tr><th>Widget</th><th>Role</th><th>File (under <code>lib/src/widgets/</code>)</th></tr>
+  <tr><td><code>Row</code> / <code>Column</code> / <code>Flex</code>, with <code>Flexible</code> / <code>Expanded</code></td><td>Children in a line; share out free space</td><td><code>flex.dart</code></td></tr>
+  <tr><td><code>Stack</code> / <code>Positioned</code></td><td>Layered children; pin to edges</td><td><code>stack.dart</code></td></tr>
+  <tr><td><code>Overlay</code></td><td>Base UI plus floating layers (modals, menus)</td><td><code>overlay.dart</code></td></tr>
+  <tr><td><code>Container</code> / <code>EdgeLabel</code></td><td>Sizing, padding, background, border, edge titles</td><td><code>container.dart</code></td></tr>
+  <tr><td><code>Text</code> / <code>TextRun</code></td><td>Styled text: wrapping, alignment, overflow</td><td><code>text.dart</code></td></tr>
+  <tr><td><code>Padding</code></td><td>Insets around one child</td><td><code>padding.dart</code></td></tr>
+  <tr><td><code>Align</code> / <code>Center</code></td><td>Position one child within available space</td><td><code>align.dart</code></td></tr>
+  <tr><td><code>ConstrainedBox</code></td><td>Impose extra constraints on one child</td><td><code>constrained_box.dart</code></td></tr>
+  <tr><td><code>SizedBox</code></td><td>Fixed-size, invisible box (spacer)</td><td><code>sized_box.dart</code></td></tr>
+  <tr><td><code>Viewport</code></td><td>Scrolled window (see <a href="#viewport">§9</a>)</td><td><code>../render/viewport.dart</code></td></tr>
+</table>
+
+<h3>The single-child wrappers</h3>
+
+<p>Four widgets do one constraint transformation each, and reading them together is
+the best way to internalize the layout protocol:</p>
+
+<ul>
+  <li><code>Padding</code> — <code>deflate</code>s the constraints, offsets the child
+      past the insets, reports child + insets (shown in full in <a href="#layout">§4</a>).</li>
+  <li><code>Align</code> — lays the child out with <em>loosened</em> constraints (drop
+      the minimums, ask for natural size), then itself fills every bounded axis and
+      parks the child in the extra space per its <code>Alignment</code> (a nine-way
+      enum: <code>topLeft</code> … <code>bottomRight</code>). On an unbounded axis it
+      shrinks to the child instead. <code>Center</code> is
+      <code>Align(alignment:&nbsp;Alignment.center)</code>.</li>
+  <li><code>ConstrainedBox</code> — applies its extra constraints
+      <code>enforce</code>d into the incoming ones: it can tighten a child but can
+      never grant more than the parent allowed.</li>
+  <li><code>SizedBox</code> — a leaf that asks for <code>width × height</code>, clamped
+      to the constraints, and draws nothing. The idiomatic spacer.</li>
+</ul>
+
+<h3>Container: the decorated box</h3>
+
+<p><code>Container</code> wraps one child with any mix of fixed sizing, padding, a
+background fill, a border, and <em>edge labels</em> (titles riding on the top or
+bottom edge). Its layout is the wrapper pattern with a little bookkeeping
+(<code>Container.performLayout</code>):</p>
+
+<ul>
+  <li>A border reserves one cell on all four sides. A label reserves its edge’s row
+      even when there is no border, so a titled-but-borderless box insets its child
+      exactly like a bordered one — the child never collides with the title.</li>
+  <li><code>width</code>/<code>height</code>, when set, become tight constraints
+      <code>enforce</code>d against the incoming ones: the box takes that size
+      regardless of its child, but still can’t exceed its parent.</li>
+  <li>Labels are laid out in a band between the corners. Labels sharing an edge and an
+      alignment (<code>start</code>/<code>center</code>/<code>end</code>) pack together
+      with a one-cell gap; an over-wide group is clamped so it never spills past a
+      corner. A label’s content is an arbitrary node, not just a string.</li>
+  <li>Paint is fill, then border, then (as ordinary children) the child and the
+      labels — so labels visibly sit <em>on</em> the border.</li>
+</ul>
+
+<h3>Flex (Row / Column): two passes over the line</h3>
+
+<p><code>Flex</code> lays children along a main axis (horizontal for
+<code>Row</code>, vertical for <code>Column</code>) in two passes
+(<code>Flex.performLayout</code>):</p>
+
+<ol>
+  <li><strong>Measure the inflexible children</strong> with an unbounded main axis —
+      each takes its natural main-axis extent — while the cross axis passes through
+      the incoming limit.</li>
+  <li><strong>Share the leftover</strong> main-axis space among the
+      <code>Flexible</code> children in proportion to their <code>flex</code> factors.
+      Each gets <code>free × flex ÷ totalFlex</code> rounded down — except the
+      <em>last</em> flexible child, which gets whatever remains, so rounding never
+      leaks cells.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 660 216" role="img" aria-label="Flex two-pass example: a 20-cell row with one fixed and two flexible children">
+  <text class="ts" x="60" y="20">pass 1 — measure inflexible children (row is 20 cells wide)</text>
+  <rect class="nb"   x="60"  y="30" width="156" height="36"/>
+  <text class="t mid" x="138" y="53">Text · 6</text>
+  <rect class="ghost" x="216" y="30" width="364" height="36"/>
+  <text class="ts mid" x="398" y="53">free space: 14 cells</text>
+
+  <text class="ts" x="60" y="112">pass 2 — share 14 by flex factor (2 : 1)</text>
+  <rect class="nb"   x="60"  y="122" width="156" height="36"/>
+  <text class="t mid" x="138" y="145">Text · 6</text>
+  <rect class="band"  x="216" y="122" width="234" height="36"/>
+  <rect class="nbA"   x="216" y="122" width="234" height="36" fill="none"/>
+  <text class="t mid" x="333" y="145">Expanded flex:2 → 9</text>
+  <rect class="band2" x="450" y="122" width="130" height="36"/>
+  <rect class="nbA"   x="450" y="122" width="130" height="36" fill="none"/>
+  <text class="t mid" x="515" y="145">flex:1 → 5</text>
+
+  <text class="ts" x="60" y="192">exact shares would be 9⅓ and 4⅔ — the floor goes to the first,</text>
+  <text class="ts" x="60" y="208">the last flexible child absorbs the remainder</text>
+</svg>
+<figcaption>Integer space sharing: no cell is lost, and the policy for the odd cell is explicit.</figcaption>
+</figure>
+
+<p>The knobs, all enums in <code>flex.dart</code>:</p>
+
+<ul>
+  <li><code>FlexFit</code> — a <code>tight</code> child (what <code>Expanded</code>
+      uses) must fill its allocated share exactly; a <code>loose</code> child
+      (<code>Flexible</code>’s default) may be smaller.</li>
+  <li><code>MainAxisAlignment</code> — where any <em>still-remaining</em> free space
+      goes: packed at the <code>start</code>/<code>end</code>/<code>center</code>, or
+      distributed as gaps (<code>spaceBetween</code>, <code>spaceAround</code>,
+      <code>spaceEvenly</code>). Gap division has the same integer discipline: the
+      remainder is handed out one cell at a time to the leading gaps, so the fill modes
+      reach the trailing edge exactly.</li>
+  <li><code>CrossAxisAlignment</code> — position each child across the line
+      (<code>start</code>/<code>center</code>/<code>end</code>) or <code>stretch</code>
+      it to fill.</li>
+  <li><code>MainAxisSize</code> — whether the line fills the available main axis
+      (<code>max</code>, the default) or shrink-wraps its children (<code>min</code>).</li>
+</ul>
+
+<div class="callout"><strong>The one loud failure.</strong> A <code>Flexible</code>
+child needs bounded main-axis space to take a share <em>of</em>. Inside an unbounded
+main axis (say, an <code>Expanded</code> in a column inside a scroll viewport) there
+is no such space, and the child would silently collapse to zero cells. <code>Flex</code>
+throws a <code>StateError</code> for this — a real throw, deliberately <em>not</em> an
+<code>assert</code>, because asserts are compiled out under <code>dart run</code> and
+in AOT binaries, exactly the modes a real TUI app ships in, and invisible content with
+no error is the worst possible failure mode. (See the comment above the throw in
+<code>Flex.performLayout</code>.)</div>
+
+<h3>Stack, Positioned, Overlay: layers</h3>
+
+<p><code>Stack</code> layers its children; the last paints on top and (per
+<a href="#hit">§7</a>) wins hit testing. Children come in two kinds:</p>
+
+<ul>
+  <li><strong>Non-positioned</strong> children are sized per <code>StackFit</code>
+      (<code>loose</code>: up to the stack; <code>expand</code>: forced to fill) and
+      parked in the stack’s extra space by its <code>alignment</code>. The stack sizes
+      itself to the largest of them.</li>
+  <li><strong><code>Positioned</code></strong> children are pinned: any mix of
+      <code>left</code>/<code>top</code>/<code>right</code>/<code>bottom</code>
+      distances and an explicit <code>width</code>/<code>height</code>. Setting both
+      edges on an axis stretches the child to span between them; an axis with neither
+      an edge nor a size falls back to the stack’s alignment. Like
+      <code>Flexible</code>, <code>Positioned</code> is a <em>marker the parent
+      reads</em> — its own layout just passes constraints through.</li>
+</ul>
+
+<p>A stack whose children are <em>all</em> positioned sizes itself to the incoming
+constraints, and asserts they are bounded — with nothing to measure and no bound to
+fill, it would silently collapse (<code>Stack.performLayout</code>).</p>
+
+<p><code>Overlay</code> is a two-line subclass:
+<code>Stack(children: [base, ...overlays], fit: StackFit.expand)</code>. The base is
+the main UI filling the frame; each overlay — modal, menu, tooltip — paints after it.
+Wrap an overlay in <code>Positioned</code> to anchor it (clicks outside it fall
+through to the base); leave it non-positioned to fill the frame as a blocking layer.
+This replaces ad-hoc “draw the popup last” ordering with the tree itself.</p>
+
+<h3>Text: clusters, wrapping, overflow</h3>
+
+<p><code>Text</code> is the workhorse leaf. Its input is a flat list of
+<code>TextRun</code>s — pieces of string, each with one paint token. Layout flattens
+the runs into <em>grapheme clusters</em>, each carrying its token and its measured
+width (<code>clusterRuns</code> in <code>line_painter.dart</code>); every later
+decision — wrap, align, trim, emit — works on those clusters, never on raw strings,
+which is how wide characters and multi-code-point emoji stay intact.</p>
+
+<ul>
+  <li><strong>Wrapping is opt-in</strong> (<code>softWrap</code>, default
+      <code>false</code>). On a cell grid, a text that silently grows taller is a
+      layout surprise, so by default a line shrink-wraps its natural width and long
+      lines get overflow handling instead. With <code>softWrap: true</code> the text
+      fills the offered width and wraps word by word; a single word wider than the box
+      is hard-broken on whole clusters. Newlines in the input always start a new
+      paragraph.</li>
+  <li><strong><code>maxLines</code></strong> caps the line count at layout time.</li>
+  <li><strong><code>align</code></strong> (<code>start</code>/<code>center</code>/<code>end</code>)
+      positions each line within the node’s width. This is why a soft-wrapping text
+      claims the full available width: so its lines have room to align inside it.</li>
+  <li><strong><code>overflow</code></strong> is a paint-time choice for a too-wide line
+      (only reachable with wrapping off): <code>clip</code> drops what doesn’t fit on
+      whole clusters; <code>ellipsis</code> reserves the <em>measured</em> width of the
+      <code>…</code> glyph — never an assumed 1 — and appends it in the style of the
+      last surviving cluster.</li>
+  <li>At paint time the node emits at most <code>rect.height</code> rows — lines that
+      couldn’t fit are never sent to be clipped — and merges consecutive same-token
+      clusters back into single <code>drawText</code> calls, so styling granularity
+      costs nothing at the surface.</li>
+</ul>
+
+<p><code>line_painter.dart</code> also exports the cluster utilities on their own,
+plus <code>paintRuns</code> — a one-call “paint a single styled line into a box”
+entry point for hosts that have a run list but no layout pass (a list row in a
+scrolled widget, for instance). <code>Text</code> itself doesn’t use it; it exists for
+callers outside a full Plume frame. Its <code>skipColumns</code> parameter implements
+horizontal scrolling by dropping leading display columns, again cutting only on whole
+clusters.</p>
+
+<h2 id="endtoend">11. A frame, end to end</h2>
+
+<p>Plume’s own example (<code>packages/plume/example/main.dart</code>) ties every
+section together. The paint token here is literally <code>String</code>:</p>
+
+<pre><code>final tree = Container&lt;String&gt;(
+  border: 'grey',
+  child: Column&lt;String&gt;(
+    children: [
+      Text&lt;String&gt;([const TextRun('Hello, Plume', 'title')]),
+      Text&lt;String&gt;([const TextRun('layout without a solver', 'body')]),
+    ],
+  ),
+);
+
+final surface = RecordingSurface&lt;String&gt;();
+renderFrame(tree, const Rect(0, 0, 27, 4), surface);
+
+surface.intents.forEach(print);</code></pre>
+
+<p>Walking the three passes with real numbers:</p>
+
+<ol>
+  <li><strong>Layout.</strong> The root <code>Container</code> gets
+      <code>tight(27×4)</code>. Its border reserves one cell per side, so the
+      <code>Column</code> gets <code>tight(25×2)</code> (a
+      <code>deflate(2,&nbsp;2)</code>). The column measures its two inflexible children
+      with width ≤ 25 and unbounded height: the texts report their natural sizes,
+      12×1 and 23×1. The column fills its tight box and reports 25×2, placing the
+      texts at relative offsets (0,&nbsp;0) and (0,&nbsp;1); the container reports 27×4,
+      placing the column at (1,&nbsp;1).</li>
+  <li><strong>Place.</strong> Origins add up: container rect (0,&nbsp;0,&nbsp;27,&nbsp;4),
+      column (1,&nbsp;1,&nbsp;25,&nbsp;2), texts (1,&nbsp;1,&nbsp;12,&nbsp;1) and
+      (1,&nbsp;2,&nbsp;23,&nbsp;1).</li>
+  <li><strong>Paint.</strong> The container strokes its border; each text emits one
+      run. Everything fits inside its clip, so no intent carries one.</li>
+</ol>
+
+<p>The recorded output — the paint golden — is exactly:</p>
+
+<pre><code>drawBorder(Rect(0, 0, 27, 4), grey)
+drawText(1, 1, "Hello, Plume", title)
+drawText(1, 2, "layout without a solver", body)</code></pre>
+
+<p>Swap <code>RecordingSurface</code> for a buffer-backed one and the same three
+intents become cells on a real screen. Nothing about the tree changes — which is the
+architecture in one sentence.</p>
+
+<h2 id="files">12. Where things live</h2>
+
+<p>The whole engine is small enough to read in a sitting. Under
+<code>packages/plume/lib/src/</code>:</p>
+
+<table>
+  <tr><th>File</th><th>What’s in it</th></tr>
+  <tr><td><code>geometry/rect.dart</code></td><td><code>Rect</code> — half-open cell rectangles, <code>intersect</code>, <code>contains</code></td></tr>
+  <tr><td><code>geometry/size.dart</code> · <code>offset.dart</code> · <code>edge_insets.dart</code></td><td><code>Size</code>, <code>Offset</code>, <code>EdgeInsets</code> — plain value types</td></tr>
+  <tr><td><code>geometry/box_constraints.dart</code></td><td><code>BoxConstraints</code> and the derivation toolkit (§4)</td></tr>
+  <tr><td><code>render/render_node.dart</code></td><td><code>RenderNode</code> — the four passes, tags, <code>clipsHits</code></td></tr>
+  <tr><td><code>render/single_child_node.dart</code></td><td><code>SingleChildNode</code> — child-list plumbing for wrappers</td></tr>
+  <tr><td><code>render/layout_context.dart</code></td><td><code>LayoutContext</code> — carries the injected measurer</td></tr>
+  <tr><td><code>render/render_frame.dart</code></td><td><code>renderFrame</code> — the three-line frame driver</td></tr>
+  <tr><td><code>render/viewport.dart</code></td><td><code>Viewport</code>, <code>ViewportMetrics</code>, <code>ViewportTagRange</code> (§9)</td></tr>
+  <tr><td><code>painting/surface.dart</code></td><td><code>Surface</code> — the draw-intent sink interface</td></tr>
+  <tr><td><code>painting/clipping_surface.dart</code></td><td><code>ClippingSurface</code> — clip stack and trim/drop rules (§6)</td></tr>
+  <tr><td><code>painting/recording_surface.dart</code></td><td><code>RecordingSurface</code> — the test/golden surface</td></tr>
+  <tr><td><code>painting/draw_intent.dart</code></td><td><code>TextIntent</code> / <code>FillIntent</code> / <code>BorderIntent</code></td></tr>
+  <tr><td><code>painting/text_measurer.dart</code></td><td><code>TextMeasurer</code>, <code>MonospaceMeasurer</code> (§8)</td></tr>
+  <tr><td><code>widgets/flex.dart</code></td><td><code>Flex</code> / <code>Row</code> / <code>Column</code> / <code>Flexible</code> / <code>Expanded</code> + the axis enums</td></tr>
+  <tr><td><code>widgets/stack.dart</code> · <code>overlay.dart</code></td><td><code>Stack</code> / <code>Positioned</code> / <code>StackFit</code>; <code>Overlay</code></td></tr>
+  <tr><td><code>widgets/container.dart</code></td><td><code>Container</code> / <code>EdgeLabel</code> and label placement</td></tr>
+  <tr><td><code>widgets/text.dart</code> · <code>line_painter.dart</code></td><td><code>Text</code> / <code>TextRun</code>; cluster utilities and <code>paintRuns</code></td></tr>
+  <tr><td><code>widgets/padding.dart</code> · <code>align.dart</code> · <code>constrained_box.dart</code> · <code>sized_box.dart</code> · <code>alignment.dart</code></td><td>The single-child wrappers and the <code>Alignment</code> enum</td></tr>
+</table>
+
+<p class="meta">Written from the source of <code>packages/plume</code> as of 2026-07-13
+(branch <code>plume</code>). Code references name files and symbols rather than line
+numbers so they stay searchable as the code moves.</p>
+
+</body>
+</html>

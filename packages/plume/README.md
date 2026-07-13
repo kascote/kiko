@@ -22,7 +22,9 @@ A frame builds a fresh tree, then drives it through the same passes every time:
    top. A node is clipped to its own rect (intersected with every ancestor's),
    so it can only paint within the box layout gave it.
 4. **`hitTest(point)`** — finds the top-most node under a point. Runs per input
-   event, not per frame, and is deliberately **not** clipped.
+   event, not per frame, and is deliberately **not** clipped. Its widget-level
+   counterpart `tagAt(point)` reports the innermost **tag** enclosing the point
+   instead of the (usually anonymous) leaf node under it.
 
 Two things are injected so the engine never touches a terminal:
 
@@ -81,7 +83,23 @@ buffer; nothing else about the tree changes.
   `Container`, `Padding`, `Align`, `ConstrainedBox`, `SizedBox`.
 - **Text** — a `Text` leaf with wrapping, `maxLines`, alignment, and overflow.
 - **Painting** — the `Surface` sink, the `ClippingSurface` base that enforces
-  the paint-side clip, `RecordingSurface`, and the `DrawIntent` types.
+  the paint-side clip, `RecordingSurface`, and the `DrawIntent` types. For
+  painting one styled line *without* a layout pass (a host's list row, say),
+  `line_painter.dart` exports `paintRuns` and the grapheme-cluster helpers it
+  is built from.
+- **Scrolling** — a `Viewport` that windows a child taller than itself: the
+  child is laid out tight to the viewport's width with unbounded height, then
+  placed `scrollOffset` rows up; the ordinary paint clip cuts off the rest.
+  Plume holds no scroll state — the offset is a per-frame input the owner
+  computes and clamps — and an optional `onMeasure` callback reports each
+  frame's `ViewportMetrics` (viewport rows, content rows, and every tagged
+  descendant's content-relative row range) back to the owner.
+- **Tags** — any node can carry an opaque `tag`, set by whoever builds the tree
+  and never interpreted by the engine. `tagAt(point)` answers "which widget is
+  under this point"; `nodeForTag(tag)` is the reverse lookup (read the node's
+  `rect` to anchor a popup or scroll it into view); `clipsHits` marks a
+  clipping node — the viewport — whose window a host layer can treat as
+  bounding its descendants' hit presence.
 
 Clipping is a paint-side guarantee: after a frame, no cell is written outside the
 intersection of a node's rect with all its ancestors'.

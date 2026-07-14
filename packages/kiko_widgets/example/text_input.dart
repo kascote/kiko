@@ -8,15 +8,16 @@ import 'shared/theme_switcher.dart';
 
 // Mouse: click either field to place the caret there and move keyboard focus
 // to it — a click is addressed to the field under it, not whichever field
-// the keyboard currently has focused (kiko_widgets/CLAUDE.md → Widget mouse
-// handling).
+// the keyboard currently has focused. FocusRouter owns that wiring: it
+// click-focuses the pressed field, routes pointers by target id, sends other
+// keys to the focused field, and reserves Tab/Shift+Tab for focus cycling.
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  late final focus = FocusGroup<Focusable>([
+  late final focus = FocusGroup<Component>([
     TextInputModel(
       placeholder: 'Enter username',
       maxLength: 20,
@@ -26,6 +27,8 @@ class AppModel with ThemeSwitcher {
     TextInputModel(placeholder: 'Enter password', obscureText: true, maxLength: 50),
   ]);
 
+  late final router = FocusRouter(focus);
+
   TextInputModel get username => focus.children[0] as TextInputModel;
   TextInputModel get password => focus.children[1] as TextInputModel;
 }
@@ -34,48 +37,24 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
+  // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // A pointer reaches whichever field it's actually addressed to — never
-  // just whichever field the keyboard currently has focused. A down-click
-  // also moves keyboard focus there (the app's call; a widget cannot see
-  // its siblings).
-  if (msg case Routed(:final targetId)) {
-    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
-    if (i < 0) return (model, null);
-    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
-    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
-      Handled(:final cmd) => (model, cmd),
-      Declined() => (model, null),
-    };
-  }
-
-  // Route to focused input (keyboard)
-  switch ((model.focus.focused as TextInputModel).update(msg)) {
+  // One router call replaces the hand-rolled glue: Tab/Shift+Tab cycle focus
+  // (reserved before the field ever sees them), any other key goes to the
+  // focused field, a pointer goes to whichever field it's addressed to, and
+  // a down-click moves keyboard focus there first.
+  switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
-      break;
+      break; // not interaction traffic — fall through to fallback keys
   }
 
-  // Declined key - check for Tab cycling and global shortcuts
-  if (msg case KeyMsg(:final key)) {
-    // Tab cycling
-    if (key == 'tab') {
-      model.focus.cycle(1);
-      return (model, null);
-    }
-    if (key == 'shift+tab') {
-      model.focus.cycle(-1);
-      return (model, null);
-    }
-
-    // Quit shortcuts
-    if (key == 'ctrl+q' || key == 'escape') {
-      return (model, const Quit());
-    }
-  }
+  // Fallback keys run only for input every widget declined, so a quit key
+  // can never fire while a focused field is consuming keystrokes.
+  if (msg case KeyMsg(key: 'ctrl+q' || 'escape')) return (model, const Quit());
 
   return (model, null);
 }

@@ -7,14 +7,17 @@ import 'shared/theme_switcher.dart';
 
 // Mouse: click any field to place the caret there and move keyboard focus to
 // it — 2D-aware in the editor (row + column), not just column like the two
-// single-line fields above it.
+// single-line fields above it. FocusRouter owns the wiring: it click-focuses
+// the pressed field, routes pointers by target id, sends other keys to the
+// focused field, and reserves Tab/Shift+Tab for focus cycling — a channel the
+// editor keeps free by leaving both keys unbound in its own defaults.
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  late final focus = FocusGroup<Focusable>([
+  late final focus = FocusGroup<Component>([
     TextInputModel(placeholder: 'Enter title', maxLength: 50),
     TextInputModel(placeholder: 'Enter author'),
     TextAreaModel(
@@ -24,73 +27,36 @@ class AppModel with ThemeSwitcher {
     ),
   ]);
 
+  late final router = FocusRouter(focus);
+
   TextInputModel get title => focus.children[0] as TextInputModel;
   TextInputModel get author => focus.children[1] as TextInputModel;
   TextAreaModel get editor => focus.children[2] as TextAreaModel;
-
-  /// The three fields' ids, in focus order — lets a click resolve straight
-  /// to an index without checking each field's type by hand.
-  List<String> get fieldIds => [title.id, author.id, editor.id];
-
-  /// Routes [msg] to the field at [index].
-  UpdateResult updateAt(int index, Msg msg) {
-    return switch (index) {
-      0 => title.update(msg),
-      1 => author.update(msg),
-      2 => editor.update(msg),
-      _ => const Declined(),
-    };
-  }
-
-  /// Route update to focused item.
-  UpdateResult updateFocused(Msg msg) => updateAt(focus.index, msg);
 }
 
 // ═══════════════════════════════════════════════════════════
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
+  // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // A pointer reaches whichever field it's actually addressed to; a
-  // down-click also moves keyboard focus there (the app's call).
-  if (msg case Routed(:final targetId)) {
-    final i = model.fieldIds.indexWhere((id) => id == targetId);
-    if (i < 0) return (model, null);
-    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
-    return switch (model.updateAt(i, msg)) {
-      Handled(:final cmd) => (model, cmd),
-      Declined() => (model, null),
-    };
-  }
-
-  // Route to focused input (keyboard)
-  switch (model.updateFocused(msg)) {
+  // One router call replaces the hand-rolled glue: Tab/Shift+Tab cycle focus
+  // before any field sees them (the editor deliberately leaves both unbound,
+  // so nothing fights the traversal channel), any other key goes to the
+  // focused field, a pointer goes to whichever field it's addressed to, and
+  // a down-click moves keyboard focus there.
+  switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
-      break;
+      break; // not interaction traffic — fall through to fallback keys
   }
 
-  // Declined key - check for Tab cycling and global shortcuts
-  if (msg case KeyMsg(:final key)) {
-    // Tab cycling (TextArea leaves both Tab and Shift+Tab unbound by default,
-    // so they bubble here from any field, including the editor)
-    if (key == 'tab') {
-      model.focus.cycle(1);
-      return (model, null);
-    }
-    if (key == 'shift+tab') {
-      model.focus.cycle(-1);
-      return (model, null);
-    }
-
-    // Quit shortcuts
-    if (key == 'ctrl+q' || key == 'escape') {
-      return (model, const Quit());
-    }
-  }
+  // Fallback keys run only for input every widget declined, so a quit key
+  // can never fire while a field is consuming keystrokes.
+  if (msg case KeyMsg(key: 'ctrl+q' || 'escape')) return (model, const Quit());
 
   return (model, null);
 }

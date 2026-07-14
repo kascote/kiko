@@ -7,28 +7,24 @@
 //
 //   1. Turn the mouse on (`mouseEvents: true`). That is the only wiring: a kiko
 //      widget already tags its own region with its model id (`..tag = model.id`
-//      in its build), so the router resolves a pointer to it with nothing added
-//      around it. `Tagged(...)` is for an app-composed region with no model of
-//      its own — a panel, a form — not for a widget that tags itself; see
+//      in its build), so a pointer resolves to it with nothing added around it.
+//      `Tagged(...)` is for an app-composed region with no model of its own — a
+//      panel, a form — not for a widget that tags itself; see
 //      scrollable_form.dart.
 //
-//   2. Forward routed pointer traffic in the ONE generic line kiko_core
-//      documents — the same `update(Msg)` the keyboard already calls, picked by
-//      id from a map instead of by focus:
-//
-//        case Routed(:final targetId?) when targets.containsKey(targetId):
-//          return _handle(model, targets[targetId]!.update(msg));
-//
-//   3. Add the one thing a click needs that the widget cannot do for itself:
-//      move focus to whatever was pressed. Focus is the app's to arbitrate — a
-//      widget cannot see its siblings — so this is one app-side line, not a
-//      widget-emitted command.
+//   2. Hand the FocusGroup to a FocusRouter and call it as one arm of update.
+//      The router delivers a pointer to the widget answering to its id, sends
+//      every other key to the focused widget, moves focus to whatever a press
+//      lands on (focus is the app's to arbitrate — a widget cannot see its
+//      siblings — and the router is app-side glue doing exactly that), and
+//      reserves the traversal key before any widget sees it.
 //
 // Everything else is already there. A click emits the SAME `TableActionCmd` /
-// `ListActionCmd` an Enter emits, addressed by the same id, handled in the same
-// place — the app never grew a second, mouse-only path. The wheel scrolls
-// whichever widget is under the cursor; hovering highlights a row. The generic
-// line does not care that a Table and a List are different widgets.
+// `ListActionCmd` an Enter emits, addressed by the same id, and key and pointer
+// results converge in the router's answer — one switch handles both devices,
+// and the app never grew a second, mouse-only path. The wheel scrolls whichever
+// widget is under the cursor; hovering highlights a row. The router does not
+// care that a Table and a List are different widgets.
 //
 // tab switches focus · ↑/↓ or the wheel moves · enter or a click activates · q quits
 
@@ -79,19 +75,15 @@ class AppModel {
 
   late final list = ListViewModel<String, String>(id: 'departments', dataView: DataView.fromList(departments));
 
-  /// Every mouse-addressable widget, keyed by the id it tags its region with.
-  /// App-side by design: the framework routes ids and stops there. The same map
-  /// backs both the generic routing line and focus-on-click.
-  late final Map<String, Component> targets = {table.id: table, list.id: list};
-
   late final FocusGroup<Component> focus = FocusGroup([table, list]);
 
-  final List<String> log = [];
+  /// Routes keyboard and pointer traffic between the two widgets: pointers by
+  /// the id each widget tags itself with, keys to the focused one, focus to
+  /// whatever a press lands on. This example's published key surface is tab
+  /// only, so the router gets exactly that binding instead of the defaults.
+  late final router = FocusRouter(focus, bindings: KeyBinding<FocusAction>()..map(['tab'], const FocusNext()));
 
-  void focusOn(String id) {
-    final i = focus.children.indexWhere((c) => c.id == id);
-    if (i >= 0) focus.setIndex(i);
-  }
+  final List<String> log = [];
 
   void note(String line) {
     log.insert(0, line);
@@ -103,46 +95,19 @@ class AppModel {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext _) {
-  // First frame: page the table's initial rows into its cache.
+(AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
+  // First frame: page the table's initial rows into its cache. Domain
+  // messages the app owns come before any routing.
   if (msg is InitMsg) {
     model.table.insertRows(employees, 0);
     return (model, null);
   }
 
-  // (3) A press focuses the widget it landed on, before that widget sees the
-  // event. Focus is the app's to arbitrate — the router only says which id was
-  // hit — so this is one app-side line, never a widget-emitted command.
-  if (msg case PointerMsg(targetId: final id?, isDown: true)) model.focusOn(id);
-
-  switch (msg) {
-    case KeyMsg(key: 'q'):
-      return (model, const Quit());
-    case KeyMsg(key: 'tab'):
-      model.focus.cycle(1);
-      return (model, null);
-
-    // Keyboard drives the FOCUSED widget: one target, one pointer to it.
-    case final KeyMsg key:
-      return _handle(model, model.focus.focused.update(key));
-
-    // (2) The one generic line. Every routed pointer message reaches the widget
-    // answering to its id, through the same `update(Msg)` the keyboard uses. A
-    // null targetId (the background) declines the pattern and falls through.
-    case Routed(targetId: final id?) when model.targets.containsKey(id):
-      return _handle(model, model.targets[id]!.update(msg));
-
-    default:
-      return (model, null);
-  }
-}
-
-/// Receives what a widget returned, whether a key or a pointer produced it.
-///
-/// The activation cases are the whole point: a click and an Enter reach here as
-/// the identical id-addressed command, so one case serves both input devices.
-(AppModel, Cmd?) _handle(AppModel model, UpdateResult result) {
-  switch (result) {
+  // (2) The one routing line, switched on where key and pointer results
+  // converge. The activation cases are the whole point: a click and an Enter
+  // arrive as the identical id-addressed command, so one case serves both
+  // input devices.
+  switch (model.router.route(msg, ctx)) {
     case Handled(cmd: TableActionCmd(:final id, action: 'primary')):
       final row = model.table.cursorRowData;
       model.note('$id · activated "${row?['name'] ?? '?'}"');
@@ -153,8 +118,13 @@ class AppModel {
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
-      return (model, null);
+      break; // not interaction traffic — fall through to fallback keys
   }
+
+  // Fallback: only input nothing consumed lands here, so q can never quit
+  // out from under a widget that wanted the key.
+  if (msg case KeyMsg(key: 'q')) return (model, const Quit());
+  return (model, null);
 }
 
 // ═══════════════════════════════════════════════════════════

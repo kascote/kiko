@@ -71,7 +71,9 @@ class TextAreaStyle {
 /// Wraps [TextAreaComponent] and adds MVU integration (update method), focus state,
 /// and configuration options. Returns [Declined] for keys it doesn't handle.
 ///
-/// Note: Tab is consumed (inserts spaces for indentation), not passed to parent.
+/// Note: Tab and Shift+Tab are unbound by default, so both fall through as
+/// [Declined] for a parent to use for focus cycling. Pass a [keyBinding] that
+/// maps `tab` to [TextAreaAction.tab] to opt an editor into space insertion.
 class TextAreaModel implements Focusable {
   /// The underlying text area buffer.
   final TextAreaComponent textArea;
@@ -290,7 +292,6 @@ class TextAreaModel implements Focusable {
       TextAreaAction.deleteToLineEnd => textArea.deleteAfterCursor(),
       TextAreaAction.newline => textArea.insert('\n'),
       TextAreaAction.tab => textArea.insert(' ' * tabWidth),
-      TextAreaAction.shiftTab => null, // consumed, no-op
     };
   }
 
@@ -394,14 +395,18 @@ enum TextAreaAction {
   /// Insert newline.
   newline,
 
-  /// Insert tab (as spaces).
+  /// Insert tab as spaces.
+  ///
+  /// Not bound by default — an editor opts in with
+  /// `..map(['tab'], TextAreaAction.tab)` on a custom [TextAreaModel.keyBinding].
   tab,
-
-  /// Shift+tab (consumed, no-op by default).
-  shiftTab,
 }
 
 /// Default key bindings for text area.
+///
+/// Tab and Shift+Tab are deliberately unbound: an unhandled key falls through
+/// as [Declined], letting a parent use them for focus cycling. Map `tab` to
+/// [TextAreaAction.tab] to opt an editor into space insertion instead.
 final defaultTextAreaBindings = KeyBinding<TextAreaAction>()
   // Navigation
   ..map(['up'], TextAreaAction.up)
@@ -433,6 +438,4 @@ final defaultTextAreaBindings = KeyBinding<TextAreaAction>()
   ..map(['ctrl+u'], TextAreaAction.deleteToLineStart)
   ..map(['ctrl+k'], TextAreaAction.deleteToLineEnd)
   // Input
-  ..map(['enter'], TextAreaAction.newline)
-  ..map(['tab'], TextAreaAction.tab)
-  ..map(['shift+tab'], TextAreaAction.shiftTab);
+  ..map(['enter'], TextAreaAction.newline);

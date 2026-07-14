@@ -30,6 +30,37 @@ void main() {
     });
   });
 
+  group('TextAreaModel tab / shift+tab', () {
+    test('tab is declined under default bindings', () {
+      final model = TextAreaModel(focused: true);
+      expect(model.update(const KeyMsg('tab')), isA<Declined>());
+      expect(model.value, isEmpty);
+    });
+
+    test('shift+tab is declined under default bindings', () {
+      final model = TextAreaModel(focused: true);
+      expect(model.update(const KeyMsg('shift+tab')), isA<Declined>());
+      expect(model.value, isEmpty);
+    });
+
+    test('opting in maps tab to inserting tabWidth spaces', () {
+      final model = TextAreaModel(
+        focused: true,
+        keyBinding: defaultTextAreaBindings.copy()..map(['tab'], TextAreaAction.tab),
+      );
+      expect(model.update(const KeyMsg('tab')), isA<Handled>());
+      expect(model.value, equals(' ' * model.tabWidth));
+    });
+
+    test('opting in still declines shift+tab (no action bound)', () {
+      final model = TextAreaModel(
+        focused: true,
+        keyBinding: defaultTextAreaBindings.copy()..map(['tab'], TextAreaAction.tab),
+      );
+      expect(model.update(const KeyMsg('shift+tab')), isA<Declined>());
+    });
+  });
+
   group('TextAreaModel mouse click → caret', () {
     test('a click places the caret at the clicked (row, column)', () {
       final model = TextAreaModel(initial: 'foo\nbar\nbaz', focused: true);

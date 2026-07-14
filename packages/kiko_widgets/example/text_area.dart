@@ -75,7 +75,8 @@ class AppModel with ThemeSwitcher {
 
   // Declined key - check for Tab cycling and global shortcuts
   if (msg case KeyMsg(:final key)) {
-    // Tab cycling (TextArea handles Tab for indentation, so only Shift+Tab bubbles from it)
+    // Tab cycling (TextArea leaves both Tab and Shift+Tab unbound by default,
+    // so they bubble here from any field, including the editor)
     if (key == 'tab') {
       model.focus.cycle(1);
       return (model, null);

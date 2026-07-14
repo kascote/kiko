@@ -36,11 +36,35 @@ class _FakeComponent implements Component {
   }
 }
 
-PointerMsg _pressAt(int x, int y, {String? targetId}) =>
-    PointerMsg(MouseEvent(x, y, MouseButton.down()), targetId: targetId, local: Position.origin);
+PointerMsg _pressAt(int x, int y, {String? targetId, bool captured = false}) => PointerMsg(
+  MouseEvent(x, y, MouseButton.down()),
+  targetId: targetId,
+  local: Position.origin,
+  captured: captured,
+);
+
+PointerMsg _dragAt(int x, int y, {String? targetId, bool captured = false}) => PointerMsg(
+  MouseEvent(x, y, MouseButton.drag()),
+  targetId: targetId,
+  local: Position.origin,
+  captured: captured,
+);
 
 PointerMsg _wheelAt(int x, int y, {String? targetId}) =>
     PointerMsg(MouseEvent(x, y, MouseButton.wheelDown()), targetId: targetId, local: Position.origin);
+
+/// A message with no connection to focus or pointer routing, used to prove
+/// the router leaves domain traffic alone.
+class _DomainMsg extends Msg {
+  const _DomainMsg();
+}
+
+/// A committed frame with nothing rendered into it, for tests that only
+/// exercise the keyboard path and need no hit-tested geometry.
+UpdateContext _ctx({int width = 3, int height = 3}) {
+  final frame = _frame(width, height);
+  return UpdateContext(hits: frame.hits, area: frame.area);
+}
 
 /// Builds a two-member focus group, plus typed handles to its members —
 /// `focus.children` is typed as [Component], which (like [Focusable]) has no
@@ -235,6 +259,354 @@ void main() {
 
       expect(result, isA<Declined>());
       expect(a.seen, isEmpty);
+    });
+  });
+
+  group('FocusRouter keyboard', () {
+    test('a traversal key never reaches a member that would swallow it', () {
+      final trap = _FakeComponent('trap', (_) => const Handled());
+      final other = _FakeComponent('other', (_) => const Declined());
+      final focus = FocusGroup<Component>([trap, other]);
+      final router = FocusRouter(focus);
+
+      final result = router.route(const KeyMsg('tab'), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(focus.index, equals(1));
+      expect(trap.seen, isEmpty);
+    });
+
+    test('an unbound key reaches the focused member and its result comes back untouched', () {
+      const cmd = Quit();
+      final handles = _FakeComponent('handles', (_) => const Handled(cmd));
+      final ctx = _ctx();
+
+      final handledResult = FocusRouter(FocusGroup<Component>([handles])).route(const KeyMsg('enter'), ctx);
+
+      expect(handledResult, isA<Handled>());
+      expect((handledResult as Handled).cmd, same(cmd));
+      expect(handles.seen, equals([const KeyMsg('enter')]));
+
+      final declines = _FakeComponent('declines', (_) => const Declined());
+      final declinedResult = FocusRouter(FocusGroup<Component>([declines])).route(const KeyMsg('enter'), ctx);
+
+      expect(declinedResult, isA<Declined>());
+    });
+
+    test('FocusTo jumps to the named member and fires onFocusChange', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Declined());
+      final focus = FocusGroup<Component>([a, b]);
+      Component? changedTo;
+      final bindings = defaultFocusBindings()..map(['alt+2'], const FocusTo('b'));
+      final router = FocusRouter(focus, bindings: bindings, onFocusChange: (c) => changedTo = c);
+
+      final result = router.route(const KeyMsg('alt+2'), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(focus.index, equals(1));
+      expect(changedTo, same(b));
+    });
+
+    test('FocusTo an unknown id is Handled with no focus change and no callback', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final focus = FocusGroup<Component>([a]);
+      var called = false;
+      final bindings = defaultFocusBindings()..map(['alt+2'], const FocusTo('ghost'));
+      final router = FocusRouter(focus, bindings: bindings, onFocusChange: (_) => called = true);
+
+      final result = router.route(const KeyMsg('alt+2'), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(focus.index, equals(0));
+      expect(called, isFalse);
+    });
+
+    test('cycling a one-member group is Handled but fires no callback', () {
+      final only = _FakeComponent('only', (_) => const Declined());
+      var called = false;
+      final router = FocusRouter(FocusGroup<Component>([only]), onFocusChange: (_) => called = true);
+
+      final result = router.route(const KeyMsg('tab'), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(called, isFalse);
+    });
+  });
+
+  group('FocusRouter pointer', () {
+    test('a press on an unfocused member moves focus and the member still receives it', () {
+      const cmd = Quit();
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Handled(cmd));
+      final focus = FocusGroup<Component>([a, b]);
+      Component? changed;
+      final router = FocusRouter(focus, onFocusChange: (c) => changed = c);
+      final frame = _frame(3, 3)..render(_region('b', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'b'), ctx);
+
+      expect(focus.index, equals(1));
+      expect(changed, same(b));
+      expect(result, isA<Handled>());
+      expect((result as Handled).cmd, same(cmd));
+    });
+
+    test('a press on an unfocused member that declines still moves focus, and Declined comes back', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Declined());
+      final focus = FocusGroup<Component>([a, b]);
+      final router = FocusRouter(focus);
+      final frame = _frame(3, 3)..render(_region('b', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'b'), ctx);
+
+      expect(focus.index, equals(1));
+      expect(result, isA<Declined>());
+    });
+
+    test('clickToFocus: false leaves focus in place while still delivering the press', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Handled());
+      final focus = FocusGroup<Component>([a, b]);
+      final router = FocusRouter(focus, clickToFocus: false);
+      final frame = _frame(3, 3)..render(_region('b', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'b'), ctx);
+
+      expect(focus.index, equals(0));
+      expect(result, isA<Handled>());
+    });
+
+    test('a press on an extra routes to it without moving focus', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final extra = _FakeComponent('extra', (_) => const Handled());
+      final focus = FocusGroup<Component>([a]);
+      var changeCalls = 0;
+      final router = FocusRouter(focus, extras: [extra], onFocusChange: (_) => changeCalls++);
+      final frame = _frame(3, 3)..render(_region('extra', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'extra'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(focus.index, equals(0));
+      expect(changeCalls, equals(0));
+      expect(extra.seen, hasLength(1));
+    });
+
+    test('a background press declines at the router', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]));
+
+      final result = router.route(_pressAt(0, 0), _ctx());
+
+      expect(result, isA<Declined>());
+      expect(a.seen, isEmpty);
+    });
+
+    test('an unknown id with no alias declines at the router', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]));
+
+      final result = router.route(_pressAt(0, 0, targetId: 'ghost'), _ctx());
+
+      expect(result, isA<Declined>());
+      expect(a.seen, isEmpty);
+    });
+
+    test('a domain message declines untouched — routing is not its business', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]));
+
+      final result = router.route(const _DomainMsg(), _ctx());
+
+      expect(result, isA<Declined>());
+      expect(a.seen, isEmpty);
+    });
+  });
+
+  group('FocusRouter chrome aliases', () {
+    test('an alias naming an id absent from members and extras declines', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]), aliases: {'chrome': 'ghost'});
+
+      final result = router.route(_pressAt(0, 0, targetId: 'chrome'), _ctx());
+
+      expect(result, isA<Declined>());
+      expect(a.seen, isEmpty);
+    });
+
+    test('a press on chrome above the member re-addresses with a negative local and does not bubble past chrome', () {
+      final decoy = _FakeComponent('decoy', (_) => const Declined());
+      final member = _FakeComponent('member', (_) => const Declined());
+      final focus = FocusGroup<Component>([decoy, member]);
+      Component? changed;
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'}, onFocusChange: (c) => changed = c);
+      final frame = _frame(3, 4)
+        ..render(
+          Tagged(
+            'chrome',
+            Column(
+              children: [const SizedBox(width: 3, height: 1), _region('member', const SizedBox(width: 3, height: 3))],
+            ),
+          ),
+        );
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      final memberRect = ctx.hits.rectOf('member')!;
+
+      final result = router.route(_pressAt(1, 0, targetId: 'chrome'), ctx);
+
+      expect(focus.index, equals(1));
+      expect(changed, same(member));
+      expect(member.seen, hasLength(1));
+      final delivered = member.seen.single as PointerMsg;
+      expect(delivered.targetId, equals('member'));
+      expect(delivered.local, equals(const Position(1, -1)));
+      expect(delivered.targetRect, equals(memberRect));
+      expect(result, isA<Declined>(), reason: 'chrome is the outermost tag here — nothing left to bubble to');
+    });
+
+    test('a wheel notch on the chrome alias reaches the member and scrolls', () {
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
+      final frame = _frame(3, 3)..render(_region('chrome', _region('member', const SizedBox(width: 3, height: 3))));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_wheelAt(1, 1, targetId: 'chrome'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(member.seen, hasLength(1));
+      expect((member.seen.single as PointerMsg).targetId, equals('member'));
+    });
+
+    test('a press on a presence-clipped alias declines but still moves focus', () {
+      final decoy = _FakeComponent('decoy', (_) => const Declined());
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([decoy, member]);
+      Component? changed;
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'}, onFocusChange: (c) => changed = c);
+      // 'member' is never rendered this frame, so it has no rect to re-address against.
+      final frame = _frame(3, 3);
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'chrome'), ctx);
+
+      expect(result, isA<Declined>());
+      expect(member.seen, isEmpty);
+      expect(focus.index, equals(1));
+      expect(changed, same(member));
+    });
+
+    test('a leave via alias reaches the member as the same instance, verbatim and unbubbled', () {
+      final outer = _FakeComponent('outer', (_) => const Handled());
+      final member = _FakeComponent('member', (_) => const Declined());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(
+        focus,
+        extras: [outer],
+        aliases: {'chrome': 'member'},
+      );
+      final frame = _frame(3, 3)
+        ..render(_region('outer', _region('chrome', _region('member', const SizedBox(width: 3, height: 3)))));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      const leave = PointerLeaveMsg('chrome');
+
+      final result = router.route(leave, ctx);
+
+      expect(member.seen, hasLength(1));
+      expect(member.seen.single, same(leave));
+      expect(result, isA<Declined>());
+      expect(outer.seen, isEmpty, reason: 'a leave carries no position to bubble from');
+    });
+
+    test('a cancel via alias reaches the member as the same instance, verbatim and unbubbled', () {
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
+      final frame = _frame(3, 3)..render(_region('chrome', _region('member', const SizedBox(width: 3, height: 3))));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      const cancel = PointerCancelMsg('chrome');
+
+      final result = router.route(cancel, ctx);
+
+      expect(member.seen, hasLength(1));
+      expect(member.seen.single, same(cancel));
+      expect(result, isA<Handled>());
+    });
+
+    test('a captured drag sequence via alias stays coherent across events', () {
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
+      final frame = _frame(5, 5)
+        ..render(
+          Tagged(
+            'chrome',
+            Column(
+              children: [const SizedBox(width: 5, height: 1), _region('member', const SizedBox(width: 5, height: 4))],
+            ),
+          ),
+        );
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      final memberRect = ctx.hits.rectOf('member')!;
+
+      router
+        ..route(_pressAt(2, 1, targetId: 'chrome', captured: true), ctx)
+        ..route(_dragAt(4, 4, targetId: 'chrome', captured: true), ctx)
+        ..route(_dragAt(0, 0, targetId: 'chrome', captured: true), ctx);
+
+      expect(member.seen, hasLength(3));
+      for (final msg in member.seen) {
+        final p = msg as PointerMsg;
+        expect(p.targetId, equals('member'));
+        expect(p.captured, isTrue);
+        expect(p.targetRect, equals(memberRect));
+      }
+      expect((member.seen[0] as PointerMsg).local, equals(const Position(2, 0)));
+      expect((member.seen[1] as PointerMsg).local, equals(const Position(4, 3)));
+      expect((member.seen[2] as PointerMsg).local, equals(const Position(0, -1)));
+    });
+  });
+
+  group('FocusRouter live derivation', () {
+    test('replacing a focus-group member routes to the replacement immediately', () {
+      final original = _FakeComponent('a', (_) => const Declined());
+      final focus = FocusGroup<Component>([original]);
+      final router = FocusRouter(focus);
+
+      final replacement = _FakeComponent('b', (_) => const Handled());
+      focus.children[0] = replacement;
+
+      final frame = _frame(3, 3)..render(_region('b', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'b'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(replacement.seen, hasLength(1));
+    });
+
+    test('growing the extras list after construction routes to the new extra immediately', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final focus = FocusGroup<Component>([a]);
+      final extras = <Component>[];
+      final router = FocusRouter(focus, extras: extras);
+
+      final extra = _FakeComponent('extra', (_) => const Handled());
+      extras.add(extra);
+
+      final frame = _frame(3, 3)..render(_region('extra', const SizedBox(width: 3, height: 3)));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'extra'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(extra.seen, hasLength(1));
     });
   });
 }

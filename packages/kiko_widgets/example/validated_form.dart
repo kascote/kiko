@@ -4,7 +4,9 @@
 // - Use input filters for format constraints
 // - Display real-time validation errors
 // - Show submit status based on validity
-// - Click any field to place the caret there and move focus to it
+// - Let FocusRouter own the interaction wiring (Tab cycling, click-to-focus,
+//   pointer and keyboard routing) while the app keeps the domain keys:
+//   submit on Enter and quit on Escape run only for input every field declined
 
 import 'dart:io';
 
@@ -74,7 +76,7 @@ ValidationResult validatePassword(String value) {
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  late final focus = FocusGroup<Focusable>([
+  late final focus = FocusGroup<Component>([
     TextInputModel(
       placeholder: 'Username',
       maxLength: 20,
@@ -90,6 +92,8 @@ class AppModel with ThemeSwitcher {
       maxLength: 50,
     ),
   ]);
+
+  late final router = FocusRouter(focus);
 
   String? submitMessage;
   bool submitted = false;
@@ -111,46 +115,31 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
+  // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // A pointer reaches whichever field it's actually addressed to; a
-  // down-click also moves keyboard focus there (the app's call).
-  if (msg case Routed(:final targetId)) {
-    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
-    if (i < 0) return (model, null);
-    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
-    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
-      Handled(:final cmd) => (model, cmd),
-      Declined() => (model, null),
-    };
-  }
-
-  // Clear submit message on any input
+  // Domain state next: any keystroke clears a stale submit message on its
+  // way through, whether or not the focused field goes on to consume it.
+  // Pointer traffic deliberately leaves the message alone.
   if (msg is KeyMsg && model.submitMessage != null) {
     model.submitMessage = null;
   }
 
-  // Route to focused widget (keyboard)
-  final focused = model.focus.focused as TextInputModel;
-  switch (focused.update(msg)) {
+  // One router call replaces the hand-rolled glue: Tab/Shift+Tab cycle focus,
+  // any other key goes to the focused field, a pointer goes to whichever
+  // field it's addressed to, and a down-click moves keyboard focus there.
+  switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
-      break;
+      break; // not interaction traffic — fall through to fallback keys
   }
 
+  // Fallback keys run only for input every widget declined — a field never
+  // consumes Enter, so submit lands here; a field consuming keystrokes can
+  // never trigger quit.
   if (msg case KeyMsg(:final key)) {
-    // Tab cycling
-    if (key == 'tab') {
-      model.focus.cycle(1);
-      return (model, null);
-    }
-    if (key == 'shift+tab') {
-      model.focus.cycle(-1);
-      return (model, null);
-    }
-
     // Submit
     if (key == 'enter' || key == 'ctrl+s') {
       if (model.isFormValid) {

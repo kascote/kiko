@@ -1,9 +1,9 @@
-// Demonstrates customizing widget keybindings.
+// Demonstrates customizing keybindings at every level.
 //
 // Shows how to:
-// - Add vim-style navigation (h/l for left/right)
-// - Override default bindings
-// - Create app-level keybindings
+// - Add vim-style navigation to one widget (h/l for left/right)
+// - Extend the FocusRouter's traversal bindings (Ctrl+N/P alongside Tab)
+// - Create app-level keybindings for keys no widget consumes
 // - Click either field to place the caret there and move focus to it
 
 import 'dart:io';
@@ -33,15 +33,21 @@ KeyBinding<TextInputAction> vimTextInputBindings() {
     ..map(['d', 'w'], TextInputAction.deleteWordRight);
 }
 
-/// App-level actions.
-enum AppAction { quit, submit, nextField, prevField, clearAll }
+/// Focus-traversal keybindings: the router's Tab/Shift+Tab defaults extended
+/// with Ctrl+N/Ctrl+P. Traversal keys belong to the router, which reserves
+/// them before the focused field can see them.
+KeyBinding<FocusAction> focusBindings() => defaultFocusBindings()
+  ..map(['ctrl+n'], const FocusNext())
+  ..map(['ctrl+p'], const FocusPrevious());
+
+/// App-level actions: keys that mean something only when no widget consumes
+/// them, resolved after the router declines.
+enum AppAction { quit, submit, clearAll }
 
 /// App-level keybindings.
 final appBindings = KeyBinding<AppAction>()
   ..map(['ctrl+q', 'escape'], AppAction.quit)
   ..map(['enter', 'ctrl+s'], AppAction.submit)
-  ..map(['tab', 'ctrl+n'], AppAction.nextField)
-  ..map(['shift+tab', 'ctrl+p'], AppAction.prevField)
   ..map(['ctrl+l'], AppAction.clearAll);
 
 // ═══════════════════════════════════════════════════════════
@@ -49,7 +55,7 @@ final appBindings = KeyBinding<AppAction>()
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  late final focus = FocusGroup<Focusable>([
+  late final focus = FocusGroup<Component>([
     TextInputModel(
       placeholder: 'Normal bindings',
       // Uses default bindings
@@ -59,6 +65,8 @@ class AppModel with ThemeSwitcher {
       keyBinding: vimTextInputBindings(),
     ),
   ]);
+
+  late final router = FocusRouter(focus, bindings: focusBindings());
 
   String message = '';
 
@@ -70,31 +78,23 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
+(AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
+  // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // A pointer reaches whichever field it's actually addressed to; a
-  // down-click also moves keyboard focus there (the app's call).
-  if (msg case Routed(:final targetId)) {
-    final i = model.focus.children.indexWhere((c) => c is TextInputModel && c.id == targetId);
-    if (i < 0) return (model, null);
-    if (msg case final PointerMsg pointer when pointer.isDown) model.focus.setIndex(i);
-    return switch ((model.focus.children[i] as TextInputModel).update(msg)) {
-      Handled(:final cmd) => (model, cmd),
-      Declined() => (model, null),
-    };
-  }
-
-  // Route to focused widget first (keyboard)
-  final focused = model.focus.focused as TextInputModel;
-  switch (focused.update(msg)) {
+  // One router call replaces the hand-rolled glue: traversal keys (here the
+  // extended set — Tab/Shift+Tab plus Ctrl+N/P) cycle focus before the field
+  // ever sees them, any other key goes to the focused field, a pointer goes
+  // to whichever field it's addressed to, and a down-click moves focus there.
+  switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
-      break;
+      break; // not interaction traffic — fall through to fallback keys
   }
 
-  // Check app-level bindings
+  // App-level bindings run only for input every widget declined — the vim
+  // field can consume plain letters as motions without ever shadowing these.
   if (msg case KeyMsg()) {
     final action = appBindings.resolve(msg);
 
@@ -102,8 +102,6 @@ class AppModel with ThemeSwitcher {
       return switch (action) {
         AppAction.quit => (model, const Quit()),
         AppAction.submit => (model..message = 'Submitted!', null),
-        AppAction.nextField => (model..focus.cycle(1), null),
-        AppAction.prevField => (model..focus.cycle(-1), null),
         AppAction.clearAll => (
           model
             ..normal.clear()
@@ -147,7 +145,7 @@ void appView(AppModel model, Frame frame) {
               ),
               const SizedBox(height: 1),
               Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted.ink),
-              Line('App bindings: Ctrl+N/P (cycle), Ctrl+L (clear), Enter (submit)', style: theme.muted.ink),
+              Line('Focus: Ctrl+N/P (cycle) | App: Ctrl+L (clear), Enter (submit)', style: theme.muted.ink),
             ],
           ),
         ),

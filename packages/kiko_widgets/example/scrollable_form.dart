@@ -23,18 +23,25 @@
 //
 // A wheel over a FIELD still can't be handled by the ScrollView directly —
 // the field is the innermost target and the framework never bubbles. The
-// field declines the wheel (nothing to scroll horizontally), and the app
-// hands it outward with `offerOutward`, a ready-made walk over
-// `ctx.hits.hitPath` instead of a hand-rolled loop.
+// field declines the wheel (nothing to scroll horizontally), and the
+// FocusRouter hands it outward — the same `offerOutward` walk over
+// `ctx.hits.hitPath` the app used to call by hand now runs inside the
+// router's delegation.
 //
 // The bordered frame around the fields demonstrates the "E-split" recipe for
-// user-composed chrome (spec 0166, gap G5): the ScrollView only tags its OWN
-// content area, so a border drawn around it needs its own `Tagged` — but that
-// tag can point at the SAME ScrollViewModel via a second `targets` entry, so a
-// wheel on the border scrolls the form exactly like a wheel over the content
-// does. Two ids, one Component: legal, because the frame's `Container` doesn't
-// self-tag (only wrapping an already self-tagging, model-backed widget would
-// trip the self-tag assert).
+// user-composed chrome: the ScrollView only tags its OWN content area, so a
+// border drawn around it needs its own `Tagged` — but that tag can point at
+// the SAME ScrollViewModel via a router alias, so a wheel on the border
+// scrolls the form exactly like a wheel over the content does. Two ids, one
+// Component: legal, because the frame's `Container` doesn't self-tag (only
+// wrapping an already self-tagging, model-backed widget would trip the
+// self-tag assert).
+//
+// One policy stays deliberately app-owned: a press on the form's chrome
+// focuses the nearest field. The router has no such heuristic and shouldn't —
+// it declines what it doesn't own, and the app catches the Declined and
+// applies its own policy (`focusFromChrome` below). That is the intended
+// escape hatch: roll your own on top of Declined, not a router flag.
 //
 // tab/shift+tab move · type to edit · wheel scrolls · enter validates · esc quits
 
@@ -79,7 +86,7 @@ class AppModel {
   /// like a click on [frameId] or the scroll view's own content-area tag.
   late final Set<String> fieldFrameIds = {for (final f in fieldList) _fieldFrameId(f.id)};
 
-  late final FocusGroup<TextInputModel> focus = FocusGroup(fieldList);
+  late final FocusGroup<Component> focus = FocusGroup(fieldList);
 
   /// Scrolls the field column. No app-owned offset, no clamp, no viewport
   /// arithmetic — the view measures its own content and pushes the geometry
@@ -88,19 +95,24 @@ class AppModel {
 
   /// Tags the bordered frame drawn AROUND the scroll view — see the header
   /// comment's "E-split recipe." Resolves to the same model as [scroll]'s own
-  /// content-area tag, via [targets].
+  /// content-area tag, via the router's aliases.
   final String frameId = 'form-frame';
 
-  /// Every id that routes to a [Component] generically. Fields are routed
-  /// separately below (via [fields]) — [TextInputModel] isn't a [Component].
-  /// Every field's frame tag routes here too — the E-split recipe scaled down
-  /// to each field: a wheel on a field's own border is chrome, not content,
-  /// exactly like a wheel on the outer frame or a gap.
-  late final Map<String, Component> targets = {
-    scroll.id: scroll,
-    frameId: scroll,
-    for (final id in fieldFrameIds) id: scroll,
-  };
+  /// Routes keys and pointers among the fields and the scroll surface. The
+  /// fields are the focusable members; [scroll] rides along as an extra —
+  /// pointer-reachable, never focused, skipped by Tab. Every chrome tag (the
+  /// outer frame, each field's frame) is an alias for [scroll]: the E-split
+  /// recipe's two-ids-one-Component, so a wheel on any border scrolls the
+  /// form exactly like one over the content. A wheel a field declines bubbles
+  /// outward inside the router. Every focus change the router makes — Tab,
+  /// Shift+Tab, a click on a field — scrolls the newly focused field's whole
+  /// frame into view.
+  late final FocusRouter router = FocusRouter(
+    focus,
+    extras: [scroll],
+    aliases: {frameId: scroll.id, for (final id in fieldFrameIds) id: scroll.id},
+    onFocusChange: (focused) => scroll.ensureVisible(_fieldFrameId(focused.id)),
+  );
 
   /// Non-null while the last [validate] attempt failed on this field's id;
   /// cleared once the field is no longer empty. Purely a display + scroll-to-
@@ -150,72 +162,48 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // A press focuses the field it landed on, or (finding F) the nearest field
-  // when it lands on the form's chrome instead. The input consumes the press
-  // itself to place its caret; moving focus is the app's separate job.
+  // The one routing line: keys to the focused field (tab/shift+tab reserved
+  // for traversal, with ensureVisible riding on the router's focus-change
+  // callback), a press to the field it landed on — focusing it first — and a
+  // wheel to whatever is under it, bubbling outward from a field that
+  // declines it to the scroll view behind, content or chrome alike.
+  final result = model.router.route(msg, ctx);
+
+  // Fixing the errored field's text clears its error mark — checked after
+  // the focused field has seen the key.
+  if (msg is KeyMsg &&
+      model.errorId == model.focus.focused.id &&
+      model.fields[model.focus.focused.id]!.value.trim().isNotEmpty) {
+    model.errorId = null;
+  }
+
+  switch (result) {
+    case Handled(:final cmd):
+      return (model, cmd);
+    case Declined():
+      break; // not interaction traffic the router owns — fall through
+  }
+
+  // The roll-your-own layer on top of the router's Declined. A press on the
+  // form's CHROME — the outer frame, a field's border, a gap — names no
+  // field, so the router moved no focus and nothing consumed the press. The
+  // app applies its own policy instead: focus the field nearest the click's
+  // row. A policy like this stays app code by design; the router only ever
+  // declines what it doesn't own.
   if (msg case final PointerMsg p when p.isDown) {
-    if (p.targetId case final id? when model.fields.containsKey(id)) {
-      model.focusOn(id);
-    } else if (p.targetId == model.frameId ||
-        p.targetId == model.scroll.id ||
-        model.fieldFrameIds.contains(p.targetId)) {
+    if (p.targetId == model.frameId || p.targetId == model.scroll.id || model.fieldFrameIds.contains(p.targetId)) {
       model.focusFromChrome(p.global.y, ctx.hits);
+      return (model, null);
     }
   }
 
+  // Fallback keys — only input nothing consumed lands here.
   switch (msg) {
     case KeyMsg(key: 'escape'):
       return (model, const Quit());
-    case KeyMsg(key: 'tab'):
-      model.focus.cycle(1);
-      model.scroll.ensureVisible(_fieldFrameId(model.focus.focused.id));
-      return (model, null);
-    case KeyMsg(key: 'shift+tab'):
-      model.focus.cycle(-1);
-      model.scroll.ensureVisible(_fieldFrameId(model.focus.focused.id));
-      return (model, null);
     case KeyMsg(key: 'enter'):
       model.validate();
       return (model, null);
-
-    // Keyboard drives the focused field; fixing the errored field's text
-    // clears its error mark.
-    case final KeyMsg key:
-      final result = model.focus.focused.update(key);
-      if (model.errorId == model.focus.focused.id && model.focus.focused.value.trim().isNotEmpty) {
-        model.errorId = null;
-      }
-      return switch (result) {
-        Handled(:final cmd) => (model, cmd),
-        Declined() => (model, null),
-      };
-
-    // Pointer over a field: it consumes a press to place its caret, but
-    // declines a wheel it cannot use — hand a declined wheel outward instead
-    // of walking `ctx.hits.hitPath` by hand.
-    case Routed(targetId: final id?) when model.fields.containsKey(id):
-      switch (model.fields[id]!.update(msg)) {
-        case Handled(:final cmd):
-          return (model, cmd);
-        case Declined():
-          if (msg case final PointerMsg p) {
-            return switch (offerOutward(p, ctx, model.targets)) {
-              Handled(:final cmd) => (model, cmd),
-              Declined() => (model, null),
-            };
-          }
-          return (model, null);
-      }
-
-    // A wheel landing directly on the scroll view — its own content area, or
-    // the frame drawn around it (both route to it via `targets`) — is the
-    // same generic routing line every id-addressed widget uses.
-    case Routed(:final targetId?) when model.targets.containsKey(targetId):
-      return switch (model.targets[targetId]!.update(msg)) {
-        Handled(:final cmd) => (model, cmd),
-        Declined() => (model, null),
-      };
-
     default:
       return (model, null);
   }

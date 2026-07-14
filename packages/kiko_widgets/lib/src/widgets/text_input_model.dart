@@ -63,7 +63,7 @@ class TextInputStyle {
 ///
 /// Holds both state (text, cursor, scroll) and config (placeholder, maxLength).
 /// Use [update] to handle messages. Returns [Declined] for keys it doesn't handle.
-class TextInputModel implements Focusable {
+class TextInputModel implements Component {
   Characters _text;
   int _cursor;
   int _scrollOffset;
@@ -72,6 +72,7 @@ class TextInputModel implements Focusable {
   ///
   /// A plume view stamps it on the field so a click resolves back through
   /// [HitMap.hitId]; pass an explicit id when addressing must survive a restart.
+  @override
   final String id;
 
   /// Whether the input is focused.
@@ -166,6 +167,7 @@ class TextInputModel implements Focusable {
   /// Returns [Declined] for keys it doesn't handle (e.g., Tab), for pointers it
   /// doesn't consume, and when not focused. Returns [Handled] for handled keys,
   /// a click that moves the caret, and other non-key messages.
+  @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
       // Nothing to scroll vertically — decline so a scrollable ancestor gets

@@ -9,8 +9,9 @@ import 'types.dart';
 ///
 /// Has `copyWith` for creating modified copies. Mutable fields are
 /// `focused` (required by [Focusable] interface) and `loading`.
-class ButtonModel implements Focusable {
+class ButtonModel implements Component {
   /// Unique identifier for the button.
+  @override
   final String id;
 
   /// Button text (must be single line).
@@ -90,6 +91,7 @@ class ButtonModel implements Focusable {
   /// with no command for a press, a slid-off release, a cancel, hover traffic
   /// and non-key messages; [Declined] for the wheel (nothing to scroll) and for
   /// keys it does not handle or when not focused.
+  @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
       // Nothing to scroll — decline the wheel so a scrollable ancestor gets it.

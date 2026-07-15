@@ -4,11 +4,21 @@ import 'package:kiko/kiko.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
-// One-line pointer dispatch.
+// Pointer dispatch, hand-rolled — the primitive `FocusRouter` packages.
 //
 // Two menus, each a `Component` with its own `update(Msg)`. The app holds them
 // in a `Map<String, Component>` keyed by the very id they tag their region
 // with, and forwards every routed message home in a single generic line.
+//
+// This is the dispatch doctrine at its floor: the runtime resolves a pointer to
+// an id and stops there; the app owns the id→Component hop, click-to-focus, and
+// the fallback for anything unaddressed. kiko_widgets' `FocusRouter` packages
+// this exact pattern — the targetId guard, keyboard→focused, pointer→targeted,
+// press-moves-focus, declined-pointer bubbling — behind a single `route()`
+// call, and most apps should reach for it. `FocusRouter` lives a layer up, in
+// kiko_widgets; this example stays hand-rolled on purpose, because it *is* the
+// primitive the router is built from. Read it to see what `route()` does
+// underneath, or as the seam to drop to when you outgrow the packaged glue.
 //
 // The three things worth reading for:
 //

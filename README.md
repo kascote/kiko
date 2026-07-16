@@ -2,9 +2,7 @@
 
 **Note**: This project is a work in progress and will be updated as time permits.
 
-Kiko is a Dart port of the [Ratatui](https://ratatui.rs/) Rust framework for building TUI (Text User Interface) applications.
-
-The basics are working, but event handling and some other features still need to be implemented.
+Kiko is a Dart framework for building TUI (Text User Interface) applications: double-buffered rendering, a Bubble Tea-style Model-View-Update runtime, and a Flutter-style layout engine (the `plume` package). It began as a port of the [Ratatui](https://ratatui.rs/) Rust framework and has since diverged into its own design.
 
 ## Declarative Layout DSL
 

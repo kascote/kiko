@@ -151,6 +151,27 @@ row stays visible when its color is stripped.
 If you can serve all five without the author fighting the framework, the widget is
 themed correctly by construction.
 
+## Appendix: shipped widget anatomies
+
+The slot map for every widget that ships one — the reference to copy from when
+adding a slot or theming a new widget:
+
+- **TableView** — `TableViewStyle {header, row, separator, selectedRow, cursorRow,
+  cursorColumn, cursorCell, loadingRow, placeholder}`; crosshair (`cursorColumn`)
+  gated by `showCrosshair`, not slot presence. The exemplar — copy its shape.
+- **ListView** — `ListViewStyle {item, selectedItem, cursorItem, placeholder}`.
+- **TreeView** — `TreeViewStyle {item, cursorItem, placeholder}`; expand glyph =
+  `indicatorStyle`, placeholder text = `loadingIndicator`/`errorIndicator` `Line`s
+  (no selection set → no `selectedItem`).
+- **Button** — resting face `theme.primary.fill`, states via the matrix (focused →
+  `focus.fill` + bold, loading → warning + blink, disabled → dim). No anatomy class.
+- **TextInput / TextArea** — region styles (`TextInputStyle`/`TextAreaStyle`:
+  placeholder/fill/obscured, selection/lineNumber) via `fromTheme`; base text +
+  focus through the resolver.
+
+`ItemState`/`NodeState` (passed to the item/node builders) expose `cursor` (not
+`focused`) — the honest current-item flag.
+
 ---
 
 MVU, events, and focus: see the root `CLAUDE.md`. Theme doctrine and rationale:

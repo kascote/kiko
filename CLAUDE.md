@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kiko is a Dart port of [Ratatui](https://ratatui.rs/) - a Rust TUI framework. Builds terminal user interfaces using double-buffered rendering and Model-View-Update architecture.
+Kiko is a Dart framework for building terminal user interfaces: double-buffered rendering, a Bubble Tea-style Model-View-Update runtime, and Flutter-style layout via the `plume` package. It began as a port of [Ratatui](https://ratatui.rs/) and has since diverged into its own design.
 
 ## Monorepo Structure
 
@@ -35,7 +35,7 @@ make cover                          # coverage report
 
 1. `Terminal` manages double-buffered rendering via two `Buffer` instances
 2. `Terminal.draw()` accepts callback receiving `Frame`
-3. Widgets implement `Widget.render(Rect area, Buffer buffer)`
+3. UI is composed from `View`s; `View.build()` inflates a fresh plume `Node` each frame, and `frame.render(view)` lays it out and paints it
 4. `Buffer.diff()` computes minimal changes between frames
 5. `Backend` (abstract) handles actual terminal I/O
 
@@ -106,7 +106,7 @@ Application(
 ### Key Components
 
 - `Buffer` - grid of `Cell`s (grapheme + fg/bg/modifiers)
-- `Block` - base widget for borders/titles/padding
+- `Container` (plume) - borders/titles/padding around a child
 - `Line`/`Text` - styled text primitives (Views)
 
 ### Layout System
@@ -155,3 +155,22 @@ assumptions about — and never read, probe, or modify — where or how mikos st
 can't do something you need — or you hit a rough edge — report it as a gap to fix in the
 CLI rather than reaching for the files.
 <!-- mikos:end -->
+
+### Writing mikos items
+
+Every item must be readable cold, by a person with no memory of the session that
+wrote it. Do **not** imitate the register of older items — they predate this rule.
+
+1. **Plain sentences.** No invented shorthand or codenames. A term that isn't in
+   the codebase or ordinary English gets defined on first use — or doesn't appear.
+2. **Self-contained.** The body states the problem and the work in its own words.
+   References to other items are "see also" pointers; they must never be required
+   reading to understand the item.
+3. **Phase labels stay home.** "P1"/"P3a" mean something only inside the plan that
+   defines them. Never put them in titles or in other items' bodies — say what the
+   phase does instead.
+4. **Titles are complete phrases.** Under 80 chars, never truncated mid-thought.
+   Write the title last, after the body is clear.
+5. **Say what done looks like.** A task ends with one plain sentence: "Done when …".
+6. **Density is not a virtue.** Commit hashes, file paths, and ids are welcome as
+   parentheticals, but the sentence around them must survive their removal.

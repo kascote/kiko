@@ -109,10 +109,10 @@ void main() {
       expect(model.length, equals(5));
     });
 
-    test('non-key message is handled with null cmd', () {
+    test('declines a message it does not know', () {
       final model = TextInputModel(initial: 'abc', focused: true);
       final result = model.update(const NoneMsg());
-      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(result, isA<Declined>());
       expect(model.value, equals('abc')); // unchanged
     });
 
@@ -425,6 +425,51 @@ void main() {
       expect(model.update(pointerAt(MouseButton.up(), x: 2)), isA<Declined>());
       expect(model.update(const PointerLeaveMsg('x')), isA<Declined>());
       expect(model.update(const PointerCancelMsg('x')), isA<Declined>());
+    });
+  });
+
+  group('TextInputModel.update paste', () {
+    test('paste inserts at the cursor', () {
+      final model = TextInputModel(initial: 'hell', focused: true)..cursor = 2;
+
+      final result = model.update(const PasteMsg(PasteEvent('LO')));
+
+      expect(result, isA<Handled>());
+      expect(model.value, equals('heLOll'));
+      expect(model.cursor, equals(4), reason: 'the caret ends after the pasted text');
+    });
+
+    test('newlines in the pasted text are stripped — the field stays single-line', () {
+      final model = TextInputModel(focused: true)..update(const PasteMsg(PasteEvent('foo\r\nbar\nbaz\r')));
+
+      expect(model.value, equals('foobarbaz'));
+    });
+
+    test('paste honors maxLength like typed input', () {
+      final model = TextInputModel(initial: 'abc', maxLength: 5, focused: true);
+
+      final result = model.update(const PasteMsg(PasteEvent('defg')));
+
+      expect(result, isA<Handled>());
+      expect(model.value, equals('abc'), reason: 'an insert that would overflow maxLength is dropped whole');
+    });
+
+    test('paste goes through the input filter like typed input', () {
+      final model = TextInputModel(
+        focused: true,
+        inputFilter: (chars) => Characters(chars.string.replaceAll(RegExp('[^0-9]'), '')),
+      )..update(const PasteMsg(PasteEvent('a1b2c3')));
+
+      expect(model.value, equals('123'));
+    });
+
+    test('paste to an unfocused input is declined and changes nothing', () {
+      final model = TextInputModel(initial: 'hello');
+
+      final result = model.update(const PasteMsg(PasteEvent('x')));
+
+      expect(result, isA<Declined>());
+      expect(model.value, equals('hello'));
     });
   });
 }

@@ -162,11 +162,12 @@ class TextInputModel implements Component {
   /// whether or not the input is focused (the app focuses it). A button-down
   /// maps the clicked column to a grapheme and moves the caret there; a wheel is
   /// declined so a scrollable ancestor gets it, and any other pointer traffic is
-  /// declined too. The keyboard path stays behind the gate.
+  /// declined too. The keyboard and paste paths stay behind the gate.
   ///
-  /// Returns [Declined] for keys it doesn't handle (e.g., Tab), for pointers it
-  /// doesn't consume, and when not focused. Returns [Handled] for handled keys,
-  /// a click that moves the caret, and other non-key messages.
+  /// Returns [Handled] for handled keys, for a paste, and for a click that
+  /// moves the caret. Returns [Declined] for keys it doesn't handle (e.g.,
+  /// Tab), for pointers it doesn't consume, for messages it doesn't know, and
+  /// when not focused.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -191,7 +192,13 @@ class TextInputModel implements Component {
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return const Handled(); // ignore non-KeyMsg
+    if (msg case PasteMsg(:final text)) {
+      // A single-line field: newlines are stripped, and the insert goes
+      // through the same filter and maxLength checks as typed input.
+      _insertAt(text.replaceAll('\r', '').replaceAll('\n', ''));
+      return const Handled();
+    }
+    return const Declined();
   }
 
   UpdateResult _handleKey(KeyMsg msg) {

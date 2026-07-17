@@ -345,7 +345,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
       return Handled(_checkLoadThreshold());
     }
 
-    return const Handled();
+    return const Declined();
   }
 
   // ─────────────────────────────────────────────

@@ -472,9 +472,11 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
         case TreeViewAction.confirm:
           return Handled(_handleConfirm());
       }
+
+      return const Handled();
     }
 
-    return const Handled();
+    return const Declined();
   }
 
   // ─────────────────────────────────────────────

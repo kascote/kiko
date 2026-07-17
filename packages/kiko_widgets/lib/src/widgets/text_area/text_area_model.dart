@@ -167,11 +167,12 @@ class TextAreaModel implements Component {
   /// whether or not the area is focused (the app focuses it). A button-down maps
   /// the clicked cell to a buffer position and moves the caret there; a wheel is
   /// declined so a scrollable ancestor gets it, and any other pointer traffic is
-  /// declined too. The keyboard path stays behind the gate.
+  /// declined too. The keyboard and paste paths stay behind the gate.
   ///
-  /// Returns [Declined] for keys it doesn't handle, for pointers it doesn't
-  /// consume, and when not focused. Returns [Handled] for handled keys, a click
-  /// that moves the caret, and other non-key messages.
+  /// Returns [Handled] for handled keys, for a paste, and for a click that
+  /// moves the caret. Returns [Declined] for keys it doesn't handle, for
+  /// pointers it doesn't consume, for messages it doesn't know, and when not
+  /// focused.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -197,7 +198,7 @@ class TextAreaModel implements Component {
       textArea.insert(text);
       return const Handled();
     }
-    return const Handled(); // ignore other messages
+    return const Declined();
   }
 
   /// Places the caret at the buffer cell under [local].

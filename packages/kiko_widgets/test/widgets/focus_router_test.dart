@@ -53,8 +53,9 @@ PointerMsg _dragAt(int x, int y, {String? targetId, bool captured = false}) => P
 PointerMsg _wheelAt(int x, int y, {String? targetId}) =>
     PointerMsg(MouseEvent(x, y, MouseButton.wheelDown()), targetId: targetId, local: Position.origin);
 
-/// A message with no connection to focus or pointer routing, used to prove
-/// the router leaves domain traffic alone.
+/// A message the router has never heard of, used to prove it forwards what
+/// it does not recognize to the focused member and hands back the verdict —
+/// the router routes by address, never by message class.
 class _DomainMsg extends Msg {
   const _DomainMsg();
 }
@@ -417,15 +418,51 @@ void main() {
       expect(result, isA<Declined>());
       expect(a.seen, isEmpty);
     });
+  });
 
-    test('a domain message declines untouched — routing is not its business', () {
-      final a = _FakeComponent('a', (_) => const Handled());
+  group('FocusRouter focus-addressed forwarding', () {
+    test('a paste reaches the focused member only, and its verdict comes back', () {
+      final editor = _FakeComponent('editor', (_) => const Handled());
+      final other = _FakeComponent('other', (_) => const Declined());
+      final router = FocusRouter(FocusGroup<Component>([editor, other]));
+      const paste = PasteMsg(PasteEvent('select 1;'));
+
+      final result = router.route(paste, _ctx());
+
+      expect(result, isA<Handled>());
+      expect(editor.seen, equals([paste]));
+      expect(other.seen, isEmpty, reason: 'paste is focus-addressed — only the focused member sees it');
+    });
+
+    test('a message the router has never heard of goes to the focused member; its decline comes back', () {
+      final a = _FakeComponent('a', (_) => const Declined());
       final router = FocusRouter(FocusGroup<Component>([a]));
 
       final result = router.route(const _DomainMsg(), _ctx());
 
       expect(result, isA<Declined>());
-      expect(a.seen, isEmpty);
+      expect(a.seen, equals([const _DomainMsg()]));
+    });
+
+    test('a command the focused member returns for a forwarded message passes through untouched', () {
+      const cmd = Quit();
+      final a = _FakeComponent('a', (_) => const Handled(cmd));
+      final router = FocusRouter(FocusGroup<Component>([a]));
+
+      final result = router.route(const _DomainMsg(), _ctx());
+
+      expect(result, isA<Handled>());
+      expect((result as Handled).cmd, same(cmd));
+    });
+
+    test('a paste routed through the router lands in a real focused TextAreaModel', () {
+      final editor = TextAreaModel(id: 'editor', focused: true);
+      final router = FocusRouter(FocusGroup<Component>([editor]));
+
+      final result = router.route(const PasteMsg(PasteEvent('select 1;')), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(editor.value, contains('select 1;'));
     });
   });
 

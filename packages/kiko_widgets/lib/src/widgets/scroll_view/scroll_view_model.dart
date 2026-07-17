@@ -201,7 +201,7 @@ class ScrollViewModel with ScrollableModel implements Component {
       return const Handled();
     }
 
-    return const Handled();
+    return const Declined();
   }
 }
 

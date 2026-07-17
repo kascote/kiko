@@ -88,9 +88,9 @@ class ButtonModel implements Component {
   /// model stores no grab state. The keyboard path stays behind the gate.
   ///
   /// Returns [Handled] with a [ButtonPressCmd] on a release inside; [Handled]
-  /// with no command for a press, a slid-off release, a cancel, hover traffic
-  /// and non-key messages; [Declined] for the wheel (nothing to scroll) and for
-  /// keys it does not handle or when not focused.
+  /// with no command for a press, a slid-off release, a cancel and hover
+  /// traffic; [Declined] for the wheel (nothing to scroll), for keys it does
+  /// not handle, for messages it does not know, and when not focused.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -129,7 +129,7 @@ class ButtonModel implements Component {
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return const Handled();
+    return const Declined();
   }
 
   UpdateResult _handleKey(KeyMsg msg) {

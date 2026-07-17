@@ -90,12 +90,9 @@ void main() {
       );
     });
 
-    test('ignores non-key messages', () {
+    test('declines a message it does not know', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
-      expect(
-        button.update(const NoneMsg()),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
-      );
+      expect(button.update(const NoneMsg()), isA<Declined>());
     });
 
     test('custom key bindings work', () {

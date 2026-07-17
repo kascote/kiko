@@ -142,7 +142,7 @@ KeyBinding<FocusAction> defaultFocusBindings() => KeyBinding<FocusAction>()
 ///     case Handled(:final cmd):
 ///       return (model, cmd);
 ///     case Declined():
-///       break; // not interaction traffic — fall through
+///       break; // nothing consumed it — the app's turn
 ///   }
 ///   if (msg case KeyMsg(key: 'q')) return (model, const Quit());
 ///   return (model, null);
@@ -185,14 +185,24 @@ class FocusRouter {
   /// Called with the newly focused component whenever focus changes.
   final void Function(Component current)? onFocusChange;
 
-  /// Routes one message: a traversal key to a focus change, any other key to
-  /// the focused member, and pointer traffic to its addressed target.
+  /// Routes one message: a traversal key to a focus change, pointer traffic
+  /// to its addressed target, and every other message to the focused member.
   ///
-  /// A [KeyMsg] bound to a [FocusAction] never reaches the focused member —
-  /// the traversal channel is reserved, which is what keeps a
-  /// consume-everything widget escapable. An unbound key, and any other
-  /// message, is handled or declined exactly as the target itself decides;
-  /// commands the target produces pass through untouched.
+  /// The router routes by address, never by message class — it never decides
+  /// for a widget which messages it can handle. A [KeyMsg] bound to a
+  /// [FocusAction] never reaches the focused member — the traversal channel
+  /// is reserved, which is what keeps a consume-everything widget escapable.
+  /// Everything else that is not pointer traffic — an unbound key, a
+  /// [PasteMsg], a message the router has never heard of — goes to the
+  /// focused member and is handled or declined exactly as that member
+  /// decides. Commands the member produces pass through untouched, and a
+  /// [Declined] verdict means no widget consumed the message, so it is still
+  /// the app's to act on.
+  ///
+  /// Pointer traffic ([Routed]) is the exception to focus addressing because
+  /// it carries its own address: a resolvable target id (via [aliases] if
+  /// need be) dispatches to that member; a background press or an unknown id
+  /// declines — positional traffic is never re-aimed at the focused member.
   UpdateResult route(Msg msg, UpdateContext ctx) {
     if (msg is KeyMsg) {
       final action = bindings.resolve(msg);
@@ -236,7 +246,12 @@ class FocusRouter {
       return routeToTarget(routed, ctx, delivery);
     }
 
-    return const Declined();
+    // Positional traffic that carries no target — a background press. Never
+    // re-aim it at the focused member: it would deliver a pointer to a widget
+    // the cursor was never over.
+    if (msg is Routed) return const Declined();
+
+    return focus.focused.update(msg);
   }
 
   Map<String, Component> _targets() {

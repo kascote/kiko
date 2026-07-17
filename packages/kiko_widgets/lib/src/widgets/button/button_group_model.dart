@@ -74,7 +74,7 @@ class ButtonGroupModel implements Focusable {
     if (msg case KeyMsg()) {
       return _handleKey(msg);
     }
-    return const Handled();
+    return const Declined();
   }
 
   UpdateResult _handleKey(KeyMsg msg) {

@@ -44,12 +44,9 @@ void main() {
       expect(modal.update(const KeyMsg('enter')), isA<Declined>());
     });
 
-    test('ignores non-key messages', () {
+    test('declines a message it does not know', () {
       final modal = ModalModel(id: 'm');
-      expect(
-        modal.update(const TickMsg(Duration.zero)),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
-      );
+      expect(modal.update(const TickMsg(Duration.zero)), isA<Declined>());
     });
   });
 

@@ -517,13 +517,13 @@ void main() {
         expect(result, isA<Declined>());
       });
 
-      test('non-key message is handled', () {
+      test('declines a message it does not know', () {
         final model = ListViewModel<String, String>(
           dataView: DataView.fromList(['a']),
           focused: true,
         );
         final result = model.update(const NoneMsg());
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Declined>());
       });
     });
 

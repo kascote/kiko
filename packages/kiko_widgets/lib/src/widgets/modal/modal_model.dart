@@ -56,10 +56,15 @@ class ModalModel implements Component {
   /// modal (a click on its own chrome) is absorbed as [Handled] so it never
   /// falls through to the dimmed backdrop; a click *outside* never reaches this
   /// `update` (it addresses another id), so the app dismisses via [dismiss].
+  /// Any other message — one the modal does not know — is declined so the app
+  /// keeps it.
   @override
   UpdateResult update(Msg msg) {
     if (!_focused) return const Declined();
-    if (msg is! KeyMsg) return const Handled();
+    // Pointer traffic on the modal's own chrome never falls through the
+    // dimmed backdrop.
+    if (msg is Routed) return const Handled();
+    if (msg is! KeyMsg) return const Declined();
 
     return switch (effectiveKeyBinding.resolve(msg)) {
       ModalAction.confirm => Handled(ModalConfirmCmd(id, confirmPayload)),

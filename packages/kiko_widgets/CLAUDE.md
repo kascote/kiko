@@ -15,10 +15,12 @@ Full stories live in `doc/`; open the one covering what you're touching:
 - `doc/async_loading.md` — the keyed load-slot machine: primitives, per-widget map, worked handler.
 - `doc/scroll_view.md` — ScrollView in full: boundaries, chrome recipe, `offerOutward`, `getScrollState`.
 
-Cross-package: theming recipe + per-widget anatomy in `docs/theming-widgets.md`, theming
-rationale in `specs/theme-doctrine.md`, widget testing in `docs/widget-testing.md` (all at
-the repo root). The mouse framework half (router, hit map, capture) is
-`kiko_core/CLAUDE.md` + `kiko_core/doc/mouse_routing.md`.
+Cross-package: the widget-authoring tutorial (model + view + mouse, worked end to end
+over `example/custom_widget.dart`) in `docs/building-widgets.md`, theming recipe +
+per-widget anatomy in `docs/theming-widgets.md`, theming rationale in
+`specs/theme-doctrine.md`, widget testing in `docs/widget-testing.md` (all at the repo
+root). The mouse framework half (router, hit map, capture) is `kiko_core/CLAUDE.md` +
+`kiko_core/doc/mouse_routing.md`.
 
 ## Shipped widgets
 

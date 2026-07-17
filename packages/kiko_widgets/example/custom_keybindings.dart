@@ -1,10 +1,15 @@
 // Demonstrates customizing keybindings at every level.
 //
 // Shows how to:
-// - Add vim-style navigation to one widget (h/l for left/right)
+// - Extend a widget's bindings with chords (emacs word motions on a TextInput)
+// - Rebind printable keys where they are free (g/Ctrl+U on a ListView — a
+//   list accepts no text, so plain letters are up for grabs)
 // - Extend the FocusRouter's traversal bindings (Ctrl+N/P alongside Tab)
-// - Create app-level keybindings for keys no widget consumes
-// - Click either field to place the caret there and move focus to it
+// - Create app-level keybindings that run only for input every widget
+//   declined: '?' sets the message line while the list is focused, but types
+//   into a focused field; Enter submits from a field, but confirms the
+//   cursor row in the list
+// - Click a widget to focus it; a click in a field also places the caret
 
 import 'dart:io';
 
@@ -17,52 +22,75 @@ import 'shared/theme_switcher.dart';
 // CUSTOM KEYBINDINGS
 // ═══════════════════════════════════════════════════════════
 
-/// Vim-style text input bindings.
-KeyBinding<TextInputAction> vimTextInputBindings() {
-  return defaultTextInputBindings.copy()
-    // Vim navigation
-    ..map(['h'], TextInputAction.left)
-    ..map(['l'], TextInputAction.right)
-    ..map(['b'], TextInputAction.jumpWordLeft)
-    ..map(['w'], TextInputAction.jumpWordRight)
-    ..map(['0'], TextInputAction.home)
-    ..map([r'$'], TextInputAction.end)
-    // Vim delete
-    ..map(['x'], TextInputAction.delete)
-    ..map(['d', 'b'], TextInputAction.deleteWordLeft)
-    ..map(['d', 'w'], TextInputAction.deleteWordRight);
-}
+/// Emacs-style additions to the default readline bindings. Chords only, so
+/// the field still accepts every printable character.
+KeyBinding<TextInputAction> emacsTextInputBindings() => defaultTextInputBindings.copy()
+  ..map(['alt+b'], TextInputAction.jumpWordLeft)
+  ..map(['alt+f'], TextInputAction.jumpWordRight)
+  ..map(['alt+d'], TextInputAction.deleteWordRight);
+
+/// Vim-flavored additions to the default list bindings, which already have
+/// j/k, G and Ctrl+D. A list accepts no text, so printable keys are free.
+KeyBinding<ListViewAction> vimListBindings() => defaultListViewBindings.copy()
+  ..map(['g'], ListViewAction.first)
+  ..map(['ctrl+u'], ListViewAction.pageUp);
 
 /// Focus-traversal keybindings: the router's Tab/Shift+Tab defaults extended
 /// with Ctrl+N/Ctrl+P. Traversal keys belong to the router, which reserves
-/// them before the focused field can see them.
+/// them before the focused widget can see them.
 KeyBinding<FocusAction> focusBindings() => defaultFocusBindings()
   ..map(['ctrl+n'], const FocusNext())
   ..map(['ctrl+p'], const FocusPrevious());
 
 /// App-level actions: keys that mean something only when no widget consumes
 /// them, resolved after the router declines.
-enum AppAction { quit, submit, clearAll }
+enum AppAction { quit, submit, clearAll, help }
 
 /// App-level keybindings.
 final appBindings = KeyBinding<AppAction>()
   ..map(['ctrl+q', 'escape'], AppAction.quit)
   ..map(['enter', 'ctrl+s'], AppAction.submit)
-  ..map(['ctrl+l'], AppAction.clearAll);
+  ..map(['ctrl+l'], AppAction.clearAll)
+  ..map(['?'], AppAction.help);
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
 // ═══════════════════════════════════════════════════════════
 
+const _languages = [
+  'Ada',
+  'C',
+  'Clojure',
+  'Dart',
+  'Elixir',
+  'Erlang',
+  'Go',
+  'Haskell',
+  'Java',
+  'Kotlin',
+  'Lua',
+  'OCaml',
+  'Prolog',
+  'Python',
+  'Ruby',
+  'Rust',
+  'Scala',
+  'Swift',
+  'Zig',
+];
+
 class AppModel with ThemeSwitcher {
   late final focus = FocusGroup<Component>([
     TextInputModel(
-      placeholder: 'Normal bindings',
-      // Uses default bindings
+      placeholder: 'Default bindings',
     ),
     TextInputModel(
-      placeholder: r'Vim bindings (h/l/w/b/0/$)',
-      keyBinding: vimTextInputBindings(),
+      placeholder: 'Emacs bindings (Alt+B/F/D)',
+      keyBinding: emacsTextInputBindings(),
+    ),
+    ListViewModel<String, String>(
+      dataView: DataView.fromList(_languages),
+      keyBinding: vimListBindings(),
     ),
   ]);
 
@@ -71,7 +99,8 @@ class AppModel with ThemeSwitcher {
   String message = '';
 
   TextInputModel get normal => focus.children[0] as TextInputModel;
-  TextInputModel get vim => focus.children[1] as TextInputModel;
+  TextInputModel get emacs => focus.children[1] as TextInputModel;
+  ListViewModel<String, String> get list => focus.children[2] as ListViewModel<String, String>;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -82,19 +111,27 @@ class AppModel with ThemeSwitcher {
   // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // One router call replaces the hand-rolled glue: traversal keys (here the
-  // extended set — Tab/Shift+Tab plus Ctrl+N/P) cycle focus before the field
-  // ever sees them, any other key goes to the focused field, a pointer goes
-  // to whichever field it's addressed to, and a down-click moves focus there.
+  // One router call: traversal keys (here the extended set — Tab/Shift+Tab
+  // plus Ctrl+N/P) cycle focus before the focused widget ever sees them, any
+  // other key goes to the focused widget, a pointer goes to whichever widget
+  // it's addressed to, and a down-click moves focus there.
   switch (model.router.route(msg, ctx)) {
+    case Handled(cmd: ListActionCmd(:final id)) when id == model.list.id:
+      // Enter (or a click) on the list confirms the cursor row — a
+      // widget→app command the app intercepts. The same Enter falls through
+      // to AppAction.submit below while a text field is focused instead.
+      model.message = 'Picked: ${model.list.cursorItem}';
+      return (model, null);
     case Handled(:final cmd):
       return (model, cmd);
     case Declined():
       break; // not interaction traffic — fall through to fallback keys
   }
 
-  // App-level bindings run only for input every widget declined — the vim
-  // field can consume plain letters as motions without ever shadowing these.
+  // App-level bindings run only for input every widget declined. '?' shows
+  // it live: the list has no binding for it and declines, so AppAction.help
+  // fires while the list is focused — but a focused text field consumes '?'
+  // as text and the app never sees it.
   if (msg case KeyMsg()) {
     final action = appBindings.resolve(msg);
 
@@ -102,10 +139,11 @@ class AppModel with ThemeSwitcher {
       return switch (action) {
         AppAction.quit => (model, const Quit()),
         AppAction.submit => (model..message = 'Submitted!', null),
+        AppAction.help => (model..message = "'?' fell through to the app: the focused widget declined it", null),
         AppAction.clearAll => (
           model
             ..normal.clear()
-            ..vim.clear()
+            ..emacs.clear()
             ..message = 'Cleared!',
           null,
         ),
@@ -132,24 +170,27 @@ void appView(AppModel model, Frame frame) {
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _field(model.normal, 'Normal bindings', theme),
-        _field(model.vim, 'Vim bindings', theme),
-        // Info
+        _field(model.normal, 'Default bindings', theme),
+        _field(model.emacs, 'Emacs bindings', theme),
         Expanded(
-          child: Column(
-            crossAxis: CrossAxisAlignment.stretch,
-            children: [
-              Line(
-                model.message.isNotEmpty ? model.message : 'Type in the fields above',
-                style: model.message.isNotEmpty ? Style(fg: theme.success.color) : theme.muted.ink,
-              ),
-              const SizedBox(height: 1),
-              Line(r'Vim field supports: h/l (←/→), w/b (word), 0/$ (home/end), x (del)', style: theme.muted.ink),
-              Line('Focus: Ctrl+N/P (cycle) | App: Ctrl+L (clear), Enter (submit)', style: theme.muted.ink),
-            ],
+          child: Container(
+            border: BorderType.plain,
+            borderStyle: resolver.border({if (model.list.focused) WidgetState.focused}),
+            topTitles: [Line('Vim-flavored list')],
+            child: ListView(
+              model: model.list,
+              theme: theme,
+              itemBuilder: (item, index, _) => [Line(' $item')],
+            ),
           ),
         ),
-        // Help
+        Line(
+          model.message.isNotEmpty ? model.message : 'Type in the fields, or press ? while the list is focused',
+          style: model.message.isNotEmpty ? Style(fg: theme.success.color) : theme.muted.ink,
+        ),
+        Line('Emacs field adds: Alt+B/F (word left/right), Alt+D (delete word)', style: theme.muted.ink),
+        Line('List adds: g (first), Ctrl+U (page up) | stock: j/k, G, Ctrl+D', style: theme.muted.ink),
+        Line('Focus: Tab, Ctrl+N/P | App: Ctrl+L (clear), Enter (submit), ? (help)', style: theme.muted.ink),
         Row(
           children: [
             Expanded(
@@ -182,20 +223,6 @@ View _field(TextInputModel input, String label, Theme theme) => Container(
     child: TextInput(model: input, theme: theme),
   ),
 );
-
-// ═══════════════════════════════════════════════════════════
-// EXTENSION
-// ═══════════════════════════════════════════════════════════
-
-extension on TextInputModel {
-  void clear() {
-    // Reset by creating new state - for demo purposes
-    // In real code you'd expose a clear method on TextInputModel
-    while (length > 0) {
-      update(const KeyMsg('backSpace'));
-    }
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // MAIN

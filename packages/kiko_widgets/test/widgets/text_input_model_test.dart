@@ -52,6 +52,19 @@ void main() {
       expect(model.fillChar, equals('_'));
       expect(model.style!.fill, equals(const Style(fg: Color.red)));
     });
+
+    test('clear empties text and resets cursor, focused or not', () {
+      final model = TextInputModel(initial: 'hello')..clear();
+      expect(model.value, isEmpty);
+      expect(model.cursor, equals(0));
+      expect(model.length, equals(0));
+
+      model
+        ..focused = true
+        ..update(charMsg('a'));
+      expect(model.value, equals('a'));
+      expect(model.cursor, equals(1));
+    });
   });
 
   group('TextInputModel.update character input', () {

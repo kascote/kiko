@@ -156,6 +156,15 @@ class TextInputModel implements Component {
     return _widthUpTo(displayText, _cursor);
   }
 
+  /// Clears all text.
+  ///
+  /// The cursor and horizontal scroll reset to the start.
+  void clear() {
+    _text = Characters('');
+    _cursor = 0;
+    _scrollOffset = 0;
+  }
+
   /// Updates the model based on the message.
   ///
   /// The pointer branch sits above the focus gate, so a click places the caret

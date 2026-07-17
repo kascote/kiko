@@ -26,7 +26,7 @@
 // widget is under the cursor; hovering highlights a row. The router does not
 // care that a Table and a List are different widgets.
 //
-// tab switches focus · ↑/↓ or the wheel moves · enter or a click activates · q quits
+// tab/shift+tab switch focus · ↑/↓ or the wheel moves · enter or a click activates · q quits
 
 import 'dart:io';
 
@@ -79,9 +79,9 @@ class AppModel {
 
   /// Routes keyboard and pointer traffic between the two widgets: pointers by
   /// the id each widget tags itself with, keys to the focused one, focus to
-  /// whatever a press lands on. This example's published key surface is tab
-  /// only, so the router gets exactly that binding instead of the defaults.
-  late final router = FocusRouter(focus, bindings: KeyBinding<FocusAction>()..map(['tab'], const FocusNext()));
+  /// whatever a press lands on. The default traversal bindings apply:
+  /// Tab cycles forward, Shift+Tab backward.
+  late final router = FocusRouter(focus);
 
   final List<String> log = [];
 

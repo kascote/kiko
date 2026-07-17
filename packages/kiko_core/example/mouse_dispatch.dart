@@ -13,10 +13,11 @@ import 'package:termparser/termparser_events.dart' as evt;
 // This is the dispatch doctrine at its floor: the runtime resolves a pointer to
 // an id and stops there; the app owns the id→Component hop, click-to-focus, and
 // the fallback for anything unaddressed. kiko_widgets' `FocusRouter` packages
-// this exact pattern — the targetId guard, keyboard→focused, pointer→targeted,
-// press-moves-focus, declined-pointer bubbling — behind a single `route()`
-// call, and most apps should reach for it. `FocusRouter` lives a layer up, in
-// kiko_widgets; this example stays hand-rolled on purpose, because it *is* the
+// this exact pattern — the targetId guard, pointer→targeted, everything
+// non-positional→focused, press-moves-focus, declined-pointer bubbling —
+// behind a single `route()` call, and most apps should reach for it.
+// `FocusRouter` lives a layer up, in kiko_widgets; this example stays
+// hand-rolled on purpose, because it *is* the
 // primitive the router is built from. Read it to see what `route()` does
 // underneath, or as the seam to drop to when you outgrow the packaged glue.
 //

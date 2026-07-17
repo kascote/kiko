@@ -33,9 +33,8 @@ the repo root). The mouse framework half (router, hit map, capture) is
   (typically a nullable model field); a dialog with its own state renders its own model as
   the content — no wrapper.
 - `FocusRouter`, `FocusSlot`, `focusOnPress`, `routeToTarget`, `offerOutward` — focus and
-  pointer-dispatch glue; `FocusRouter` packages the whole dispatch doctrine (keyboard →
-  focused, pointer → targeted, press-moves-focus, declined-pointer bubbling) behind one
-  `route()` call. (Its full CLAUDE.md section is pending separate documentation work.)
+  pointer-dispatch glue; `FocusRouter` packages the whole dispatch doctrine behind one
+  `route()` call. See **FocusRouter** below.
 
 ## Widget Pattern
 
@@ -140,6 +139,69 @@ and `example/scrollable_form.dart`. The rules:
   `mouseEvents: true`. `Tagged(id, child)` is only for regions the APP composes that no
   model owns. Never wrap a self-tagging widget in a `Tagged` of a different id — it
   relocates the id, and the same id on two nodes trips the one-tag-per-frame assert.
+
+## FocusRouter
+
+`FocusRouter` packages the app-side interaction glue — focus traversal, click-to-focus,
+pointer dispatch, chrome aliases, declined-pointer bubbling — behind one `route()` call
+made as one arm of the app's `update`. It owns none of the widgets it routes to: the
+`FocusGroup`, `extras` and `aliases` are held by reference and re-read every call, so
+there is no registration step. Simplest wiring: `example/text_input.dart`; everything at
+once: `example/scrollable_form.dart`; the hand-rolled primitive underneath it:
+`kiko_core/example/mouse_dispatch.dart`.
+
+**The routing contract: route by address, never by message class.** `route()` has three
+arms, and only three:
+
+1. A `KeyMsg` is resolved against the traversal `bindings` first — the traversal channel
+   is reserved, which is what keeps a consume-everything widget escapable. An unbound key
+   goes to the focused member.
+2. Pointer traffic (`Routed`) goes to its addressed target — members and `extras` by id,
+   chrome via `aliases`. A background press or unknown id declines; positional traffic is
+   never re-aimed at the focused member.
+3. **Everything else goes to the focused member and its verdict returns as-is** — paste,
+   a future input class, a message the router has never heard of. The router never
+   decides for a widget which messages it can handle; that is the widget's
+   `Handled`/`Declined` verdict, and `Declined` means nothing consumed it, so it is
+   still the app's.
+
+The contract rests on one discipline: **a widget consumes only what it understands and
+declines everything else.** A catch-all `Handled` tail turns a widget into a black hole
+for messages that were never its business (`test/widgets/decline_unknown_test.dart` pins
+this for every model — keep new widgets in that suite).
+
+**Calling convention** — the order of arms in the app's `update`:
+
+1. Domain messages first: widget→app commands and async results the app must intercept.
+2. Any app-level pre-route intercepts — a message the app wants before a widget sees it
+   (rare; prefer switching on the `Handled(cmd)` the router returns).
+3. The one delegate line: `switch (model.router.route(msg, ctx))`.
+4. Fallback keys on `Declined` only — they run for input every widget declined, so a
+   quit key can never fire while someone is typing into a focused editor.
+
+**Escape hatches, in escalation order** — the router has no feature flags; each hatch is
+composition:
+
+- `bindings:` — extend or replace the traversal keys (`defaultFocusBindings()` is
+  Tab/Shift+Tab; add jumps with `..map(['alt+1'], const FocusTo('sidebar'))`).
+- `extras:` — components reachable by pointer but never by focus (a wheel-only scroll
+  surface, a status strip).
+- `aliases:` — chrome stands in for the member it decorates (below).
+- `onFocusChange` — the single funnel for every focus move, keyboard or click alike
+  (scroll-the-focused-field-into-view lives here, and nowhere else).
+- `clickToFocus: false` — presses deliver without moving focus.
+- Copy the assembly — the pieces are public: `focusOnPress` + `routeToTarget` +
+  `offerOutward`, and the focused path is the one line `focus.focused.update(msg)`.
+  `focus_router.dart` is deliberately one readable file; it IS the reference assembly.
+
+**Chrome aliases re-address, never forward raw.** An alias entry maps a chrome id (a
+border, a title row — tagged by the app, never a member itself) to the member it
+decorates. A press on chrome click-focuses the member, and the pointer is rebuilt
+against the member's committed rect: `targetId`, `local` and `targetRect` all describe
+the member (a border cell above the content yields a negative `local.y` — correct, not a
+bug). A leave or cancel via alias delivers verbatim — it carries no position to rebuild
+from. `FocusSlot` rounds out the group: a focusable placeholder that declines
+everything, giving a widget-less pane a place in the focus order.
 
 ## ScrollView & scrolling composed content
 

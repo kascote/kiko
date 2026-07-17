@@ -3,6 +3,7 @@ import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
 import 'package:termunicode/termunicode.dart';
 
+import '../focus_router.dart';
 import 'selection.dart';
 import 'textarea.dart';
 
@@ -72,8 +73,11 @@ class TextAreaStyle {
 /// and configuration options. Returns [Declined] for keys it doesn't handle.
 ///
 /// Note: Tab and Shift+Tab are unbound by default, so both fall through as
-/// [Declined] for a parent to use for focus cycling. Pass a [keyBinding] that
-/// maps `tab` to [TextAreaAction.tab] to opt an editor into space insertion.
+/// [Declined] for a parent to use for focus cycling. Opting an editor back
+/// into tab-as-indent takes two moves: pass a [keyBinding] that maps `tab` to
+/// [TextAreaAction.tab], and — under a [FocusRouter] — also remove `tab` from
+/// the router's `bindings:`, which otherwise consume the key before the
+/// editor ever sees it.
 class TextAreaModel implements Component {
   /// The underlying text area buffer.
   final TextAreaComponent textArea;
@@ -402,6 +406,8 @@ enum TextAreaAction {
   ///
   /// Not bound by default — an editor opts in with
   /// `..map(['tab'], TextAreaAction.tab)` on a custom [TextAreaModel.keyBinding].
+  /// Under a [FocusRouter] the opt-in also requires removing `tab` from the
+  /// router's `bindings:`, which otherwise consume the key first.
   tab,
 }
 
@@ -409,7 +415,9 @@ enum TextAreaAction {
 ///
 /// Tab and Shift+Tab are deliberately unbound: an unhandled key falls through
 /// as [Declined], letting a parent use them for focus cycling. Map `tab` to
-/// [TextAreaAction.tab] to opt an editor into space insertion instead.
+/// [TextAreaAction.tab] to opt an editor into space insertion instead — and
+/// under a [FocusRouter], also remove `tab` from the router's `bindings:`,
+/// which otherwise consume the key first.
 final defaultTextAreaBindings = KeyBinding<TextAreaAction>()
   // Navigation
   ..map(['up'], TextAreaAction.up)

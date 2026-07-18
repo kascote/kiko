@@ -251,13 +251,23 @@ class TermlibBackend implements Backend {
   @override
   void disableMouseEvents() => _term.disableMouseEvents();
 
-  /// Enables Kitty keyboard enhancement protocol.
+  /// Enables the full Kitty keyboard enhancement protocol — every
+  /// progressive-enhancement flag, so the terminal reports disambiguated
+  /// escape codes, key repeat and release events, alternate (shifted) keys,
+  /// every key as an escape code, and associated text.
   @override
-  void enableKeyboardEnhancement() => _term.enableKeyboardEnhancement();
+  void enableKeyboardEnhancement() => _term.enableKeyboardEnhancementFull();
 
   /// Disables Kitty keyboard enhancement protocol.
   @override
   void disableKeyboardEnhancement() => _term.disableKeyboardEnhancement();
+
+  /// Whether the startup probe ([init]) found the terminal answers the kitty
+  /// keyboard-capabilities query — [tl.InteractiveTerm.termInfo] holds a
+  /// [tl.Supported] result for it. Reads as unsupported before [init] runs,
+  /// the same as a terminal that never answered.
+  @override
+  bool get supportsKeyboardEnhancement => _term.termInfo?.keyboardCapabilities is tl.Supported<tl.KeyboardFlags>;
 
   /// Enables bracketed paste, so a paste arrives as one paste event.
   @override

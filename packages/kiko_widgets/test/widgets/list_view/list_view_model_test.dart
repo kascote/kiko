@@ -393,7 +393,9 @@ void main() {
         });
 
         test('shift+j extends check range (vim)', () {
-          model.update(keyMsg('shift+j'));
+          // A real Shift+J keystroke arrives already folded by toSpec() at
+          // intake, so the KeyMsg carries 'J', never 'shift+j'.
+          model.update(keyMsg('J'));
           expect(model.cursor, equals(1));
           expect(model.getSelectedKeys(), equals({'a', 'b'}));
         });
@@ -408,10 +410,12 @@ void main() {
         });
 
         test('shift+k extends check range upward (vim)', () {
+          // A real Shift+K keystroke arrives already folded by toSpec() at
+          // intake, so the KeyMsg carries 'K', never 'shift+k'.
           model
             ..update(keyMsg('down'))
             ..update(keyMsg('down'))
-            ..update(keyMsg('shift+k'));
+            ..update(keyMsg('K'));
           expect(model.cursor, equals(1));
           expect(model.getSelectedKeys(), equals({'b', 'c'}));
         });

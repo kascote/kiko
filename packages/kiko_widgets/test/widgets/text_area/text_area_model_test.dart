@@ -10,23 +10,42 @@ PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
 void main() {
   group('TextAreaModel.update character input', () {
     test('character input inserts at cursor', () {
-      final model = TextAreaModel(focused: true)..update(const KeyMsg('a'));
+      final model = TextAreaModel(focused: true)..update(const KeyMsg('a', text: 'a'));
       expect(model.value, equals('a'));
     });
 
     test('space key inserts a literal space', () {
       final model = TextAreaModel(focused: true)
-        ..update(const KeyMsg('a'))
-        ..update(const KeyMsg('space'))
-        ..update(const KeyMsg('b'));
+        ..update(const KeyMsg('a', text: 'a'))
+        ..update(const KeyMsg('space', text: ' '))
+        ..update(const KeyMsg('b', text: 'b'));
       expect(model.value, equals('a b'));
     });
 
     test('plus and minus keys insert their literal characters', () {
       final model = TextAreaModel(focused: true)
-        ..update(const KeyMsg('plus'))
-        ..update(const KeyMsg('minus'));
+        ..update(const KeyMsg('plus', text: '+'))
+        ..update(const KeyMsg('minus', text: '-'));
       expect(model.value, equals('+-'));
+    });
+
+    test('a dead-key composition (multi-codepoint, single grapheme) inserts as one grapheme', () {
+      // 'e' + combining acute accent — a decomposed é, the shape a dead-key
+      // sequence (or option+e then e on macOS) can produce as one kitty text
+      // field, two UTF-16 code units, one grapheme cluster.
+      const composed = 'é';
+      final model = TextAreaModel(focused: true)..update(const KeyMsg('e', text: composed));
+      expect(model.value, equals(composed));
+      expect(model.length, equals(1), reason: 'the combining sequence is a single grapheme cluster');
+    });
+
+    test('a keystroke whose text is multiple graphemes inserts the whole string at once', () {
+      // The kitty text field is not contractually one grapheme — a compose
+      // sequence can hand back more than one character in a single keystroke.
+      // textArea.insert splits on graphemes internally, so both land in one call.
+      final model = TextAreaModel(focused: true)..update(const KeyMsg('a', text: 'ab'));
+      expect(model.value, equals('ab'));
+      expect(model.length, equals(2));
     });
   });
 
@@ -131,6 +150,30 @@ void main() {
       expect(model.update(pointerAt(MouseButton.up(), x: 1)), isA<Declined>());
       expect(model.update(const PointerLeaveMsg('x')), isA<Declined>());
       expect(model.update(const PointerCancelMsg('x')), isA<Declined>());
+    });
+  });
+
+  group('TextAreaModel.update key release / bare modifier', () {
+    test('a release of the just-pressed key is declined and never doubles the character', () {
+      // The regression this whole delivery kills: KeyMsg and KeyReleaseMsg
+      // are siblings, not variants of one class, so a release can never
+      // pattern-match as a keystroke and reach the insert path.
+      final model = TextAreaModel(focused: true)..update(const KeyMsg('a', text: 'a'));
+      expect(model.value, equals('a'));
+
+      final result = model.update(const KeyReleaseMsg('a'));
+
+      expect(result, isA<Declined>());
+      expect(model.value, equals('a'), reason: 'a release must never insert a second character');
+    });
+
+    test('a bare modifier key edge is declined and inserts nothing', () {
+      final model = TextAreaModel(focused: true);
+
+      final result = model.update(const ModifierKeyMsg(ModifierKey.shift, ModifierSide.left, down: true));
+
+      expect(result, isA<Declined>());
+      expect(model.value, isEmpty);
     });
   });
 }

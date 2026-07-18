@@ -268,9 +268,16 @@ class TextAreaModel implements Component {
       return const Handled();
     }
 
-    // Character input (single grapheme, no modifiers)
-    if (msg.char case final ch?) {
-      textArea.insert(ch);
+    // Text input: msg.text is the literal text this keystroke types — a
+    // plain char, or a multi-codepoint composition (option+e, a dead-key
+    // sequence) the kitty text field reports as one keystroke. textArea's
+    // insert splits on graphemes (and, defensively, on embedded newlines)
+    // internally, so a multi-grapheme string inserts correctly in one call.
+    // A bound key (an arrow, backspace, enter) never reaches here — it
+    // resolved above — and a named key or a ctrl/alt-chord carries null
+    // text, so there is nothing left to filter.
+    if (msg.text case final text?) {
+      textArea.insert(text);
       return const Handled(); // handled
     }
 

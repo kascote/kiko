@@ -16,12 +16,14 @@ void main() {
       expect(binding.resolve(const KeyMsg('ctrl+x')), null);
     });
 
-    test('resolve only matches press events', () {
+    test('resolve matches a repeat the same as a press', () {
+      // A held key (arrow, backspace) must keep resolving to its action for
+      // as long as it repeats. A release can't even be passed here — it
+      // arrives as KeyReleaseMsg, a sibling type resolve() does not accept.
       final binding = KeyBinding<TestAction>()..map(['ctrl+q'], TestAction.quit);
 
       expect(binding.resolve(const KeyMsg('ctrl+q')), TestAction.quit);
-      expect(binding.resolve(const KeyMsg.repeat('ctrl+q')), null);
-      expect(binding.resolve(const KeyMsg.release('ctrl+q')), null);
+      expect(binding.resolve(const KeyMsg.repeat('ctrl+q')), TestAction.quit);
     });
 
     test('map overrides existing binding', () {
@@ -127,14 +129,81 @@ void main() {
         throwsA(isA<InvalidKeySpecException>()),
       );
     });
+
+    test('map throws InvalidKeySpecException on invalid key', () {
+      final binding = KeyBinding<TestAction>();
+      expect(
+        () => binding.map(['ctr+a'], TestAction.quit),
+        throwsA(isA<InvalidKeySpecException>()),
+      );
+    });
+  });
+
+  group('KeyBinding spec canonicalization', () {
+    test('shift+<letter> and the uppercase letter map to one entry', () {
+      final binding = KeyBinding<TestAction>()..map(['shift+a'], TestAction.quit);
+
+      expect(binding.resolve(const KeyMsg('A')), TestAction.quit);
+      expect(binding.keysFor(TestAction.quit), ['A']);
+    });
+
+    test('mapping the uppercase letter resolves the shift+<letter> spelling too', () {
+      final binding = KeyBinding<TestAction>()..map(['A'], TestAction.quit);
+
+      expect(binding.resolve(const KeyMsg('A')), TestAction.quit);
+      expect(binding.keysFor(TestAction.quit), ['A']);
+    });
+
+    test('remove(shift+<letter>) removes a binding registered as the uppercase letter', () {
+      final binding = KeyBinding<TestAction>()
+        ..map(['A'], TestAction.quit)
+        ..remove('shift+a');
+
+      expect(binding.resolve(const KeyMsg('A')), null);
+    });
+
+    test('remove(uppercase letter) removes a binding registered as shift+<letter>', () {
+      final binding = KeyBinding<TestAction>()
+        ..map(['shift+a'], TestAction.quit)
+        ..remove('A');
+
+      expect(binding.resolve(const KeyMsg('A')), null);
+    });
+
+    test('named keys keep shift explicit and do not fold (shift+tab stays shift+tab)', () {
+      final binding = KeyBinding<TestAction>()..map(['shift+tab'], TestAction.quit);
+
+      expect(binding.keysFor(TestAction.quit), ['shift+tab']);
+      expect(binding.resolve(const KeyMsg('shift+tab')), TestAction.quit);
+    });
+  });
+
+  group('KeyBinding base-layout fallback', () {
+    test('a binding on the base key fires for a layout-projected KeyMsg', () {
+      final binding = KeyBinding<TestAction>()..map(['ctrl+z'], TestAction.quit);
+
+      expect(binding.resolve(const KeyMsg('ctrl+я', baseKey: 'ctrl+z')), TestAction.quit);
+    });
+
+    test('a layout-specific binding always wins over the base-key fallback', () {
+      final binding = KeyBinding<TestAction>()
+        ..map(['ctrl+я'], TestAction.search)
+        ..map(['ctrl+z'], TestAction.quit);
+
+      expect(binding.resolve(const KeyMsg('ctrl+я', baseKey: 'ctrl+z')), TestAction.search);
+    });
+
+    test('a null baseKey never triggers a fallback lookup', () {
+      final binding = KeyBinding<TestAction>()..map(['ctrl+z'], TestAction.quit);
+
+      expect(binding.resolve(const KeyMsg('ctrl+я')), null);
+    });
   });
 
   // Regression guard: 'space'/'plus'/'minus' are word-aliased specs for the
-  // literal ' '/'+'/'-' characters (see KeyMsg.char), needed because '+' is
-  // the modifier separator in a spec like 'ctrl+s'. KeyBinding and
-  // KeyMsg.char read the SAME spec string but answer different questions —
-  // "is this bound?" vs "what text would this insert?" — and both must stay
-  // correct independently. List/Table bind 'space' to toggleSelect today.
+  // literal ' '/'+'/'-' characters, needed because '+' is the modifier
+  // separator in a spec like 'ctrl+s'. List/Table bind 'space' to
+  // toggleSelect today.
   group('KeyBinding aliased literal keys (space/plus/minus)', () {
     test('space, plus, and minus are valid, bindable specs', () {
       expect(KeyBinding.isValidKey('space'), true);
@@ -146,9 +215,6 @@ void main() {
       final binding = KeyBinding<TestAction>()..map(['space'], TestAction.search);
 
       expect(binding.resolve(const KeyMsg('space')), TestAction.search);
-      // Whether or not 'space' is bound to an action, KeyMsg.char must still
-      // answer independently — the two systems share a string, not a result.
-      expect(const KeyMsg('space').char, equals(' '));
     });
   });
 }

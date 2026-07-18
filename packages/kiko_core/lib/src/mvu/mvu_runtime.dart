@@ -111,7 +111,8 @@ class MvuRuntime {
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = events.listen((event) {
       if (_liveDelivery) {
-        queueMsg(eventToMsg(event, hits: lastHitMap));
+        final msg = eventToMsg(event, hits: lastHitMap);
+        if (msg != null) queueMsg(msg);
       } else {
         _startupEvents.add(event);
       }
@@ -144,7 +145,8 @@ class MvuRuntime {
   void flushStartupEvents() {
     for (final event in _startupEvents) {
       if (event is WindowResizeEvent) continue;
-      queueMsg(eventToMsg(event, hits: lastHitMap));
+      final msg = eventToMsg(event, hits: lastHitMap);
+      if (msg != null) queueMsg(msg);
     }
     _startupEvents.clear();
     _liveDelivery = true;

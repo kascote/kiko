@@ -4,8 +4,10 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
-/// Helper to create a KeyMsg for a character.
-KeyMsg charMsg(String c) => KeyMsg(c);
+/// Helper to create a KeyMsg for a character — the key spec and the typed
+/// text are the same single character, as they are for any plain,
+/// unmodified character key.
+KeyMsg charMsg(String c) => KeyMsg(c, text: c);
 
 /// Helper to create a KeyMsg for backspace.
 KeyMsg backspaceMsg() => const KeyMsg('backSpace');
@@ -96,18 +98,40 @@ void main() {
       expect(model.length, equals(2));
     });
 
+    test('a dead-key composition (multi-codepoint, single grapheme) inserts as one grapheme', () {
+      // 'e' + combining acute accent — a decomposed é, the shape a dead-key
+      // sequence (or option+e then e on macOS) can produce as one kitty text
+      // field, two UTF-16 code units, one grapheme cluster.
+      const composed = 'é';
+      final model = TextInputModel(focused: true)..update(const KeyMsg('e', text: composed));
+      expect(model.value, equals(composed));
+      expect(model.length, equals(1), reason: 'the combining sequence is a single grapheme cluster');
+      expect(model.cursor, equals(1));
+    });
+
+    test('a keystroke whose text is multiple graphemes inserts the whole string at once', () {
+      // The kitty text field is not contractually one grapheme — a compose
+      // sequence can hand back more than one character in a single keystroke.
+      // _insertAt treats the whole string as Characters, so both graphemes
+      // land and the cursor advances by two, not one.
+      final model = TextInputModel(focused: true)..update(const KeyMsg('a', text: 'ab'));
+      expect(model.value, equals('ab'));
+      expect(model.length, equals(2));
+      expect(model.cursor, equals(2));
+    });
+
     test('space key inserts a literal space', () {
       final model = TextInputModel(focused: true)
         ..update(charMsg('a'))
-        ..update(const KeyMsg('space'))
+        ..update(const KeyMsg('space', text: ' '))
         ..update(charMsg('b'));
       expect(model.value, equals('a b'));
     });
 
     test('plus and minus keys insert their literal characters', () {
       final model = TextInputModel(focused: true)
-        ..update(const KeyMsg('plus'))
-        ..update(const KeyMsg('minus'));
+        ..update(const KeyMsg('plus', text: '+'))
+        ..update(const KeyMsg('minus', text: '-'));
       expect(model.value, equals('+-'));
     });
 
@@ -167,7 +191,7 @@ void main() {
       }
       expect(model.value, equals('hello'));
 
-      model.update(const KeyMsg('space'));
+      model.update(const KeyMsg('space', text: ' '));
       expect(model.value, equals('hello'));
     });
   });
@@ -483,6 +507,46 @@ void main() {
 
       expect(result, isA<Declined>());
       expect(model.value, equals('hello'));
+    });
+  });
+
+  group('TextInputModel.update key release / bare modifier', () {
+    test('a release of the just-pressed key is declined and never doubles the character', () {
+      // The regression this whole delivery kills: KeyMsg and KeyReleaseMsg
+      // are siblings, not variants of one class, so a release can never
+      // pattern-match as a keystroke and reach the insert path.
+      final model = TextInputModel(focused: true)..update(charMsg('a'));
+      expect(model.value, equals('a'));
+
+      final result = model.update(const KeyReleaseMsg('a'));
+
+      expect(result, isA<Declined>());
+      expect(model.value, equals('a'), reason: 'a release must never insert a second character');
+    });
+
+    test('a bare modifier key edge is declined and inserts nothing', () {
+      final model = TextInputModel(focused: true);
+
+      final result = model.update(const ModifierKeyMsg(ModifierKey.shift, ModifierSide.left, down: true));
+
+      expect(result, isA<Declined>());
+      expect(model.value, isEmpty);
+    });
+  });
+
+  group('TextInputModel.update repeat', () {
+    test('a held key keeps typing and a held backspace keeps deleting', () {
+      final model = TextInputModel(focused: true)
+        ..update(const KeyMsg.repeat('a', text: 'a'))
+        ..update(const KeyMsg.repeat('a', text: 'a'));
+      expect(model.value, equals('aa'), reason: 'a repeat resolves through the insert path exactly like a press');
+
+      model.update(const KeyMsg.repeat('backSpace'));
+      expect(
+        model.value,
+        equals('a'),
+        reason: 'a repeat resolves through KeyBinding exactly like a press, so a held backspace keeps deleting',
+      );
     });
   });
 }

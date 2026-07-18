@@ -92,6 +92,38 @@ building every frame, as the correctness backstop on terminals that report no re
 at all. `ResizeMsg` is purely informational — the app uses it to react (recompute a scroll
 clamp, reflow content), never to make resizing work. See `example/resize.dart`.
 
+## Keyboard contract
+
+A `KeyMsg` **is** a keystroke — a press, or an auto-repeat (`repeat: true`) from a key
+held down; a plain terminal that cannot report repeats redelivers the held key as ordinary
+presses with `repeat: false`, so nothing may depend on that flag being accurate. A key-up
+is a different class, `KeyReleaseMsg`, and a bare modifier tap (Shift alone, no other key
+involved, kitty-only) is `ModifierKeyMsg` — both are structurally incapable of matching a
+`case KeyMsg(key: ...)` pattern, so no widget or app code needs a transition check. The
+one-line rule for everything downstream: **bind on `key`, insert `text`, never derive one
+from the other** — `key` is the canonical spec string (`'ctrl+a'`, `'q'`, shift folded in:
+`'A'`, `'!'`, `'shift+tab'`); `text` is the literal text the keystroke types, null for
+named keys and ctrl/alt chords.
+
+`KeyBinding.map` canonicalizes every spec through the parser round-trip, so `'shift+a'`
+and `'A'` register as the same binding regardless of which form a caller writes.
+`KeyBinding.resolve` accepts both press and repeat (a held arrow or backspace keeps
+resolving to its action for as long as it repeats), and falls back from `key` to
+`baseKey` — the spec projected onto the key's standard-US-layout position — on a primary
+miss, so a shortcut bound to `'ctrl+z'` still fires from Ctrl+Я on a Cyrillic layout.
+
+`Application(keyboardEnhancement: bool?)` controls the kitty keyboard protocol request
+and defaults to `null` — automatic: the full protocol is requested when the startup
+capability probe confirms the terminal supports it, and a terminal that fails the probe
+gets plain behavior with no further ceremony. `false` always forces it off; `true` forces
+the request regardless of what the probe found. Apps should generally leave this unset.
+
+The enhancement, wherever it is active, only **adds** fidelity to the contract above —
+exact typed text instead of a guess, `repeat` marked accurately instead of resent as plain
+presses, releases and bare modifiers reported instead of invisible — it never changes how
+a correctly written handler behaves. Concretely: not one example app needed a code change
+when the enhancement went from breaking typing to working in full.
+
 ## Mouse: the Hit Map and the Router
 
 A mouse event reaches `update` **already resolved** — it knows which widget it belongs to,

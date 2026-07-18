@@ -145,6 +145,15 @@ abstract interface class Backend {
   /// Disables the Kitty keyboard enhancement protocol.
   void disableKeyboardEnhancement();
 
+  /// Whether the startup probe confirmed the terminal supports the Kitty
+  /// keyboard enhancement protocol.
+  ///
+  /// Readable only after [init] completes. `Application`'s auto mode reads
+  /// this to decide whether to request the enhancement without an app ever
+  /// opting in explicitly; a backend that never probed a real terminal can
+  /// only ever say no.
+  bool get supportsKeyboardEnhancement;
+
   /// Enables bracketed paste, so a paste arrives as one paste event.
   void enableBracketedPaste();
 

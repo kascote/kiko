@@ -478,7 +478,8 @@ class Terminal {
   /// Disables mouse event tracking
   void disableMouseEvents() => backend.disableMouseEvents();
 
-  /// Enables Kitty keyboard enhancement protocol
+  /// Enables the full Kitty keyboard enhancement protocol, requesting every
+  /// progressive-enhancement flag the backend supports.
   void enableKeyboardEnhancement() => backend.enableKeyboardEnhancement();
 
   /// Disables Kitty keyboard enhancement protocol

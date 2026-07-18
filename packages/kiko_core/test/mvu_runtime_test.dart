@@ -901,7 +901,7 @@ void main() {
 
       final msg = eventToMsg(MouseEvent(0, 0, MouseButton.moved()), hits: frame.hits);
 
-      expect((msg as RawPointerMsg).hits.hitId(0, 0), 'a');
+      expect((msg! as RawPointerMsg).hits.hitId(0, 0), 'a');
     });
 
     test('converts FocusEvent', () {
@@ -912,7 +912,7 @@ void main() {
     test('converts PasteEvent', () {
       final msg = eventToMsg(const PasteEvent('hello'));
       expect(msg, isA<PasteMsg>());
-      expect((msg as PasteMsg).text, equals('hello'));
+      expect((msg! as PasteMsg).text, equals('hello'));
     });
 
     test('converts NoneEvent', () {
@@ -929,17 +929,19 @@ void main() {
       // The event constructor is height-first; the message fields are not.
       final msg = eventToMsg(const WindowResizeEvent(24, 80));
       expect(msg, isA<ResizeMsg>());
-      expect((msg as ResizeMsg).height, equals(24));
-      expect(msg.width, equals(80));
-      expect(msg.widthPixels, equals(0));
-      expect(msg.heightPixels, equals(0));
+      final resizeMsg = msg! as ResizeMsg;
+      expect(resizeMsg.height, equals(24));
+      expect(resizeMsg.width, equals(80));
+      expect(resizeMsg.widthPixels, equals(0));
+      expect(resizeMsg.heightPixels, equals(0));
     });
 
     test('converts WindowResizeEvent pixel dimensions through unchanged', () {
       final msg = eventToMsg(const WindowResizeEvent(24, 80, 480, 800));
       expect(msg, isA<ResizeMsg>());
-      expect((msg as ResizeMsg).heightPixels, equals(480));
-      expect(msg.widthPixels, equals(800));
+      final resizeMsg = msg! as ResizeMsg;
+      expect(resizeMsg.heightPixels, equals(480));
+      expect(resizeMsg.widthPixels, equals(800));
     });
 
     test('QueryWindowResizeEvent (a DECRPM status reply) stays UnknownMsg', () {

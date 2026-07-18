@@ -57,6 +57,10 @@ exit(
 );
 ```
 
+A `KeyMsg` is a keystroke — a press or an auto-repeat; a key-up arrives as its own
+class (`KeyReleaseMsg`), and so does a bare modifier tap (`ModifierKeyMsg`), so a
+case like `KeyMsg(key: 'q')` above can never misfire on either.
+
 `run()` completes with the exit code under every backend — the framework never calls
 `exit()` itself. Terminating the process is the app's call: `exit(await
 Application(...).run(...))`. Two gotchas: Dart ignores `main`'s return value (`run()`'s
@@ -72,7 +76,7 @@ you have no use for it.
 
 **Key types:**
 
-- `Msg` - events (KeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, ResizeMsg, custom)
+- `Msg` - events (KeyMsg, KeyReleaseMsg, ModifierKeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, ResizeMsg, custom). Bind on `KeyMsg.key`, insert `KeyMsg.text` — never derive one from the other.
 - `Cmd` - side effects (Quit, Tick, AsyncCmd, Batch, Emit)
 - `MvuRuntime` - unified message queue, frame/tick timers, async task handling
 

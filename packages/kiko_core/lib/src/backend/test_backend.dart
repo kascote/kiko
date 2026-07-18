@@ -74,6 +74,19 @@ class TestBackend implements Backend {
   /// Whether the Kitty keyboard enhancement protocol is enabled.
   bool keyboardEnhancement = false;
 
+  /// How many times [enableKeyboardEnhancement] has been called.
+  int enableKeyboardEnhancementCount = 0;
+
+  /// How many times [disableKeyboardEnhancement] has been called.
+  int disableKeyboardEnhancementCount = 0;
+
+  /// Whether the startup probe should report kitty keyboard enhancement
+  /// support. Defaults to `false`, so a test that never touches this keeps
+  /// today's plain behavior; set it before handing this backend to an
+  /// `Application` to simulate a terminal that answered the capability query.
+  @override
+  bool supportsKeyboardEnhancement = false;
+
   /// Whether bracketed paste is enabled.
   bool bracketedPaste = false;
 
@@ -228,10 +241,16 @@ class TestBackend implements Backend {
   void disableMouseEvents() => mouseEvents = false;
 
   @override
-  void enableKeyboardEnhancement() => keyboardEnhancement = true;
+  void enableKeyboardEnhancement() {
+    keyboardEnhancement = true;
+    enableKeyboardEnhancementCount++;
+  }
 
   @override
-  void disableKeyboardEnhancement() => keyboardEnhancement = false;
+  void disableKeyboardEnhancement() {
+    keyboardEnhancement = false;
+    disableKeyboardEnhancementCount++;
+  }
 
   @override
   void enableBracketedPaste() => bracketedPaste = true;

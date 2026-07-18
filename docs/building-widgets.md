@@ -147,6 +147,62 @@ through a `KeyBinding<Action>` table instead (`ButtonAction`,
 `defaultButtonBindings`, …) so apps can rebind them — see
 `example/custom_keybindings.dart` for that pattern.
 
+## Keyboard: bind on `key`, insert `text`
+
+The palette above matches raw `key` strings; every widget, however small, rests on
+the same one-line rule: **bind on `key`, insert `text`, and never derive one from
+the other.**
+
+`KeyMsg` carries both because they answer different questions. `key` is the
+canonical spec string bindings match against — `'ctrl+a'`, `'tab'`, `'q'` — with
+shift folded into the string wherever it changes what was typed (Shift+A arrives as
+`'A'`, Shift+1 as `'!'`; a named key keeps the modifier spelled out, `'shift+tab'`).
+`text` is the literal text this keystroke types, present only when there is
+something to insert — null for named keys and for ctrl/alt chords. An editor that
+resolves bindings first and falls through to inserting `text` therefore needs no
+special case for `tab` or `ctrl+a`: there is no `text` to insert, so nothing
+happens.
+
+A `KeyMsg` **is** a keystroke — a press, or an auto-repeat from a key held down. It
+carries `repeat`, but treat a repeat exactly like a press: a plain terminal that
+cannot report repeats redelivers a held key as ordinary presses with
+`repeat: false`, so nothing you build may depend on that flag being accurate. Two
+related events never arrive as `KeyMsg` at all — they are their own classes:
+
+- **`KeyReleaseMsg`** is the key-up. Because it is a different class, `case
+  KeyMsg(key: 'q')` can never fire on a release — there is no transition to guard
+  against; the pattern simply doesn't match.
+- **`ModifierKeyMsg`** is a bare modifier edge — Shift tapped alone, with no other
+  key involved, reported only by a terminal with the kitty keyboard protocol
+  enabled — carrying which modifier, which side, and whether it went down or up.
+
+This is why the naive `case KeyMsg(key: 'q')` a widget writes on day one is correct
+by construction, not by luck: a release or a bare modifier edge doesn't match that
+class at all, so it falls through to the tail's `Declined()` like any other message
+the widget has no cases for.
+
+`KeyMsg` also carries `baseKey` — the same spec projected onto the key's position
+on a standard US layout, so a shortcut keeps working under a different one. Ctrl+Я
+on a Cyrillic layout reports `key: 'ctrl+я'` and `baseKey: 'ctrl+z'`;
+`KeyBinding.resolve` tries `key` first and falls back to `baseKey`, so a binding
+written as `'ctrl+z'` fires from that physical key regardless of what the layout
+types on top of it.
+
+A widget model's keyboard handling, in order: resolve bindings first (a raw
+`switch` on `key` for something the size of the palette; `KeyBinding<Action>` for
+anything a shipped widget ships with); fall through to inserting `text` if you're
+an editor and nothing bound; decline everything else — an unbound key with no
+`text` to insert, `KeyReleaseMsg`, `ModifierKeyMsg` — the same discipline as
+"Decline everything you don't understand" below.
+
+None of this is conditional on the terminal. The kitty keyboard enhancement, where
+the terminal supports it, only *adds* fidelity on top of this same contract — exact
+typed text instead of a guess, repeats marked instead of resent as plain presses,
+releases and bare modifiers reported instead of invisible — and it never changes
+how a correctly written handler behaves. That is the whole payoff: not one example
+app needed a code change when the enhancement went from breaking typing to working
+in full.
+
 ## The view: rows, states, and the tag
 
 The view is stateless and rebuilt every frame. It composes existing views — a

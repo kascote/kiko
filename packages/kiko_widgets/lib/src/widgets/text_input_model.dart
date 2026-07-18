@@ -236,9 +236,16 @@ class TextInputModel implements Component {
       return const Handled();
     }
 
-    // Character input (single grapheme, no modifiers)
-    if (msg.char case final ch?) {
-      _insertAt(ch);
+    // Text input: msg.text is the literal text this keystroke types — a
+    // plain char, or a multi-codepoint composition (option+e, a dead-key
+    // sequence) the kitty text field reports as one keystroke. _insertAt
+    // treats it as Characters as a whole, so a multi-grapheme string
+    // inserts and advances the cursor correctly. A bound key (ctrl+a,
+    // backspace, tab) never reaches here — it resolved above — and a named
+    // key or a ctrl/alt-chord carries null text, so there is nothing left
+    // to filter.
+    if (msg.text case final text?) {
+      _insertAt(text);
       return const Handled();
     }
 

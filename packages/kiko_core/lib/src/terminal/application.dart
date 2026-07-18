@@ -73,8 +73,19 @@ class Application {
   /// Enable mouse event tracking
   final bool mouseEvents;
 
-  /// Enable Kitty keyboard enhancement protocol
-  final bool keyboardEnhancement;
+  /// Enable the full Kitty keyboard enhancement protocol: disambiguated
+  /// escape codes plus key repeat/release events, alternate keys, and typed
+  /// text — see [KeyMsg], [KeyReleaseMsg] and [ModifierKeyMsg].
+  ///
+  /// The enhancement only ever adds fidelity on top of the plain keyboard
+  /// contract — it never changes how an existing [KeyMsg] arrives — so `null`
+  /// (the default) auto-enables it: the request goes out iff the startup
+  /// probe confirms the terminal supports it, and nothing changes on a
+  /// terminal that fails or does not answer the probe. Pass `false` to always
+  /// leave it off regardless of what the probe finds, or `true` to force the
+  /// request unconditionally (today's opt-in behavior, kept as an escape
+  /// hatch).
+  final bool? keyboardEnhancement;
 
   /// Enable bracketed paste, so a paste arrives as one [PasteMsg]
   final bool bracketedPaste;
@@ -134,6 +145,13 @@ class Application {
   // terminal again, since _shutdown may already be restoring or disposing it.
   bool _stopped = false;
 
+  // The resolved keyboard-enhancement decision: whether _initTerminal actually
+  // enabled it. `keyboardEnhancement` alone cannot answer this — the auto
+  // (null) case depends on the backend's probe result — so teardown reads
+  // this instead, to disable exactly when startup enabled and never touch
+  // the terminal otherwise.
+  bool _keyboardEnhancementEnabled = false;
+
   // The single completer `run()`'s Future<int> resolves through. `_shutdown`
   // is the only place that completes it, so every exit path — Quit, an
   // uncaught error, a signal, or a public `dispose(code)` — reports the same
@@ -147,7 +165,7 @@ class Application {
   Application({
     this.viewport = const ViewPortFullScreen(),
     this.mouseEvents = false,
-    this.keyboardEnhancement = false,
+    this.keyboardEnhancement,
     this.bracketedPaste = false,
     this.focusEvents = false,
     this.title,
@@ -311,7 +329,10 @@ class Application {
         ..enableRawMode();
     }
     if (mouseEvents) terminal.enableMouseEvents();
-    if (keyboardEnhancement) terminal.enableKeyboardEnhancement();
+    // null (auto) resolves against the backend's startup probe; an explicit
+    // true/false always wins over it.
+    _keyboardEnhancementEnabled = keyboardEnhancement ?? terminal.backend.supportsKeyboardEnhancement;
+    if (_keyboardEnhancementEnabled) terminal.enableKeyboardEnhancement();
     if (bracketedPaste) terminal.enableBracketedPaste();
     if (focusEvents) terminal.enableFocusTracking();
     // Unconditional, unlike the flagged pairs above: an unsupported terminal
@@ -326,7 +347,7 @@ class Application {
     final terminal = _terminal;
     if (terminal == null) return;
 
-    if (keyboardEnhancement) terminal.disableKeyboardEnhancement();
+    if (_keyboardEnhancementEnabled) terminal.disableKeyboardEnhancement();
     if (mouseEvents) terminal.disableMouseEvents();
     if (bracketedPaste) terminal.disableBracketedPaste();
     if (focusEvents) terminal.disableFocusTracking();

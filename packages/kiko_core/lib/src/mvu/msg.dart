@@ -1,4 +1,3 @@
-import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
@@ -32,64 +31,155 @@ abstract class Msg {
   String get coalesceKey => '';
 }
 
-/// Key event types.
-enum KeyEventType {
-  /// Key was pressed.
-  press,
+/// Which modifier a bare [ModifierKeyMsg] reports.
+enum ModifierKey {
+  /// Shift.
+  shift,
 
-  /// Key is being held (repeat).
-  repeat,
+  /// Control.
+  ctrl,
 
-  /// Key was released.
-  release,
+  /// Alt (Option on macOS).
+  alt,
+
+  /// Super (the Windows key, or Command on macOS).
+  superKey,
+
+  /// Hyper.
+  hyper,
+
+  /// Meta.
+  meta,
 }
 
-/// Wrapper for keyboard events.
+/// Which physical copy of a modifier produced a [ModifierKeyMsg].
+///
+/// Most keyboards have a left and a right copy of shift, ctrl, alt, super,
+/// hyper and meta, and a terminal that reports bare modifier keys tells them
+/// apart. Two kitty-specific shift keys — ISO Level 3 Shift and ISO Level 5
+/// Shift — have no left/right identity of their own, so they report
+/// [unsided] instead.
+enum ModifierSide {
+  /// The left-hand key.
+  left,
+
+  /// The right-hand key.
+  right,
+
+  /// No left/right distinction.
+  unsided,
+}
+
+/// A bare modifier key going down or coming back up, with no other key
+/// involved.
+///
+/// A plain terminal cannot see this at all — it only ever reports a modifier
+/// as a bit set on some other keystroke. Seeing a modifier key on its own
+/// (someone tapped Shift and let go, pressing nothing else) requires the
+/// kitty keyboard enhancement. [modifier] says which key it was, [side]
+/// which physical copy (see [ModifierSide]), and [down] which edge — both
+/// the press and the release arrive as this same class. A held modifier does
+/// not repeat: an auto-repeated modifier carries no new information, so
+/// intake drops it instead of delivering a message (see [eventToMsg]).
+@immutable
+class ModifierKeyMsg extends Msg {
+  /// Which modifier this is.
+  final ModifierKey modifier;
+
+  /// Which physical copy of that modifier.
+  final ModifierSide side;
+
+  /// True when the key went down; false when it came back up.
+  final bool down;
+
+  /// Creates a ModifierKeyMsg.
+  const ModifierKeyMsg(this.modifier, this.side, {required this.down});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ModifierKeyMsg && modifier == other.modifier && side == other.side && down == other.down;
+
+  @override
+  int get hashCode => Object.hash(modifier, side, down);
+
+  @override
+  String toString() => 'ModifierKeyMsg($modifier $side ${down ? 'down' : 'up'})';
+}
+
+/// The key-up of a keystroke-capable key.
+///
+/// A plain terminal only ever sends presses; seeing the matching release for
+/// a key requires the kitty keyboard enhancement. [key] is the same spec
+/// string the press for this key carried.
+@immutable
+class KeyReleaseMsg extends Msg {
+  /// The key spec that was released — the same string a press of this key
+  /// carries as [KeyMsg.key].
+  final String key;
+
+  /// Creates a KeyReleaseMsg.
+  const KeyReleaseMsg(this.key);
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is KeyReleaseMsg && key == other.key;
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  String toString() => 'KeyReleaseMsg($key)';
+}
+
+/// Wrapper for a key press or repeat.
+///
+/// A release or a bare modifier key never arrives as a [KeyMsg] — they are
+/// [KeyReleaseMsg] and [ModifierKeyMsg], siblings under [Msg] rather than
+/// variants of this class. That is what makes `case KeyMsg(key: 'q')` mean
+/// exactly "any keystroke that types q": there is no separate check needed
+/// to exclude a release or a lone modifier, because they are not this type.
 @immutable
 class KeyMsg extends Msg {
   /// The key string (e.g., 'ctrl+a', 'enter', 'q').
   final String key;
 
-  /// The event type.
-  final KeyEventType type;
-
-  /// Creates a KeyMsg for key press (default).
-  const KeyMsg(this.key, {this.type = KeyEventType.press});
-
-  /// Creates a KeyMsg for key release.
-  const KeyMsg.release(this.key) : type = KeyEventType.release;
-
-  /// Creates a KeyMsg for key repeat.
-  const KeyMsg.repeat(this.key) : type = KeyEventType.repeat;
-
-  /// The literal character this key would insert as typed text, or `null`
-  /// if it names a shortcut/named key with no text form.
+  /// True when the terminal reported this as auto-repeat — the key was held
+  /// down and is resending, rather than a fresh press.
   ///
-  /// `key` doubles as a `KeyBinding` spec string, and `KeyEvent.toSpec`
-  /// aliases exactly three printable characters to word specs (`'space'`,
-  /// `'plus'`, `'minus'`) so they can appear in a spec like `'ctrl+s'`
-  /// without colliding with the `+` modifier separator. This reverses that
-  /// aliasing through termparser's own spec parser — the same one
-  /// `KeyBinding` uses to validate specs — rather than hardcoding the three
-  /// names here, so it stays correct if termparser ever aliases more.
-  String? get char {
-    if (key.characters.length == 1) return key;
-    try {
-      final event = evt.KeyEvent.fromString(key);
-      if (event.modifiers != evt.KeyModifiers.none) return null;
-      return event.code.kind == evt.KeyCodeKind.char ? event.code.char : null;
-      // KeyEvent.fromString throws ArgumentError for invalid specs
-      // ignore: avoid_catching_errors
-    } on ArgumentError {
-      return null;
-    }
-  }
+  /// Not every terminal can tell the difference: one without the kitty
+  /// keyboard enhancement simply resends synthetic presses for a held key,
+  /// so [repeat] reads false there even though the key is, physically, being
+  /// held. Do not build behavior that depends on ever seeing `true` — a held
+  /// arrow key or a held backspace must keep working as plain presses.
+  final bool repeat;
+
+  /// The literal text this keystroke types, or null if it names a
+  /// shortcut/named key with no text form. See [eventToMsg] for how this is
+  /// derived from the terminal event.
+  final String? text;
+
+  /// This keystroke's spec projected onto the standard US layout key, or
+  /// null when the terminal did not report one (most do not) or the key is
+  /// a named key. Lets an app match a physical key position instead of
+  /// whatever character a non-US layout produces there.
+  final String? baseKey;
+
+  /// Creates a KeyMsg for a key press (default) or repeat.
+  const KeyMsg(this.key, {this.repeat = false, this.text, this.baseKey});
+
+  /// Creates a KeyMsg for a key repeat — a held key resending.
+  const KeyMsg.repeat(this.key, {this.text, this.baseKey}) : repeat = true;
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is KeyMsg && key == other.key && type == other.type;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KeyMsg && key == other.key && repeat == other.repeat && text == other.text && baseKey == other.baseKey;
 
   @override
-  int get hashCode => Object.hash(key, type);
+  int get hashCode => Object.hash(key, repeat, text, baseKey);
+
+  @override
+  String toString() => 'KeyMsg($key${repeat ? ', repeat' : ''})';
 }
 
 /// A mouse event waiting in the queue, stamped with the frame it was aimed at.
@@ -289,12 +379,17 @@ class UnknownMsg extends Msg {
 
 /// Converts a termparser Event to a Msg.
 ///
+/// Returns null for the one event intake drops instead of delivering: the
+/// auto-repeat of a bare modifier key (see [ModifierKeyMsg]) carries no new
+/// information, so there is nothing for `update` to see. Every other event
+/// becomes exactly one message — nothing else is ever suppressed.
+///
 /// A mouse event is stamped with [hits], the geometry of the frame it was aimed
 /// at. The runtime passes the map it last committed, so an event that waits in
 /// the queue while a new frame is painted still resolves against the cells the
 /// user was looking at. Before the first frame there is nothing to hit, and the
 /// default empty map says so.
-Msg eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
+Msg? eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
   return switch (event) {
     final evt.KeyEvent e => _keyEventToMsg(e),
     final evt.MouseEvent e => RawPointerMsg(e, hits),
@@ -311,11 +406,65 @@ Msg eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
   };
 }
 
-KeyMsg _keyEventToMsg(evt.KeyEvent e) {
+/// Named keys that report a bare modifier on its own, mapped to the
+/// [ModifierKey] and [ModifierSide] they name.
+const Map<evt.KeyCodeName, (ModifierKey, ModifierSide)> _bareModifierKeys = {
+  evt.KeyCodeName.leftShift: (ModifierKey.shift, ModifierSide.left),
+  evt.KeyCodeName.rightShift: (ModifierKey.shift, ModifierSide.right),
+  evt.KeyCodeName.leftCtrl: (ModifierKey.ctrl, ModifierSide.left),
+  evt.KeyCodeName.rightCtrl: (ModifierKey.ctrl, ModifierSide.right),
+  evt.KeyCodeName.leftAlt: (ModifierKey.alt, ModifierSide.left),
+  evt.KeyCodeName.rightAlt: (ModifierKey.alt, ModifierSide.right),
+  evt.KeyCodeName.leftSuper: (ModifierKey.superKey, ModifierSide.left),
+  evt.KeyCodeName.rightSuper: (ModifierKey.superKey, ModifierSide.right),
+  evt.KeyCodeName.leftHyper: (ModifierKey.hyper, ModifierSide.left),
+  evt.KeyCodeName.rightHyper: (ModifierKey.hyper, ModifierSide.right),
+  evt.KeyCodeName.leftMeta: (ModifierKey.meta, ModifierSide.left),
+  evt.KeyCodeName.rightMeta: (ModifierKey.meta, ModifierSide.right),
+  evt.KeyCodeName.isoLevel3Shift: (ModifierKey.shift, ModifierSide.unsided),
+  evt.KeyCodeName.isoLevel5Shift: (ModifierKey.shift, ModifierSide.unsided),
+};
+
+Msg? _keyEventToMsg(evt.KeyEvent e) {
+  if (e.code.kind == evt.KeyCodeKind.named) {
+    final bare = _bareModifierKeys[e.code.name];
+    if (bare != null) {
+      final (modifier, side) = bare;
+      return switch (e.eventType) {
+        evt.KeyEventType.keyPress => ModifierKeyMsg(modifier, side, down: true),
+        evt.KeyEventType.keyRelease => ModifierKeyMsg(modifier, side, down: false),
+        // A held modifier resending is not news; drop it rather than deliver
+        // a message nobody can act on differently from the first press.
+        evt.KeyEventType.keyRepeat => null,
+      };
+    }
+  }
+
   final key = e.toSpec();
   return switch (e.eventType) {
-    evt.KeyEventType.keyPress => KeyMsg(key),
-    evt.KeyEventType.keyRepeat => KeyMsg.repeat(key),
-    evt.KeyEventType.keyRelease => KeyMsg.release(key),
+    evt.KeyEventType.keyPress => KeyMsg(key, text: _textOf(e), baseKey: e.toBaseLayoutSpec()),
+    evt.KeyEventType.keyRepeat => KeyMsg.repeat(key, text: _textOf(e), baseKey: e.toBaseLayoutSpec()),
+    evt.KeyEventType.keyRelease => KeyReleaseMsg(key),
   };
+}
+
+/// The text a keystroke types, read off the event itself rather than
+/// re-derived by parsing its spec string.
+///
+/// The terminal's own text-as-codepoints field ([evt.KeyEvent.text]) wins
+/// when present. Otherwise, a plain character key typed with no modifiers,
+/// or with shift only, types its character — folded the same way the key
+/// spec folds it, so `key` and `text` never disagree: a shifted cased
+/// letter types its uppercase form even when the terminal reported only
+/// the base key, and a character the terminal already confirmed as the
+/// shifted production types as is. Anything else — a named key, or a
+/// character combined with ctrl/alt/super/hyper/meta — has no text form.
+String? _textOf(evt.KeyEvent e) {
+  if (e.text != null) return e.text;
+  if (e.code.kind != evt.KeyCodeKind.char) return null;
+  final mods = e.modifiers;
+  if (mods == evt.KeyModifiers.none) return e.code.char;
+  if (mods != evt.KeyModifiers.shift) return null;
+  final upper = e.code.char.toUpperCase();
+  return upper != e.code.char.toLowerCase() ? upper : e.code.char;
 }

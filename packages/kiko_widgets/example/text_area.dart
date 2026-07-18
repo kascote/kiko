@@ -151,7 +151,7 @@ String _focusName(int index) => switch (index) {
 
 Future<void> main() async {
   exit(
-    await Application(title: 'TextArea Demo', mouseEvents: true).run(
+    await Application(title: 'TextArea Demo', mouseEvents: true, keyboardEnhancement: true).run(
       init: AppModel(),
       update: appUpdate,
       view: appView,

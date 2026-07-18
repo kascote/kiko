@@ -104,6 +104,30 @@ Non-obvious rules a contributor will otherwise miss:
 - **An id that resolves to no owner is logged + dropped, never silently ignored** — the
   observable failure that reference-addressing could not give you.
 
+## Widget keyboard handling
+
+A widget resolves its own keyboard behind the focus gate — `if (!focused) return const
+Declined();` — the shape worked end to end in `docs/building-widgets.md`. The rules:
+
+- **Resolve bindings first.** Route `key` (and its repeats) through a
+  `KeyBinding<Action>` table (`ButtonAction`, `TextInputAction`, …) so an app can rebind
+  without touching the model; a raw `switch` on `key` is fine for something small enough
+  that a table would be overkill.
+- **Editors insert `msg.text`, never `msg.key`.** Once nothing binds, an editable model
+  falls through to inserting `text` — the literal text the keystroke types, already
+  shift- and layout-resolved by the terminal. `text` is null for named keys and ctrl/alt
+  chords, so the fallthrough naturally does nothing for `tab` or `ctrl+s`.
+- **Decline `KeyReleaseMsg` and `ModifierKeyMsg`.** Neither carries a binding or
+  insertable text; a widget that adds no special case for them declines by falling
+  through the same tail every unbound key does. The shared suite
+  `test/widgets/decline_unknown_test.dart` covers both for every shipped model — add a
+  new widget to that suite rather than writing a one-off release/modifier test.
+- **Never check a press/repeat/release transition.** `KeyMsg.repeat` is informational
+  only — do not gate behavior on it, since a terminal without the kitty enhancement
+  never sets it. The three message classes already make a release or a bare modifier
+  edge unreachable from a `KeyMsg` pattern, so there is nothing to track between
+  messages.
+
 ## Widget mouse handling
 
 A widget CONSUMES the resolved `PointerMsg` the framework delivers. The framework half —

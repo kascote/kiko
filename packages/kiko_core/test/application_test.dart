@@ -112,6 +112,89 @@ void main() {
     });
   });
 
+  group('keyboard enhancement auto-resolution', () {
+    test('auto (null) enables it at startup and disables it at teardown when the backend '
+        'reports support', () async {
+      backend.supportsKeyboardEnhancement = true;
+      late final bool enabledOnInit;
+
+      final app = Application(backend: backend);
+
+      await runApp(
+        app,
+        update: (model, msg, _) {
+          if (msg is InitMsg) enabledOnInit = backend.keyboardEnhancement;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(enabledOnInit, isTrue);
+      expect(backend.enableKeyboardEnhancementCount, 1);
+      expect(backend.keyboardEnhancement, isFalse, reason: 'restored on the way out');
+      expect(backend.disableKeyboardEnhancementCount, 1);
+    });
+
+    test('auto (null) never enables it, and touches nothing at teardown, when the backend '
+        'reports no support', () async {
+      // backend.supportsKeyboardEnhancement defaults to false.
+      late final bool enabledOnInit;
+
+      final app = Application(backend: backend);
+
+      await runApp(
+        app,
+        update: (model, msg, _) {
+          if (msg is InitMsg) enabledOnInit = backend.keyboardEnhancement;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(enabledOnInit, isFalse);
+      expect(backend.enableKeyboardEnhancementCount, 0);
+      expect(backend.disableKeyboardEnhancementCount, 0, reason: 'teardown never touches the terminal');
+    });
+
+    test('explicit false never enables it even when the backend reports support', () async {
+      backend.supportsKeyboardEnhancement = true;
+      late final bool enabledOnInit;
+
+      final app = Application(backend: backend, keyboardEnhancement: false);
+
+      await runApp(
+        app,
+        update: (model, msg, _) {
+          if (msg is InitMsg) enabledOnInit = backend.keyboardEnhancement;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(enabledOnInit, isFalse);
+      expect(backend.enableKeyboardEnhancementCount, 0);
+      expect(backend.disableKeyboardEnhancementCount, 0, reason: 'teardown never touches the terminal');
+    });
+
+    test('explicit true forces it on even when the backend reports no support, and it is '
+        'still disabled at teardown', () async {
+      // backend.supportsKeyboardEnhancement defaults to false.
+      late final bool enabledOnInit;
+
+      final app = Application(backend: backend, keyboardEnhancement: true);
+
+      await runApp(
+        app,
+        update: (model, msg, _) {
+          if (msg is InitMsg) enabledOnInit = backend.keyboardEnhancement;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(enabledOnInit, isTrue);
+      expect(backend.enableKeyboardEnhancementCount, 1);
+      expect(backend.keyboardEnhancement, isFalse, reason: 'restored on the way out');
+      expect(backend.disableKeyboardEnhancementCount, 1);
+    });
+  });
+
   group('the exit path', () {
     test('a Quit code is returned', () async {
       final rc = await runApp(Application(backend: backend), update: quitOnInit(3));

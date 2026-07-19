@@ -112,6 +112,31 @@ void main() {
       expect(stack.fit, StackFit.expand);
     });
 
+    test('Offstage wraps its child untouched', () {
+      final node = const Offstage(child: Text('x')).build();
+
+      expect(node, isA<plume.Offstage<PaintToken>>());
+      expect((node as plume.Offstage<PaintToken>).child, isA<plume.Text<PaintToken>>());
+    });
+
+    test('a Stack sizes to an Offstage alternate larger than the visible child', () {
+      final node =
+          const Stack(
+                  children: [
+                    Offstage(child: SizedBox(width: 8, height: 4)),
+                    SizedBox(width: 2, height: 1),
+                  ],
+                ).build()
+                as plume.Stack<PaintToken>
+            ..layout(
+              plume.BoxConstraints.loose(const Size(20, 10)),
+              const plume.LayoutContext(measurer: TermUnicodeMeasurer()),
+            )
+            ..place(plume.Offset.zero);
+
+      expect(node.size, const Size(8, 4));
+    });
+
     test('Positioned pins its child to edges', () {
       final node = const Positioned(left: 1, top: 2, child: Text('x')).build();
 

@@ -12,9 +12,12 @@ import 'button_model.dart';
 /// primary resting face, with a local inverted face while [ButtonModel.pressed];
 /// [styleOverrides] fully replaces the style for a given state.
 ///
-/// The content area is pinned to the label's width so the button keeps its size
-/// while loading, when the [ButtonModel.loadingText] indicator sits in that same
-/// width instead of the label.
+/// The content area is sized to the larger of [ButtonModel.label] and
+/// [ButtonModel.loadingText]: both are laid out every frame, but only the
+/// active one paints — the other sits offstage, still voting on the size. The
+/// button's width is therefore fixed from the first frame and never changes
+/// when loading toggles, and neither piece of content is ever truncated to fit
+/// the other's width.
 ///
 /// A button is a primary action, so its resting face is `theme.primary.fill`.
 /// Its states then ride the built-in state × class matrix (via [StyleResolver])
@@ -37,18 +40,23 @@ final class Button implements View {
   @override
   Node build() {
     final style = _resolveStyle(model, theme, styleOverrides);
-    // No session measurer reaches a View's build() yet; TermUnicodeMeasurer
-    // matches production terminals until one is threaded through.
-    final labelWidth = model.label.width(const TermUnicodeMeasurer());
-    final content = model.loading ? model.loadingText.patchStyle(style) : model.label.patchStyle(style);
+    final label = model.label.patchStyle(style);
+    final loadingText = model.loadingText.patchStyle(style);
+    // Both are laid out every frame, so the stack always sizes to the larger
+    // of the two; only the active one paints, the other sits offstage. The
+    // stack's default top-left alignment is what start-aligns the shorter
+    // content, matching how the label used to sit against the padding.
+    final content = Stack(
+      children: [
+        if (model.loading) Offstage(child: label) else label,
+        if (model.loading) loadingText else Offstage(child: loadingText),
+      ],
+    );
 
     return Container(
       background: style,
       padding: EdgeInsets.symmetric(horizontal: model.padding),
-      child: ConstrainedBox(
-        additionalConstraints: BoxConstraints(minW: labelWidth, maxW: labelWidth, minH: 1, maxH: 1),
-        child: content,
-      ),
+      child: content,
     ).build()..tag = model.id;
   }
 }

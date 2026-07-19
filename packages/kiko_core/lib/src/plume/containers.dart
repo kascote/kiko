@@ -183,6 +183,25 @@ final class Positioned implements View {
   );
 }
 
+/// Reserves space for [child] without showing it.
+///
+/// [child] is laid out and placed exactly as it would be if it were on screen —
+/// its size still counts toward whatever sizes this node — but nothing under it
+/// paints, and no pointer event can reach it. Since [Stack] already sizes itself
+/// to its largest non-positioned child, wrapping an alternative in `Offstage`
+/// inside a [Stack] reserves room for the larger of a set of interchangeable
+/// children, so the stack never resizes when which child is active changes.
+final class Offstage implements View {
+  /// Reserves space for [child] without painting or hit-testing it.
+  const Offstage({required this.child});
+
+  /// The wrapped child.
+  final View child;
+
+  @override
+  Node build() => plume.Offstage<PaintToken>(child: child.build());
+}
+
 /// A fixed-size box that draws nothing — a spacer or minimum-size placeholder.
 final class SizedBox implements View {
   /// Creates a box [width] cells wide and [height] cells tall.

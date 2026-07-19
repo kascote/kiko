@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:kiko/kiko.dart';
 
 import 'types.dart';
@@ -73,7 +75,11 @@ class ButtonModel implements Component {
   KeyBinding<ButtonAction> get effectiveKeyBinding => keyBinding ?? defaultButtonBindings;
 
   /// Width of the button in cells, as measured by [measurer].
-  int width(TextMeasurer measurer) => label.width(measurer) + (padding * 2);
+  ///
+  /// The button reserves room for the larger of [label] and [loadingText] —
+  /// both are laid out every frame, and only the active one paints — so its
+  /// width never changes when [loading] toggles.
+  int width(TextMeasurer measurer) => max(label.width(measurer), loadingText.width(measurer)) + (padding * 2);
 
   /// Updates the model based on the message.
   ///

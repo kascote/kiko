@@ -2,8 +2,11 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
-Frame _frame(int width, int height) {
-  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
   return Frame(buffer.area, buffer, 0);
 }
 
@@ -97,12 +100,83 @@ void main() {
         model: ButtonModel(id: 'b', label: Line('B')),
         theme: Theme.dark,
       );
-      final frame = _frame(6, 1)..render(Row(children: <View>[a, b]));
+      // Each button's content area is the max of its label and its (default)
+      // loading text — the hourglass is 2 cells wide, so a 1-cell label still
+      // reserves a 2-cell content band: width 4 (1 pad + 2 content + 1 pad).
+      final frame = _frame(8, 1)..render(Row(children: <View>[a, b]));
 
       expect(frame.hits.hitId(1, 0), 'a');
-      expect(frame.hits.hitId(4, 0), 'b');
-      expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 3, height: 1));
-      expect(frame.hits.rectOf('b'), Rect.create(x: 3, y: 0, width: 3, height: 1));
+      expect(frame.hits.hitId(5, 0), 'b');
+      expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 4, height: 1));
+      expect(frame.hits.rectOf('b'), Rect.create(x: 4, y: 0, width: 4, height: 1));
+    });
+
+    test('a click still resolves to the button while loading, after the recomposition', () {
+      final model = ButtonModel(id: 'go', label: Line('Go'), loadingText: Line('Loading...'), loading: true);
+      const measurer = TermUnicodeMeasurer();
+      final width = model.width(measurer);
+      final frame = _frame(width, 1)..render(Button(model: model, theme: Theme.dark));
+
+      expect(frame.hits.hitId(0, 0), 'go'); // left padding cell
+      expect(frame.hits.hitId(width - 1, 0), 'go'); // right padding cell
+      expect(frame.hits.rectOf('go'), Rect.create(x: 0, y: 0, width: width, height: 1));
+    });
+  });
+
+  group('button view / cjk measurer', () {
+    // ° is ambiguous width: one cell by default, two under a cjk locale. The
+    // label is the longer of the two contents here, so the whole button widens
+    // by exactly the one extra cell ° costs, and the label is never truncated.
+    test('a label with an ambiguous-width character renders untruncated under both measurers', () {
+      final defaultModel = ButtonModel(id: 'b', label: Line('a°b'), loadingText: Line('.'));
+      final defaultFrame = _frame(5, 1)..render(Button(model: defaultModel, theme: Theme.dark));
+      expect(_dump(defaultFrame.buffer), ' a°b\n');
+      expect(defaultFrame.hits.rectOf('b'), Rect.create(x: 0, y: 0, width: 5, height: 1));
+
+      final cjkModel = ButtonModel(id: 'b', label: Line('a°b'), loadingText: Line('.'));
+      final cjkFrame = _frame(6, 1, measurer: const TermUnicodeMeasurer(cjk: true))
+        ..render(Button(model: cjkModel, theme: Theme.dark));
+      expect(_dump(cjkFrame.buffer), ' a°b\n');
+      expect(cjkFrame.hits.rectOf('b'), Rect.create(x: 0, y: 0, width: 6, height: 1));
+    });
+  });
+
+  group('button view / loading width stability', () {
+    // The loading text ("Loading...", 10 cells) is longer than the label
+    // ("Go", 2 cells), so the content area — and the button's painted width —
+    // is pinned to the loading text's width whether or not loading is active.
+    test('the painted width is identical whether or not loading is active', () {
+      const measurer = TermUnicodeMeasurer();
+      final label = Line('Go');
+      final loadingText = Line('Loading...');
+      final width = ButtonModel(id: 'x', label: label, loadingText: loadingText).width(measurer);
+      expect(width, equals(12)); // max(2, 10) + 2*1 padding
+
+      final resting = _frame(width, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'x', label: label, loadingText: loadingText),
+            theme: Theme.dark,
+          ),
+        );
+      final busy = _frame(width, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'x', label: label, loadingText: loadingText, loading: true),
+            theme: Theme.dark,
+          ),
+        );
+
+      expect(resting.hits.rectOf('x'), Rect.create(x: 0, y: 0, width: width, height: 1));
+      expect(busy.hits.rectOf('x'), Rect.create(x: 0, y: 0, width: width, height: 1));
+    });
+
+    test('a loading text longer than the label shows in full, not truncated', () {
+      final model = ButtonModel(id: 'x', label: Line('Go'), loadingText: Line('Loading...'), loading: true);
+      const measurer = TermUnicodeMeasurer();
+      final width = model.width(measurer);
+      final frame = _frame(width, 1)..render(Button(model: model, theme: Theme.dark));
+      expect(_dump(frame.buffer), ' Loading...\n');
     });
   });
 }

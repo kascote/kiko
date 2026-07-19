@@ -292,6 +292,22 @@ void main() {
     });
   });
 
+  group('Offstage', () {
+    test('a tagged widget inside an Offstage child is invisible to the frame HitMap', () {
+      final node = const Stack(
+        children: [
+          Offstage(child: Tagged('hidden', SizedBox(width: 4, height: 2))),
+          Tagged('visible', SizedBox(width: 2, height: 1)),
+        ],
+      ).build();
+      final frame = _frame(6, 3)..renderNode(node);
+
+      expect(frame.hits.rectOf('hidden'), isNull);
+      expect(frame.hits.hitId(0, 0), 'visible', reason: 'the visible sibling still resolves where it overlaps');
+      expect(frame.hits.hitId(3, 1), isNull, reason: 'a point covered only by offstage content hits nothing');
+    });
+  });
+
   group('Hit', () {
     test('compares by id and rect', () {
       final rect = Rect.create(x: 0, y: 0, width: 2, height: 2);

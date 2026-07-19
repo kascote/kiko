@@ -22,7 +22,8 @@ target the two are equal.
 
 **Columns, not graphemes.** `local.x` is a display column. A click on either
 column of a 2-wide CJK grapheme resolves to that grapheme, and whoever maps
-column→grapheme does it with termunicode widths. The router is width-ignorant,
+column→grapheme does it with the session `TextMeasurer` (see "Text measurement"
+in `../CLAUDE.md`), not a bare termunicode call. The router is width-ignorant,
 and knows nothing of scroll offsets or insets either.
 
 ## `HitMap` — the one hit-testing type

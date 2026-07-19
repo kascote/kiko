@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:plume/plume.dart' show TextMeasurer;
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../backend/backend.dart' show Backend, ClearType;
@@ -11,6 +12,7 @@ import '../extensions/integer.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../layout/size.dart';
+import '../plume/term_unicode_measurer.dart';
 import '../widgets/frame.dart';
 
 /// Represents the viewport of the terminal. The viewport is the area of the
@@ -159,6 +161,13 @@ class Terminal {
   /// terminal. Pass one to draw somewhere else — an in-memory screen, say —
   /// which is what makes the render loop reachable without a TTY.
   ///
+  /// [measurer] is the width policy for this whole session: both of the
+  /// terminal's buffers are built with it, so every [Frame] this terminal
+  /// hands out lays out and paints text with the same ruler, and a diff
+  /// between the two buffers never compares cells measured two different
+  /// ways. Pass a cjk-configured [TermUnicodeMeasurer] when the terminal is
+  /// known to treat ambiguous-width glyphs as wide.
+  ///
   /// Awaits `backend.init()` before reading size or capabilities, so the
   /// backend's one-time warm-up has already run by the time this returns.
   static Future<Terminal> create({
@@ -166,6 +175,7 @@ class Terminal {
     bool hiddenCursor = false,
     ViewPort viewport = const ViewPortFullScreen(),
     Position lastKnowCursorPosition = Position.origin,
+    TextMeasurer measurer = const TermUnicodeMeasurer(),
   }) async {
     final resolvedBackend = backend ?? TermlibBackend();
     await resolvedBackend.init();
@@ -199,8 +209,8 @@ class Terminal {
       viewportArea: viewportArea,
     );
     terminal._buffers.addAll([
-      Buffer.empty(viewportArea),
-      Buffer.empty(viewportArea),
+      Buffer.empty(viewportArea, measurer: measurer),
+      Buffer.empty(viewportArea, measurer: measurer),
     ]);
 
     return terminal;

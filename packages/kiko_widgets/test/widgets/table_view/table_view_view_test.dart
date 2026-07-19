@@ -17,8 +17,11 @@ class _CountingMeasurer extends plume.TextMeasurer {
   }
 }
 
-Frame _frame(int width, int height) {
-  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
   return Frame(buffer.area, buffer, 0);
 }
 
@@ -66,10 +69,7 @@ void main() {
       // measurer passed to Frame.render therefore saw zero requests for cells.
       final model = await _seededTable();
       final measurer = _CountingMeasurer(const TermUnicodeMeasurer());
-      _frame(7, 3).render(
-        TableView(model: model, theme: Theme.dark),
-        measurer: measurer,
-      );
+      _frame(7, 3, measurer: measurer).render(TableView(model: model, theme: Theme.dark));
       expect(measurer.calls, greaterThan(0));
     });
 

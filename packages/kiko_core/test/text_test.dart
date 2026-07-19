@@ -37,15 +37,16 @@ void main() {
     });
 
     test('width', () {
-      expect(const Text('').width, 0);
-      expect(const Text('test').width, 4);
-      expect(const Text('test content').width, 12);
-      expect(const Text('test\ncontent').width, 11);
+      const measurer = TermUnicodeMeasurer();
+      expect(const Text('').width(measurer), 0);
+      expect(const Text('test').width(measurer), 4);
+      expect(const Text('test content').width(measurer), 12);
+      expect(const Text('test\ncontent').width(measurer), 11);
     });
 
     test('newline span', () {
       const span = Text('hello\nworld');
-      expect(span.width, 10);
+      expect(span.width(const TermUnicodeMeasurer()), 10);
       expect(span.toString(), contains('helloworld'));
     });
 

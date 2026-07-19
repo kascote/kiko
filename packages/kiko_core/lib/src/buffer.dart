@@ -3,13 +3,14 @@ import 'dart:math' as math;
 import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
+import 'package:plume/plume.dart' show TextMeasurer;
 
 import './extensions/iterator.dart';
 import 'cell.dart';
 import 'colors.dart';
 import 'layout/position.dart';
 import 'layout/rect.dart';
+import 'plume/term_unicode_measurer.dart';
 import 'style.dart';
 import 'text/line.dart';
 
@@ -36,7 +37,15 @@ class Buffer implements Equality<Buffer> {
   /// to area.width * area.height
   late List<Cell> buf;
 
-  Buffer._(Rect rect, [Cell? cell]) {
+  /// The width policy this buffer measures wide cells with.
+  ///
+  /// A terminal session settles on one ruler for its whole lifetime — see
+  /// [TermUnicodeMeasurer]'s `cjk` flag — and both of a `Terminal`'s buffers
+  /// are built with it, so a diff between them never compares cells measured
+  /// two different ways.
+  final TextMeasurer measurer;
+
+  Buffer._(Rect rect, [Cell? cell, this.measurer = const TermUnicodeMeasurer()]) {
     area = rect;
     buf = List<Cell>.generate(
       rect.area,
@@ -45,17 +54,19 @@ class Buffer implements Equality<Buffer> {
   }
 
   /// Returns a Buffer with all cells set to empty
-  Buffer.empty(Rect rect) : this._(rect);
+  Buffer.empty(Rect rect, {TextMeasurer measurer = const TermUnicodeMeasurer()}) : this._(rect, null, measurer);
 
   /// Returns a Buffer with all cells initialized with the attributes of the
   /// given Cell
-  Buffer.filled(Rect rect, Cell cell) : this._(rect, cell);
+  Buffer.filled(Rect rect, Cell cell, {TextMeasurer measurer = const TermUnicodeMeasurer()})
+    : this._(rect, cell, measurer);
 
   /// Creates a copy of another buffer.
   ///
   /// Since [Cell] is immutable, a shallow copy of the cell list is sufficient.
+  /// The copy measures with the same ruler as [other].
   factory Buffer.copyFrom(Buffer other) {
-    return Buffer.empty(other.area)..buf = List.from(other.buf);
+    return Buffer.empty(other.area, measurer: other.measurer)..buf = List.from(other.buf);
   }
 
   int? _indexOfOpt(Position pos) {
@@ -89,8 +100,8 @@ class Buffer implements Equality<Buffer> {
   // cell. The idea is to pay the cost of resetting the skip flag only when
   // update the Cell and avoid the cost on Buffer.diff
   void operator []=(TPoint point, Cell cell) {
-    final oldCellWidth = widthString(buf[indexOf(point.x, point.y)].symbol);
-    final newCellWidth = widthString(cell.symbol);
+    final oldCellWidth = measurer.widthOf(buf[indexOf(point.x, point.y)].symbol);
+    final newCellWidth = measurer.widthOf(cell.symbol);
 
     if (oldCellWidth > 1) {
       // If the old cell is a wide character, we need to remove the skip flag
@@ -238,7 +249,7 @@ class Buffer implements Equality<Buffer> {
         } else {
           overwritten.add((x, cell.symbol));
         }
-        skip = math.max(0, math.max(skip, widthString(cell.symbol)) - 1);
+        skip = math.max(0, math.max(skip, measurer.widthOf(cell.symbol)) - 1);
         final style = (cell.fg, cell.bg, cell.underline, cell.modifier);
         if (lastStyle != style) {
           lastStyle = style;
@@ -309,7 +320,7 @@ class Buffer implements Equality<Buffer> {
       char: char,
       style: style ?? const Style(),
     );
-    final charWidth = widthString(char);
+    final charWidth = measurer.widthOf(char);
     if (charWidth > 1) {
       for (var i = 1; i < charWidth; i++) {
         this[(x: x + i, y: y)] = const Cell(skip: true);
@@ -319,19 +330,19 @@ class Buffer implements Equality<Buffer> {
 
   /// Build a Buffer from a list of string lines
   @visibleForTesting
-  factory Buffer.fromStringLines(List<String> stringLines) {
+  factory Buffer.fromStringLines(List<String> stringLines, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
     final lines = stringLines.map(Line.new).toList();
-    return Buffer.fromLines(lines);
+    return Buffer.fromLines(lines, measurer: measurer);
   }
 
   /// Build a Buffer from a list of Line objects
   @visibleForTesting
-  factory Buffer.fromLines(List<Line> lines) {
+  factory Buffer.fromLines(List<Line> lines, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
     final height = lines.length;
-    final width = lines.fold(0, (acc, line) => math.max(acc, line.width));
+    final width = lines.fold(0, (acc, line) => math.max(acc, line.width(measurer)));
     final area = Rect.create(x: 0, y: 0, width: width, height: height);
 
-    final b = Buffer._(area);
+    final b = Buffer._(area, null, measurer);
     for (var y = 0; y < lines.length; y++) {
       var offset = 0;
       var xx = 0;
@@ -343,11 +354,11 @@ class Buffer implements Equality<Buffer> {
             char: char,
             style: lines[y].style.patch(text.style),
           );
-          if (widthString(char) > 1) {
+          if (measurer.widthOf(char) > 1) {
             offset++;
           }
         }
-        xx += text.width;
+        xx += text.width(measurer);
       }
     }
     return b;

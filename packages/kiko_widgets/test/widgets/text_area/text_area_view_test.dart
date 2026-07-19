@@ -5,8 +5,11 @@ import 'package:test/test.dart';
 
 const _ctx = plume.LayoutContext(measurer: plume.MonospaceMeasurer());
 
-Frame _frame(int width, int height) {
-  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
   return Frame(buffer.area, buffer, 0);
 }
 
@@ -91,6 +94,99 @@ void main() {
       final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
       expect(frame.hits.hitId(0, 0), 'notes');
       expect(frame.hits.hitId(1, 1), 'notes');
+    });
+  });
+
+  group('text area view / cjk measurer', () {
+    // ° is ambiguous width: one cell by default, two under a cjk locale. The
+    // view hands its layout measurer to the model every frame, so word wrap,
+    // cursor movement and selection — all computed during update, where no
+    // layout context reaches the model — stay keyed to the same ruler that
+    // painted the last frame.
+    test('word-wrap break points shift with the measurer, and re-layout invalidates the stale wrap', () {
+      final model = TextAreaModel(id: 'ta', initial: 'ab°cd');
+
+      final defaultFrame = _frame(4, 3)..render(TextArea(model: model, theme: Theme.dark));
+      expect(_dump(defaultFrame.buffer), 'ab°c\nd\n\n', reason: 'a=1, b=1, °=1, c=1: "ab°c" fills the first row');
+
+      // Re-render the SAME model under a session with a different measurer,
+      // as a resize into a cjk-configured frame would. The wrap cache built
+      // above must not survive this.
+      final cjkFrame = _frame(4, 3, measurer: const TermUnicodeMeasurer(cjk: true))
+        ..render(TextArea(model: model, theme: Theme.dark));
+      expect(_dump(cjkFrame.buffer), 'ab°\ncd\n\n', reason: '° now costs two cells, so it no longer fits on row 0');
+    });
+
+    test('wrap-aware cursor movement (down/up) agrees with the wrap the same measurer paints', () {
+      TextAreaModel primed(TextMeasurer measurer) {
+        final model = TextAreaModel(id: 'ta', initial: 'ab°cd', focused: true)
+          ..textArea.row = 0
+          ..textArea.column = 0;
+        _frame(4, 3, measurer: measurer).render(TextArea(model: model, theme: Theme.dark));
+        return model;
+      }
+
+      final defaultModel = primed(const TermUnicodeMeasurer())..update(const KeyMsg('down'));
+      expect(defaultModel.cursorCol, 4, reason: 'row 0 wraps to "ab°c" (width 4), so row 1 starts at column 4');
+      final defaultFrame = _frame(4, 3)..render(TextArea(model: defaultModel, theme: Theme.dark));
+      expect(defaultFrame.cursorPosition, const Position(0, 1));
+
+      defaultModel.update(const KeyMsg('up'));
+      expect(defaultModel.cursorCol, 0, reason: 'moving back up returns to the start of row 0');
+
+      const cjkMeasurer = TermUnicodeMeasurer(cjk: true);
+      final cjkModel = primed(cjkMeasurer)..update(const KeyMsg('down'));
+      expect(
+        cjkModel.cursorCol,
+        3,
+        reason: 'row 0 wraps to "ab°" (width 3 chars, 4 cells), so row 1 starts at column 3',
+      );
+      final cjkFrame = _frame(4, 3, measurer: cjkMeasurer)..render(TextArea(model: cjkModel, theme: Theme.dark));
+      expect(cjkFrame.cursorPosition, const Position(0, 1));
+
+      cjkModel.update(const KeyMsg('up'));
+      expect(cjkModel.cursorCol, 0, reason: 'moving back up returns to the start of row 0');
+    });
+
+    test('selection highlight extent shifts with the measurer', () {
+      // A 3-grapheme selection ("ab°") paints a different number of columns
+      // depending on the ruler, so the plain-text run right after it starts
+      // one column later under cjk.
+      TextAreaModel selectFirstThree(TextMeasurer measurer) {
+        final model = TextAreaModel(id: 'ta', initial: 'ab°cd', focused: true)
+          ..textArea.row = 0
+          ..textArea.column = 0;
+        _frame(10, 1, measurer: measurer).render(TextArea(model: model, theme: Theme.dark));
+        for (var i = 0; i < 3; i++) {
+          model.update(const KeyMsg('shift+right'));
+        }
+        return model;
+      }
+
+      Iterable<String> paintIntents(TextAreaModel model, TextMeasurer measurer) {
+        final node = TextArea(model: model, theme: Theme.dark).build()
+          ..layout(plume.BoxConstraints.tight(const plume.Size(10, 1)), plume.LayoutContext(measurer: measurer))
+          ..place(plume.Offset.zero);
+        final surface = plume.RecordingSurface<PaintToken>();
+        node.paint(surface);
+        return surface.intents.map((i) => '$i');
+      }
+
+      const defaultMeasurer = TermUnicodeMeasurer();
+      final defaultModel = selectFirstThree(defaultMeasurer);
+      expect(
+        paintIntents(defaultModel, defaultMeasurer).any((i) => i.startsWith('drawText(3, 0, "cd ')),
+        isTrue,
+        reason: '"ab°" paints 3 cells wide, so the plain run starts at column 3',
+      );
+
+      const cjkMeasurer = TermUnicodeMeasurer(cjk: true);
+      final cjkModel = selectFirstThree(cjkMeasurer);
+      expect(
+        paintIntents(cjkModel, cjkMeasurer).any((i) => i.startsWith('drawText(4, 0, "cd ')),
+        isTrue,
+        reason: '° now costs two cells, so "ab°" paints 4 cells wide and the plain run starts one column later',
+      );
     });
   });
 }

@@ -37,7 +37,9 @@ final class Button implements View {
   @override
   Node build() {
     final style = _resolveStyle(model, theme, styleOverrides);
-    final labelWidth = model.label.width;
+    // No session measurer reaches a View's build() yet; TermUnicodeMeasurer
+    // matches production terminals until one is threaded through.
+    final labelWidth = model.label.width(const TermUnicodeMeasurer());
     final content = model.loading ? model.loadingText.patchStyle(style) : model.label.patchStyle(style);
 
     return Container(

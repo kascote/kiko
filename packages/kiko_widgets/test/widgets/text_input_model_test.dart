@@ -16,6 +16,15 @@ KeyMsg backspaceMsg() => const KeyMsg('backSpace');
 PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
     PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
 
+/// A frame over an empty buffer, measured by [measurer].
+Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
+  return Frame(buffer.area, buffer, 0);
+}
+
 void main() {
   group('TextInputModel', () {
     test('default empty state', () {
@@ -440,6 +449,26 @@ void main() {
         ..adjustScroll(5)
         ..update(pointerAt(MouseButton.down()));
       expect(model.cursor, equals(6), reason: 'local column 0 is absolute column 6');
+    });
+
+    test('a click resolves through the measurer the view assigned at layout', () {
+      // ° is ambiguous width: one cell by default, two under a cjk locale.
+      // Rendering first is what gives the model its measurer — the pointer
+      // press below runs update() directly, exactly as the router does,
+      // relying on that assignment to already have happened.
+      final defaultModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true);
+      _frame(10, 1).render(TextInput(model: defaultModel, theme: Theme.dark));
+      defaultModel.update(pointerAt(MouseButton.down(), x: 2));
+      expect(defaultModel.cursor, equals(2), reason: 'a=1, °=1, b=1: column 2 is "b"');
+
+      final cjkModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true);
+      _frame(
+        10,
+        1,
+        measurer: const TermUnicodeMeasurer(cjk: true),
+      ).render(TextInput(model: cjkModel, theme: Theme.dark));
+      cjkModel.update(pointerAt(MouseButton.down(), x: 2));
+      expect(cjkModel.cursor, equals(1), reason: 'a=1, °=2: column 2 is the right-hand cell of °, not "b"');
     });
 
     test('a click on an unfocused input still places the caret', () {

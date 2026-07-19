@@ -91,16 +91,37 @@ void main() {
       expect(b[(x: 2, y: 0)].symbol, 'b');
     });
 
-    test('honors a cjk-configured measurer passed in', () {
+    test('honors a cjk-configured buffer measurer', () {
       // '│' is ambiguous width: one cell normally, two under a cjk locale.
-      // Passing the cjk measurer widens it in layout, pushing 'b' one column
-      // right of where the default measurer would place it.
-      final b = _buf(5, 1);
-      Frame(b.area, b, 0).renderNode(
-        plume.Row<PaintToken>(children: [_text('│'), _text('b')]),
+      // A buffer built with the cjk measurer widens it in layout, pushing 'b'
+      // one column right of where the default measurer would place it.
+      final b = Buffer.empty(
+        Rect.create(x: 0, y: 0, width: 5, height: 1),
         measurer: const TermUnicodeMeasurer(cjk: true),
       );
+      Frame(b.area, b, 0).renderNode(
+        plume.Row<PaintToken>(children: [_text('│'), _text('b')]),
+      );
       expect(b[(x: 2, y: 0)].symbol, 'b');
+    });
+
+    test('clip drops a skin-tone emoji whole rather than splitting its modifier', () {
+      // Thumbs-up + skin-tone modifier is one grapheme cluster, measured two
+      // cells wide by the real termunicode measurer. A box one cell wide cannot
+      // fit it, and plume's clip drops the whole cluster rather than painting
+      // just the base codepoint and stranding the modifier.
+      const skinToneThumbsUp = '\u{1F44D}\u{1F3FD}';
+      final b = _buf(1, 1);
+      Frame(b.area, b, 0).renderNode(_text(skinToneThumbsUp));
+      expect(b[(x: 0, y: 0)].symbol, ' ');
+    });
+
+    test("a box exactly the emoji cluster's width keeps it whole", () {
+      const skinToneThumbsUp = '\u{1F44D}\u{1F3FD}';
+      final b = _buf(2, 1);
+      Frame(b.area, b, 0).renderNode(_text(skinToneThumbsUp));
+      expect(b[(x: 0, y: 0)].symbol, skinToneThumbsUp);
+      expect(b[(x: 1, y: 0)].skip, isTrue, reason: 'the second cell of the wide cluster is reserved, not painted');
     });
   });
 
@@ -112,12 +133,15 @@ void main() {
       expect(b[(x: 1, y: 0)].symbol, 'i');
     });
 
-    test('forwards a cjk-configured measurer to layout', () {
-      // '│' is ambiguous width; the cjk measurer widens it, pushing 'b' right.
-      final b = _buf(5, 1);
+    test('forwards the buffer’s cjk-configured measurer to layout', () {
+      // '│' is ambiguous width; a buffer built with the cjk measurer widens
+      // it, pushing 'b' right of where the default measurer would place it.
+      final b = Buffer.empty(
+        Rect.create(x: 0, y: 0, width: 5, height: 1),
+        measurer: const TermUnicodeMeasurer(cjk: true),
+      );
       Frame(b.area, b, 0).render(
         const Row(children: <View>[Text('│'), Text('b')]),
-        measurer: const TermUnicodeMeasurer(cjk: true),
       );
       expect(b[(x: 2, y: 0)].symbol, 'b');
     });

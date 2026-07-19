@@ -1,6 +1,5 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
-import 'package:termunicode/termunicode.dart';
 
 import 'selection.dart';
 import 'text_area_model.dart';
@@ -220,7 +219,7 @@ class TextAreaRenderer {
       if (part.part.isEmpty) continue;
 
       final style = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
-      final partWidth = widthChars(part.part);
+      final partWidth = measurer.widthOf(part.part.string);
 
       paintLine(
         surface,

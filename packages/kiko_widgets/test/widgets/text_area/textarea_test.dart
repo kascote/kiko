@@ -1,6 +1,25 @@
 import 'package:characters/characters.dart';
+import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/src/widgets/text_area/textarea.dart';
 import 'package:test/test.dart';
+
+/// A [TextMeasurer] that counts calls to [widthOf], to observe whether the
+/// wrap cache was rebuilt (a cache hit calls the measurer zero times).
+class _CountingMeasurer extends TextMeasurer {
+  /// Creates a measurer that delegates to [_inner] while counting calls.
+  _CountingMeasurer(this._inner);
+
+  final TextMeasurer _inner;
+
+  /// Number of times [widthOf] has been called so far.
+  int calls = 0;
+
+  @override
+  int widthOf(String text) {
+    calls++;
+    return _inner.widthOf(text);
+  }
+}
 
 void main() {
   test('Check initialization values', () {
@@ -631,5 +650,44 @@ void main() {
       li.toString(),
       'LineInfo{width: 1, visualWidth: 1, height: 1, startColumn: 0, columnOffset: 0, rowOffset: 0, visualOffset: 0}',
     );
+  });
+
+  group('TextAreaComponent measurer', () {
+    // ° is ambiguous width: one cell under the default measurer, two under a
+    // cjk locale, so it lands on a different visual row at width 4.
+    test('assigning a different measurer invalidates the wrap cache', () {
+      final component = TextAreaComponent(visualWidth: 4)..initBuffer('ab°cd');
+      expect(
+        component.wrappedLines(0).first.map((c) => c.toString()).toList(),
+        ['ab°c', 'd '],
+        reason: 'populates the cache under the default measurer (° = 1 cell)',
+      );
+
+      component.measurer = const TermUnicodeMeasurer(cjk: true);
+      expect(
+        component.wrappedLines(0).first.map((c) => c.toString()).toList(),
+        ['ab°', 'cd '],
+        reason: 'the cjk ruler (° = 2 cells) must re-wrap, not reuse the geometry cached under the default ruler',
+      );
+    });
+
+    test('re-assigning the same measurer instance leaves the wrap cache untouched', () {
+      final counting = _CountingMeasurer(const TermUnicodeMeasurer());
+      final component = TextAreaComponent(visualWidth: 4)
+        ..initBuffer('ab°cd')
+        ..measurer = counting;
+
+      component.wrappedLines(0).first;
+      final callsAfterFirstWrap = counting.calls;
+      expect(callsAfterFirstWrap, greaterThan(0));
+
+      component.measurer = counting;
+      component.wrappedLines(0).first;
+      expect(
+        counting.calls,
+        callsAfterFirstWrap,
+        reason: 'identical measurer reassignment must not rebuild the wrap cache',
+      );
+    });
   });
 }

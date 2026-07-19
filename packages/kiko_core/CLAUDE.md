@@ -73,6 +73,19 @@ exported) and `TestBackend` (in-memory, `package:kiko/testing.dart`).
   app-side `exit()` right after `run()` could otherwise truncate the terminal-restore bytes
   this backend just wrote.
 
+## Text measurement
+
+One `TextMeasurer` — a `TermUnicodeMeasurer` by default — rules the whole session:
+`Application(measurer:)` / `Terminal.create(measurer:)` own it, `Buffer` carries it
+(`buffer.measurer`), and `Frame.render(view)` takes no measurer of its own — it lays out
+and paints through `buffer.measurer` every time. That is what makes layout and paint agree
+on every glyph's width; a terminal's ambiguous-width behavior does not change mid-run, so
+this is fixed for the life of the application, never passed per call. Widgets that measure
+text reach the same ruler at layout time, via `LayoutContext.measurer` (a plume `Node`'s
+`performLayout`) or the model field it is copied into (`TextInputModel.measurer`,
+`TableRenderer.measurer`, and siblings) — never a bare `TermUnicodeMeasurer()` call or raw
+termunicode width math.
+
 ## Resize events
 
 A window resize reaches `update` as `ResizeMsg` — `width`/`height` in cells plus
@@ -135,7 +148,8 @@ rules that must survive any edit:
 
 - **0-based buffer cells everywhere above the backend** — the same space as
   `Rect`/`Buffer`/`Position`. `local = global - targetRect.topLeft`. `local.x` is a display
-  **column**, not a grapheme index; map column→grapheme with termunicode widths.
+  **column**, not a grapheme index; map column→grapheme with the session measurer (see
+  "Text measurement" above), never a bare termunicode call.
 - **`HitMap` (`src/widgets/hit_map.dart`) is the only hit-testing type**: `hitId`, `rectOf`,
   `hitPath`. Which frame a map describes is carried by which map you hold: `frame.hits` =
   the frame being painted (use in `view`); `ctx.hits` = the committed frame the event saw

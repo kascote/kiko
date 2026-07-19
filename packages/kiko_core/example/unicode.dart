@@ -9,27 +9,23 @@ import 'package:kiko/kiko.dart';
 // if the width measurer counts the sample's cells correctly, so a measurement
 // bug shears the borders instead of hiding — the eye is the test oracle.
 //
-// Tab toggles the frame measurer between default and cjk (ambiguous-width glyphs
-// count as two cells); the same ambiguous row renders differently under each.
+// The measurer is a whole-session choice, picked once at startup: pass --cjk
+// to treat ambiguous-width glyphs as two cells instead of one, and compare a
+// run with and without it across two runs.
 // ═══════════════════════════════════════════════════════════
 
 class UnicodeModel {
   final bool cjk;
 
   const UnicodeModel({this.cjk = false});
-
-  UnicodeModel toggleCjk() => UnicodeModel(cjk: !cjk);
 }
 
 (UnicodeModel, Cmd?) update(UnicodeModel model, Msg msg, UpdateContext _) => switch (msg) {
   KeyMsg(key: 'q') => (model, const Quit()),
-  KeyMsg(key: 'tab') => (model.toggleCjk(), null),
   _ => (model, null),
 };
 
 void view(UnicodeModel model, Frame frame) {
-  final measurer = TermUnicodeMeasurer(cjk: model.cjk);
-
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
@@ -44,7 +40,7 @@ void view(UnicodeModel model, Frame frame) {
       ),
       Center(
         child: Line(
-          'Tab toggles cjk · q quits · borders shear on a width bug',
+          'q quits · rerun with --cjk to compare · borders shear on a width bug',
           style: const Style(fg: Color.darkGray),
         ),
       ),
@@ -81,7 +77,7 @@ void view(UnicodeModel model, Frame frame) {
     ],
   );
 
-  frame.render(ui, measurer: measurer);
+  frame.render(ui);
 }
 
 /// Long heterogeneous runs in one full-width box, each right-aligned so its
@@ -162,10 +158,14 @@ View _sampleCell(_Sample s) => ConstrainedBox(
   ),
 );
 
-Future<void> main() async {
+Future<void> main(List<String> arguments) async {
+  final cjk = arguments.contains('--cjk');
   exit(
-    await Application(title: 'Unicode gallery').run(
-      init: const UnicodeModel(),
+    await Application(
+      title: 'Unicode gallery',
+      measurer: TermUnicodeMeasurer(cjk: cjk),
+    ).run(
+      init: UnicodeModel(cjk: cjk),
       update: update,
       view: view,
     ),

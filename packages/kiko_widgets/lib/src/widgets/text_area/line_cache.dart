@@ -77,6 +77,15 @@ class LineCache<T extends CacheItem, V> {
   /// The created value is returned.
   V upsert(T key, V Function() fx) => get(key) ?? set(key, fx());
 
+  /// Removes every entry, leaving the cache empty.
+  ///
+  /// Used when the geometry cached under the old entries can no longer be
+  /// trusted — for example, when the ruler used to compute it changes.
+  void clear() {
+    _cache.clear();
+    _eviction.clear();
+  }
+
   /// Returns a record containing cache hit and miss statistics.
   CacheStats get stats {
     final total = _hits + _misses;

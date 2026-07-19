@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
 import 'package:plume/plume.dart' as plume;
-import 'package:termunicode/termunicode.dart';
 
 import '../buffer.dart';
 import '../cell.dart';
@@ -24,6 +23,10 @@ import 'paint_token.dart';
 /// this class only the raw sinks below. Every write is additionally clamped to
 /// the buffer's own bounds, so a draw that escaped its box is dropped rather
 /// than throwing a [RangeError].
+///
+/// Text runs are measured with [_buffer]'s own [Buffer.measurer], the same
+/// ruler layout used to size the tree this surface is painting — so a wide
+/// glyph always advances the pen exactly as far as layout reserved for it.
 class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// Creates a surface that paints into [_buffer].
   BufferSurface(this._buffer);
@@ -85,7 +88,7 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
 
     var cx = x;
     for (final cluster in run.characters) {
-      final w = widthString(cluster);
+      final w = _buffer.measurer.widthOf(cluster);
 
       // A zero-width cluster (a combining mark) folds into the cell before it,
       // as long as that cell is inside the drawable span.

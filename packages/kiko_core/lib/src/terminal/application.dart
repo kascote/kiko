@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:kiko_log/kiko_log.dart';
 import 'package:meta/meta.dart';
+import 'package:plume/plume.dart' show TextMeasurer;
 
 import '../backend/backend.dart' show Backend, ColorProfile;
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
 import '../mvu/mvu_runtime.dart';
 import '../mvu/update_context.dart';
+import '../plume/term_unicode_measurer.dart';
 import '../style_resolver.dart';
 import '../widgets/frame.dart';
 import 'terminal.dart';
@@ -112,6 +114,16 @@ class Application {
   @visibleForTesting
   final Backend? backend;
 
+  /// The width policy the terminal measures text with for the whole session.
+  ///
+  /// A terminal's ambiguous-width behavior does not change mid-run, so this is
+  /// fixed for the life of the application and forwarded straight to
+  /// [Terminal.create]: every [Frame] this app hands `view` lays out and paints
+  /// with the same ruler. Defaults to [TermUnicodeMeasurer]'s narrow reading of
+  /// ambiguous-width glyphs; pass `TermUnicodeMeasurer(cjk: true)` for a
+  /// terminal configured for a CJK locale.
+  final TextMeasurer measurer;
+
   /// Event polling timeout in milliseconds
   final int eventTimeout;
 
@@ -174,6 +186,7 @@ class Application {
     this.onError,
     this.onCleanup,
     @visibleForTesting this.backend,
+    this.measurer = const TermUnicodeMeasurer(),
     this.eventTimeout = 10,
     this.fps = 60,
     this.logPath,
@@ -214,7 +227,7 @@ class Application {
       runZonedGuarded(
         () async {
           Log.info('Application starting');
-          _terminal = await Terminal.create(viewport: viewport, backend: backend);
+          _terminal = await Terminal.create(viewport: viewport, backend: backend, measurer: measurer);
           _initTerminal();
           _setupSignalHandlers();
           final rc = await _runLoop(init, update, view);

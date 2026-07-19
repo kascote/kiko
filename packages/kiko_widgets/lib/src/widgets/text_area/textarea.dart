@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
 import 'package:crypto/crypto.dart';
-import 'package:termunicode/termunicode.dart';
+import 'package:kiko/kiko.dart';
 
 import 'line_cache.dart';
 import 'sanitizer.dart';
@@ -110,6 +110,8 @@ class TextAreaComponent {
   /// the soft-wrapped lines. Updated dynamically by the widget during render.
   int visualWidth;
 
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
   int _lastVisualOffset = 0;
 
   /// Creates a new Buffer object
@@ -120,6 +122,24 @@ class TextAreaComponent {
     this.visualWidth = 80,
   }) {
     _lineCache = LineCache(maxLines);
+  }
+
+  /// The ruler wrap, cursor movement and selection math measure against.
+  TextMeasurer get measurer => _measurer;
+
+  /// Assigns the active measurer.
+  ///
+  /// The wrap cache stores geometry computed with whatever ruler was active
+  /// when each entry was built, so it cannot be trusted once the ruler
+  /// changes: assigning a different measurer clears it. The comparison is by
+  /// `==` — identity for [TermUnicodeMeasurer], which does not override it —
+  /// so re-assigning the same instance every frame (the common case, since a
+  /// session's measurer is a single long-lived instance) is a no-op and never
+  /// rebuilds the cache at frame rate.
+  set measurer(TextMeasurer value) {
+    if (value == _measurer) return;
+    _measurer = value;
+    _lineCache.clear();
   }
 
   /// The current column of the cursor
@@ -331,7 +351,7 @@ class TextAreaComponent {
       if (_row > _buffer.length || _column >= _buffer[_row].length || offset >= nli.visualWidth - 1) {
         break;
       }
-      offset += widthString(_buffer[_row].characterAt(_column).toString());
+      offset += _measurer.widthOf(_buffer[_row].characterAt(_column).toString());
       _column++;
     }
 
@@ -379,7 +399,7 @@ class TextAreaComponent {
       if (_column >= _buffer[_row].length || offset >= nli.visualWidth - 1) {
         break;
       }
-      offset += widthString(_buffer[_row].characterAt(_column).toString());
+      offset += _measurer.widthOf(_buffer[_row].characterAt(_column).toString());
       _column++;
     }
 
@@ -600,13 +620,13 @@ class TextAreaComponent {
           rowOffset: i + 1,
           startColumn: _column,
           width: vLine[i + 1].length,
-          visualWidth: widthString(vLine[i].toString()),
+          visualWidth: _measurer.widthOf(vLine[i].toString()),
         );
       }
 
       if (counter + vLine[i].length >= _column) {
         return LineInfo(
-          visualOffset: widthString(
+          visualOffset: _measurer.widthOf(
             vLine[i].take(math.max(0, _column - counter)).toString(),
           ),
           columnOffset: _column - counter,
@@ -614,7 +634,7 @@ class TextAreaComponent {
           rowOffset: i,
           startColumn: counter,
           width: vLine[i].length,
-          visualWidth: widthString(vLine[i].toString()),
+          visualWidth: _measurer.widthOf(vLine[i].toString()),
         );
       }
 
@@ -644,9 +664,9 @@ class TextAreaComponent {
       }
 
       if (spaces > 0) {
-        final wc = wrappedLines.last.isEmpty ? 0 : widthString(wrappedLines.last.toString());
+        final wc = wrappedLines.last.isEmpty ? 0 : _measurer.widthOf(wrappedLines.last.toString());
         word.write(_genSpaces(spaces));
-        if (wc + widthString(word.toString()) > width) wrappedLines.add(StringBuffer());
+        if (wc + _measurer.widthOf(word.toString()) > width) wrappedLines.add(StringBuffer());
         wrappedLines.last.write(word);
         spaces = 0;
         word.clear();
@@ -654,8 +674,8 @@ class TextAreaComponent {
         final wordStr = word.toString();
         // If the last character is a double-width rune, then we may not be able
         // to add it to this line as it might cause us to go past the width.
-        final lastCharLength = widthString(wordStr.characters.last);
-        if (widthString(wordStr) + lastCharLength > width) {
+        final lastCharLength = _measurer.widthOf(wordStr.characters.last);
+        if (_measurer.widthOf(wordStr) + lastCharLength > width) {
           // If the current line has any content, let's move to the next
           // line because the current word fills up the entire line.
           if (wrappedLines.last.isNotEmpty) wrappedLines.add(StringBuffer());
@@ -665,7 +685,7 @@ class TextAreaComponent {
       }
     }
 
-    if (widthString(wrappedLines.last.toString()) + widthString(word.toString()) + spaces >= width) {
+    if (_measurer.widthOf(wrappedLines.last.toString()) + _measurer.widthOf(word.toString()) + spaces >= width) {
       wrappedLines.add(StringBuffer());
     }
     // We add an extra space at the end of the line to account for the

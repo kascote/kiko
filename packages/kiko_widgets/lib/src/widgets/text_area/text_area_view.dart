@@ -50,6 +50,10 @@ class _TextAreaViewport extends Node {
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     _measurer = context.measurer;
+    // The model does its own cursor/selection/wrap geometry during update,
+    // where no layout context reaches it — hand it the same ruler paint uses
+    // so that math never disagrees with what is on screen.
+    model.measurer = context.measurer;
     return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
   }
 

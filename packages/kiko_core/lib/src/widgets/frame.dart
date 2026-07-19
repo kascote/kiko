@@ -8,7 +8,6 @@ import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../plume/buffer_surface.dart';
 import '../plume/paint_token.dart';
-import '../plume/term_unicode_measurer.dart';
 import '../plume/view.dart';
 import 'hit_map.dart';
 
@@ -77,10 +76,10 @@ class Frame {
   /// tree, laid out tight to [area], its text measured the way kiko paints it,
   /// and the result written into this frame's [buffer].
   ///
-  /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
-  /// as [measurer] when ambiguous-width glyphs should count as two cells.
-  void render(View view, {plume.TextMeasurer measurer = const TermUnicodeMeasurer()}) =>
-      renderNode(view.build(), measurer: measurer);
+  /// Text is measured with [buffer]'s own [Buffer.measurer] — the ruler the
+  /// owning `Terminal` settled on for this session — so layout and paint never
+  /// disagree about how wide a glyph is.
+  void render(View view) => renderNode(view.build());
 
   /// Renders a Plume layout [node] tree into this frame.
   ///
@@ -88,8 +87,7 @@ class Frame {
   /// tree is laid out tight to [area], its text measured the way kiko paints
   /// it, and the result written into this frame's [buffer].
   ///
-  /// Text is measured with a [TermUnicodeMeasurer]; pass a cjk-configured one
-  /// as [measurer] when ambiguous-width glyphs should count as two cells.
+  /// Text is measured with [buffer]'s own [Buffer.measurer]; see [render].
   ///
   /// The laid-out tree is retained so [hits] can address any node that carries a
   /// `tag` after this returns.
@@ -97,16 +95,13 @@ class Frame {
   /// This is the low-level seam behind [render]; compose [View]s and call
   /// [render] instead of building plume nodes and calling this directly.
   @internal
-  void renderNode(
-    plume.RenderNode<PaintToken> node, {
-    plume.TextMeasurer measurer = const TermUnicodeMeasurer(),
-  }) {
+  void renderNode(plume.RenderNode<PaintToken> node) {
     final surface = BufferSurface(buffer);
     plume.renderFrame(
       node,
       plume.Rect(area.x, area.y, area.width, area.height),
       surface,
-      measurer: measurer,
+      measurer: buffer.measurer,
     );
     _nodeRoots.add(node);
     _hits = null;

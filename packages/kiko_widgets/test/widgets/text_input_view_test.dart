@@ -5,8 +5,11 @@ import 'package:test/test.dart';
 
 const _ctx = plume.LayoutContext(measurer: plume.MonospaceMeasurer());
 
-Frame _frame(int width, int height) {
-  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
   return Frame(buffer.area, buffer, 0);
 }
 
@@ -322,6 +325,48 @@ void main() {
       expect(frame.hits.hitId(0, 0), 'in');
       expect(frame.hits.hitId(4, 0), 'in');
       expect(frame.hits.hitId(5, 0), isNull);
+    });
+  });
+
+  group('text input view / cjk measurer', () {
+    // ° is ambiguous width: one cell by default, two under a cjk locale. The
+    // view hands its layout measurer to the model every frame, so the
+    // model's own cursor/scroll math (run during update, where no layout
+    // context reaches it) stays keyed to the same ruler that painted the
+    // field.
+    test('the caret lands one column later per ambiguous character to its left', () {
+      final defaultModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true)..cursor = 3;
+      final defaultFrame = _frame(10, 1)..render(TextInput(model: defaultModel, theme: Theme.dark));
+      expect(defaultFrame.cursorPosition, const Position(3, 0), reason: 'a=1, °=1: caret after "a°b"');
+
+      final cjkModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true)..cursor = 3;
+      final cjkFrame = _frame(10, 1, measurer: const TermUnicodeMeasurer(cjk: true))
+        ..render(TextInput(model: cjkModel, theme: Theme.dark));
+      expect(cjkFrame.cursorPosition, const Position(4, 0), reason: 'a=1, °=2: caret shifts one column later');
+    });
+
+    test("scrolls to the window the frame's own measurer implies", () {
+      // Same model, same two renders (first scrolls all the way right, then
+      // the caret moves left to just before °), run once per measurer.
+      const content = 'abcdef°h';
+
+      final defaultModel = TextInputModel(id: 'in', initial: content, focused: true)..cursor = content.length;
+      _frame(5, 1).render(TextInput(model: defaultModel, theme: Theme.dark));
+      defaultModel.cursor = 6;
+      final defaultFrame = _frame(5, 1)..render(TextInput(model: defaultModel, theme: Theme.dark));
+      expect(_dump(defaultFrame.buffer), 'ef°h\n');
+      expect(defaultFrame.cursorPosition, const Position(2, 0));
+
+      const cjkMeasurer = TermUnicodeMeasurer(cjk: true);
+      final cjkModel = TextInputModel(id: 'in', initial: content, focused: true)..cursor = content.length;
+      _frame(5, 1, measurer: cjkMeasurer).render(TextInput(model: cjkModel, theme: Theme.dark));
+      cjkModel.cursor = 6;
+      final cjkFrame = _frame(5, 1, measurer: cjkMeasurer)..render(TextInput(model: cjkModel, theme: Theme.dark));
+      // ° now costs two cells, so less of the tail fits: one fewer leading
+      // character is visible, and the caret — still immediately before ° —
+      // sits one column earlier than under the default measurer.
+      expect(_dump(cjkFrame.buffer), 'f°h\n');
+      expect(cjkFrame.cursorPosition, const Position(1, 0));
     });
   });
 }

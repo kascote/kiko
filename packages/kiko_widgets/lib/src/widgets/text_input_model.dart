@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
 
 // ═══════════════════════════════════════════════════════════
 // STYLE
@@ -78,6 +77,14 @@ class TextInputModel implements Component {
   /// Whether the input is focused.
   @override
   bool focused;
+
+  /// The ruler cursor, scroll and click-to-caret math measure against.
+  ///
+  /// The view assigns its layout context's measurer here on every frame, so
+  /// update-time geometry agrees with the ruler that painted the last frame.
+  /// Before the first paint (or outside a running app, as in a test) the
+  /// default below applies.
+  TextMeasurer measurer = const TermUnicodeMeasurer();
 
   // ─────────────────────────────────────────────
   // Config (set at initialization)
@@ -339,7 +346,7 @@ class TextInputModel implements Component {
     var i = 0;
     for (final g in text) {
       if (i >= index) break;
-      width += widthChars(Characters(g));
+      width += measurer.widthOf(g);
       i++;
     }
     return width;
@@ -357,7 +364,7 @@ class TextInputModel implements Component {
     var width = 0;
     var i = 0;
     for (final g in displayText) {
-      width += widthChars(Characters(g));
+      width += measurer.widthOf(g);
       if (column < width) return i;
       i++;
     }

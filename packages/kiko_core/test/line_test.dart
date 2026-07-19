@@ -35,10 +35,10 @@ void main() {
         Text('My', style: Style(fg: Color.red)),
         Text(' text'),
       ]);
-      expect(line.width, 7);
+      expect(line.width(const TermUnicodeMeasurer()), 7);
 
       final empty = Line('');
-      expect(empty.width, 0);
+      expect(empty.width(const TermUnicodeMeasurer()), 0);
     });
 
     test('patch style', () {

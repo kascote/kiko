@@ -46,13 +46,9 @@ class Line implements View {
   /// Add a [Text] to the line
   Line add(Text text) => Line._(List<Text>.unmodifiable([..._texts, text]), style);
 
-  /// Returns the width of the line in `terminal` characters. This is the sum
-  /// of the widths of all the [Text]s in the line.
-  ///
-  /// `Terminal characters` refers to that some characters could be wider than
-  /// others, like emojis or CJK characters. The width of a character is
-  /// determined by the Unicode standard.
-  int get width => _texts.fold(0, (acc, text) => acc + text.width);
+  /// Returns the width of the line in cells, as measured by [measurer]. This
+  /// is the sum of the widths of all the [Text]s in the line.
+  int width(TextMeasurer measurer) => _texts.fold(0, (acc, text) => acc + text.width(measurer));
 
   /// The [Text]s that make up this line, in order (left to right).
   ///

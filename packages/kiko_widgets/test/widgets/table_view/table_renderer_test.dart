@@ -25,9 +25,13 @@ String render(
   required int height,
   Map<WidgetState, Style>? styleOverrides,
   bool showEmptyCells = false,
+  TextMeasurer measurer = const TermUnicodeMeasurer(),
 }) {
-  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
-  TableRenderer(model, Theme.dark, styleOverrides).paint(buffer.area, BufferSurface(buffer));
+  final buffer = Buffer.empty(
+    Rect.create(x: 0, y: 0, width: width, height: height),
+    measurer: measurer,
+  );
+  TableRenderer(model, Theme.dark, styleOverrides, measurer: measurer).paint(buffer.area, BufferSurface(buffer));
   return _dump(buffer, showEmptyCells: showEmptyCells);
 }
 
@@ -408,6 +412,104 @@ r0   VeryLongN…0''',
 ID   Name      Value
 r0   LongEno...0''',
           ),
+        );
+      });
+
+      test('an ambiguous-width value truncates and aligns to fill the column under either measurer', () async {
+        // '°' is ambiguous-width: 1 cell under a default measurer, 2 under a
+        // cjk one. Whichever measurer is in effect, the cell must still land
+        // on the column boundary exactly — no overflow into the next column,
+        // no short fill.
+        final columns = [
+          TableColumn(field: 'val', label: Line(''), width: 5),
+          TableColumn(field: 'next', label: Line(''), width: 3),
+        ];
+        final rows = [
+          {'id': 'r0', 'val': '°°°°°°°°°°', 'next': 'XYZ'},
+        ];
+        final source = TableDataSource.fromList(rows);
+        final model = TableViewModel(
+          dataSource: source,
+          keyField: 'id',
+          columns: columns,
+          columnSeparator: const Text(''),
+          ellipsis: '.',
+          stickyHeader: false,
+        );
+        final page = await source.getPage(0, 1);
+        model.insertRows(page, 0);
+
+        // Default: '°' is 1 cell wide, so 4 fit before the ellipsis.
+        expect(
+          render(model, width: 8, height: 1),
+          equals('°°°°.XYZ'),
+        );
+
+        // cjk: '°' is 2 cells wide, so only 2 fit — but the column still
+        // ends up exactly 5 cells wide, so ColB starts at the same offset.
+        expect(
+          render(model, width: 8, height: 1, measurer: const TermUnicodeMeasurer(cjk: true)),
+          equals('°°.XYZ'),
+        );
+      });
+    });
+
+    group('grapheme-safe truncation', () {
+      test('keeps a multi-codepoint grapheme cluster whole when it fits exactly', () async {
+        // Thumbs-up + skin-tone modifier is one grapheme cluster, 2 cells
+        // wide (not 4 — the old codepoint-walking loop summed each
+        // codepoint's own width and cut the cluster in half).
+        const skinToneThumbsUp = '\u{1F44D}\u{1F3FD}';
+        final columns = [
+          TableColumn(field: 'val', label: Line(''), width: 3),
+        ];
+        final rows = [
+          {'id': 'r0', 'val': '${skinToneThumbsUp}AB'},
+        ];
+        final source = TableDataSource.fromList(rows);
+        final model = TableViewModel(
+          dataSource: source,
+          keyField: 'id',
+          columns: columns,
+          columnSeparator: const Text(''),
+          ellipsis: '.',
+          stickyHeader: false,
+        );
+        final page = await source.getPage(0, 1);
+        model.insertRows(page, 0);
+
+        // Column width 3, ellipsis 1 cell → 2 cells left for content, exactly
+        // the emoji's width: it is kept whole (with its modifier), not
+        // trimmed to a bare thumbs-up.
+        expect(render(model, width: 3, height: 1), equals('$skinToneThumbsUp.'));
+      });
+
+      test('drops a multi-codepoint grapheme cluster whole when it does not fit', () async {
+        const skinToneThumbsUp = '\u{1F44D}\u{1F3FD}';
+        final columns = [
+          TableColumn(field: 'val', label: Line(''), width: 2),
+        ];
+        final rows = [
+          {'id': 'r0', 'val': '${skinToneThumbsUp}Z'},
+        ];
+        final source = TableDataSource.fromList(rows);
+        final model = TableViewModel(
+          dataSource: source,
+          keyField: 'id',
+          columns: columns,
+          columnSeparator: const Text(''),
+          ellipsis: '.',
+          stickyHeader: false,
+        );
+        final page = await source.getPage(0, 1);
+        model.insertRows(page, 0);
+
+        // Column width 2, ellipsis 1 cell → only 1 cell left, too narrow for
+        // the 2-cell-wide emoji: it is dropped whole, leaving no stray
+        // codepoint from the cluster in the output.
+        expect(
+          render(model, width: 2, height: 1, showEmptyCells: true),
+          equals('.·'),
         );
       });
     });

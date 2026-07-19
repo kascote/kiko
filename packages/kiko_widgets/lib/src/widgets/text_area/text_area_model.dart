@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
 
 import '../focus_router.dart';
 import 'selection.dart';
@@ -92,6 +91,18 @@ class TextAreaModel implements Component {
   /// Whether the text area is focused.
   @override
   bool focused;
+
+  /// The ruler cursor movement, selection and word-wrap math measure against.
+  ///
+  /// Forwards to [TextAreaComponent.measurer], which owns the wrap cache and
+  /// clears it when the measurer changes. The view assigns its layout
+  /// context's measurer here on every frame, so update-time geometry agrees
+  /// with the ruler that painted the last frame. Before the first paint (or
+  /// outside a running app, as in a test) the component's own default applies.
+  TextMeasurer get measurer => textArea.measurer;
+
+  /// Assigns the active measurer; see [TextAreaComponent.measurer].
+  set measurer(TextMeasurer value) => textArea.measurer = value;
 
   /// Placeholder text shown when empty.
   final String placeholder;
@@ -253,7 +264,7 @@ class TextAreaModel implements Component {
     var width = 0;
     var i = 0;
     for (final g in text) {
-      width += widthChars(Characters(g));
+      width += measurer.widthOf(g);
       if (column < width) return i;
       i++;
     }

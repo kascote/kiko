@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:termunicode/termunicode.dart';
 
 import 'text_input_model.dart';
 
@@ -53,6 +52,10 @@ class _TextInputViewport extends Node {
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
     _measurer = context.measurer;
+    // The model does its own cursor/scroll/click geometry during update,
+    // where no layout context reaches it — hand it the same ruler paint
+    // uses so that math never disagrees with what is on screen.
+    model.measurer = context.measurer;
     return constraints.constrain(Size(constraints.maxW ?? 0, constraints.maxH ?? 0));
   }
 
@@ -92,7 +95,7 @@ class _TextInputViewport extends Node {
         width: area.width,
         measurer: _measurer,
       );
-      usedWidth = widthString(m.placeholder).clamp(0, visibleWidth);
+      usedWidth = _measurer.widthOf(m.placeholder).clamp(0, visibleWidth);
       if (m.focused) cursor = Position(area.x, y);
     } else {
       final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
@@ -108,7 +111,7 @@ class _TextInputViewport extends Node {
         measurer: _measurer,
       );
 
-      final totalTextWidth = widthChars(displayText);
+      final totalTextWidth = _measurer.widthOf(displayText.string);
       usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
 
       if (m.focused) {
@@ -122,7 +125,7 @@ class _TextInputViewport extends Node {
       final targetWidth = m.maxLength != null ? m.maxLength!.clamp(0, visibleWidth) : visibleWidth;
       final remainingWidth = targetWidth - usedWidth;
       if (remainingWidth > 0) {
-        final charWidth = widthString(fillChar);
+        final charWidth = _measurer.widthOf(fillChar);
         if (charWidth > 0) {
           final fillCount = remainingWidth ~/ charWidth;
           if (fillCount > 0) {

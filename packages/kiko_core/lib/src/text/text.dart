@@ -1,6 +1,5 @@
 import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
 
 import '../extensions/string.dart';
 import '../plume/aliases.dart';
@@ -38,12 +37,13 @@ class Text implements View {
   /// Resets the style of the Text.
   Text resetStyle() => copyWith(style: _style.patch(const Style.reset()));
 
-  /// Returns the width of the Text in `terminal` characters.
+  /// Returns the width of the Text in cells, as measured by [measurer].
   ///
-  /// `Terminal characters` refers to that some characters could be wider than
-  /// others, like emojis or CJK characters. The width of a character is
-  /// determined by the Unicode standard.
-  int get width => widthString(_content);
+  /// Some characters are wider than others on a terminal — emojis and CJK
+  /// characters commonly render as two cells. [measurer] decides how those
+  /// ambiguous-width characters are counted, so the same content can measure
+  /// differently under different terminal configurations.
+  int width(TextMeasurer measurer) => measurer.widthOf(_content);
 
   /// Returns an iterator over the graphemes held by this text. Each grapheme
   /// is returned as a [StyledChar] with the style of the text.

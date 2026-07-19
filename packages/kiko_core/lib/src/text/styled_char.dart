@@ -1,6 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
-import 'package:termunicode/termunicode.dart';
+import 'package:plume/plume.dart' show TextMeasurer;
 
 import '../style.dart';
 
@@ -24,8 +24,8 @@ class StyledChar {
     return char.string == _zwsp || char.string == ' ' && char.string != _nbsp;
   }
 
-  /// Retruns the character width in terminal characters.
-  int get width => widthChars(char);
+  /// Returns the character width in cells, as measured by [measurer].
+  int width(TextMeasurer measurer) => measurer.widthOf(char.string);
 
   /// Sets the style of the character and returns a new object
   StyledChar setStyle(Style other) => StyledChar(char.string, other);

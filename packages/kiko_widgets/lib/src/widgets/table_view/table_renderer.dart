@@ -1,5 +1,5 @@
+import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
-import 'package:termunicode/termunicode.dart';
 
 import 'table_column.dart';
 import 'table_view_model.dart';
@@ -119,7 +119,7 @@ class TableRenderer {
     var usedWidth = 0;
     final allVisible = model.columns.where((c) => c.visible).toList();
     final scrollCol = model.scrollCol;
-    final sepWidth = model.columnSeparator.width;
+    final sepWidth = model.columnSeparator.width(measurer);
 
     for (var i = scrollCol; i < allVisible.length; i++) {
       final col = allVisible[i];
@@ -138,7 +138,7 @@ class TableRenderer {
     var x = area.x;
     final y = area.y;
     final sep = model.columnSeparator;
-    final sepWidth = sep.width;
+    final sepWidth = sep.width(measurer);
 
     for (var i = 0; i < visibleCols.length; i++) {
       // Render separator before column (except first)
@@ -196,7 +196,7 @@ class TableRenderer {
     var x = area.x;
     final scrollCol = model.scrollCol;
     final sep = model.columnSeparator;
-    final sepWidth = sep.width;
+    final sepWidth = sep.width(measurer);
 
     for (var colIdx = 0; colIdx < visibleCols.length; colIdx++) {
       // Render separator before column (except first)
@@ -293,9 +293,9 @@ class TableRenderer {
 
   /// Truncates a Line to fit within [maxWidth], adding ellipsis if needed.
   Line _truncateLine(Line line, int maxWidth, String ellipsis) {
-    if (line.width <= maxWidth) return line;
+    if (line.width(measurer) <= maxWidth) return line;
 
-    final ellipsisWidth = widthString(ellipsis);
+    final ellipsisWidth = measurer.widthOf(ellipsis);
     final targetWidth = maxWidth - ellipsisWidth;
     if (targetWidth <= 0) {
       return Line(ellipsis.substring(0, maxWidth.clamp(0, ellipsis.length)));
@@ -308,7 +308,7 @@ class TableRenderer {
     for (final text in line.texts) {
       if (remainingWidth <= 0) break;
 
-      final textWidth = text.width;
+      final textWidth = text.width(measurer);
       if (textWidth <= remainingWidth) {
         texts.add(text);
         remainingWidth -= textWidth;
@@ -326,16 +326,19 @@ class TableRenderer {
   }
 
   /// Truncates a text run to fit within [maxWidth].
+  ///
+  /// Walks grapheme clusters rather than codepoints, so a multi-codepoint
+  /// character (an emoji with a skin-tone modifier, a flag) is kept or
+  /// dropped as one unit — truncation never cuts one in half.
   Text? _truncateText(Text text, int maxWidth) {
-    final content = text.content;
     final result = StringBuffer();
     var width = 0;
 
-    for (final char in content.runes) {
-      final charWidth = widthCp(char);
-      if (width + charWidth > maxWidth) break;
-      result.writeCharCode(char);
-      width += charWidth;
+    for (final cluster in text.content.characters) {
+      final clusterWidth = measurer.widthOf(cluster);
+      if (width + clusterWidth > maxWidth) break;
+      result.write(cluster);
+      width += clusterWidth;
     }
 
     final truncated = result.toString();
@@ -345,7 +348,7 @@ class TableRenderer {
 
   /// Aligns line content within [width].
   Line _alignLine(Line line, int width, TextAlign alignment) {
-    final lineWidth = line.width;
+    final lineWidth = line.width(measurer);
     if (lineWidth >= width) return line;
 
     final padding = width - lineWidth;

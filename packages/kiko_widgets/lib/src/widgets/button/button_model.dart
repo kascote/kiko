@@ -72,8 +72,8 @@ class ButtonModel implements Component {
   /// The effective key binding (custom or default).
   KeyBinding<ButtonAction> get effectiveKeyBinding => keyBinding ?? defaultButtonBindings;
 
-  /// Width of the button in terminal characters.
-  int get width => label.width + (padding * 2);
+  /// Width of the button in cells, as measured by [measurer].
+  int width(TextMeasurer measurer) => label.width(measurer) + (padding * 2);
 
   /// Updates the model based on the message.
   ///

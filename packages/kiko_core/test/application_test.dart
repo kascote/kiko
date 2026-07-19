@@ -449,4 +449,95 @@ void main() {
       expect(rc, 2);
     });
   });
+
+  group('the session measurer', () {
+    test('a cjk measurer paints an ambiguous-width run the same way layout sized it', () async {
+      // '°' is ambiguous width: one cell by default, two under a cjk locale.
+      // A cjk Application must widen it identically in layout (so the next
+      // glyph is placed a column over) and in paint (so the buffer marks the
+      // widened cell skipped) — a mismatched measurer between the two is
+      // exactly what used to shift every glyph after an ambiguous one over
+      // by a column.
+      const measurer = TermUnicodeMeasurer(cjk: true);
+      final cjkBackend = TestBackend(size: const TermSize(4, 1), measurer: measurer);
+      late final Buffer painted;
+
+      await runApp(
+        Application(backend: cjkBackend, measurer: measurer),
+        update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+        view: (_, frame) {
+          frame.render(const Row(children: [Text('°'), Text('X')]));
+          painted = frame.buffer;
+        },
+      );
+
+      // Layout and paint agree on the terminal's own buffer: the glyph's
+      // second cell is reserved and skipped, so X lands one column over.
+      expect(painted[(x: 0, y: 0)].symbol, '°');
+      expect(painted[(x: 1, y: 0)].skip, isTrue, reason: 'the second cell of the wide glyph is skipped');
+      expect(painted[(x: 2, y: 0)].symbol, 'X', reason: 'layout reserved two cells, so X lands one column over');
+
+      // And that same placement survives the diff onto the backend screen.
+      expect(cjkBackend.screen[(x: 0, y: 0)].symbol, '°');
+      expect(cjkBackend.screen[(x: 2, y: 0)].symbol, 'X');
+    });
+
+    test('the default measurer places the same run one column earlier than cjk', () async {
+      // Companion to the test above with a plain (non-cjk) Application: '°'
+      // measures one cell here, so X packs right next to it instead of one
+      // column over. Layout and paint agree on that narrower width exactly the
+      // same way they agreed on the wider one — the two configurations are each
+      // internally consistent, just different.
+      final narrowBackend = TestBackend(size: const TermSize(4, 1));
+      late final Buffer painted;
+
+      await runApp(
+        Application(backend: narrowBackend),
+        update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+        view: (_, frame) {
+          frame.render(const Row(children: [Text('°'), Text('X')]));
+          painted = frame.buffer;
+        },
+      );
+
+      expect(painted[(x: 0, y: 0)].symbol, '°');
+      expect(painted[(x: 1, y: 0)].symbol, 'X', reason: 'a single-width glyph reserves only its own cell');
+
+      expect(narrowBackend.screen[(x: 0, y: 0)].symbol, '°');
+      expect(narrowBackend.screen[(x: 1, y: 0)].symbol, 'X');
+    });
+
+    test("clipping a too-narrow box truncates consistently with each measurer's own width", () async {
+      // A one-cell box: the default measurer's one-cell glyph fits and paints;
+      // the cjk measurer's two-cell glyph does not, and plume's clip drops it
+      // whole rather than painting half of it. Same box, same content, two
+      // different (both correct) outcomes — never a torn glyph.
+      Future<Buffer> paintInto(TestBackend testBackend, {required TextMeasurer measurer}) async {
+        late final Buffer painted;
+        await runApp(
+          Application(backend: testBackend, measurer: measurer),
+          update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+          view: (_, frame) {
+            frame.render(const Text('°'));
+            painted = frame.buffer;
+          },
+        );
+        return painted;
+      }
+
+      const narrowMeasurer = TermUnicodeMeasurer();
+      final narrowPainted = await paintInto(
+        TestBackend(size: const TermSize(1, 1)),
+        measurer: narrowMeasurer,
+      );
+      expect(narrowPainted[(x: 0, y: 0)].symbol, '°');
+
+      const cjkMeasurer = TermUnicodeMeasurer(cjk: true);
+      final cjkPainted = await paintInto(
+        TestBackend(size: const TermSize(1, 1), measurer: cjkMeasurer),
+        measurer: cjkMeasurer,
+      );
+      expect(cjkPainted[(x: 0, y: 0)].symbol, ' ', reason: 'the whole two-cell glyph is dropped, not half-painted');
+    });
+  });
 }

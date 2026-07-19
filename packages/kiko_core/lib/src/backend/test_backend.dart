@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:plume/plume.dart' show TextMeasurer;
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../buffer.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../layout/size.dart';
+import '../plume/term_unicode_measurer.dart';
 import 'backend.dart';
 
 /// A [Backend] that renders to memory instead of a terminal.
@@ -34,8 +36,14 @@ class TestBackend implements Backend {
   final _pending = <evt.Event>[];
 
   TermSize _size;
+  final TextMeasurer _measurer;
 
   /// The applied result of every [draw] so far.
+  ///
+  /// Built with the same [TextMeasurer] the paired terminal measures with —
+  /// pass the matching one as [TestBackend.new]'s `measurer` so a wide cell's
+  /// overwrite bookkeeping here agrees with the buffers that produced the
+  /// diffs this screen applies.
   late Buffer screen;
 
   /// The cells the last [draw] was handed.
@@ -110,11 +118,16 @@ class TestBackend implements Backend {
   ColorProfile profile;
 
   /// Creates a backend over a [size]-sized screen, `80x24` by default.
+  ///
+  /// [measurer] should match whatever measurer the paired `Terminal` or
+  /// `Application` is constructed with — see [screen].
   TestBackend({
     TermSize size = const TermSize(80, 24),
     this.profile = ColorProfile.trueColor,
-  }) : _size = size {
-    screen = Buffer.empty(_areaOf(size));
+    TextMeasurer measurer = const TermUnicodeMeasurer(),
+  }) : _size = size,
+       _measurer = measurer {
+    screen = Buffer.empty(_areaOf(size), measurer: measurer);
   }
 
   static Rect _areaOf(TermSize size) => Rect.create(x: 0, y: 0, width: size.width, height: size.height);
@@ -132,7 +145,7 @@ class TestBackend implements Backend {
   /// A `Terminal` notices on its next draw, so this is how a resize is driven.
   void resizeTo(TermSize size) {
     _size = size;
-    screen = Buffer.empty(_areaOf(size));
+    screen = Buffer.empty(_areaOf(size), measurer: _measurer);
   }
 
   /// Applies [cellPos] onto [screen] and records it as [lastDiff].

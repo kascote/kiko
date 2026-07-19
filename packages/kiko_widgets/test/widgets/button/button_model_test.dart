@@ -19,7 +19,7 @@ void main() {
     test('default state', () {
       final button = ButtonModel(id: 'btn', label: Line('Test'));
       expect(button.id, equals('btn'));
-      expect(button.label.width, equals(4));
+      expect(button.label.width(const TermUnicodeMeasurer()), equals(4));
       expect(button.disabled, isFalse);
       expect(button.loading, isFalse);
       expect(button.focused, isFalse);
@@ -28,7 +28,7 @@ void main() {
 
     test('width includes padding', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), padding: 2);
-      expect(button.width, equals(6)); // 2 chars + 2*2 padding
+      expect(button.width(const TermUnicodeMeasurer()), equals(6)); // 2 chars + 2*2 padding
     });
 
     test('copyWith creates modified copy', () {

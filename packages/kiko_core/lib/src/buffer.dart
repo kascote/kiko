@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:characters/characters.dart';
 import 'package:collection/collection.dart';
@@ -37,6 +38,17 @@ class Buffer implements Equality<Buffer> {
   /// to area.width * area.height
   late List<Cell> buf;
 
+  /// Measured symbol width of each cell in [buf], kept parallel to it: same
+  /// length, same index, and always in sync — `_widths[i]` equals
+  /// `measurer.widthOf(buf[i].symbol)` for every index `i`.
+  ///
+  /// `Buffer.operator []=` used to re-measure the cell it was about to
+  /// overwrite just to know how many trailing skip cells to clear. That width
+  /// was already known the moment the cell was written — this sidecar caches
+  /// it so `[]=` can read it back instead of paying `measurer.widthOf` twice
+  /// per write.
+  late Uint8List _widths;
+
   /// The width policy this buffer measures wide cells with.
   ///
   /// A terminal session settles on one ruler for its whole lifetime — see
@@ -51,6 +63,10 @@ class Buffer implements Equality<Buffer> {
       rect.area,
       (idx) => cell != null ? cell.copyWith() : Cell.empty(),
     );
+    // Every cell starts out identical (the fill cell, or the empty cell), so
+    // the fill width only needs measuring once for the whole buffer.
+    final fillWidth = measurer.widthOf(cell?.symbol ?? Cell.empty().symbol);
+    _widths = Uint8List(rect.area)..fillRange(0, rect.area, fillWidth);
   }
 
   /// Returns a Buffer with all cells set to empty
@@ -66,7 +82,9 @@ class Buffer implements Equality<Buffer> {
   /// Since [Cell] is immutable, a shallow copy of the cell list is sufficient.
   /// The copy measures with the same ruler as [other].
   factory Buffer.copyFrom(Buffer other) {
-    return Buffer.empty(other.area, measurer: other.measurer)..buf = List.from(other.buf);
+    return Buffer.empty(other.area, measurer: other.measurer)
+      ..buf = List.from(other.buf)
+      .._widths = Uint8List.fromList(other._widths);
   }
 
   int? _indexOfOpt(Position pos) {
@@ -75,6 +93,17 @@ class Buffer implements Equality<Buffer> {
     final x = pos.x - area.x;
     final y = pos.y - area.y;
     return y * area.width + x;
+  }
+
+  // Recomputes every width from buf and compares it against the sidecar.
+  // Only called from asserts after whole-buffer operations (resize, reset,
+  // merge) — never from the per-cell []= hot path, where it would make a
+  // single write cost quadratic under debug asserts.
+  bool _widthsInSync() {
+    for (var i = 0; i < buf.length; i++) {
+      if (_widths[i] != measurer.widthOf(buf[i].symbol)) return false;
+    }
+    return true;
   }
 
   /// Returns the index in the Buffer for the given global (x, y) coordinates.
@@ -100,7 +129,10 @@ class Buffer implements Equality<Buffer> {
   // cell. The idea is to pay the cost of resetting the skip flag only when
   // update the Cell and avoid the cost on Buffer.diff
   void operator []=(TPoint point, Cell cell) {
-    final oldCellWidth = measurer.widthOf(buf[indexOf(point.x, point.y)].symbol);
+    final idx = indexOf(point.x, point.y);
+    // The old width was recorded in the sidecar the last time this cell's
+    // symbol was set, so there's no need to re-measure it here.
+    final oldCellWidth = _widths[idx];
     final newCellWidth = measurer.widthOf(cell.symbol);
 
     if (oldCellWidth > 1) {
@@ -111,10 +143,18 @@ class Buffer implements Equality<Buffer> {
       }
     }
 
-    buf[indexOf(point.x, point.y)] = cell;
+    buf[idx] = cell;
+    _widths[idx] = newCellWidth;
+    assert(
+      _widths[idx] == measurer.widthOf(buf[idx].symbol),
+      'sidecar width out of sync at $idx',
+    );
     if (newCellWidth > 1) {
       for (var i = 1; i < newCellWidth; i++) {
-        buf[indexOf(point.x + i, point.y)] = buf[indexOf(point.x + i, point.y)].copyWith(char: ' ', skip: false);
+        final trailingIdx = indexOf(point.x + i, point.y);
+        buf[trailingIdx] = buf[trailingIdx].copyWith(char: ' ', skip: false);
+        // The trailing cell's symbol just became a single blank space.
+        _widths[trailingIdx] = 1;
       }
     }
   }
@@ -151,7 +191,11 @@ class Buffer implements Equality<Buffer> {
       (idx) => Cell.empty(),
       growable: false,
     );
+    // Every cell above is a fresh Cell.empty() (width 1), so the sidecar is
+    // simply reallocated to the new length and filled the same way.
+    _widths = Uint8List(area.area)..fillRange(0, area.area, 1);
     this.area = area;
+    assert(_widthsInSync(), 'sidecar out of sync after resize');
   }
 
   /// Reset all cells in the buffer
@@ -159,14 +203,25 @@ class Buffer implements Equality<Buffer> {
     for (var i = 0; i < buf.length; i++) {
       buf[i] = buf[i].reset();
     }
+    // Cell.reset() always yields Cell.empty(), a single space (width 1).
+    _widths.fillRange(0, _widths.length, 1);
+    assert(_widthsInSync(), 'sidecar out of sync after reset');
   }
 
   /// Merge an other buffer into this on
   void merge(Buffer other) {
     final area = this.area.union(other.area);
+    final oldLen = buf.length;
     buf.addAll(
-      List<Cell>.generate(area.area - buf.length, (_) => Cell.empty()),
+      List<Cell>.generate(area.area - oldLen, (_) => Cell.empty()),
     );
+    // The newly appended cells above are all Cell.empty() (width 1); the
+    // sidecar grows the same way, keeping the widths already recorded for
+    // the retained indices.
+    final oldWidths = _widths;
+    _widths = Uint8List(area.area)
+      ..setRange(0, oldLen, oldWidths)
+      ..fillRange(oldLen, area.area, 1);
 
     var size = this.area.area;
     for (var i = size - 1; i >= 0; i--) {
@@ -175,7 +230,9 @@ class Buffer implements Equality<Buffer> {
       final k = (pos.y - area.y) * area.width + pos.x - area.x;
       if (i != k) {
         buf[k] = buf[i].copyWith();
+        _widths[k] = _widths[i];
         buf[i] = buf[i].reset();
+        _widths[i] = 1;
       }
     }
 
@@ -188,9 +245,11 @@ class Buffer implements Equality<Buffer> {
       // new index in content
       final k = (pos.y - area.y) * area.width + pos.x - area.x;
       buf[k] = other.buf[i].copyWith();
+      _widths[k] = other._widths[i];
     }
 
     this.area = area;
+    assert(_widthsInSync(), 'sidecar out of sync after merge');
   }
 
   /// Builds a minimal sequence of coordinates and Cells necessary to update
@@ -306,6 +365,14 @@ class Buffer implements Equality<Buffer> {
   @override
   bool isValidKey(Object? o) => o is Buffer;
   // coverage:ignore-end
+
+  /// Returns a copy of the per-cell width sidecar (see [_widths]).
+  ///
+  /// Exists so consistency tests can check, from the outside, that
+  /// `debugWidths[i] == measurer.widthOf(buf[i].symbol)` holds for every
+  /// index after any sequence of mutations.
+  @visibleForTesting
+  Uint8List get debugWidths => Uint8List.fromList(_widths);
 
   /// Helper function to set the cell at a given position.
   /// Intended to be used as a helper for testing

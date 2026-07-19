@@ -1,13 +1,21 @@
-// Is `widthString` hot on the table render path?
+// Is `widthString` hot on the table render path, and does a session-level
+// cache pay for itself?
 //
 // Ground truth is the *real* production frame: `Frame.render(TableView(...))` —
 // view.build() → paint into a Buffer, including the table renderer's own
 // `_truncateLine`/`_alignLine` width work and the plume paint path.
 //
-// There are two distinct width-measuring call patterns in one frame, and
-// neither is swappable by injecting a measurer (the table body's `paintLine`
-// hardcodes its own `TermUnicodeMeasurer`, ignoring the frame's), so we isolate
-// each at its true per-frame volume and compare to the ground-truth frame:
+// Since the TextMeasurer delivery, the measurer IS injectable end to end:
+// `Buffer.empty(area, measurer: ...)` carries it through `LayoutContext.measurer`
+// (plume layout) into `TableRenderer.measurer` and every `paintLine` call the
+// table body makes — no seam to work around. `FrameBenchmarkMemo` below swaps
+// in a benchmark-local memoizing measurer at buffer construction and re-runs
+// the exact same real frame, which is the headline number this file exists to
+// produce: the real, achievable end-to-end saving, not just an isolated total.
+//
+// There are also two distinct width-measuring call patterns in one frame,
+// isolated here at their true per-frame volume so their raw and cached cost
+// can be checked against each other and against the full-frame numbers:
 //
 //   A. whole-string (kiko truncate/align): widthString(cell) — every label +
 //      cell, measured twice (truncate, then align).
@@ -96,16 +104,39 @@ List<String> frameGraphemes() => [for (final s in frameWholeStrings()) ...s.char
 
 // ── Ground-truth frame benchmark (one real frame per run) ────────────────────
 
+/// A benchmark-local memoizing measurer — the thing the injection seam the
+/// delivery landed makes possible. Wraps a real [TermUnicodeMeasurer] behind a
+/// content-keyed [Map]; nothing like this lives in `lib/`, this is thrown away
+/// with the rest of this file. `measure()`'s own warmup phase (see
+/// `benchmark_harness`'s `measureForImpl`, called with a 100ms floor before the
+/// timed run) fills the memo before any timed frame runs, since the buffer and
+/// this instance are both built once in [FrameBenchmark.setup] and reused for
+/// every call — exactly the "one long-lived session measurer" shape in
+/// production.
+class MemoMeasurer extends TextMeasurer {
+  /// Wraps the given measurer behind a memo.
+  MemoMeasurer([this._inner = const TermUnicodeMeasurer()]);
+  final TextMeasurer _inner;
+
+  /// The memo table. Its size after a run is what a session-long cache would
+  /// hold for this screen — read `.length` once the benchmark is done.
+  final Map<String, int> memo = {};
+
+  @override
+  int widthOf(String text) => memo[text] ??= _inner.widthOf(text);
+}
+
 class FrameBenchmark extends BenchmarkBase {
   final TableViewModel model;
   final Rect area;
+  final TextMeasurer measurer;
   late Buffer buffer;
-  FrameBenchmark(super.name)
+  FrameBenchmark(super.name, {this.measurer = const TermUnicodeMeasurer()})
     : model = buildModel(),
       area = Rect.create(x: 0, y: 0, width: kAreaWidth, height: kAreaHeight);
 
   @override
-  void setup() => buffer = Buffer.empty(area);
+  void setup() => buffer = Buffer.empty(area, measurer: measurer);
 
   @override
   void exercise() => run(); // one frame per measured op
@@ -164,6 +195,8 @@ void main() {
   double bench(BenchmarkBase b) => us[b.name] = b.measure();
 
   final frame = bench(FrameBenchmark('fullFrameReal'));
+  final memoMeasurer = MemoMeasurer();
+  final frameMemo = bench(FrameBenchmark('fullFrameReal (memoized measurer)', measurer: memoMeasurer));
   final wholeRaw = bench(WholeStringBenchmark(cached: false));
   final wholeMemo = bench(WholeStringBenchmark(cached: true));
   final graphRaw = bench(GraphemeBenchmark(cached: false));
@@ -171,6 +204,7 @@ void main() {
 
   final widthRaw = wholeRaw + graphRaw;
   final widthMemo = wholeMemo + graphMemo;
+  final frameSaving = frame - frameMemo;
 
   String u(double v) => '${v.toStringAsFixed(1)}µs';
   String budget(double v) => '${(v / kFrameBudgetUs * 100).toStringAsFixed(3)}% of budget';
@@ -181,13 +215,18 @@ void main() {
   print('''
 
 ════════════════════════════════════════════════════════════════════════
- Table render — is widthString hot?
+ Table render — is widthString hot, and does a session cache pay?
  Scenario: $kAreaWidth×$kAreaHeight, $kCols cols, $kVisibleRows visible rows, real cell data
  60fps frame budget: $kFrameBudgetUsµs
  Per-frame width calls: $wholeCount whole-strings ×2  +  $graphemeCount graphemes ×1
 ────────────────────────────────────────────────────────────────────────
- GROUND TRUTH — one real frame (view→layout→paint):
-   fullFrameReal ............ ${u(frame)}   (${budget(frame)})
+ HEADLINE — real frame, plain measurer vs a benchmark-local memoizing
+ measurer injected at Buffer construction (Frame.render(TableView(...))
+ end to end, nothing isolated or faked):
+   fullFrameReal   plain .... ${u(frame)}   (${budget(frame)})
+   fullFrameReal   memo ..... ${u(frameMemo)}   (${budget(frameMemo)})
+   saving ................... ${u(frameSaving)}   (${frameShare(frameSaving)}, ${budget(frameSaving)})
+   memo table after the run . ${memoMeasurer.memo.length} entries
 
  ISOLATED width work, at true per-frame volume:
    A whole-string  raw ...... ${u(wholeRaw)}   (${budget(wholeRaw)})

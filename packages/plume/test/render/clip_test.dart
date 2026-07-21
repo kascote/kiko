@@ -137,5 +137,18 @@ void main() {
       expect(_lines(surface), ['drawText(0, 0, "字", x)']);
       noOverflow(surface.intents, const Rect(0, 0, 3, 1), measurer: const FakeWideMeasurer());
     });
+
+    test("a wide glyph straddling the clip's left edge is dropped at its boundary", () {
+      final tree = Stack<String>(
+        children: [
+          Positioned<String>(left: -1, top: 0, width: 4, child: Text<String>([const TextRun('字字', 'x')])),
+        ],
+      );
+      final surface = _paint(tree, const Size(3, 1), measurer: const FakeWideMeasurer());
+      // The first 字 sits at columns -1..0, straddling the clip's left edge at
+      // column 0, so it is dropped whole; only the second 字 survives.
+      expect(_lines(surface), ['drawText(1, 0, "字", x)']);
+      noOverflow(surface.intents, const Rect(0, 0, 3, 1), measurer: const FakeWideMeasurer());
+    });
   });
 }

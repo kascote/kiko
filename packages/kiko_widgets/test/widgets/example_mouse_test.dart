@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 import '../../example/mouse_widgets.dart' as widgets;
@@ -39,9 +38,9 @@ Future<_DriveResult> _driveWhenReady<M>({
   required (M, Cmd?) Function(M, Msg, UpdateContext) update,
   required void Function(M, Frame) view,
   required String readyId,
-  required List<Event> Function(HitMap hits) events,
+  required List<void Function(TestBackend)> Function(HitMap hits) events,
 }) async {
-  List<Event>? queue;
+  List<void Function(TestBackend)>? queue;
   var i = 0;
   var idleTicks = 0;
   HitMap? lastPaintedHits;
@@ -60,7 +59,7 @@ Future<_DriveResult> _driveWhenReady<M>({
           return (m, null);
         }
         if (i < queue!.length) {
-          backend.emit(queue![i++]);
+          queue![i++](backend);
           return (m, null);
         }
         if (idleTicks < 2) {
@@ -94,12 +93,10 @@ void main() {
         final table = hits.rectOf('employees')!; // header at row 0, data below
         final list = hits.rectOf('departments')!; // items from row 0
         return [
-          // A press on a table data row: focuses the table, activates the row.
-          MouseEvent(table.x + 1, table.y + 1, MouseButton.down()),
-          MouseEvent(table.x + 1, table.y + 1, MouseButton.up()),
-          // A press on a list item: focus moves to the list, same activation path.
-          MouseEvent(list.x + 1, list.y, MouseButton.down()),
-          MouseEvent(list.x + 1, list.y, MouseButton.up()),
+          // A click on a table data row: focuses the table, activates the row.
+          (b) => b.emitClick(table.x + 1, table.y + 1),
+          // A click on a list item: focus moves to the list, same activation path.
+          (b) => b.emitClick(list.x + 1, list.y),
         ];
       },
     );
@@ -129,8 +126,8 @@ void main() {
         // The wheel addresses the field under it; the field declines, and the
         // app offers it outward to the enclosing scroll view, which scrolls.
         return [
-          MouseEvent(field.x, field.y, MouseButton.wheelDown()),
-          MouseEvent(field.x, field.y, MouseButton.wheelDown()),
+          (b) => b.emitWheel(field.x, field.y, deltaY: 1),
+          (b) => b.emitWheel(field.x, field.y, deltaY: 1),
         ];
       },
     );
@@ -151,7 +148,7 @@ void main() {
         // The frame's own tag — no field involved, no decline to bubble. It
         // routes to the SAME ScrollViewModel as the content area's self-tag.
         final frame = hits.rectOf('form-frame')!;
-        return [MouseEvent(frame.x, frame.y, MouseButton.wheelDown())];
+        return [(b) => b.emitWheel(frame.x, frame.y, deltaY: 1)];
       },
     );
 
@@ -175,7 +172,7 @@ void main() {
         final field = hits.rectOf('field-0')!;
         // Far more than enough notches to hit the bottom, whatever the
         // viewport height turns out to be.
-        return [for (var i = 0; i < 40; i++) MouseEvent(field.x, field.y, MouseButton.wheelDown())];
+        return [for (var i = 0; i < 40; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1)];
       },
     );
 
@@ -200,10 +197,10 @@ void main() {
         final frame = hits.rectOf('form-frame')!;
         return [
           // Scroll all the way to the bottom via the field-decline path...
-          for (var i = 0; i < 40; i++) MouseEvent(field.x, field.y, MouseButton.wheelDown()),
+          for (var i = 0; i < 40; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1),
           // ...then one more notch, straight on the frame: declines, nothing
           // above consumes it, nothing throws.
-          MouseEvent(frame.x, frame.y, MouseButton.wheelDown()),
+          (b) => b.emitWheel(frame.x, frame.y, deltaY: 1),
         ];
       },
     );
@@ -221,7 +218,7 @@ void main() {
       update: form.update,
       view: form.view,
       readyId: 'field-0',
-      events: (_) => [for (var i = 0; i < 7; i++) const KeyEvent(KeyCode.named(KeyCodeName.tab))],
+      events: (_) => [for (var i = 0; i < 7; i++) (b) => b.emitKey('tab')],
     );
 
     expect(model.focus.focused.id, equals('field-7'));
@@ -244,7 +241,7 @@ void main() {
       events: (hits) {
         final field = hits.rectOf('field-0')!;
         // Scroll the still-focused field-0 off the top, without moving focus.
-        return [for (var i = 0; i < 10; i++) MouseEvent(field.x, field.y, MouseButton.wheelDown())];
+        return [for (var i = 0; i < 10; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1)];
       },
     );
 
@@ -267,7 +264,7 @@ void main() {
       readyId: 'field-1',
       events: (hits) {
         final field = hits.rectOf('field-1')!;
-        return [MouseEvent(field.x, field.y, MouseButton.down()), MouseEvent(field.x, field.y, MouseButton.up())];
+        return [(b) => b.emitClick(field.x, field.y)];
       },
     );
 

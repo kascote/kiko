@@ -1,7 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 // The whole wheel path, driven through a real application: a backend delivers a
@@ -33,7 +32,7 @@ List<Map<String, Object?>> rows(int n) => List.generate(n, (i) => {'id': 'r$i', 
 /// `update`), and any [LoadRequest] it emits is collected and returned.
 Future<List<LoadRequest>> _driveWheel(
   TestBackend backend,
-  List<Event> events,
+  List<void Function(TestBackend)> events,
   UpdateResult Function(Msg msg) forward,
   Render<int> view,
 ) async {
@@ -45,7 +44,7 @@ Future<List<LoadRequest>> _driveWheel(
       switch (msg) {
         case FrameTickMsg():
           if (step >= events.length) return (step, const Quit());
-          backend.emit(events[step]);
+          events[step](backend);
           return (step + 1, null);
         case PointerMsg():
           if (forward(msg) case Handled(cmd: final LoadRequest r)) requests.add(r);
@@ -71,7 +70,7 @@ void main() {
 
     final requests = await _driveWheel(
       backend,
-      List.filled(4, MouseEvent(2, 3, MouseButton.wheelDown())),
+      List.filled(4, (b) => b.emitWheel(2, 3, deltaY: 1)),
       list.update,
       (step, frame) => frame.render(
         ListView<String, String>(
@@ -103,7 +102,7 @@ void main() {
 
     final requests = await _driveWheel(
       backend,
-      List.filled(6, MouseEvent(3, 3, MouseButton.wheelDown())),
+      List.filled(6, (b) => b.emitWheel(3, 3, deltaY: 1)),
       table.update,
       (step, frame) => frame.render(TableView(model: table, theme: Theme.dark)),
     );

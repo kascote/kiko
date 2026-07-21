@@ -7,6 +7,7 @@ import '../buffer.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../layout/size.dart';
+import '../mvu/pointer_msg.dart' show PointerButton, PointerMsg;
 import '../plume/term_unicode_measurer.dart';
 import 'backend.dart';
 
@@ -21,9 +22,13 @@ import 'backend.dart';
 /// not merely what was *written*. Assert against [screen] to check the picture,
 /// against [lastDiff] to check the double buffer only redrew what changed.
 ///
-/// Feed the event loop with [emit]. Coordinates are 0-based buffer cells, the
-/// same space as [Rect] and [Position] — a [TestBackend] has no terminal, so it
-/// has nothing to translate.
+/// Feed the event loop with [emitKey], [emitClick], [emitMove], [emitDrag],
+/// [emitWheel], [emitPaste] and [emitFocus] — kiko-vocabulary helpers that
+/// build the matching raw event and hand it to [emit]. [emit] itself stays
+/// available for full-fidelity cases the helpers don't cover (a split
+/// press/release gesture, a key repeat or release). Coordinates are 0-based
+/// buffer cells, the same space as [Rect] and [Position] — a [TestBackend]
+/// has no terminal, so it has nothing to translate.
 ///
 /// ## What it does not do
 ///
@@ -200,6 +205,114 @@ class TestBackend implements Backend {
 
   /// Pushes every event in order. See [emit].
   void emitAll(Iterable<evt.Event> events) => events.forEach(emit);
+
+  /// Emits a key press built from [spec] — the same spec grammar `KeyMsg.key`
+  /// and `KeyBinding` accept (`'q'`, `'ctrl+a'`, `'shift+tab'`).
+  ///
+  /// Parses [spec] through `KeyEvent.fromString`, the exact termparser call
+  /// `KeyBinding` canonicalizes bindings with, so a helper call and a bound
+  /// key can never disagree about what a spec means. This always builds a
+  /// plain press; a repeat or a release (kitty-only) needs raw [emit].
+  void emitKey(String spec) => emit(evt.KeyEvent.fromString(spec));
+
+  /// Emits a full click at cell ([x], [y]): a press immediately followed by a
+  /// release of the same [button], at the same cell.
+  ///
+  /// [x] and [y] are 0-based buffer cells, carried straight through with no
+  /// translation. For a press and release split across separate ticks, or a
+  /// button held down while the pointer travels, use raw [emit].
+  void emitClick(
+    int x,
+    int y, {
+    PointerButton button = PointerButton.left,
+    bool shift = false,
+    bool ctrl = false,
+    bool alt = false,
+  }) {
+    final kind = _mouseButtonKind(button);
+    final mods = _keyModifiers(shift: shift, ctrl: ctrl, alt: alt);
+    emit(evt.MouseEvent(x, y, evt.MouseButton.down(kind), modifiers: mods));
+    emit(evt.MouseEvent(x, y, evt.MouseButton.up(kind), modifiers: mods));
+  }
+
+  /// Emits pointer motion to cell ([x], [y]) with no button held.
+  void emitMove(int x, int y) => emit(evt.MouseEvent(x, y, evt.MouseButton.moved()));
+
+  /// Emits pointer motion to cell ([x], [y]) with [button] held down — a drag.
+  void emitDrag(
+    int x,
+    int y, {
+    PointerButton button = PointerButton.left,
+    bool shift = false,
+    bool ctrl = false,
+    bool alt = false,
+  }) {
+    emit(
+      evt.MouseEvent(
+        x,
+        y,
+        evt.MouseButton.drag(_mouseButtonKind(button)),
+        modifiers: _keyModifiers(shift: shift, ctrl: ctrl, alt: alt),
+      ),
+    );
+  }
+
+  /// Emits [deltaY] vertical and [deltaX] horizontal wheel notches at cell
+  /// ([x], [y]).
+  ///
+  /// Sign follows [PointerMsg.wheelDeltaY]/[PointerMsg.wheelDeltaX]: positive
+  /// [deltaY] is wheel-down, negative is wheel-up; positive [deltaX] is
+  /// wheel-right, negative is wheel-left. Magnitude is how many notch events
+  /// go out — `emitWheel(x, y, deltaY: 3)` emits three wheel-down events, one
+  /// per notch, since the router never coalesces the wheel. At least one of
+  /// [deltaX]/[deltaY] must be non-zero.
+  void emitWheel(
+    int x,
+    int y, {
+    int deltaX = 0,
+    int deltaY = 0,
+    bool shift = false,
+    bool ctrl = false,
+    bool alt = false,
+  }) {
+    assert(deltaX != 0 || deltaY != 0, 'emitWheel needs a non-zero deltaX or deltaY');
+    final mods = _keyModifiers(shift: shift, ctrl: ctrl, alt: alt);
+    final vertical = deltaY >= 0 ? evt.MouseButton.wheelDown() : evt.MouseButton.wheelUp();
+    for (var i = 0; i < deltaY.abs(); i++) {
+      emit(evt.MouseEvent(x, y, vertical, modifiers: mods));
+    }
+    final horizontal = deltaX >= 0 ? evt.MouseButton.wheelRight() : evt.MouseButton.wheelLeft();
+    for (var i = 0; i < deltaX.abs(); i++) {
+      emit(evt.MouseEvent(x, y, horizontal, modifiers: mods));
+    }
+  }
+
+  /// Emits a paste of [text].
+  void emitPaste(String text) => emit(evt.PasteEvent(text));
+
+  /// Emits a change in terminal focus: [hasFocus] true when it was gained,
+  /// false when it was lost.
+  void emitFocus({required bool hasFocus}) => emit(evt.FocusEvent(hasFocus: hasFocus));
+
+  /// Maps kiko's [PointerButton] to termparser's button kind — the same
+  /// vocabulary [PointerButton.none] carries a bare `MouseButton.down()`
+  /// under, with no button of its own.
+  static evt.MouseButtonKind _mouseButtonKind(PointerButton button) => switch (button) {
+    PointerButton.none => evt.MouseButtonKind.none,
+    PointerButton.left => evt.MouseButtonKind.left,
+    PointerButton.middle => evt.MouseButtonKind.middle,
+    PointerButton.right => evt.MouseButtonKind.right,
+  };
+
+  /// Builds a termparser modifier set from the three plain booleans every
+  /// emit helper takes, the same booleans `pointerFieldsFrom` reads back out.
+  static evt.KeyModifiers _keyModifiers({required bool shift, required bool ctrl, required bool alt}) {
+    var mods = evt.KeyModifiers.none;
+    if (shift) mods |= evt.KeyModifiers.shift;
+    if (ctrl) mods |= evt.KeyModifiers.ctrl;
+    if (alt) mods |= evt.KeyModifiers.alt;
+    return mods;
+  }
 
   @override
   evt.Event? poll<E extends evt.Event>() {

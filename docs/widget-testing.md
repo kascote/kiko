@@ -250,25 +250,24 @@ test('a resize is picked up on the next draw', () async {
 `run()` drains messages, renders frames, restores the terminal, and completes
 with the exit code — the framework never calls `exit()`.
 
-Input is driven with `emit(event)`, which feeds the backend's event stream the
-raw `termparser` events a terminal would produce — `KeyEvent`, `MouseEvent`,
-`WindowResizeEvent`. The runtime turns them into the same `KeyMsg`,
-`PointerMsg` and `ResizeMsg` a real session delivers. This is the only level
-where `termparser` appears in a downstream package, because here the test is
-standing in for the terminal — model-level tests build `PointerMsg` from kiko
-values alone. A convenient place to emit is the `InitMsg` turn, which
+Input is driven with `TestBackend`'s emit helpers — `emitKey`, `emitClick`,
+`emitMove`, `emitDrag`, `emitWheel`, `emitPaste`, `emitFocus` — kiko
+vocabulary in, kiko vocabulary out. `emitKey` takes the same spec strings
+`KeyMsg.key` and `KeyBinding` use (`'q'`, `'ctrl+a'`, `'shift+tab'`); the
+pointer helpers take 0-based buffer cells and the same `PointerButton` and
+modifier booleans `PointerMsg` carries. None of this needs a `termparser`
+import — the helpers build the matching raw event internally and hand it to
+the backend. A convenient place to emit is the `InitMsg` turn, which
 guarantees the loop is listening:
 
 ```dart
-import 'package:termparser/termparser_events.dart';
-
 test('a key event reaches update and quits the app', () async {
   final backend = TestBackend(size: const TermSize(20, 2));
 
   final code = await Application(backend: backend).run<int>(
     init: 0,
     update: (model, msg, _) {
-      if (msg is InitMsg) backend.emit(const KeyEvent(KeyCode.char('q')));
+      if (msg is InitMsg) backend.emitKey('q');
       if (msg case KeyMsg(key: 'q')) return (model, const Quit(3));
       return (model, null);
     },
@@ -298,8 +297,8 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
       switch (msg) {
         case InitMsg():
           backend
-            ..emit(const KeyEvent(KeyCode.char('h')))
-            ..emit(const KeyEvent(KeyCode.char('i')));
+            ..emitKey('h')
+            ..emitKey('i');
           return (model, null);
         case FrameTickMsg():
           // The keys are processed before the first tick, so that tick's
@@ -318,6 +317,45 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
 
   expect(input.value, 'hi');
   expect(screenText(backend.screen), 'hi\n');
+});
+```
+
+The runtime turns whatever a helper emits into the same `KeyMsg`, `PointerMsg`,
+`PasteMsg` and `FocusMsg` a real session delivers — model-level tests build
+those directly from kiko values, and this level drives them the long way, from
+the event a terminal would have sent.
+
+### The escape hatch: raw `emit`
+
+The helpers cover a click (a paired press/release), a drag, a wheel notch, a
+paste, a focus change, and a plain key press. What they cannot build — a
+key repeat, a key release, or a press and release split across separate
+ticks — still goes through `emit(event)`, which takes a raw `termparser`
+event (`KeyEvent`, `MouseEvent`, `PasteEvent`, `FocusEvent`,
+`WindowResizeEvent`) and feeds it to the backend untranslated. Reach for it
+only when full fidelity matters; it needs `termparser` as an import, so a
+package that never needs it — `kiko_widgets`' suites among them — carries no
+`termparser` dependency at all:
+
+```dart
+import 'package:termparser/termparser_events.dart';
+
+test('a key release reaches update — no helper builds one', () async {
+  final backend = TestBackend(size: const TermSize(10, 1));
+
+  final code = await Application(backend: backend).run<int>(
+    init: 0,
+    update: (model, msg, _) {
+      if (msg is InitMsg) {
+        backend.emit(const KeyEvent(KeyCode.char('a'), eventType: KeyEventType.keyRelease));
+      }
+      if (msg is KeyReleaseMsg) return (model, const Quit(1));
+      return (model, null);
+    },
+    view: (model, frame) => frame.render(Line('release test')),
+  );
+
+  expect(code, 1);
 });
 ```
 

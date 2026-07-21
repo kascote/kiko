@@ -4,7 +4,6 @@ import 'package:characters/characters.dart';
 import 'package:plume/plume.dart' as plume;
 
 import '../buffer.dart';
-import '../cell.dart';
 import '../layout/position.dart';
 import '../style.dart';
 import 'paint_token.dart';
@@ -114,12 +113,9 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
         cx = nextX;
         continue;
       }
+      // Buffer.operator []= marks the cells this glyph spans skipped on its
+      // own, so there is nothing left to do here beyond writing it.
       _buffer[(x: cx, y: y)] = _buffer[(x: cx, y: y)].setCell(char: cluster, style: style);
-      // A wide glyph hides the cells it spans: mark them skipped so the buffer
-      // diff leaves them alone rather than emitting a space over the glyph.
-      for (var i = cx + 1; i < nextX; i++) {
-        _buffer[(x: i, y: y)] = const Cell(skip: true);
-      }
       cx = nextX;
     }
   }

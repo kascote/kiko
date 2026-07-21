@@ -57,10 +57,10 @@ class Cell {
 
   /// Helper function to update the char and style
   ///
-  /// Note: This resets `skip` to false. When writing actual content to a cell,
-  /// it should never be skipped in buffer diff - only overflow cells from wide
-  /// characters should have skip=true. This is done on the render phase.
-  /// Check the Text.render method for reference.
+  /// Note: This resets `skip` to false. When writing actual content to a
+  /// cell, it should never be skipped in buffer diff — only the trailing
+  /// cells of a wide glyph carry skip=true, and `Buffer.operator []=` is what
+  /// sets that flag when it writes the glyph.
   Cell setCell({String? char, Style style = const Style()}) {
     return copyWith(
       char: char,

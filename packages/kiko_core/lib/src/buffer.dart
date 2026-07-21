@@ -123,17 +123,20 @@ class Buffer implements Equality<Buffer> {
 
   /// Array access operator to set the cell at a given [Position]
   //
-  // Text.render will set Cell.skip = true, when
-  // rendering a wide character. This is to prevent the next cell from being
-  // rendered. This is why we need to reset the skip flag when setting a new
-  // cell. The idea is to pay the cost of resetting the skip flag only when
-  // update the Cell and avoid the cost on Buffer.diff
+  // A single write always leaves the buffer well-formed: writing a wide
+  // glyph marks its own trailing cells skip, and overwriting a cell that used
+  // to be wide clears the stale skip its old trailing cells were left with.
+  // No caller needs a follow-up pass to fix up trailing cells.
+  //
+  // A wide glyph that would not fit whole inside the row — its starting
+  // column plus its width spills past the row's last column — is written as
+  // a single blank cell instead, keeping the write's original style.
   void operator []=(TPoint point, Cell cell) {
     final idx = indexOf(point.x, point.y);
     // The old width was recorded in the sidecar the last time this cell's
     // symbol was set, so there's no need to re-measure it here.
     final oldCellWidth = _widths[idx];
-    final newCellWidth = measurer.widthOf(cell.symbol);
+    var newCellWidth = measurer.widthOf(cell.symbol);
 
     if (oldCellWidth > 1) {
       // If the old cell is a wide character, we need to remove the skip flag
@@ -143,7 +146,15 @@ class Buffer implements Equality<Buffer> {
       }
     }
 
-    buf[idx] = cell;
+    var newCell = cell;
+    if (newCellWidth > 1 && point.x + newCellWidth > area.x + area.width) {
+      // The glyph cannot fit whole inside the row: clip it to a blank cell
+      // rather than writing trailing cells past the row's last column.
+      newCell = cell.copyWith(char: ' ', skip: false);
+      newCellWidth = 1;
+    }
+
+    buf[idx] = newCell;
     _widths[idx] = newCellWidth;
     assert(
       _widths[idx] == measurer.widthOf(buf[idx].symbol),
@@ -152,7 +163,7 @@ class Buffer implements Equality<Buffer> {
     if (newCellWidth > 1) {
       for (var i = 1; i < newCellWidth; i++) {
         final trailingIdx = indexOf(point.x + i, point.y);
-        buf[trailingIdx] = buf[trailingIdx].copyWith(char: ' ', skip: false);
+        buf[trailingIdx] = buf[trailingIdx].copyWith(char: ' ', skip: true);
         // The trailing cell's symbol just became a single blank space.
         _widths[trailingIdx] = 1;
       }
@@ -255,8 +266,10 @@ class Buffer implements Equality<Buffer> {
   /// Builds a minimal sequence of coordinates and Cells necessary to update
   /// the UI from self to other.
   ///
-  /// We're assuming that buffers are well-formed, that is no double-width cell
-  /// is followed by a non-blank cell.
+  /// Assumes both buffers are well-formed: no wide cell is ever followed by a
+  /// non-blank, non-skipped cell. Every write goes through
+  /// `Buffer.operator []=`, which guarantees this for the cell it writes, so
+  /// a buffer built entirely through it always satisfies the assumption.
   Iterable<CellPos> diff(Buffer other) sync* {
     final previousBuffer = buf;
     final nextBuffer = other.buf;
@@ -387,12 +400,6 @@ class Buffer implements Equality<Buffer> {
       char: char,
       style: style ?? const Style(),
     );
-    final charWidth = measurer.widthOf(char);
-    if (charWidth > 1) {
-      for (var i = 1; i < charWidth; i++) {
-        this[(x: x + i, y: y)] = const Cell(skip: true);
-      }
-    }
   }
 
   /// Build a Buffer from a list of string lines

@@ -78,12 +78,11 @@ void main() {
       expect(buf.debugWidths[buf.indexOf(0, 2)], 2);
     });
 
-    // These four tests set up their wide glyph through `setCellAtPos`, which
-    // is what every real caller does (`Text.render`, `Buffer.fromStringLines`):
-    // it writes the glyph, then makes a *second* `[]=` call that marks the
-    // trailing cell `skip: true`. A bare `buf[pos] = Cell(char: wideGlyph)`
-    // does not set that flag by itself — it only blanks the trailing cell
-    // (`skip: false`), leaving the mark to whoever paints on top of `[]=`.
+    // These four tests set up their wide glyph through `setCellAtPos`, a thin
+    // `[]=` wrapper every real caller reaches the same way (`Buffer.fromLines`,
+    // `Buffer.fromStringLines`). `[]=` marks the glyph's trailing cell
+    // `skip: true` on its own — a bare `buf[pos] = Cell(char: wideGlyph)` does
+    // the same, with no second call needed.
     test('writing a wide glyph sets skip and a sidecar entry of 1 on the trailing cell', () {
       final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1))..setCellAtPos(x: 0, y: 0, char: '你');
 

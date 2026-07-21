@@ -459,10 +459,12 @@ Buffer {
 
       // Write wide char at position 0 (occupies cells 0 and 1)
       buf[(x: 0, y: 0)] = const Cell(char: '称');
-      // Cell 1 should be marked as skip by buffer's []= operator
-      expect(buf[(x: 1, y: 0)].skip, false, reason: 'Buffer []= should clear skip on overflow cells');
+      // Cell 1 is the wide char's trailing cell, and must come out skipped so
+      // a diff never paints a blank over the glyph's right half.
+      expect(buf[(x: 1, y: 0)].skip, true, reason: 'Buffer []= marks the trailing cell of a wide write skip');
 
-      // Now overwrite with narrow chars using setCell (as Text.render does)
+      // Now overwrite with narrow chars, the way painting new content over
+      // previously wide content does
       buf[(x: 0, y: 0)] = buf[(x: 0, y: 0)].setCell(char: 'a');
       buf[(x: 1, y: 0)] = buf[(x: 1, y: 0)].setCell(char: 'b');
 
@@ -627,6 +629,53 @@ Buffer {
       expect(diff[0].cell.symbol, '称');
       expect(diff[1].x, 2);
       expect(diff[1].cell.symbol, '号');
+    });
+  });
+
+  group('bare []= wide glyph writes stay well-formed', () {
+    test('a bare wide write leaves no diff entry for the trailing cell', () {
+      final prev = Buffer.fromStringLines(['abcd']);
+      final next = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
+
+      next[(x: 0, y: 0)] = const Cell(char: '你');
+      next[(x: 2, y: 0)] = const Cell(char: 'x');
+      next[(x: 3, y: 0)] = const Cell(char: 'y');
+
+      final diff = prev.diff(next).toList();
+
+      expect(
+        diff.map((d) => d.x).toList(),
+        [0, 2, 3],
+        reason: 'the trailing cell (x: 1) must not appear — it would paint a blank over the glyph',
+      );
+    });
+
+    test('a wide glyph written in the last column is clipped to a blank instead of throwing', () {
+      final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 3, height: 1));
+
+      expect(
+        () => buf[(x: 2, y: 0)] = const Cell(char: '🦀', fg: Color.red),
+        returnsNormally,
+      );
+
+      expect(buf[(x: 2, y: 0)].symbol, ' ');
+      expect(buf[(x: 2, y: 0)].fg, Color.red, reason: 'the clipped cell keeps the style it was written with');
+      expect(buf[(x: 2, y: 0)].skip, false);
+      expect(buf.debugWidths[buf.indexOf(2, 0)], 1);
+
+      final diff = Buffer.empty(buf.area).diff(buf).toList();
+      expect(diff, [(x: 2, y: 0, cell: buf[(x: 2, y: 0)])]);
+    });
+
+    test('a wide glyph that exactly ends at the last column writes normally', () {
+      final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
+
+      buf[(x: 2, y: 0)] = const Cell(char: '你');
+
+      expect(buf[(x: 2, y: 0)].symbol, '你');
+      expect(buf[(x: 2, y: 0)].skip, false);
+      expect(buf[(x: 3, y: 0)].skip, true, reason: 'the glyph fits, so its trailing cell is skip-marked as usual');
+      expect(buf.debugWidths[buf.indexOf(3, 0)], 1);
     });
   });
 }

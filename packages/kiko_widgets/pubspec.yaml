@@ -15,12 +15,12 @@ dependencies:
   kiko: ^0.0.1
   meta: ^1.16.0
   plume: ^0.0.1
-  termparser: ^0.3.0
   termunicode: ^0.1.0
 
 dev_dependencies:
   benchmark_harness: ^2.3.1
   coverage: ^1.11.0
   lints: ^6.0.0
+  termparser: ^0.3.0
   test: ^1.24.0
   very_good_analysis: ^10.0.0

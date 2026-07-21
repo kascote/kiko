@@ -150,6 +150,10 @@ rules that must survive any edit:
   `Rect`/`Buffer`/`Position`. `local = global - targetRect.topLeft`. `local.x` is a display
   **column**, not a grapheme index; map column→grapheme with the session measurer (see
   "Text measurement" above), never a bare termunicode call.
+- **No termparser type crosses into any `Msg`.** `PointerMsg`, `FocusMsg` and `PasteMsg`
+  store kiko's own `PointerButton`/`PointerAction`/plain fields, mapped from the terminal
+  event exactly once at intake (`mouse_router.dart`'s `pointerFieldsFrom`, `msg.dart`'s
+  `eventToMsg`) — nothing downstream imports termparser to read one.
 - **`HitMap` (`src/widgets/hit_map.dart`) is the only hit-testing type**: `hitId`, `rectOf`,
   `hitPath`. Which frame a map describes is carried by which map you hold: `frame.hits` =
   the frame being painted (use in `view`); `ctx.hits` = the committed frame the event saw

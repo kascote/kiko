@@ -1,17 +1,16 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
 /// A routed wheel/button message over the widget, at local (0, 0).
-PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
 /// A routed button/move message at a given local cell.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
-    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
+    PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
 
 /// [count] leaf roots, enough to fill more than one viewport.
 List<TreeNode<String>> leaves(int count) =>
@@ -42,7 +41,7 @@ void main() {
     test('a wheel notch scrolls an unfocused tree without moving the cursor', () {
       final model = modelWith(leaves(20), focused: false, visibleCount: 5);
 
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(
         result,
@@ -76,31 +75,31 @@ void main() {
     test('a horizontal wheel and a click past the last node are declined', () {
       final model = modelWith(leaves(10), visibleCount: 4);
 
-      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>(), reason: 'no node under the click');
+      expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.down, y: 20)), isA<Declined>(), reason: 'no node under the click');
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
     });
 
     group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
       test('at the top, wheel-up declines while wheel-down handles', () {
         final model = modelWith(leaves(10), visibleCount: 5);
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
         expect(model.scrollOffset, equals(0), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
       });
 
       test('at the bottom, wheel-down declines while wheel-up handles', () {
         final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(100); // pin to the bottom edge
         final atBottom = model.scrollOffset;
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
         expect(model.scrollOffset, equals(atBottom), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
 
       test('content that fits entirely declines both directions', () {
         final model = modelWith(leaves(3), visibleCount: 5);
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
       });
 
       test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
@@ -109,15 +108,15 @@ void main() {
         final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(4);
         expect(model.scrollOffset, equals(4));
 
-        final result = model.update(pointer(MouseButton.wheelDown()));
+        final result = model.update(pointer(PointerAction.wheelDown));
         expect(result, isA<Handled>());
         expect(model.scrollOffset, equals(5), reason: 'moved the 1 remaining row');
       });
 
       test('mid-content, both directions handle', () {
         final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(2);
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
     });
   });
@@ -137,7 +136,7 @@ void main() {
       final model = tree();
 
       // Column 4 on row 1 is well past the leaf's two-space indent — the body.
-      final down = model.update(pointerAt(MouseButton.down(), x: 4, y: 1));
+      final down = model.update(pointerAt(PointerAction.down, x: 4, y: 1));
 
       expect(
         down,
@@ -150,7 +149,7 @@ void main() {
       final model = tree();
 
       // Column 0 on row 0 is the branch's expand arrow.
-      final down = model.update(pointer(MouseButton.down()));
+      final down = model.update(pointer(PointerAction.down));
 
       expect(model.isExpanded('/A'), isTrue, reason: 'the indicator click expanded the node');
       expect(
@@ -160,7 +159,7 @@ void main() {
       );
 
       // A second indicator click collapses it, emitting a collapse event.
-      final again = model.update(pointer(MouseButton.down()));
+      final again = model.update(pointer(PointerAction.down));
       expect(model.isExpanded('/A'), isFalse);
       expect(
         again,
@@ -169,20 +168,20 @@ void main() {
     });
 
     test('a click past the last node is declined', () {
-      expect(tree().update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>());
+      expect(tree().update(pointerAt(PointerAction.down, y: 20)), isA<Declined>());
     });
 
     test('a click activates on an unfocused tree', () {
-      final model = tree(focused: false)..update(pointerAt(MouseButton.down(), x: 4, y: 2));
+      final model = tree(focused: false)..update(pointerAt(PointerAction.down, x: 4, y: 2));
 
       expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
     });
 
     test('a pointer sets the hover row; a leave clears it', () {
-      final model = tree()..update(pointerAt(MouseButton.moved(), y: 2));
+      final model = tree()..update(pointerAt(PointerAction.move, y: 2));
       expect(model.hoverRow, equals(2));
 
-      model.update(pointerAt(MouseButton.moved(), y: 20));
+      model.update(pointerAt(PointerAction.move, y: 20));
       expect(model.hoverRow, isNull, reason: 'a move past the last node clears the hover');
 
       model.update(const PointerLeaveMsg('nav'));

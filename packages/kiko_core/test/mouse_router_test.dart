@@ -64,18 +64,26 @@ void main() {
       expect(p.inside, isFalse, reason: 'there is nothing to be inside of');
     });
 
-    test('keeps the raw event whole, modifiers and all', () {
+    test('carries the event’s button, action and modifiers in kiko’s own vocabulary', () {
       final event = MouseEvent(5, 1, _down(), modifiers: KeyModifiers.shift);
 
       final p = _only(router.route(RawPointerMsg(event, hits), hits));
 
-      expect(p.mouse, same(event));
-      expect(p.modifiers.has(KeyModifiers.shift), isTrue);
-      expect(p.action, MouseButtonAction.down);
+      expect(p.button, PointerButton.left);
+      expect(p.action, PointerAction.down);
+      expect(p.shift, isTrue);
+      expect(p.ctrl, isFalse);
+      expect(p.alt, isFalse);
     });
 
     test('a message that was already routed passes straight through', () {
-      final routed = PointerMsg(MouseEvent(0, 0, _down()), local: Position.origin, targetId: 'left');
+      const routed = PointerMsg(
+        global: Position.origin,
+        action: PointerAction.down,
+        button: PointerButton.left,
+        local: Position.origin,
+        targetId: 'left',
+      );
 
       expect(router.route(routed, hits), [same(routed)]);
       expect(router.hoverId, isNull, reason: 'a re-emitted event does not re-run the router');
@@ -194,25 +202,25 @@ void main() {
     test('losing terminal focus ends the gesture, the hover, and then reports itself', () {
       router.route(_at(1, 1, _down(), hits), hits);
 
-      final msgs = router.route(const FocusMsg(FocusEvent(hasFocus: false)), hits);
+      final msgs = router.route(const FocusMsg(hasFocus: false), hits);
 
       expect(msgs, [
         const PointerCancelMsg('left'),
         const PointerLeaveMsg('left'),
-        const FocusMsg(FocusEvent(hasFocus: false)),
+        const FocusMsg(hasFocus: false),
       ]);
       expect(router.capturing, isFalse);
       expect(router.hoverId, isNull);
     });
 
     test('regaining focus reports itself and nothing else', () {
-      expect(router.route(const FocusMsg(FocusEvent()), hits), [const FocusMsg(FocusEvent())]);
+      expect(router.route(const FocusMsg(hasFocus: true), hits), [const FocusMsg(hasFocus: true)]);
     });
 
     test('a gesture on the background is cancelled too, with a null target', () {
       router.route(_at(1, 2, _down(), hits), hits);
 
-      final msgs = router.route(const FocusMsg(FocusEvent(hasFocus: false)), hits);
+      final msgs = router.route(const FocusMsg(hasFocus: false), hits);
 
       expect(msgs.first, const PointerCancelMsg(null));
     });
@@ -270,7 +278,9 @@ void main() {
 
       expect(msgs, [
         PointerMsg(
-          MouseEvent(5, 1, _up()),
+          global: const Position(5, 1),
+          action: PointerAction.up,
+          button: PointerButton.left,
           targetId: 'left',
           local: const Position(5, 1),
           targetRect: Rect.create(x: 0, y: 0, width: 4, height: 2),
@@ -329,13 +339,13 @@ void main() {
       final routed = actions.map((b) => _only(router.route(_at(1, 1, b, hits), hits))).toList();
 
       expect(routed.map((p) => p.action), [
-        MouseButtonAction.wheelUp,
-        MouseButtonAction.wheelDown,
-        MouseButtonAction.wheelLeft,
-        MouseButtonAction.wheelRight,
+        PointerAction.wheelUp,
+        PointerAction.wheelDown,
+        PointerAction.wheelLeft,
+        PointerAction.wheelRight,
       ]);
       expect(routed.every((p) => p.isWheel && p.targetId == 'left'), isTrue);
-      expect(routed.every((p) => p.button.button == MouseButtonKind.none), isTrue, reason: 'wheel carries no button');
+      expect(routed.every((p) => p.button == PointerButton.none), isTrue, reason: 'wheel carries no button');
     });
   });
 
@@ -345,10 +355,16 @@ void main() {
       var background = 0;
 
       final traffic = <Msg>[
-        PointerMsg(MouseEvent(1, 1, _down()), local: const Position(1, 1), targetId: 'left'),
+        const PointerMsg(
+          global: Position(1, 1),
+          action: PointerAction.down,
+          button: PointerButton.left,
+          local: Position(1, 1),
+          targetId: 'left',
+        ),
         const PointerLeaveMsg('left'),
         const PointerCancelMsg('left'),
-        PointerMsg(MouseEvent(8, 2, _move()), local: const Position(8, 2)),
+        const PointerMsg(global: Position(8, 2), action: PointerAction.move, local: Position(8, 2)),
       ];
 
       for (final msg in traffic) {

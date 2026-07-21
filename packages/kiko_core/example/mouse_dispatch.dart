@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:kiko/kiko.dart';
-import 'package:termparser/termparser_events.dart' as evt;
 
 // ═══════════════════════════════════════════════════════════
 // Pointer dispatch, hand-rolled — the primitive `FocusRouter` packages.
@@ -177,8 +176,7 @@ class AppModel {
 
     // A domain case, layered over the generic line rather than replacing it: a
     // right-click resets a menu, and the menu never learns it happened.
-    case PointerMsg(targetId: final id?, isDown: true, :final button)
-        when button.button == evt.MouseButtonKind.right && model.targets.containsKey(id):
+    case PointerMsg(targetId: final id?, isDown: true, button: PointerButton.right) when model.targets.containsKey(id):
       model.menu(id).cursor = 0;
       model.note('$id reset');
       return (model, null);

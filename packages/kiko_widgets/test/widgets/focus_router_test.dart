@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -37,21 +36,27 @@ class _FakeComponent implements Component {
 }
 
 PointerMsg _pressAt(int x, int y, {String? targetId, bool captured = false}) => PointerMsg(
-  MouseEvent(x, y, MouseButton.down()),
+  global: Position(x, y),
+  action: PointerAction.down,
   targetId: targetId,
   local: Position.origin,
   captured: captured,
 );
 
 PointerMsg _dragAt(int x, int y, {String? targetId, bool captured = false}) => PointerMsg(
-  MouseEvent(x, y, MouseButton.drag()),
+  global: Position(x, y),
+  action: PointerAction.drag,
   targetId: targetId,
   local: Position.origin,
   captured: captured,
 );
 
-PointerMsg _wheelAt(int x, int y, {String? targetId}) =>
-    PointerMsg(MouseEvent(x, y, MouseButton.wheelDown()), targetId: targetId, local: Position.origin);
+PointerMsg _wheelAt(int x, int y, {String? targetId}) => PointerMsg(
+  global: Position(x, y),
+  action: PointerAction.wheelDown,
+  targetId: targetId,
+  local: Position.origin,
+);
 
 /// A message the router has never heard of, used to prove it forwards what
 /// it does not recognize to the focused member and hands back the verdict —
@@ -425,7 +430,7 @@ void main() {
       final editor = _FakeComponent('editor', (_) => const Handled());
       final other = _FakeComponent('other', (_) => const Declined());
       final router = FocusRouter(FocusGroup<Component>([editor, other]));
-      const paste = PasteMsg(PasteEvent('select 1;'));
+      const paste = PasteMsg('select 1;');
 
       final result = router.route(paste, _ctx());
 
@@ -459,7 +464,7 @@ void main() {
       final editor = TextAreaModel(id: 'editor', focused: true);
       final router = FocusRouter(FocusGroup<Component>([editor]));
 
-      final result = router.route(const PasteMsg(PasteEvent('select 1;')), _ctx());
+      final result = router.route(const PasteMsg('select 1;'), _ctx());
 
       expect(result, isA<Handled>());
       expect(editor.value, contains('select 1;'));

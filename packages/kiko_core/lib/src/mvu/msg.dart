@@ -229,39 +229,39 @@ class RawPointerMsg extends Msg {
 /// Wrapper for focus events.
 @immutable
 class FocusMsg extends Msg {
-  /// The underlying focus event.
-  final evt.FocusEvent focus;
-
-  /// Creates a FocusMsg from a FocusEvent.
-  const FocusMsg(this.focus);
-
   /// Whether the terminal has focus.
-  bool get hasFocus => focus.hasFocus;
+  final bool hasFocus;
+
+  /// Creates a FocusMsg.
+  const FocusMsg({required this.hasFocus});
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is FocusMsg && focus == other.focus;
+  bool operator ==(Object other) => identical(this, other) || other is FocusMsg && hasFocus == other.hasFocus;
 
   @override
-  int get hashCode => focus.hashCode;
+  int get hashCode => hasFocus.hashCode;
+
+  @override
+  String toString() => 'FocusMsg(hasFocus: $hasFocus)';
 }
 
 /// Wrapper for paste events.
 @immutable
 class PasteMsg extends Msg {
-  /// The underlying paste event.
-  final evt.PasteEvent paste;
-
-  /// Creates a PasteMsg from a PasteEvent.
-  const PasteMsg(this.paste);
-
   /// The pasted text.
-  String get text => paste.text;
+  final String text;
+
+  /// Creates a PasteMsg.
+  const PasteMsg(this.text);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is PasteMsg && paste == other.paste;
+  bool operator ==(Object other) => identical(this, other) || other is PasteMsg && text == other.text;
 
   @override
-  int get hashCode => paste.hashCode;
+  int get hashCode => text.hashCode;
+
+  @override
+  String toString() => 'PasteMsg($text)';
 }
 
 /// Message sent when event polling times out (no input).
@@ -393,8 +393,8 @@ Msg? eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
   return switch (event) {
     final evt.KeyEvent e => _keyEventToMsg(e),
     final evt.MouseEvent e => RawPointerMsg(e, hits),
-    final evt.FocusEvent e => FocusMsg(e),
-    final evt.PasteEvent e => PasteMsg(e),
+    final evt.FocusEvent e => FocusMsg(hasFocus: e.hasFocus),
+    final evt.PasteEvent e => PasteMsg(e.text),
     evt.NoneEvent() => const NoneMsg(),
     final evt.WindowResizeEvent e => ResizeMsg(
       width: e.widthChars,

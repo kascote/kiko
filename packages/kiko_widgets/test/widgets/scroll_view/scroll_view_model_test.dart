@@ -1,13 +1,12 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
 /// A routed wheel/button message over the widget, at local (0, 0).
-PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
 /// A model with [viewportRows] of [contentRows] installed, as the view's
 /// measurement callback would push in after a real frame.
@@ -43,7 +42,7 @@ void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused view', () {
       final model = scrollable();
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>());
       expect(model.scrollOffset, equals(3), reason: 'one notch is three rows');
@@ -75,30 +74,30 @@ void main() {
 
     test('a horizontal wheel is declined so it passes through to composed children', () {
       final model = scrollable();
-      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.wheelRight())), isA<Declined>());
+      expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
+      expect(model.update(pointer(PointerAction.wheelRight)), isA<Declined>());
     });
 
     group('wheel decline at the scroll limit (mikos 0176 / G2)', () {
       test('at the top, wheel-up declines while wheel-down handles', () {
         final model = scrollable();
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
         expect(model.scrollOffset, equals(0), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
       });
 
       test('at the bottom, wheel-down declines while wheel-up handles', () {
         final model = scrollable()..scrollBy(100); // pin to the bottom edge
         final atBottom = model.scrollOffset;
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
         expect(model.scrollOffset, equals(atBottom), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
 
       test('content that fits entirely declines both directions', () {
         final model = scrollable(contentRows: 3);
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
       });
 
       test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
@@ -107,15 +106,15 @@ void main() {
         final model = scrollable()..scrollBy(4);
         expect(model.scrollOffset, equals(4));
 
-        final result = model.update(pointer(MouseButton.wheelDown()));
+        final result = model.update(pointer(PointerAction.wheelDown));
         expect(result, isA<Handled>());
         expect(model.scrollOffset, equals(5), reason: 'moved the 1 remaining row');
       });
 
       test('mid-content, both directions handle', () {
         final model = scrollable()..scrollBy(2);
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
     });
   });
@@ -123,9 +122,9 @@ void main() {
   group('pointer pass-through', () {
     test('a click, drag, and move are all declined so children resolve them', () {
       final model = scrollable(focused: true);
-      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.drag())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.moved())), isA<Declined>());
+      expect(model.update(pointer(PointerAction.down)), isA<Declined>());
+      expect(model.update(pointer(PointerAction.drag)), isA<Declined>());
+      expect(model.update(pointer(PointerAction.move)), isA<Declined>());
     });
 
     test('leave and cancel are declined', () {

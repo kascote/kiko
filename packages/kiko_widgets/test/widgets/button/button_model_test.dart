@@ -1,14 +1,14 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// A pointer over a 6×1 button at the origin, addressed to `'btn'`.
 ///
 /// `local` doubles as the in-button position, so `inside` follows from [x]/[y]:
 /// an [x] past the 6-cell width models a captured release slid off the button.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) => PointerMsg(
-  MouseEvent(x, y, button),
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) => PointerMsg(
+  global: Position(x, y),
+  action: action,
   local: Position(x, y),
   targetId: 'btn',
   targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
@@ -121,11 +121,11 @@ void main() {
     test('down then up inside activates', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
 
-      final down = button.update(pointerAt(MouseButton.down(), x: 2));
+      final down = button.update(pointerAt(PointerAction.down, x: 2));
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       expect(button.pressed, isTrue);
 
-      final up = button.update(pointerAt(MouseButton.up(), x: 2));
+      final up = button.update(pointerAt(PointerAction.up, x: 2));
       expect(button.pressed, isFalse);
       expect(up, isA<Handled>());
       final cmd = (up as Handled).cmd;
@@ -134,17 +134,17 @@ void main() {
     });
 
     test('down then up slid off does not activate', () {
-      final button = ButtonModel(id: 'btn', label: Line('OK'))..update(pointerAt(MouseButton.down(), x: 2));
+      final button = ButtonModel(id: 'btn', label: Line('OK'))..update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isTrue);
 
       // Captured: the cursor left the 6-cell button, so the up lands outside.
-      final up = button.update(pointerAt(MouseButton.up(), x: 20));
+      final up = button.update(pointerAt(PointerAction.up, x: 20));
       expect(button.pressed, isFalse);
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('cancel ends the press without activating', () {
-      final button = ButtonModel(id: 'btn', label: Line('OK'))..update(pointerAt(MouseButton.down(), x: 2));
+      final button = ButtonModel(id: 'btn', label: Line('OK'))..update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isTrue);
 
       final cancelled = button.update(const PointerCancelMsg('btn'));
@@ -156,7 +156,7 @@ void main() {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
       expect(button.hovered, isFalse);
 
-      button.update(pointerAt(MouseButton.moved(), x: 2));
+      button.update(pointerAt(PointerAction.move, x: 2));
       expect(button.hovered, isTrue);
 
       button.update(const PointerLeaveMsg('btn'));
@@ -166,26 +166,26 @@ void main() {
     test('a disabled button ignores the press', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), disabled: true);
 
-      final down = button.update(pointerAt(MouseButton.down(), x: 2));
+      final down = button.update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isFalse);
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
 
-      final up = button.update(pointerAt(MouseButton.up(), x: 2));
+      final up = button.update(pointerAt(PointerAction.up, x: 2));
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('a loading button ignores the press', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), loading: true)
-        ..update(pointerAt(MouseButton.down(), x: 2));
+        ..update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isFalse);
-      final up = button.update(pointerAt(MouseButton.up(), x: 2));
+      final up = button.update(pointerAt(PointerAction.up, x: 2));
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('the wheel is declined so a scrollable ancestor gets it', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
-      expect(button.update(pointerAt(MouseButton.wheelDown())), isA<Declined>());
-      expect(button.update(pointerAt(MouseButton.wheelUp())), isA<Declined>());
+      expect(button.update(pointerAt(PointerAction.wheelDown)), isA<Declined>());
+      expect(button.update(pointerAt(PointerAction.wheelUp)), isA<Declined>());
       expect(button.pressed, isFalse);
     });
   });

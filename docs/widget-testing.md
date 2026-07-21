@@ -71,11 +71,10 @@ model test does that resolution itself — a small helper builds the resolved
 `PointerMsg` for a widget pinned at a known rect:
 
 ```dart
-import 'package:termparser/termparser_events.dart';
-
 /// A pointer over a 6×1 button at the origin, addressed to `'ok'`.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) => PointerMsg(
-  MouseEvent(x, y, button),
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) => PointerMsg(
+  global: Position(x, y),
+  action: action,
   local: Position(x, y),
   targetId: 'ok',
   targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
@@ -87,10 +86,10 @@ With that in hand, a press-release interaction is two calls:
 ```dart
 test('down then up inside the button activates it', () {
   final button = ButtonModel(id: 'ok', label: Line('OK'))
-    ..update(pointerAt(MouseButton.down(), x: 2));
+    ..update(pointerAt(PointerAction.down, x: 2));
   expect(button.pressed, isTrue);
 
-  final up = button.update(pointerAt(MouseButton.up(), x: 2));
+  final up = button.update(pointerAt(PointerAction.up, x: 2));
   expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()));
 });
 ```
@@ -104,7 +103,7 @@ scrollable ancestor can take it:
 test('the wheel is declined so a scrollable ancestor can take it', () {
   final button = ButtonModel(id: 'ok', label: Line('OK'));
 
-  expect(button.update(pointerAt(MouseButton.wheelDown())), isA<Declined>());
+  expect(button.update(pointerAt(PointerAction.wheelDown)), isA<Declined>());
 });
 ```
 
@@ -254,8 +253,11 @@ with the exit code — the framework never calls `exit()`.
 Input is driven with `emit(event)`, which feeds the backend's event stream the
 raw `termparser` events a terminal would produce — `KeyEvent`, `MouseEvent`,
 `WindowResizeEvent`. The runtime turns them into the same `KeyMsg`,
-`PointerMsg` and `ResizeMsg` a real session delivers. A convenient place to
-emit is the `InitMsg` turn, which guarantees the loop is listening:
+`PointerMsg` and `ResizeMsg` a real session delivers. This is the only level
+where `termparser` appears in a downstream package, because here the test is
+standing in for the terminal — model-level tests build `PointerMsg` from kiko
+values alone. A convenient place to emit is the `InitMsg` turn, which
+guarantees the loop is listening:
 
 ```dart
 import 'package:termparser/termparser_events.dart';

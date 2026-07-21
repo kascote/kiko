@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -118,7 +117,8 @@ void main() {
     }
 
     PointerMsg wheelDownOn(String targetId, Rect rect) => PointerMsg(
-      MouseEvent(rect.x, rect.y, MouseButton.wheelDown()),
+      global: Position(rect.x, rect.y),
+      action: PointerAction.wheelDown,
       targetId: targetId,
       local: Position.origin,
       targetRect: rect,

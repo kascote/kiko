@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -36,8 +35,12 @@ class _FakeComponent implements Component {
   }
 }
 
-PointerMsg _wheelAt(int x, int y, {String? targetId}) =>
-    PointerMsg(MouseEvent(x, y, MouseButton.wheelDown()), targetId: targetId, local: Position.origin);
+PointerMsg _wheelAt(int x, int y, {String? targetId}) => PointerMsg(
+  global: Position(x, y),
+  action: PointerAction.wheelDown,
+  targetId: targetId,
+  local: Position.origin,
+);
 
 void main() {
   group('offerOutward', () {

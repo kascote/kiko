@@ -1,7 +1,6 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg for a character — the key spec and the typed
@@ -13,8 +12,8 @@ KeyMsg charMsg(String c) => KeyMsg(c, text: c);
 KeyMsg backspaceMsg() => const KeyMsg('backSpace');
 
 /// A routed pointer message at a given local cell.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
-    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
+    PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
 
 /// A frame over an empty buffer, measured by [measurer].
 Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMeasurer()}) {
@@ -413,33 +412,33 @@ void main() {
     test('a click places the caret at the grapheme covering the column', () {
       final model = TextInputModel(initial: 'hello', focused: true);
 
-      expect(model.update(pointerAt(MouseButton.down())), isA<Handled>());
+      expect(model.update(pointerAt(PointerAction.down)), isA<Handled>());
       expect(model.cursor, equals(0));
 
-      model.update(pointerAt(MouseButton.down(), x: 3));
+      model.update(pointerAt(PointerAction.down, x: 3));
       expect(model.cursor, equals(3));
     });
 
     test('a click consumes without emitting a command', () {
       final model = TextInputModel(initial: 'hello', focused: true);
-      final result = model.update(pointerAt(MouseButton.down(), x: 2));
+      final result = model.update(pointerAt(PointerAction.down, x: 2));
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('a click on the right cell of a 2-wide grapheme resolves to it', () {
       // Columns: a=0, あ=1-2, b=3.
-      final model = TextInputModel(initial: 'aあb', focused: true)..update(pointerAt(MouseButton.down(), x: 1));
+      final model = TextInputModel(initial: 'aあb', focused: true)..update(pointerAt(PointerAction.down, x: 1));
       expect(model.cursor, equals(1), reason: 'left cell of あ');
 
-      model.update(pointerAt(MouseButton.down(), x: 2));
+      model.update(pointerAt(PointerAction.down, x: 2));
       expect(model.cursor, equals(1), reason: 'right cell still lands on あ, not b');
 
-      model.update(pointerAt(MouseButton.down(), x: 3));
+      model.update(pointerAt(PointerAction.down, x: 3));
       expect(model.cursor, equals(2), reason: 'b');
     });
 
     test('a click past the end lands at the text length', () {
-      final model = TextInputModel(initial: 'abc', focused: true)..update(pointerAt(MouseButton.down(), x: 20));
+      final model = TextInputModel(initial: 'abc', focused: true)..update(pointerAt(PointerAction.down, x: 20));
       expect(model.cursor, equals(3));
     });
 
@@ -447,7 +446,7 @@ void main() {
       final model = TextInputModel(initial: '0123456789', focused: true)
         // Window the view: cursor at end, only 5 cells wide → scrolled by 6.
         ..adjustScroll(5)
-        ..update(pointerAt(MouseButton.down()));
+        ..update(pointerAt(PointerAction.down));
       expect(model.cursor, equals(6), reason: 'local column 0 is absolute column 6');
     });
 
@@ -458,7 +457,7 @@ void main() {
       // relying on that assignment to already have happened.
       final defaultModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true);
       _frame(10, 1).render(TextInput(model: defaultModel, theme: Theme.dark));
-      defaultModel.update(pointerAt(MouseButton.down(), x: 2));
+      defaultModel.update(pointerAt(PointerAction.down, x: 2));
       expect(defaultModel.cursor, equals(2), reason: 'a=1, °=1, b=1: column 2 is "b"');
 
       final cjkModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true);
@@ -467,28 +466,28 @@ void main() {
         1,
         measurer: const TermUnicodeMeasurer(cjk: true),
       ).render(TextInput(model: cjkModel, theme: Theme.dark));
-      cjkModel.update(pointerAt(MouseButton.down(), x: 2));
+      cjkModel.update(pointerAt(PointerAction.down, x: 2));
       expect(cjkModel.cursor, equals(1), reason: 'a=1, °=2: column 2 is the right-hand cell of °, not "b"');
     });
 
     test('a click on an unfocused input still places the caret', () {
       final model = TextInputModel(initial: 'hello');
-      final result = model.update(pointerAt(MouseButton.down(), x: 2));
+      final result = model.update(pointerAt(PointerAction.down, x: 2));
       expect(result, isA<Handled>());
       expect(model.cursor, equals(2));
     });
 
     test('a wheel is declined so a scrollable ancestor gets it', () {
       final model = TextInputModel(initial: 'hello', focused: true);
-      expect(model.update(pointerAt(MouseButton.wheelDown())), isA<Declined>());
-      expect(model.update(pointerAt(MouseButton.wheelUp())), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.wheelDown)), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.wheelUp)), isA<Declined>());
       expect(model.cursor, equals(5), reason: 'the wheel never touches the caret');
     });
 
     test('non-consuming pointer traffic is declined', () {
       final model = TextInputModel(initial: 'hello', focused: true);
-      expect(model.update(pointerAt(MouseButton.moved(), x: 2)), isA<Declined>());
-      expect(model.update(pointerAt(MouseButton.up(), x: 2)), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.move, x: 2)), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.up, x: 2)), isA<Declined>());
       expect(model.update(const PointerLeaveMsg('x')), isA<Declined>());
       expect(model.update(const PointerCancelMsg('x')), isA<Declined>());
     });
@@ -498,7 +497,7 @@ void main() {
     test('paste inserts at the cursor', () {
       final model = TextInputModel(initial: 'hell', focused: true)..cursor = 2;
 
-      final result = model.update(const PasteMsg(PasteEvent('LO')));
+      final result = model.update(const PasteMsg('LO'));
 
       expect(result, isA<Handled>());
       expect(model.value, equals('heLOll'));
@@ -506,7 +505,7 @@ void main() {
     });
 
     test('newlines in the pasted text are stripped — the field stays single-line', () {
-      final model = TextInputModel(focused: true)..update(const PasteMsg(PasteEvent('foo\r\nbar\nbaz\r')));
+      final model = TextInputModel(focused: true)..update(const PasteMsg('foo\r\nbar\nbaz\r'));
 
       expect(model.value, equals('foobarbaz'));
     });
@@ -514,7 +513,7 @@ void main() {
     test('paste honors maxLength like typed input', () {
       final model = TextInputModel(initial: 'abc', maxLength: 5, focused: true);
 
-      final result = model.update(const PasteMsg(PasteEvent('defg')));
+      final result = model.update(const PasteMsg('defg'));
 
       expect(result, isA<Handled>());
       expect(model.value, equals('abc'), reason: 'an insert that would overflow maxLength is dropped whole');
@@ -524,7 +523,7 @@ void main() {
       final model = TextInputModel(
         focused: true,
         inputFilter: (chars) => Characters(chars.string.replaceAll(RegExp('[^0-9]'), '')),
-      )..update(const PasteMsg(PasteEvent('a1b2c3')));
+      )..update(const PasteMsg('a1b2c3'));
 
       expect(model.value, equals('123'));
     });
@@ -532,7 +531,7 @@ void main() {
     test('paste to an unfocused input is declined and changes nothing', () {
       final model = TextInputModel(initial: 'hello');
 
-      final result = model.update(const PasteMsg(PasteEvent('x')));
+      final result = model.update(const PasteMsg('x'));
 
       expect(result, isA<Declined>());
       expect(model.value, equals('hello'));

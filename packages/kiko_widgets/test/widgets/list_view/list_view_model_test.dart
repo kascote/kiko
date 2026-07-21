@@ -1,17 +1,16 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
 /// A routed wheel/button message over the widget, at local (0, 0).
-PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
 /// A routed button/move message at a given local cell.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
-    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
+    PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
 
 void main() {
   group('mouse wheel + scroll', () {
@@ -20,7 +19,7 @@ void main() {
         dataView: DataView.fromList(List.generate(20, (i) => 'item$i')),
       )..setVisibleCount(5);
 
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>());
       expect(model.scrollOffset, equals(3), reason: 'one notch is three rows');
@@ -57,8 +56,8 @@ void main() {
         focused: true,
       )..setVisibleCount(2);
 
-      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointerAt(MouseButton.down(), y: 9)), isA<Declined>(), reason: 'no item under the click');
+      expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
+      expect(model.update(pointerAt(PointerAction.down, y: 9)), isA<Declined>(), reason: 'no item under the click');
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
     });
 
@@ -68,7 +67,7 @@ void main() {
         loadMoreThreshold: 2,
       )..setVisibleCount(5);
 
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
       expect(model.isLoading(), isTrue, reason: 'wheel alone crossed the load threshold');
@@ -81,23 +80,23 @@ void main() {
 
       test('at the top, wheel-up declines while wheel-down handles', () {
         final model = scrollable();
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
         expect(model.scrollOffset, equals(0), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
       });
 
       test('at the bottom, wheel-down declines while wheel-up handles', () {
         final model = scrollable()..scrollBy(100); // pin to the bottom edge
         final atBottom = model.scrollOffset;
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
         expect(model.scrollOffset, equals(atBottom), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
 
       test('content that fits entirely declines both directions', () {
         final model = scrollable(items: 3);
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
       });
 
       test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
@@ -106,15 +105,15 @@ void main() {
         final model = scrollable()..scrollBy(4);
         expect(model.scrollOffset, equals(4));
 
-        final result = model.update(pointer(MouseButton.wheelDown()));
+        final result = model.update(pointer(PointerAction.wheelDown));
         expect(result, isA<Handled>());
         expect(model.scrollOffset, equals(5), reason: 'moved the 1 remaining row');
       });
 
       test('mid-content, both directions handle', () {
         final model = scrollable()..scrollBy(2);
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
     });
   });
@@ -129,34 +128,34 @@ void main() {
     test('a click on row N moves the cursor there and emits ListActionCmd', () {
       final model = menu();
 
-      final down = model.update(pointerAt(MouseButton.down(), y: 3));
+      final down = model.update(pointerAt(PointerAction.down, y: 3));
 
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActionCmd('menu')));
       expect(model.cursor, equals(3));
 
       // The release half only refreshes hover — it does not fire a second time.
-      final up = model.update(pointerAt(MouseButton.up(), y: 3));
+      final up = model.update(pointerAt(PointerAction.up, y: 3));
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
     test('a click below the last item is declined', () {
-      expect(menu().update(pointerAt(MouseButton.down(), y: 20)), isA<Declined>());
+      expect(menu().update(pointerAt(PointerAction.down, y: 20)), isA<Declined>());
     });
 
     test('a click selects on an unfocused list', () {
-      final model = menu(focused: false)..update(pointerAt(MouseButton.down(), y: 2));
+      final model = menu(focused: false)..update(pointerAt(PointerAction.down, y: 2));
 
       expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
     });
 
     test('a pointer sets the hover row; a leave clears it', () {
-      final model = menu()..update(pointerAt(MouseButton.moved(), y: 4));
+      final model = menu()..update(pointerAt(PointerAction.move, y: 4));
       expect(model.hoverRow, equals(4));
 
-      model.update(pointerAt(MouseButton.moved(), y: 20));
+      model.update(pointerAt(PointerAction.move, y: 20));
       expect(model.hoverRow, isNull, reason: 'a move over no row clears the hover');
 
-      model.update(pointerAt(MouseButton.moved(), y: 1));
+      model.update(pointerAt(PointerAction.move, y: 1));
       expect(model.hoverRow, equals(1));
 
       model.update(const PointerLeaveMsg('menu'));

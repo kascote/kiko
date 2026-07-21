@@ -1,17 +1,16 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
 /// A routed wheel/button message over the widget, at local (0, 0).
-PointerMsg pointer(MouseButton button) => PointerMsg(MouseEvent(0, 0, button), local: Position.origin);
+PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
 /// A routed button/move message at a given local cell.
-PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) =>
-    PointerMsg(MouseEvent(x, y, button), local: Position(x, y));
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
+    PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
 
 /// Sample rows for testing.
 List<Map<String, Object?>> sampleRows([int count = 5]) => List.generate(
@@ -38,7 +37,7 @@ void main() {
             ..setVisibleDimensions(5, 3)
             ..insertRows(sampleRows(20), 0);
 
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>());
       expect(model.scrollRow, equals(3), reason: 'one notch is three rows');
@@ -104,8 +103,8 @@ void main() {
             ..setVisibleDimensions(4, 3)
             ..insertRows(sampleRows(10), 0);
 
-      expect(model.update(pointer(MouseButton.wheelLeft())), isA<Declined>());
-      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
+      expect(model.update(pointer(PointerAction.down)), isA<Declined>());
       expect(model.scrollRow, equals(0), reason: 'neither moved the viewport');
     });
 
@@ -121,10 +120,10 @@ void main() {
             ..setVisibleDimensions(5, 3)
             ..insertRows(sampleRows(10), 0)
             // The first notch scrolls the viewport toward the bottom.
-            ..update(pointer(MouseButton.wheelDown()));
+            ..update(pointer(PointerAction.wheelDown));
 
       // The second notch carries the viewport's bottom edge within the threshold.
-      final result = model.update(pointer(MouseButton.wheelDown()));
+      final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
       expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'wheel alone crossed the load threshold');
@@ -142,23 +141,23 @@ void main() {
 
       test('at the top, wheel-up declines while wheel-down handles', () {
         final model = scrollable();
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
         expect(model.scrollRow, equals(0), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
       });
 
       test('at the bottom, wheel-down declines while wheel-up handles', () {
         final model = scrollable()..scrollBy(100); // pin to the bottom edge
         final atBottom = model.scrollRow;
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
         expect(model.scrollRow, equals(atBottom), reason: 'a declined notch moves nothing');
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
 
       test('content that fits entirely declines both directions', () {
         final model = scrollable(rows: 3);
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Declined>());
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Declined>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Declined>());
       });
 
       test('a partial scroll still consumes, even though it moves fewer rows than a full notch', () {
@@ -167,15 +166,15 @@ void main() {
         final model = scrollable()..scrollBy(4);
         expect(model.scrollRow, equals(4));
 
-        final result = model.update(pointer(MouseButton.wheelDown()));
+        final result = model.update(pointer(PointerAction.wheelDown));
         expect(result, isA<Handled>());
         expect(model.scrollRow, equals(5), reason: 'moved the 1 remaining row');
       });
 
       test('mid-content, both directions handle', () {
         final model = scrollable()..scrollBy(2);
-        expect(model.update(pointer(MouseButton.wheelDown())), isA<Handled>());
-        expect(model.update(pointer(MouseButton.wheelUp())), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelDown)), isA<Handled>());
+        expect(model.update(pointer(PointerAction.wheelUp)), isA<Handled>());
       });
     });
   });
@@ -196,7 +195,7 @@ void main() {
       final model = table();
 
       // local.y 3 is data row 2 — the sticky header occupies local.y 0.
-      final down = model.update(pointerAt(MouseButton.down(), y: 3));
+      final down = model.update(pointerAt(PointerAction.down, y: 3));
 
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActionCmd('grid', 'primary')));
       expect(model.cursorRow, equals(2));
@@ -205,28 +204,28 @@ void main() {
     test('the click accounts for the sticky header', () {
       // A click at local.y 2 selects data row 1, not row 2: the header at
       // local.y 0 shifts every data row down by one.
-      final model = table()..update(pointerAt(MouseButton.down(), y: 2));
+      final model = table()..update(pointerAt(PointerAction.down, y: 2));
       expect(model.cursorRow, equals(1));
 
       // A click on the header row itself (local.y 0) hits no data row.
-      expect(model.update(pointer(MouseButton.down())), isA<Declined>());
+      expect(model.update(pointer(PointerAction.down)), isA<Declined>());
     });
 
     test('a click past the loaded rows is declined', () {
-      expect(table().update(pointerAt(MouseButton.down(), y: 40)), isA<Declined>());
+      expect(table().update(pointerAt(PointerAction.down, y: 40)), isA<Declined>());
     });
 
     test('a click selects on an unfocused table', () {
-      final model = table(focused: false)..update(pointerAt(MouseButton.down(), y: 2));
+      final model = table(focused: false)..update(pointerAt(PointerAction.down, y: 2));
 
       expect(model.cursorRow, equals(1), reason: 'selection changes without a prior focus');
     });
 
     test('a pointer sets the hover row; a leave clears it', () {
-      final model = table()..update(pointerAt(MouseButton.moved(), y: 3));
+      final model = table()..update(pointerAt(PointerAction.move, y: 3));
       expect(model.hoverRow, equals(2), reason: 'the hover row is header-adjusted');
 
-      model.update(pointer(MouseButton.moved()));
+      model.update(pointer(PointerAction.move));
       expect(model.hoverRow, isNull, reason: 'a move over the header clears the hover');
 
       model.update(const PointerLeaveMsg('grid'));

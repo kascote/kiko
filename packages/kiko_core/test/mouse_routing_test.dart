@@ -238,7 +238,7 @@ void main() {
       expect(seen.skip(1), [
         const PointerCancelMsg('panel'),
         const PointerLeaveMsg('panel'),
-        const FocusMsg(FocusEvent(hasFocus: false)),
+        const FocusMsg(hasFocus: false),
       ], reason: 'nothing is left waiting for a release that will never come');
     });
 

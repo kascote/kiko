@@ -230,13 +230,7 @@ class FocusRouter {
       if (viaAlias && msg is PointerMsg) {
         final rect = ctx.hits.rectOf(memberId);
         if (rect == null) return const Declined();
-        routed = PointerMsg(
-          msg.mouse,
-          targetId: memberId,
-          local: Position(msg.global.x - rect.x, msg.global.y - rect.y),
-          targetRect: rect,
-          captured: msg.captured,
-        );
+        routed = msg.retarget(targetId: memberId, targetRect: rect);
       }
 
       // A leave or cancel reached via alias keeps the chrome id — it has no

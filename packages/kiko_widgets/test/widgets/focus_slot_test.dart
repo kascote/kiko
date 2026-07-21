@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Minimal [Component] used to give [FocusSlot] company inside a [FocusGroup].
@@ -26,7 +25,12 @@ void main() {
 
     test('declines a pointer message', () {
       final slot = FocusSlot();
-      final msg = PointerMsg(MouseEvent(0, 0, MouseButton.down()), targetId: slot.id, local: Position.origin);
+      final msg = PointerMsg(
+        global: Position.origin,
+        action: PointerAction.down,
+        targetId: slot.id,
+        local: Position.origin,
+      );
       expect(slot.update(msg), isA<Declined>());
     });
 

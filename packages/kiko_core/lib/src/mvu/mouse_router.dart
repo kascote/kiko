@@ -90,6 +90,12 @@ class MouseRouter {
   List<Msg> _routePointer(RawPointerMsg raw, HitMap latest) {
     final event = raw.mouse;
     final action = event.button.action;
+
+    // A malformed SGR sequence reports no action at all. There is no gesture
+    // to update and no widget to tell, so it is dropped before hover or
+    // capture ever sees it — not delivered as input.
+    if (action == evt.MouseButtonAction.none) return const [];
+
     final out = <Msg>[];
 
     // A gesture the router can no longer honour ends before the event that
@@ -124,9 +130,15 @@ class MouseRouter {
     // captor that has since been painted out has no rect, and its events fall
     // back to absolute coordinates.
     final rect = target == null ? null : raw.hits.rectOf(target);
+    final fields = pointerFieldsFrom(event);
     out.add(
       PointerMsg(
-        event,
+        global: Position(event.x, event.y),
+        action: fields.action,
+        button: fields.button,
+        shift: fields.shift,
+        ctrl: fields.ctrl,
+        alt: fields.alt,
         targetId: target,
         local: rect == null ? Position(event.x, event.y) : Position(event.x - rect.x, event.y - rect.y),
         targetRect: rect,

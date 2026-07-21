@@ -19,6 +19,98 @@ bool isWheelAction(evt.MouseButtonAction action) => switch (action) {
   _ => false,
 };
 
+/// Which physical button a pointer message names.
+enum PointerButton {
+  /// No button — a wheel notch names none, and a release under legacy mouse
+  /// reporting does not say which button came up.
+  none,
+
+  /// The left button.
+  left,
+
+  /// The middle button.
+  middle,
+
+  /// The right button.
+  right,
+}
+
+/// What a pointer did.
+///
+/// A wheel notch gets one member per direction rather than a bare `wheel`
+/// plus a signed delta — see [PointerMsg.wheelDeltaY] and
+/// [PointerMsg.wheelDeltaX] for the signed form most callers want.
+///
+/// There is no `none` member: a mouse action a terminal could not describe
+/// never becomes a [PointerMsg] in the first place.
+enum PointerAction {
+  /// A button went down.
+  down,
+
+  /// A button came up.
+  up,
+
+  /// The pointer moved with no button held.
+  move,
+
+  /// The pointer moved with a button held.
+  drag,
+
+  /// The wheel turned up.
+  wheelUp,
+
+  /// The wheel turned down.
+  wheelDown,
+
+  /// The wheel turned left.
+  wheelLeft,
+
+  /// The wheel turned right.
+  wheelRight,
+}
+
+/// Maps a termparser mouse event to the fields [PointerMsg] stores.
+///
+/// This is the one seam where termparser's button kind, action and modifier
+/// bitset turn into kiko's own [PointerButton], [PointerAction] and three
+/// plain booleans. The router calls it once, at the single site that builds a
+/// [PointerMsg], so nothing that reads a [PointerMsg] ever needs to import
+/// termparser.
+///
+/// [event]'s action must not be [evt.MouseButtonAction.none] — that is a
+/// malformed sequence the router drops before it gets here.
+@internal
+({PointerAction action, PointerButton button, bool shift, bool ctrl, bool alt}) pointerFieldsFrom(
+  evt.MouseEvent event,
+) {
+  return (
+    action: switch (event.button.action) {
+      evt.MouseButtonAction.down => PointerAction.down,
+      evt.MouseButtonAction.up => PointerAction.up,
+      evt.MouseButtonAction.moved => PointerAction.move,
+      evt.MouseButtonAction.drag => PointerAction.drag,
+      evt.MouseButtonAction.wheelUp => PointerAction.wheelUp,
+      evt.MouseButtonAction.wheelDown => PointerAction.wheelDown,
+      evt.MouseButtonAction.wheelLeft => PointerAction.wheelLeft,
+      evt.MouseButtonAction.wheelRight => PointerAction.wheelRight,
+      evt.MouseButtonAction.none => throw ArgumentError.value(
+        event,
+        'event',
+        'a malformed mouse event never becomes a PointerMsg',
+      ),
+    },
+    button: switch (event.button.button) {
+      evt.MouseButtonKind.none => PointerButton.none,
+      evt.MouseButtonKind.left => PointerButton.left,
+      evt.MouseButtonKind.middle => PointerButton.middle,
+      evt.MouseButtonKind.right => PointerButton.right,
+    },
+    shift: event.modifiers.has(evt.KeyModifiers.shift),
+    ctrl: event.modifiers.has(evt.KeyModifiers.ctrl),
+    alt: event.modifiers.has(evt.KeyModifiers.alt),
+  );
+}
+
 /// A message the mouse router addressed to a widget.
 ///
 /// Match on it to forward every kind of pointer traffic in one line, whatever
@@ -41,16 +133,33 @@ abstract interface class Routed {
 ///
 /// It arrives at `update` knowing whose it is ([targetId]), where it landed in
 /// that widget's own coordinates ([local]), and what it was ([action], [button],
-/// [modifiers]) — nothing downstream re-derives a target or subtracts a rect.
+/// [shift]/[ctrl]/[alt]) — nothing downstream re-derives a target or subtracts a
+/// rect.
 ///
-/// The raw event is kept whole in [mouse] rather than copied field by field, so
-/// nothing is lost and an app that hit-tests its own canvas can ignore the
-/// routing and read [global]. Its coordinates are 0-based buffer cells, already
-/// translated by the backend.
+/// Every field is kiko's own vocabulary, not a terminal type copied through:
+/// nothing that reads a [PointerMsg] needs to know a termparser event exists.
+/// [global]'s coordinates are 0-based buffer cells, already translated by the
+/// backend.
 @immutable
 class PointerMsg extends Msg implements Routed {
-  /// The terminal event this message routes.
-  final evt.MouseEvent mouse;
+  /// The pointer, in absolute buffer cells.
+  final Position global;
+
+  /// What the pointer did: a press, a release, a move, a drag, a wheel notch.
+  final PointerAction action;
+
+  /// The button involved, or [PointerButton.none] for a wheel notch or an
+  /// event with no button of its own.
+  final PointerButton button;
+
+  /// Whether shift was held.
+  final bool shift;
+
+  /// Whether ctrl was held.
+  final bool ctrl;
+
+  /// Whether alt was held.
+  final bool alt;
 
   /// The widget under the pointer, the widget holding it, or `null` when the
   /// pointer is over no addressable widget at all.
@@ -74,45 +183,41 @@ class PointerMsg extends Msg implements Routed {
   /// rather than merely sitting under it.
   final bool captured;
 
-  /// Addresses [mouse] to a target.
-  const PointerMsg(
-    this.mouse, {
+  /// Addresses a pointer event to a target.
+  const PointerMsg({
+    required this.global,
+    required this.action,
     required this.local,
+    this.button = PointerButton.none,
+    this.shift = false,
+    this.ctrl = false,
+    this.alt = false,
     this.targetId,
     this.targetRect,
     this.captured = false,
   });
 
-  /// The pointer, in absolute buffer cells.
-  Position get global => Position(mouse.x, mouse.y);
-
-  /// The button, paired with what it did.
-  evt.MouseButton get button => mouse.button;
-
-  /// What the mouse did: a press, a release, a move, a drag, a wheel notch.
-  evt.MouseButtonAction get action => mouse.button.action;
-
-  /// The modifier keys held down, for a shift-click or a ctrl-click.
-  evt.KeyModifiers get modifiers => mouse.modifiers;
-
   /// Whether a button went down.
-  bool get isDown => action == evt.MouseButtonAction.down;
+  bool get isDown => action == PointerAction.down;
 
   /// Whether a button came up.
-  bool get isUp => action == evt.MouseButtonAction.up;
+  bool get isUp => action == PointerAction.up;
 
   /// Whether the pointer moved with no button held.
-  bool get isMove => action == evt.MouseButtonAction.moved;
+  bool get isMove => action == PointerAction.move;
 
   /// Whether the pointer moved with a button held.
-  bool get isDrag => action == evt.MouseButtonAction.drag;
+  bool get isDrag => action == PointerAction.drag;
 
   /// Whether the wheel turned, in any of the four directions.
   ///
   /// A wheel event carries no button: read [action] for the direction. It
   /// always addresses whatever is under the pointer, never the widget holding a
   /// gesture, because the wheel is not part of one.
-  bool get isWheel => isWheelAction(action);
+  bool get isWheel => switch (action) {
+    PointerAction.wheelUp || PointerAction.wheelDown || PointerAction.wheelLeft || PointerAction.wheelRight => true,
+    _ => false,
+  };
 
   /// The vertical wheel notch: `-1` up, `1` down, `0` off-axis or non-wheel.
   ///
@@ -120,16 +225,16 @@ class PointerMsg extends Msg implements Routed {
   /// coalesces wheel events, so summing every [wheelDeltaY] seen is exact —
   /// unlike [global], which only the latest of a coalesced run reflects.
   int get wheelDeltaY => switch (action) {
-    evt.MouseButtonAction.wheelUp => -1,
-    evt.MouseButtonAction.wheelDown => 1,
+    PointerAction.wheelUp => -1,
+    PointerAction.wheelDown => 1,
     _ => 0,
   };
 
   /// The horizontal wheel notch: `-1` left, `1` right, `0` off-axis or
   /// non-wheel. See [wheelDeltaY].
   int get wheelDeltaX => switch (action) {
-    evt.MouseButtonAction.wheelLeft => -1,
-    evt.MouseButtonAction.wheelRight => 1,
+    PointerAction.wheelLeft => -1,
+    PointerAction.wheelRight => 1,
     _ => 0,
   };
 
@@ -144,18 +249,41 @@ class PointerMsg extends Msg implements Routed {
     return local.x >= 0 && local.y >= 0 && local.x < rect.width && local.y < rect.height;
   }
 
+  /// This event re-addressed to [targetId], whose painted bounds are
+  /// [targetRect].
+  ///
+  /// The physical event — position, action, button, modifiers, capture state —
+  /// is carried unchanged; [local] is recomputed against the new rect.
+  PointerMsg retarget({required String targetId, required Rect targetRect}) => PointerMsg(
+    global: global,
+    action: action,
+    button: button,
+    shift: shift,
+    ctrl: ctrl,
+    alt: alt,
+    targetId: targetId,
+    local: Position(global.x - targetRect.x, global.y - targetRect.y),
+    targetRect: targetRect,
+    captured: captured,
+  );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PointerMsg &&
-          mouse == other.mouse &&
+          global == other.global &&
+          action == other.action &&
+          button == other.button &&
+          shift == other.shift &&
+          ctrl == other.ctrl &&
+          alt == other.alt &&
           targetId == other.targetId &&
           local == other.local &&
           targetRect == other.targetRect &&
           captured == other.captured;
 
   @override
-  int get hashCode => Object.hash(mouse, targetId, local, targetRect, captured);
+  int get hashCode => Object.hash(global, action, button, shift, ctrl, alt, targetId, local, targetRect, captured);
 
   @override
   String toString() =>

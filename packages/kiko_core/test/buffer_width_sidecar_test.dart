@@ -187,69 +187,15 @@ void main() {
     expect(buf.debugWidths.every((w) => w == 1), isTrue);
   });
 
-  group('Buffer width sidecar - merge', () {
-    test('merge with an offset that forces the index permutation keeps the sidecar in sync', () {
-      final a1 = Buffer.filled(
-        Rect.create(x: 3, y: 3, width: 2, height: 2),
-        const Cell(char: '1'),
-      );
-      final a2 = Buffer.filled(
-        Rect.create(x: 1, y: 1, width: 3, height: 4),
-        const Cell(char: '2'),
-      );
-
-      a1.merge(a2);
-
-      expectWidthsInSync(a1);
-    });
-
-    test('merge that grows the area keeps the sidecar in sync', () {
-      final a1 = Buffer.filled(
-        Rect.create(x: 0, y: 0, width: 2, height: 2),
-        const Cell(char: '1'),
-      );
-      final a2 = Buffer.filled(
-        Rect.create(x: 0, y: 2, width: 2, height: 2),
-        const Cell(char: '2'),
-      );
-
-      a1.merge(a2);
-
-      expectWidthsInSync(a1);
-      expect(a1.buf.length, 8);
-    });
-
-    test('merge overlays wide glyphs and carries the source widths', () {
-      final base = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
-      final overlay = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1))..setCellAtPos(x: 0, y: 0, char: '你');
-      expectWidthsInSync(overlay);
-
-      base.merge(overlay);
-
-      expectWidthsInSync(base);
-      expect(base.debugWidths[base.indexOf(0, 0)], 2);
-      expect(base.debugWidths[base.indexOf(1, 0)], 1);
-      expect(base[(x: 1, y: 0)].skip, isTrue);
-    });
-  });
-
   test('a seeded randomized mutation sequence keeps the sidecar in sync at every step', () {
     final rng = Random(42);
     const pool = [' ', 'a', 'Z', '你', '好', '😀', '⌚', '☂'];
     final buf = Buffer.empty(Rect.create(x: 0, y: 0, width: 8, height: 6));
 
-    // Buffer.resize builds buf as a fixed-length list, but Buffer.merge always
-    // calls buf.addAll on it; merge on a buffer that has ever been resized
-    // throws, regardless of whether growth is actually needed. That is a
-    // pre-existing issue in Buffer unrelated to the width sidecar this test
-    // is checking, so once a resize happens this run stops picking merge and
-    // spends that share on an extra write instead.
-    var everResized = false;
-
     for (var iter = 0; iter < 300; iter++) {
       final op = rng.nextInt(100);
 
-      if (op < 70 || (op >= 94 && everResized)) {
+      if (op < 75) {
         // Write a random symbol from the pool at a random in-bounds position.
         // Stay one column shy of the right edge so a width-2 pick never
         // needs a trailing cell that doesn't exist.
@@ -257,36 +203,21 @@ void main() {
         final y = buf.area.y + rng.nextInt(buf.area.height);
         final symbol = pool[rng.nextInt(pool.length)];
         buf[(x: x, y: y)] = Cell(char: symbol);
-      } else if (op < 85) {
+      } else if (op < 91) {
         // setStyle over a random small rect within the buffer.
         final w = 1 + rng.nextInt(buf.area.width);
         final h = 1 + rng.nextInt(buf.area.height);
         final x = buf.area.x + rng.nextInt(buf.area.width - w + 1);
         final y = buf.area.y + rng.nextInt(buf.area.height - h + 1);
         buf.setStyle(Rect.create(x: x, y: y, width: w, height: h), const Style(fg: Color.blue));
-      } else if (op < 88) {
+      } else if (op < 94) {
         // Reset (rare).
         buf.reset();
-      } else if (op < 94) {
+      } else {
         // Resize to a random nearby size (rare).
         final w = 4 + rng.nextInt(6);
         final h = 3 + rng.nextInt(5);
         buf.resize(Rect.create(x: 0, y: 0, width: w, height: h));
-        everResized = true;
-      } else {
-        // Merge a small, randomly-filled buffer (rare).
-        final w = 2 + rng.nextInt(2);
-        final h = 1 + rng.nextInt(3);
-        final ox = rng.nextInt(6);
-        final oy = rng.nextInt(6);
-        final other = Buffer.empty(Rect.create(x: ox, y: oy, width: w, height: h));
-        for (var yy = 0; yy < h; yy++) {
-          for (var xx = 0; xx < w - 1; xx++) {
-            final symbol = pool[rng.nextInt(pool.length)];
-            other[(x: ox + xx, y: oy + yy)] = Cell(char: symbol);
-          }
-        }
-        buf.merge(other);
       }
 
       expectWidthsInSync(buf);

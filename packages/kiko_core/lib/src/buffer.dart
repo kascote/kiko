@@ -62,6 +62,7 @@ class Buffer implements Equality<Buffer> {
     buf = List<Cell>.generate(
       rect.area,
       (idx) => cell != null ? cell.copyWith() : Cell.empty(),
+      growable: false,
     );
     // Every cell starts out identical (the fill cell, or the empty cell), so
     // the fill width only needs measuring once for the whole buffer.
@@ -83,7 +84,7 @@ class Buffer implements Equality<Buffer> {
   /// The copy measures with the same ruler as [other].
   factory Buffer.copyFrom(Buffer other) {
     return Buffer.empty(other.area, measurer: other.measurer)
-      ..buf = List.from(other.buf)
+      ..buf = List.from(other.buf, growable: false)
       .._widths = Uint8List.fromList(other._widths);
   }
 
@@ -96,9 +97,9 @@ class Buffer implements Equality<Buffer> {
   }
 
   // Recomputes every width from buf and compares it against the sidecar.
-  // Only called from asserts after whole-buffer operations (resize, reset,
-  // merge) — never from the per-cell []= hot path, where it would make a
-  // single write cost quadratic under debug asserts.
+  // Only called from asserts after whole-buffer operations (resize, reset)
+  // — never from the per-cell []= hot path, where it would make a single
+  // write cost quadratic under debug asserts.
   bool _widthsInSync() {
     for (var i = 0; i < buf.length; i++) {
       if (_widths[i] != measurer.widthOf(buf[i].symbol)) return false;
@@ -217,50 +218,6 @@ class Buffer implements Equality<Buffer> {
     // Cell.reset() always yields Cell.empty(), a single space (width 1).
     _widths.fillRange(0, _widths.length, 1);
     assert(_widthsInSync(), 'sidecar out of sync after reset');
-  }
-
-  /// Merge an other buffer into this on
-  void merge(Buffer other) {
-    final area = this.area.union(other.area);
-    final oldLen = buf.length;
-    buf.addAll(
-      List<Cell>.generate(area.area - oldLen, (_) => Cell.empty()),
-    );
-    // The newly appended cells above are all Cell.empty() (width 1); the
-    // sidecar grows the same way, keeping the widths already recorded for
-    // the retained indices.
-    final oldWidths = _widths;
-    _widths = Uint8List(area.area)
-      ..setRange(0, oldLen, oldWidths)
-      ..fillRange(oldLen, area.area, 1);
-
-    var size = this.area.area;
-    for (var i = size - 1; i >= 0; i--) {
-      final pos = posOf(i);
-      // new index in content
-      final k = (pos.y - area.y) * area.width + pos.x - area.x;
-      if (i != k) {
-        buf[k] = buf[i].copyWith();
-        _widths[k] = _widths[i];
-        buf[i] = buf[i].reset();
-        _widths[i] = 1;
-      }
-    }
-
-    // Push content of the other buffer into this one (may erase previous
-    // data)
-
-    size = other.area.area;
-    for (var i = 0; i < size; i++) {
-      final pos = other.posOf(i);
-      // new index in content
-      final k = (pos.y - area.y) * area.width + pos.x - area.x;
-      buf[k] = other.buf[i].copyWith();
-      _widths[k] = other._widths[i];
-    }
-
-    this.area = area;
-    assert(_widthsInSync(), 'sidecar out of sync after merge');
   }
 
   /// Builds a minimal sequence of coordinates and Cells necessary to update

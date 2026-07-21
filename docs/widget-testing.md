@@ -1,628 +1,365 @@
 # Widget Testing
 
-Visual testing for widget authors. Test what renders, not buffer internals.
+How to test kiko widgets — and whole applications — under `dart test`, with no
+terminal attached: no TTY, no escape sequences, no process exit. Every snippet
+below is verified against the current API; the suites named at the end are the
+living versions of these patterns.
 
-## Quickstart
+There are three levels, and most tests belong on the cheapest one that answers
+the question:
+
+1. **Model tests** call `update` directly and assert on state and the verdict.
+   Nothing renders.
+2. **Render tests** paint a view into a `Frame` and assert on the cells. Real
+   layout, no terminal.
+3. **Loop tests** put a `TestBackend` under a `Terminal` or an `Application`
+   and exercise the real render loop, or the full MVU drain.
+
+Levels 1 and 2 use only the production API. Level 3 adds one import:
 
 ```dart
-import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
-import 'package:test/test.dart';
-
-void main() {
-  test('paragraph renders', () {
-    final p = Paragraph(content: 'Hello World');
-
-    expect(
-      capture(p, width: 20, height: 1),
-      equals('Hello World'),
-    );
-  });
-}
 ```
 
-## Choosing an API
+which provides `TestBackend`, the in-memory backend. It is scaffolding, not
+production API, which is why it lives outside `package:kiko/kiko.dart`.
 
-| API              | Use When                          |
-| ---------------- | --------------------------------- |
-| `capture()`      | Simple one-off captures           |
-| `rendersAs()`    | Clean inline assertions           |
-| `WidgetTester`   | Multiple tests with shared config |
-| `CaptureBuilder` | Async setup (data loading)        |
-| `captureWith()`  | Complex sync setup                |
+## Testing the model: `update` is just a method
 
-### capture() vs rendersAs()
+A widget model's `update(Msg)` is an ordinary method on an ordinary object.
+Construct the model, hand it a message, and assert on two things: the verdict —
+`Handled`, optionally carrying a `Cmd`, or `Declined` — and the state the model
+mutated.
 
-**capture() + equals():**
+Messages are plain values. A keystroke is `const KeyMsg('enter')`:
 
 ```dart
-final result = capture(widget, width: 20, height: 2);
-expect(result, equals('Hello\nWorld'));
-```
+test('enter presses a focused button', () {
+  final button = ButtonModel(id: 'ok', label: Line('OK'), focused: true);
 
-- More explicit
-- Easier to debug (print `result`)
-- Good for complex assertions
+  final result = button.update(const KeyMsg('enter'));
 
-**rendersAs():**
+  expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()));
+});
 
-```dart
-expect(widget, rendersAs('Hello\nWorld', width: 20, height: 2));
-```
+test('an unfocused button declines the same key', () {
+  final button = ButtonModel(id: 'ok', label: Line('OK'));
 
-- More readable intent
-- Less boilerplate
-- Better failure messages with line numbers
-
-Both are valid. Use what reads best for your test.
-
-## WidgetTester
-
-Recommended for test files. Create one tester with shared defaults:
-
-```dart
-void main() {
-  final tester = WidgetTester(
-    defaultWidth: 40,
-    defaultHeight: 10,
-  );
-
-  test('renders title', () {
-    expect(
-      tester.capture(MyWidget()),
-      equals('Expected output'),
-    );
-  });
-
-  test('with custom size', () {
-    expect(
-      tester.capture(MyWidget(), width: 80, height: 24),
-      equals('...'),
-    );
-  });
-}
-```
-
-### Configuration
-
-```dart
-WidgetTester(
-  defaultWidth: 80,           // default capture width
-  defaultHeight: 24,          // default capture height
-  emptyCellMarker: '.',       // char for empty cells (default '·')
-  trimTrailingWhitespace: true,
-  stripBlankLines: true,
-)
-```
-
-### WidgetTester Methods
-
-```dart
-// Sync capture
-String capture(Widget, {width, height, showBorder, showEmptyCells})
-CaptureResult captureResult(Widget, {...})
-
-// With callback
-String captureWith(void Function(CaptureTester), {...})
-CaptureResult captureWithResult(void Function(CaptureTester), {...})
-
-// Async
-Future<String> captureAsync(FutureOr<void> Function(CaptureTester), {...})
-Future<CaptureResult> captureAsyncResult(..., {...})
-
-// Matcher
-Matcher rendersAs(String expected, {width, height, ...})
-```
-
-## CaptureBuilder (Async)
-
-For async setup like loading data before rendering:
-
-```dart
-test('tree with loaded data', () async {
-  final result = await CaptureBuilder(width: 30, height: 5)
-    .setup((t) async {
-      final model = TreeViewModel(dataSource: source);
-      await model.loadRoots();
-      await model.expand('/parent');
-      t.render(TreeView(model: model));
-    })
-    .capture();
-
-  expect(result, equals('''
-▼ Parent
-   Child 1
-   Child 2
-▶ Other
-'''));
+  expect(button.update(const KeyMsg('enter')), isA<Declined>());
 });
 ```
 
-Primary use: waiting for `await model.load()` calls before capture.
-
-## Setting Up Widget State
-
-### 1. Methods Before Capture
+A keystroke that types text carries it in `text` — widgets bind on `key` and
+insert `text`, so a test for insertion must supply both, the way the terminal
+would:
 
 ```dart
-test('selected item highlighted', () {
-  final model = ListViewModel(items: ['A', 'B', 'C']);
-  model.selectIndex(1);  // set state before capture
+test('typing inserts the keystroke text', () {
+  final input = TextInputModel(id: 'name', focused: true)
+    ..update(const KeyMsg('h', text: 'h'))
+    ..update(const KeyMsg('i', text: 'i'));
 
-  expect(
-    capture(ListView(model: model), width: 10, height: 3),
-    equals('  A\n> B\n  C'),
-  );
+  expect(input.value, 'hi');
 });
 ```
 
-### 2. Builder Pattern
+### Pointer messages
+
+The framework delivers a mouse event to a widget already resolved: addressed to
+the widget's id, with the position translated into the widget's own cells. A
+model test does that resolution itself — a small helper builds the resolved
+`PointerMsg` for a widget pinned at a known rect:
 
 ```dart
-test('tree expanded', () async {
-  final result = await CaptureBuilder(width: 30, height: 5)
-    .setup((t) async {
-      final model = TreeViewModel(dataSource: source);
-      await model.loadRoots();
-      model.expand('/a');  // state manipulation in setup
-      t.render(TreeView(model: model));
-    })
-    .capture();
-
-  expect(result, contains('▼ a'));
-});
-```
-
-### 3. Inject Pre-Configured Model
-
-```dart
-TreeViewModel createExpandedTree() {
-  final model = TreeViewModel(dataSource: TestDataSource());
-  model.forceRoots([...]);  // test helper
-  model.expandAll();
-  return model;
-}
-
-test('fully expanded tree', () {
-  final model = createExpandedTree();
-  expect(
-    TreeView(model: model),
-    rendersAs('...', width: 40, height: 10),
-  );
-});
-```
-
-## Dimension Strategies
-
-### Tight Dimensions
-
-Match capture size to expected content:
-
-```dart
-test('renders 3 items', () {
-  expect(
-    capture(widget, width: 10, height: 3),  // exactly 3 lines
-    equals('''
-Item 1
-Item 2
-Item 3'''),
-  );
-});
-```
-
-Good for: simple widgets, exact output verification.
-
-### Loose Dimensions
-
-Larger capture area, let whitespace trimming handle rest:
-
-```dart
-test('layout adapts', () {
-  final result = capture(widget, width: 80, height: 24);
-  expect(result, contains('Expected content'));
-});
-```
-
-Good for: layout testing, widgets that expand to fill.
-
-### Visualize Bounds
-
-Use `showBorder` to see exact widget area:
-
-```dart
-test('verify widget bounds', () {
-  expect(
-    capture(widget, width: 10, height: 3, showBorder: true),
-    equals('''
-+----------+
-|  Hello   |
-|  World   |
-|          |
-+----------+'''),
-  );
-});
-```
-
-Border is outside dimensions (10x3 content, 12x5 total output).
-
-## Debugging Failed Tests
-
-### 1. Check Failure Output
-
-Matcher shows line-by-line comparison:
-
-```
-Expected:
-  1: ▼ Parent
-  2:    Child 1
-  3:    Child 2
-
-Actual:
-  1: ▼ Parent
-  2:   Child 1    <- differs
-  3:    Child 2
-```
-
-- Line numbers are 1-indexed
-- `<- differs` marks mismatched lines
-- Look at column alignment (spaces matter)
-
-### 2. Use showBorder
-
-See if widget is rendering in expected area:
-
-```dart
-print(capture(widget, width: 20, height: 5, showBorder: true));
-```
-
-If content is clipped or offset, bounds are wrong.
-
-### 3. Use showEmptyCells
-
-Reveal whitespace vs empty cells:
-
-```dart
-print(capture(widget, width: 20, height: 1, showEmptyCells: true));
-// Output: "Hello···············"
-```
-
-Helps identify:
-
-- Trailing space issues
-- Unexpected gaps
-- Empty vs space-filled areas
-
-### 4. Print Actual Output
-
-When using `capture()`, print the result:
-
-```dart
-final result = capture(widget, width: 20, height: 5);
-print('---');
-print(result);
-print('---');
-expect(result, equals('...'));
-```
-
-## Common Pitfalls
-
-### Trailing Whitespace
-
-By default, trailing whitespace is trimmed per line:
-
-```dart
-capture(Paragraph(content: 'Hi'), width: 20, height: 1)
-// Returns "Hi", not "Hi                  "
-```
-
-To preserve trailing spaces:
-
-```dart
-capture(widget, width: 20, height: 1, trimTrailingWhitespace: false)
-```
-
-### Dart Multiline String Quirks
-
-Dart's `'''` strings add newlines:
-
-```dart
-// This has a leading newline after ''' and trailing before closing '''
-expect(widget, rendersAs('''
-Hello
-World
-''', width: 10, height: 2));
-```
-
-The library normalizes this automatically:
-
-- Strips leading newline after opening `'''`
-- Strips trailing newline before closing `'''`
-
-### Blank Lines Stripped
-
-By default, leading/trailing blank lines are stripped from both actual and expected:
-
-```dart
-// These are equivalent:
-capture(widget, width: 10, height: 5)
-
-// Actual buffer has 5 lines, but if last 2 are blank:
-// Output is only 3 lines (blank lines stripped)
-```
-
-To preserve blank lines:
-
-```dart
-capture(widget, width: 10, height: 5, stripBlankLines: false)
-```
-
-### Widget Larger Than Area
-
-If widget renders beyond capture dimensions, content is clipped:
-
-```dart
-// Widget renders 5 lines, capture is only 3
-capture(LongWidget(), width: 20, height: 3)
-// Only first 3 lines captured
-```
-
-Use larger dimensions or `showBorder` to verify.
-
-### Tab Characters
-
-Tabs in expected strings may not match. Widget likely renders as spaces:
-
-```dart
-// May fail - tab vs spaces mismatch
-expect(result, equals("Name:\tValue"));
-
-// Use spaces explicitly
-expect(result, equals("Name:    Value"));
-```
-
-### Empty Cells vs Spaces
-
-Empty cells (never written to) and spaces (explicitly written) both appear as spaces:
-
-```dart
-// Can't tell if widget wrote spaces or left cells empty
-capture(widget, width: 10, height: 1)
-// Returns "Hello     " or "Hello" (trimmed)
-```
-
-Use `showEmptyCells: true` to distinguish:
-
-```dart
-capture(widget, width: 10, height: 1, showEmptyCells: true)
-// "Hello·····" - dots show empty cells
-// "Hello     " - spaces were written explicitly
-```
-
-## Unicode Considerations
-
-### Wide Characters
-
-CJK characters and some emoji take 2 terminal columns:
-
-```dart
-// "你好" takes 4 columns (2 chars × 2 width)
-capture(Paragraph(content: '你好'), width: 10, height: 1)
-```
-
-Width calculation uses `termunicode`. Generally accurate but some terminals differ.
-
-### Combining Characters
-
-Diacritics (é = e + combining acute) may not render correctly:
-
-```dart
-// "café" might appear as 5 chars if combining char handled wrong
-capture(Paragraph(content: 'café'), width: 10, height: 1)
-```
-
-Use precomposed forms (é) when possible.
-
-### Emoji
-
-Complex emoji (skin tones, ZWJ sequences) may have inconsistent width:
-
-```dart
-// 👨‍👩‍👧‍👦 is one "grapheme" but width varies by terminal
-capture(Paragraph(content: '👨‍👩‍👧‍👦'), width: 10, height: 1)
-```
-
-Test on your target terminal. Simple emoji (😀) work reliably.
-
-## API Reference
-
-### Constants
-
-```dart
-const defaultEmptyCellMarker = '·';
-```
-
-Use in tests to avoid hardcoding the marker:
-
-```dart
-expect(result, contains('${defaultEmptyCellMarker}X'));
-```
-
-### capture()
-
-Render widget to string.
-
-```dart
-String capture(
-  Widget widget, {
-  required int width,
-  required int height,
-  bool showBorder = false,        // ASCII border around content
-  bool showEmptyCells = false,    // Replace empty cells with marker
-  String emptyCellMarker = '·',   // Marker character
-  bool trimTrailingWhitespace = true,
-  bool stripBlankLines = true,    // Strip surrounding blank lines
-})
-```
-
-### captureResult()
-
-Render widget with metadata.
-
-```dart
-CaptureResult captureResult(
-  Widget widget, {
-  required int width,
-  required int height,
-  bool showBorder = false,
-  bool showEmptyCells = false,
-  String emptyCellMarker = '·',
-  bool trimTrailingWhitespace = true,
-  bool stripBlankLines = true,
-})
-```
-
-Returns `CaptureResult`:
-
-```dart
-class CaptureResult {
-  final String content;      // rendered string
-  final int width;
-  final int height;
-  List<String> get lines;    // content.split('\n')
-  int get lineCount;
-
-  String line(int index);    // get single line (0-based)
-  String region({            // extract rectangular region
-    required int x,
-    required int y,
-    required int width,
-    required int height,
-  });
-
-  String toString() => content;
-}
-```
-
-#### Partial Assertions
-
-For large widgets, use `line()` or `region()` to check specific areas:
-
-```dart
-final result = captureResult(widget, width: 80, height: 24);
-
-// Check specific line
-expect(result.line(0), equals('Header'));
-expect(result.line(2), contains('Item 1'));
-
-// Check rectangular region (x, y, width, height)
-expect(
-  result.region(x: 5, y: 1, width: 10, height: 2),
-  equals('Column A\nColumn B'),
+import 'package:termparser/termparser_events.dart';
+
+/// A pointer over a 6×1 button at the origin, addressed to `'ok'`.
+PointerMsg pointerAt(MouseButton button, {int x = 0, int y = 0}) => PointerMsg(
+  MouseEvent(x, y, button),
+  local: Position(x, y),
+  targetId: 'ok',
+  targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
 );
 ```
 
-### captureWith()
-
-Render with callback for complex setup.
+With that in hand, a press-release interaction is two calls:
 
 ```dart
-String captureWith(
-  void Function(CaptureTester) callback, {
-  required int width,
-  required int height,
-  bool showBorder = false,
-  bool showEmptyCells = false,
-  String emptyCellMarker = '·',
-  bool trimTrailingWhitespace = true,
-  bool stripBlankLines = true,
-})
+test('down then up inside the button activates it', () {
+  final button = ButtonModel(id: 'ok', label: Line('OK'))
+    ..update(pointerAt(MouseButton.down(), x: 2));
+  expect(button.pressed, isTrue);
+
+  final up = button.update(pointerAt(MouseButton.up(), x: 2));
+  expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()));
+});
 ```
 
-`CaptureTester` provides:
+The verdict is worth as much as the state. A widget consumes only what it
+understands and declines everything else, and tests are where that discipline
+is pinned — a wheel notch a button cannot use must come back `Declined` so a
+scrollable ancestor can take it:
 
 ```dart
-class CaptureTester {
-  Rect get area;
-  Frame get frame;
-  Buffer get buffer;
+test('the wheel is declined so a scrollable ancestor can take it', () {
+  final button = ButtonModel(id: 'ok', label: Line('OK'));
 
-  void render(Widget widget, [Rect? area]);
+  expect(button.update(pointerAt(MouseButton.wheelDown())), isA<Declined>());
+});
+```
+
+The shared suite `packages/kiko_widgets/test/widgets/decline_unknown_test.dart`
+pins the decline contract — unknown messages, key releases, bare modifiers —
+for every shipped model at once. A new widget joins that suite rather than
+writing its own one-off decline tests.
+
+## Testing the view: render into a Frame
+
+A `Frame` over an in-memory `Buffer` runs real layout and paint with no
+terminal anywhere. Two small helpers cover most suites — a frame factory and a
+buffer-to-string dump:
+
+```dart
+/// A frame over a fresh in-memory buffer, ready to render into.
+Frame testFrame(int width, int height) {
+  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+  return Frame(buffer.area, buffer, 0);
+}
+
+/// The buffer as a string: one line per row, trailing blanks trimmed.
+String screenText(Buffer buffer) {
+  final out = StringBuffer();
+  final area = buffer.area;
+  for (var y = area.top; y < area.bottom; y++) {
+    final row = StringBuffer();
+    for (var x = area.left; x < area.right; x++) {
+      final cell = buffer[(x: x, y: y)];
+      if (cell.skip) continue;
+      row.write(cell.symbol.isEmpty ? ' ' : cell.symbol);
+    }
+    out.writeln(row.toString().trimRight());
+  }
+  return out.toString();
 }
 ```
 
-### CaptureBuilder
-
-Builder for async setup.
-
-```dart
-final result = await CaptureBuilder(
-  width: 40,
-  height: 10,
-  showBorder: false,
-  showEmptyCells: false,
-  emptyCellMarker: '·',
-  trimTrailingWhitespace: true,
-  stripBlankLines: true,
-)
-  .setup((CaptureTester t) async {
-    // async setup here
-    t.render(widget);
-  })
-  .capture();         // Future<String>
-  // or .captureResult()  // Future<CaptureResult>
-```
-
-### rendersAs()
-
-Matcher for widget assertions.
+`frame.render(view)` lays the view out tight to the frame's area and paints it
+into the buffer. After it returns, everything a frame knows is open for
+assertion: the cells, the cursor the frame requested, and the tagged geometry
+in `frame.hits`:
 
 ```dart
-Matcher rendersAs(
-  String expected, {
-  required int width,
-  required int height,
-  bool showBorder = false,
-  bool showEmptyCells = false,
-  String emptyCellMarker = '·',
-  bool trimTrailingWhitespace = true,
-  bool stripBlankLines = true,
-})
+test('renders the text and places the cursor at its end', () {
+  final model = TextInputModel(id: 'name', initial: 'hi', focused: true);
+  final frame = testFrame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
+
+  expect(screenText(frame.buffer), 'hi\n');
+  expect(frame.cursorPosition, const Position(2, 0));
+  expect(frame.hits.rectOf('name'), Rect.create(x: 0, y: 0, width: 6, height: 1));
+});
 ```
 
-Usage:
+For styling, index the buffer and assert on the cell — `symbol`, `fg`, `bg`,
+`modifier`. Coordinates are 0-based buffer cells everywhere:
 
 ```dart
-expect(widget, rendersAs('Hello', width: 10, height: 1));
+test('focus tints the glyph, not the background', () {
+  final model = TextInputModel(id: 'name', initial: 'hi', focused: true);
+  final frame = testFrame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
+
+  final cell = frame.buffer[(x: 0, y: 0)];
+  expect(cell.symbol, 'h');
+  expect(cell.fg, Theme.dark.focus.color);
+  expect(cell.bg, isNot(Theme.dark.focus.color));
+});
 ```
 
-### WidgetTester
+`Buffer.empty` measures text with the default `TermUnicodeMeasurer`; pass a
+different measurer only when the test is about width behavior (see the last
+section).
 
-Configurable tester for multiple captures.
+## Testing through a Terminal
+
+`TestBackend` renders to memory instead of a terminal. Hand one to
+`Terminal.create` and the whole render pipeline runs — double buffering,
+diffing, flushing — with the results landing in fields a test can read:
+
+- `screen` is a `Buffer` the size of the terminal onto which every draw applies
+  its cells. It answers what was *rendered* across all draws so far, not merely
+  what the last one wrote.
+- `lastDiff` is the list of cells the last draw was handed — assert against it
+  to check the double buffer redrew only what changed.
+- Everything else — mode toggles, cursor moves, title, cleared regions — is
+  recorded in plain fields (`rawMode`, `cursor`, `title`, `clears`, …).
+
+It is **not a terminal emulator**: it parses no escape sequences, and every
+call but `draw` is recorded rather than simulated.
 
 ```dart
-WidgetTester({
-  int defaultWidth = 80,
-  int defaultHeight = 24,
-  String emptyCellMarker = '·',
-  bool trimTrailingWhitespace = true,
-  bool stripBlankLines = true,
-  bool includeStyles = false,    // reserved for future
-})
+test('a widget renders through the terminal onto the backend screen', () async {
+  final backend = TestBackend(size: const TermSize(4, 1));
+  final terminal = await Terminal.create(backend: backend);
+
+  await terminal.draw(
+    (frame) => frame.render(
+      Button(model: ButtonModel(id: 'ok', label: Line('OK')), theme: Theme.dark),
+    ),
+  );
+
+  expect(screenText(backend.screen), ' OK\n');
+});
 ```
 
-Methods:
+The diff side is what makes this level worth its weight — a `Frame` test
+cannot see double buffering, but a `Terminal` test can pin that an unchanged
+cell is never rewritten:
 
 ```dart
-// Sync
-String capture(Widget, {int? width, int? height, bool showBorder, bool showEmptyCells})
-CaptureResult captureResult(Widget, {...})
-String captureWith(void Function(CaptureTester), {...})
-CaptureResult captureWithResult(void Function(CaptureTester), {...})
+test('the second draw repaints only the cell that changed', () async {
+  final backend = TestBackend(size: const TermSize(10, 1));
+  final terminal = await Terminal.create(backend: backend);
 
-// Async
-Future<String> captureAsync(FutureOr<void> Function(CaptureTester), {...})
-Future<CaptureResult> captureAsyncResult(..., {...})
+  await terminal.draw((frame) => frame.render(Line('ab')));
+  await terminal.draw((frame) => frame.render(Line('ac')));
 
-// Matcher
-Matcher rendersAs(String expected, {int? width, int? height, ...})
+  expect(terminal.lastDiffCount, 1);
+  expect(backend.lastDiff.single.cell.symbol, 'c');
+  expect(screenText(backend.screen), 'ac\n');
+});
 ```
+
+`resizeTo` drives a resize: it swaps the backend's size and clears `screen`,
+and the terminal notices on its next draw:
+
+```dart
+test('a resize is picked up on the next draw', () async {
+  final backend = TestBackend(size: const TermSize(10, 3));
+  final terminal = await Terminal.create(backend: backend);
+  await terminal.draw((frame) => frame.render(Line('hello')));
+
+  backend.resizeTo(const TermSize(4, 2));
+  await terminal.draw((frame) => frame.render(Line('hi')));
+
+  expect(terminal.viewportArea, Rect.create(x: 0, y: 0, width: 4, height: 2));
+  expect(screenText(backend.screen), 'hi\n\n');
+});
+```
+
+## Testing a whole application
+
+`Application(backend: testBackend)` runs the full MVU loop under `dart test`:
+`run()` drains messages, renders frames, restores the terminal, and completes
+with the exit code — the framework never calls `exit()`.
+
+Input is driven with `emit(event)`, which feeds the backend's event stream the
+raw `termparser` events a terminal would produce — `KeyEvent`, `MouseEvent`,
+`WindowResizeEvent`. The runtime turns them into the same `KeyMsg`,
+`PointerMsg` and `ResizeMsg` a real session delivers. A convenient place to
+emit is the `InitMsg` turn, which guarantees the loop is listening:
+
+```dart
+import 'package:termparser/termparser_events.dart';
+
+test('a key event reaches update and quits the app', () async {
+  final backend = TestBackend(size: const TermSize(20, 2));
+
+  final code = await Application(backend: backend).run<int>(
+    init: 0,
+    update: (model, msg, _) {
+      if (msg is InitMsg) backend.emit(const KeyEvent(KeyCode.char('q')));
+      if (msg case KeyMsg(key: 'q')) return (model, const Quit(3));
+      return (model, null);
+    },
+    view: (model, frame) => frame.render(Line('press q to quit')),
+  );
+
+  expect(code, 3);
+  expect(screenText(backend.screen), 'press q to quit\n\n');
+  expect(backend.disposed, isTrue);
+});
+```
+
+One scheduling fact shapes these tests: the model updates on every message,
+but **rendering happens only on frame ticks**. A test that quits the moment
+its last keystroke is handled exits before any frame paints the result. To
+assert on the painted screen, let one tick render and quit on the next:
+
+```dart
+test('a widget model wired into the loop sees the keystrokes and paints them', () async {
+  final backend = TestBackend(size: const TermSize(20, 1));
+  final input = TextInputModel(id: 'name', focused: true);
+  var ticks = 0;
+
+  await Application(backend: backend).run<TextInputModel>(
+    init: input,
+    update: (model, msg, _) {
+      switch (msg) {
+        case InitMsg():
+          backend
+            ..emit(const KeyEvent(KeyCode.char('h')))
+            ..emit(const KeyEvent(KeyCode.char('i')));
+          return (model, null);
+        case FrameTickMsg():
+          // The keys are processed before the first tick, so that tick's
+          // render paints them; the second tick quits.
+          ticks++;
+          return (model, ticks == 2 ? const Quit() : null);
+        default:
+          return switch (model.update(msg)) {
+            Handled(:final cmd) => (model, cmd),
+            Declined() => (model, null),
+          };
+      }
+    },
+    view: (model, frame) => frame.render(TextInput(model: model, theme: Theme.dark)),
+  );
+
+  expect(input.value, 'hi');
+  expect(screenText(backend.screen), 'hi\n');
+});
+```
+
+This level also answers questions the lower ones cannot: mode setup and
+restore (`backend.rawMode`, `alternateScreen`, and friends, on the way in and
+the way out), exit codes on the error path, and hit-testing through the
+`UpdateContext` the runtime hands `update`.
+
+## One measurer everywhere
+
+A session measures every glyph with one `TextMeasurer`, and tests about width
+behavior must respect that: the backend's `screen` applies wide-cell
+bookkeeping with its own measurer, so pass the **same** measurer to the
+backend and to the `Terminal` or `Application` it serves. With the default
+measurer this is automatic; it matters the moment a test opts into another
+one:
+
+```dart
+test('a cjk session widens the ambiguous glyph in layout and paint alike', () async {
+  const measurer = TermUnicodeMeasurer(cjk: true);
+  final backend = TestBackend(size: const TermSize(4, 1), measurer: measurer);
+  final terminal = await Terminal.create(backend: backend, measurer: measurer);
+
+  await terminal.draw((frame) => frame.render(const Row(children: [Text('°'), Text('X')])));
+
+  expect(backend.screen[(x: 0, y: 0)].symbol, '°');
+  expect(backend.screen[(x: 2, y: 0)].symbol, 'X');
+});
+```
+
+A wide glyph occupies its cell plus trailing cells marked `skip`; the
+`screenText` helper above already handles them.
+
+## Where the real suites live
+
+- `packages/kiko_core/test/terminal_test.dart` — the render pipeline through a
+  `TestBackend`: draws, diffs, resizes, cursor, mode toggles.
+- `packages/kiko_core/test/application_test.dart` — the full loop: event
+  drain, exit paths, mode restore, the update context, session measurers.
+- `packages/kiko_widgets/test/widgets/` — model and view suites for every
+  shipped widget; `button/button_model_test.dart` and
+  `text_input_view_test.dart` are good templates.
+- `packages/kiko_widgets/test/widgets/decline_unknown_test.dart` — the shared
+  decline contract; add new widgets here.
+
+For how to *build* the widget these tests exercise, see
+`docs/building-widgets.md`.

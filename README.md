@@ -130,7 +130,7 @@ commands (`Quit`, `Tick`, `AsyncCmd`, `Batch`, `Emit`).
 - `packages/plume/README.md` — the layout engine: mental model, node catalog, API
 - `docs/building-widgets.md` — writing your own widget: model + view, mouse handling, scrolling, worked end to end
 - `docs/theming-widgets.md` — styling widgets with themes (states pick tones, parts pick projections)
-- `docs/widget-testing.md` — visual testing for widget authors
+- `docs/widget-testing.md` — testing widgets and whole apps under `dart test`, no terminal attached
 - `specs/theme-doctrine.md` — the reasoning behind the theming model
 - `packages/kiko_core/doc/` — `mouse_routing.md` (hit map, capture, dispatch), `event_scheduling.md` (the event queue, coalescing)
 - `packages/kiko_widgets/doc/` — `async_loading.md` (load slots, `DataView`), `scroll_view.md`

@@ -60,3 +60,59 @@ class Tone {
   @override
   String toString() => 'Tone(color: $color, on: $on)';
 }
+
+/// A uniform view over a theme's core tones, independent of whether the
+/// colors underneath are full RGB or a fixed ANSI-16 palette.
+///
+/// `Theme` implements this directly (its native RGB tones); `Ansi16Tones`
+/// implements it too (the named-ANSI re-expression used under
+/// `RenderPolicy.ansi16`). `StyleResolver` resolves exactly one active tone
+/// set per instance and reads every state through this shape, so its state
+/// matrix never branches per call site on which kind of tone it is holding.
+///
+/// `hover` is deliberately not part of this set: it only ever paints as a
+/// [Tone.wash], and washes drop entirely at the ANSI-16 tier, so there is
+/// nothing for an ANSI-16 table to carry for it.
+abstract class ToneSet {
+  /// Main brand color for primary actions.
+  Tone get primary;
+
+  /// Second-rank actions, less prominent than [primary].
+  Tone get secondary;
+
+  /// Attention-grabbing color for highlights and badges.
+  Tone get accent;
+
+  /// Destructive actions and invalid/error states.
+  Tone get error;
+
+  /// Cautions and warnings.
+  Tone get warning;
+
+  /// Confirmations and success states.
+  Tone get success;
+
+  /// The app base color.
+  Tone get background;
+
+  /// Elevated surfaces — cards, dialogs, panels.
+  Tone get surface;
+
+  /// Resting chrome (borders, separators).
+  Tone get border;
+
+  /// Secondary/dimmed text.
+  Tone get muted;
+
+  /// Non-interactive elements.
+  Tone get disabled;
+
+  /// Keyboard focus indicator ("you are here").
+  Tone get focus;
+
+  /// Chosen items (selected rows, picked options).
+  Tone get selection;
+
+  /// The current row/column tint.
+  Tone get cursor;
+}

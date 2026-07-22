@@ -282,7 +282,7 @@ class Application {
 
     // 1. Send InitMsg, process, render immediately (before FrameTick starts)
     final initCtx = UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
-    var (model, initCmd) = update(init, const InitMsg(), initCtx);
+    var (model, initCmd) = update(init, InitMsg(hasDarkBackground: terminal.backend.hasDarkBackground), initCtx);
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
     await draw(model);
     runtime
@@ -329,12 +329,23 @@ class Application {
 
   void _initTerminal() {
     final terminal = _terminal!;
-    // A NO_COLOR terminal is a process-wide fact known only here (the theme is
-    // app-owned). Publish it once so every StyleResolver a widget builds
-    // re-expresses meaning through modifiers instead of stripped colors.
-    StyleResolver.defaultPolicy = terminal.backend.profile == ColorProfile.noColor
-        ? RenderPolicy.noColor
-        : RenderPolicy.color;
+    // The backend's color profile is a process-wide fact known only here (the
+    // theme is app-owned). Publish the matching policy once so every
+    // StyleResolver a widget builds projects colors the same way this
+    // terminal can actually render them.
+    //
+    // noColor drops color entirely, re-expressing meaning through modifiers.
+    // ansi16 has only sixteen fixed, user-customized slots, so it paints
+    // through the theme's named ANSI-16 table instead of guessing a nearby
+    // RGB match. ansi256 and trueColor both stay on plain RGB: termlib
+    // downsamples 256-indexed terminals automatically on the way out, and
+    // that automatic downsample is trusted, so only the 16-color tier needs
+    // the semantic table.
+    StyleResolver.defaultPolicy = switch (terminal.backend.profile) {
+      ColorProfile.noColor => RenderPolicy.noColor,
+      ColorProfile.ansi16 => RenderPolicy.ansi16,
+      ColorProfile.ansi256 || ColorProfile.trueColor => RenderPolicy.color,
+    };
     if (viewport is ViewPortFullScreen) {
       terminal
         ..enableAlternateScreen()

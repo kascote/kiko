@@ -365,36 +365,64 @@ mirroring how the three data widgets already share the keyed load-slot pattern.
 
 ---
 
-## 7. Degradation — NO_COLOR and ANSI-16
+## 7. Degradation — three tiers of color fidelity
 
-**Color fidelity is the transport's job, not the theme's.** termkit already
-downsamples RGB → ANSI-256 → ANSI-16 → NO_COLOR out of the box, so any RGB
-theme renders on a 16-color terminal with no theme-side work. The theme layer
-owns only what downsampling *cannot* know: **meaning** **(D6)**.
+A theme is authored once, in RGB, for every terminal. What changes tier to
+tier is not the theme but how the resolver turns a tone into paint:
 
-- **ANSI-16 needs nothing** — downsampling covers it. A hand-tuned ANSI-16
-  theme (tones built from the 16 names) remains possible as a quality upgrade,
-  never a requirement.
-- **NO_COLOR is a semantic gap, not a color gap.** Stripping colors is
-  correct per-cell but blind to intent: a selection whose entire identity is
-  its bg becomes *invisible*, not degraded. The re-expression must happen
-  where the intent is known — the projection:
-  `fill → Modifier.reversed`, `ink → modifiers only` (bold/dim survive),
-  `wash → nothing` (a wash cannot exist without color — the crosshair degrades
-  to the cursor cell only, which is correct behavior, not a loss).
-  Mechanically: the resolver (owner of every projection call) applies the
-  policy in one place; widgets never know. termkit supports `reversed` under
-  NO_COLOR but it is untested end-to-end — validating it is part of landing
-  this section.
-- **Transparent-background themes**: `background.color = null` → fills over it
-  set `bg: null` (terminal default). Washes cannot be derived from an unknown
-  background, so such themes must either provide explicit `cursor`/`hover`
-  tones or accept modifier-based fallbacks. (Parked question "brightness
-  hint?" resolves to: no hint; explicit tones are the hint.)
+1. **RGB, downsampled automatically.** A theme's tones are free RGB. On a
+   256-color terminal termkit downsamples that RGB to the nearest palette
+   entry on the way out, invisibly; a truecolor terminal renders it
+   untouched. The theme layer does nothing here — this tier is the
+   transport's job.
+2. **ANSI-16: a named tone table, not a downsample.** A plain 16-color
+   terminal has no free hues left to downsample into — only the sixteen
+   slots the user has already picked colors for, and a nearest-color search
+   over just sixteen entries quietly loses a theme's intent (error can land
+   on whatever hue happens to be numerically closest). So at this tier the
+   resolver does not downsample: each tone is re-expressed through a *named*
+   ANSI-16 pair (`Theme.tones16`) — `error` is always red-family, `selection`
+   is always blue-family, and so on — so the terminal's own palette
+   customization still reads correctly. A theme may hand-author this table
+   for full control; one that leaves it unset gets a table derived
+   automatically from its RGB tones (nearest-color search plus a fresh
+   black-or-white `on` chosen by contrast) as a fallback, never a requirement.
+   A wash has nothing to spend at this tier either — the sixteen names carry
+   no subtle tints — so it drops entirely, same as NO_COLOR.
+3. **NO_COLOR: modifiers carry meaning.** Color is off entirely. Stripping
+   color is correct per-cell but blind to intent — a selection whose entire
+   identity is its background becomes *invisible*, not merely degraded — so
+   meaning is re-expressed through modifiers, at the one place that still
+   knows the intent: the projection. `fill → Modifier.reversed`, `ink →`
+   its modifiers with color dropped (bold/dim survive), `wash → nothing` (a
+   wash cannot exist without color — the crosshair degrades to the cursor
+   cell only, which is correct behavior, not a loss).
 
-Parked separately (not this spec): a review of the downsampling algorithm
-itself — how RGB→256→16 chooses its targets and whether there is room for
-improvement.
+The staircase reads the same way at every tier, from richest to plainest: a
+fill is **tint + fill** in full RGB, **fill only** through the named ANSI-16
+pair (still a real `(fg, bg)`, just fewer of them to pick from), and
+**reversed only** once color is off completely. A state that must stay
+distinguishable — selected, cursor, focused, error — never goes invisible on
+the way down; it just spends a plainer signal at each step. Mechanically this
+lives in one place: the resolver applies the active `RenderPolicy` inside
+every projection call, so a widget never branches on which tier it is
+running under.
+
+**Transparent-background themes**: `background.color = null` → fills over it
+set `bg: null` (terminal default). Washes cannot be derived from an unknown
+background, so such themes must either provide explicit `cursor`/`hover`
+tones or accept modifier-based fallbacks.
+
+**Picking dark or light is a separate question from any of the above** — it
+is which `Theme` instance an app renders with, not which color tier the
+terminal supports. The startup capability probe answers it as a tri-state:
+`InitMsg.hasDarkBackground` (mirrored on `Backend.hasDarkBackground`) is
+`true` when the terminal's own background reads dark, `false` when it reads
+light, and `null` when the terminal never answered — treat `null` as dark by
+convention, since most terminal defaults are. Kiko never switches a theme on
+its own; it hands the app this one fact, and the app's `update` reads it
+(typically once, from `InitMsg`, to pick `Theme.dark` or `Theme.light` for
+the initial model) and keeps owning that choice for the rest of the run.
 
 ---
 
@@ -428,13 +456,13 @@ wants a different wash sets the tone explicitly.)
 not const/equatable, invite logic into style objects; `Tone?` slots — block
 the "exact style" tier, the whole point of the escape hatch.)
 
-**D6 — Degradation: ratified.** Color fidelity delegated to termkit
-downsampling (RGB→256→16→NO_COLOR — the lower layers give it for free; kiko
-does not reimplement it). Kiko owns only the semantic re-expression at the
-projection (`fill → reversed` under NO_COLOR). **Landing this requires a full
-NO_COLOR behavior test pass** — reversed end-to-end is untested today, and is
-expected to be much easier to test under this model since the policy lives in
-one place (the resolver). Downsampling-algorithm review parked as mikos 0133.
+**D6 — Degradation: ratified, later extended to three tiers (see §7).**
+RGB downsamples automatically on a 256-color terminal; a 16-color terminal
+re-expresses tones through a named ANSI-16 table instead of downsampling,
+so a theme's identity survives a nearest-color search over only sixteen
+slots; NO_COLOR re-expresses meaning through modifiers alone. All of this
+lives at the projection, one place, so widgets never know which tier they
+are running under.
 
 **D7 — App-wide component themes: PARKED, confirmed.** Shared `const` style
 objects cover it; revisit only if real apps prove that tedious. (Same

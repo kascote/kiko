@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import 'ansi16_tones.dart';
 import 'colors.dart';
 import 'tone.dart';
 
@@ -31,26 +32,41 @@ import 'tone.dart';
 /// - [selection]: the chosen items
 /// - [cursor]: the current row/column tint (derived from [background] by default)
 /// - [hover]: the mouse-over tint (derived from [background] by default)
+///
+/// ## The ANSI-16 tier
+///
+/// A theme is authored once, in RGB. On a plain 16-color terminal the
+/// resolver does not downsample that RGB — it re-expresses each tone through
+/// [tones16], a named ANSI-16 pair, so a theme keeps its meaning (error is
+/// still red, selection is still blue) instead of drifting toward whatever
+/// RGB happens to be nearest. [tones16] is optional: a theme without a
+/// hand-authored table gets one derived automatically ([Ansi16Tones.derive]).
 @immutable
-class Theme {
+class Theme implements ToneSet {
   // === Intent ===
 
   /// Main brand color for primary actions.
+  @override
   final Tone primary;
 
   /// Second-rank actions, less prominent than [primary].
+  @override
   final Tone secondary;
 
   /// Attention-grabbing color for highlights and badges.
+  @override
   final Tone accent;
 
   /// Destructive actions and invalid/error states.
+  @override
   final Tone error;
 
   /// Cautions and warnings.
+  @override
   final Tone warning;
 
   /// Confirmations and success states.
+  @override
   final Tone success;
 
   // === Neutral ===
@@ -59,27 +75,40 @@ class Theme {
   ///
   /// `background.color` is the base background; `background.on` is the default
   /// text color drawn on it.
+  @override
   final Tone background;
 
   /// Elevated surfaces — cards, dialogs, panels.
+  @override
   final Tone surface;
 
   /// Resting chrome (borders, separators).
+  @override
   final Tone border;
 
   /// Secondary/dimmed text.
+  @override
   final Tone muted;
 
   /// Non-interactive elements.
+  @override
   final Tone disabled;
 
   // === Interaction ===
 
   /// Keyboard focus indicator ("you are here").
+  @override
   final Tone focus;
 
   /// Chosen items (selected rows, picked options).
+  @override
   final Tone selection;
+
+  /// Hand-authored ANSI-16 re-expression of this theme's tones.
+  ///
+  /// Leave `null` to have the resolver derive one automatically
+  /// ([Ansi16Tones.derive]) and cache it — most themes need nothing here.
+  final Ansi16Tones? tones16;
 
   final Tone? _cursor;
   final Tone? _hover;
@@ -104,6 +133,7 @@ class Theme {
     required this.disabled,
     required this.focus,
     required this.selection,
+    this.tones16,
     Tone? cursor,
     Tone? hover,
   }) : _cursor = cursor,
@@ -114,6 +144,7 @@ class Theme {
   /// When not set explicitly it is derived as a subtle lift of [background]
   /// (10%), keeping [background]'s text color as its `on`. Derives to an empty
   /// tone when [background] has no color (terminal-default themes).
+  @override
   Tone get cursor {
     final explicit = _cursor;
     if (explicit != null) return explicit;
@@ -150,6 +181,47 @@ class Theme {
     focus: Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
     selection: Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
     // cursor, hover: derived washes over background.
+    //
+    // This table is the reference for how every built-in theme picks its
+    // ANSI-16 pairs; new themes should copy this pattern rather than the
+    // exact colors below.
+    //
+    // - color: pick the ANSI-16 hue family that reads as this tone's
+    //   identity, not whichever of the sixteen happens to be numerically
+    //   closest to the RGB value.
+    // - on: black or white, chosen by whether the slot itself reads as a
+    //   dark tone or a light one — black, red, blue and their bright
+    //   variants read dark and take white; green, yellow, cyan, magenta,
+    //   gray and their bright variants read light and take black. Two
+    //   mid-tones never pair together.
+    // - bright variants are the spare headroom: spend them on selection,
+    //   cursor, focus and error once a hue family is already used
+    //   elsewhere, so those four stay visually distinct from one another.
+    //   Cursor and focus also pick up bold from the resolver's state
+    //   matrix, which helps them stand out further.
+    // - background, surface, border, muted and disabled collapse into the
+    //   four grays (black, darkGray, gray, white); keep each theme's own
+    //   relative light-to-dark ordering when choosing among them, since
+    //   that ordering differs between a dark theme and a light one.
+    // - a tone with no readable `on` on the RGB side (border, muted,
+    //   disabled) gets no `on` here either; a tone with no RGB color at
+    //   all stays null.
+    tones16: Ansi16Tones(
+      primary: Tone(color: Color.cyan, on: Color.black),
+      secondary: Tone(color: Color.blue, on: Color.white),
+      accent: Tone(color: Color.brightRed, on: Color.white),
+      error: Tone(color: Color.red, on: Color.white),
+      warning: Tone(color: Color.yellow, on: Color.black),
+      success: Tone(color: Color.green, on: Color.black),
+      background: Tone(color: Color.black, on: Color.white),
+      surface: Tone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: Tone(color: Color.brightCyan, on: Color.black),
+      selection: Tone(color: Color.blue, on: Color.white),
+      cursor: Tone(color: Color.brightBlue, on: Color.white),
+    ),
   );
 
   /// Kiko Light theme - warm white base with deeper accents.
@@ -167,6 +239,29 @@ class Theme {
     disabled: Tone(color: Color.rgb(0xafb8c1)),
     focus: Tone(color: Color.rgb(0x2a8a9a), on: Color.rgb(0xf6f8fa)),
     selection: Tone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
+    // Named ANSI colors paint on the user's own terminal background, so a
+    // light theme cannot force a light terminal here — this table just
+    // stays coherent with the theme's own intent (a white base, dark text).
+    // Muted text needs to stay readable against that white base, so it
+    // takes the darker of the two grays even though border and disabled
+    // (mere chrome, not text) take the lighter one — the opposite ordering
+    // from a dark theme, where dim text needs the lighter gray.
+    tones16: Ansi16Tones(
+      primary: Tone(color: Color.cyan, on: Color.black),
+      secondary: Tone(color: Color.blue, on: Color.white),
+      accent: Tone(color: Color.brightRed, on: Color.white),
+      error: Tone(color: Color.red, on: Color.white),
+      warning: Tone(color: Color.yellow, on: Color.black),
+      success: Tone(color: Color.green, on: Color.black),
+      background: Tone(color: Color.white, on: Color.black),
+      surface: Tone(color: Color.white, on: Color.black),
+      border: Tone(color: Color.gray),
+      muted: Tone(color: Color.darkGray),
+      disabled: Tone(color: Color.gray),
+      focus: Tone(color: Color.brightCyan, on: Color.black),
+      selection: Tone(color: Color.blue, on: Color.white),
+      cursor: Tone(color: Color.brightBlue, on: Color.white),
+    ),
   );
 
   /// Ember theme - warm orange palette with teal accents on near-black base.
@@ -187,6 +282,28 @@ class Theme {
     disabled: Tone(color: Color.rgb(0x4a4540)),
     focus: Tone(color: Color.rgb(0x55c5c5), on: Color.rgb(0x0a0908)),
     selection: Tone(color: Color.rgb(0x1a3535), on: Color.rgb(0xcdc0b4)),
+    // Primary and secondary are both warm reds in RGB, so the vivid one
+    // (primary) takes the bright slot and the quieter one (secondary)
+    // shares plain red with error — an accepted collapse, since staying
+    // distinct from error only matters for the interaction tones below.
+    // Accent keeps its complementary teal identity as plain cyan, leaving
+    // brightCyan free for focus.
+    tones16: Ansi16Tones(
+      primary: Tone(color: Color.brightRed, on: Color.white),
+      secondary: Tone(color: Color.red, on: Color.white),
+      accent: Tone(color: Color.cyan, on: Color.black),
+      error: Tone(color: Color.red, on: Color.white),
+      warning: Tone(color: Color.yellow, on: Color.black),
+      success: Tone(color: Color.green, on: Color.black),
+      background: Tone(color: Color.black, on: Color.white),
+      surface: Tone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: Tone(color: Color.brightCyan, on: Color.black),
+      selection: Tone(color: Color.cyan, on: Color.black),
+      cursor: Tone(color: Color.brightBlue, on: Color.white),
+    ),
   );
 
   /// ANSI-16 dark theme for basic terminal compatibility.
@@ -204,12 +321,33 @@ class Theme {
     disabled: Tone(color: Color.darkGray),
     focus: Tone(color: Color.brightCyan, on: Color.black),
     selection: Tone(color: Color.yellow, on: Color.black),
+    // Already authored in named ANSI colors, so this table just restates
+    // this theme's own tones — including the cursor tint, which this theme
+    // leaves to derive as a lift of its black background (comes out as
+    // darkGray with the background's own white `on`).
+    tones16: Ansi16Tones(
+      primary: Tone(color: Color.cyan, on: Color.black),
+      secondary: Tone(color: Color.magenta, on: Color.black),
+      accent: Tone(color: Color.yellow, on: Color.black),
+      error: Tone(color: Color.red, on: Color.white),
+      warning: Tone(color: Color.yellow, on: Color.black),
+      success: Tone(color: Color.green, on: Color.black),
+      background: Tone(color: Color.black, on: Color.white),
+      surface: Tone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.gray),
+      muted: Tone(color: Color.darkGray),
+      disabled: Tone(color: Color.darkGray),
+      focus: Tone(color: Color.brightCyan, on: Color.black),
+      selection: Tone(color: Color.yellow, on: Color.black),
+      cursor: Tone(color: Color.darkGray, on: Color.white),
+    ),
   );
 
   /// Creates a copy of this theme with the given tones replaced.
   ///
   /// Passing `null` for [cursor] or [hover] keeps this theme's current
-  /// value (explicit or derived); to override them, pass a tone.
+  /// value (explicit or derived); to override them, pass a tone. Passing
+  /// `null` for [tones16] likewise keeps this theme's current table.
   Theme copyWith({
     Tone? primary,
     Tone? secondary,
@@ -224,6 +362,7 @@ class Theme {
     Tone? disabled,
     Tone? focus,
     Tone? selection,
+    Ansi16Tones? tones16,
     Tone? cursor,
     Tone? hover,
   }) => Theme(
@@ -240,6 +379,7 @@ class Theme {
     disabled: disabled ?? this.disabled,
     focus: focus ?? this.focus,
     selection: selection ?? this.selection,
+    tones16: tones16 ?? this.tones16,
     cursor: cursor ?? _cursor,
     hover: hover ?? _hover,
   );
@@ -261,6 +401,7 @@ class Theme {
         other.disabled == disabled &&
         other.focus == focus &&
         other.selection == selection &&
+        other.tones16 == tones16 &&
         other._cursor == _cursor &&
         other._hover == _hover;
   }
@@ -280,6 +421,7 @@ class Theme {
     disabled,
     focus,
     selection,
+    tones16,
     _cursor,
     _hover,
   );

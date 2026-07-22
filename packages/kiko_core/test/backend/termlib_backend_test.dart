@@ -1,4 +1,5 @@
 import 'package:kiko/src/backend/termlib_backend.dart';
+import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
 import 'package:test/test.dart';
 
@@ -69,6 +70,32 @@ void main() {
       const event = tle.WindowResizeEvent(24, 80);
 
       expect(toBufferCoords(event), same(event));
+    });
+  });
+
+  group('isDarkBackground', () {
+    test('a near-black RGB answer reads as dark', () {
+      final result = tl.Supported(tl.Color.fromRGB(0x000000));
+
+      expect(isDarkBackground(result), isTrue);
+    });
+
+    test('a near-white RGB answer reads as light', () {
+      final result = tl.Supported(tl.Color.fromRGB(0xFFFFFF));
+
+      expect(isDarkBackground(result), isFalse);
+    });
+
+    test('an unavailable answer is null', () {
+      const result = tl.Unavailable<tl.Color>(tl.UnavailableReason.timeout);
+
+      expect(isDarkBackground(result), isNull);
+    });
+
+    test('a non-RGB answer is null, defensively', () {
+      final result = tl.Supported(tl.Color.indexed(4));
+
+      expect(isDarkBackground(result), isNull);
     });
   });
 }

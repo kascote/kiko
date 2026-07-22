@@ -37,12 +37,80 @@ void main() {
       expect(StyleResolver.defaultPolicy, RenderPolicy.noColor);
     });
 
-    test('a color backend leaves the color policy in place', () async {
+    test('an ansi16 backend puts every resolver on the ansi16 policy', () async {
       backend.profile = ColorProfile.ansi16;
 
       await runApp(Application(backend: backend), update: quitOnInit());
 
+      expect(StyleResolver.defaultPolicy, RenderPolicy.ansi16);
+    });
+
+    test('an ansi256 backend leaves the color policy in place', () async {
+      backend.profile = ColorProfile.ansi256;
+
+      await runApp(Application(backend: backend), update: quitOnInit());
+
       expect(StyleResolver.defaultPolicy, RenderPolicy.color);
+    });
+
+    test('a trueColor backend leaves the color policy in place', () async {
+      backend.profile = ColorProfile.trueColor;
+
+      await runApp(Application(backend: backend), update: quitOnInit());
+
+      expect(StyleResolver.defaultPolicy, RenderPolicy.color);
+    });
+  });
+
+  group('hasDarkBackground', () {
+    test('threads a dark answer from the backend into InitMsg', () async {
+      backend.hasDarkBackground = true;
+      bool? seen;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          if (msg is InitMsg) seen = msg.hasDarkBackground;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(seen, isTrue);
+    });
+
+    test('threads a light answer from the backend into InitMsg', () async {
+      backend.hasDarkBackground = false;
+      bool? seen;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          if (msg is InitMsg) seen = msg.hasDarkBackground;
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(seen, isFalse);
+    });
+
+    test('threads an unanswered probe into InitMsg as null', () async {
+      backend.hasDarkBackground = null;
+      var seenCount = 0;
+      bool? seen;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          if (msg is InitMsg) {
+            seen = msg.hasDarkBackground;
+            seenCount++;
+          }
+          return (model, msg is InitMsg ? const Quit() : null);
+        },
+      );
+
+      expect(seenCount, 1);
+      expect(seen, isNull);
     });
   });
 

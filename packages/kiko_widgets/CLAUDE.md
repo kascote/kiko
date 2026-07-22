@@ -309,8 +309,10 @@ The never-rules:
 - **Never hand a derived bg to a border.** Pass `resolver.border(...)` (an ink) to
   `Container.borderStyle`; an *explicit* `Style(fg:, bg:)` on a border is a deliberate
   choice and fine.
-- **Never handle NO_COLOR yourself.** `Application` sets `StyleResolver.defaultPolicy`
-  from the terminal profile; route through the resolver and it is free.
+- **Never handle NO_COLOR or ANSI-16 yourself.** `Application` sets
+  `StyleResolver.defaultPolicy` from the terminal's color profile (full RGB, a
+  16-color terminal's named `Theme.tones16` table, or NO_COLOR's modifiers-only
+  re-expression); route through the resolver and every tier is free.
 
 ## Code Style
 

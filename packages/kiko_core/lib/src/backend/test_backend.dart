@@ -100,6 +100,13 @@ class TestBackend implements Backend {
   @override
   bool supportsKeyboardEnhancement = false;
 
+  /// Whether the startup probe should report a dark background. Defaults to
+  /// `null`, so a test that never touches this keeps today's plain behavior;
+  /// set it to `true`/`false` before handing this backend to an `Application`
+  /// to simulate a terminal that answered the background-color query.
+  @override
+  bool? hasDarkBackground;
+
   /// Whether bracketed paste is enabled.
   bool bracketedPaste = false;
 

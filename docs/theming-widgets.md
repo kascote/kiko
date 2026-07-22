@@ -128,15 +128,42 @@ Take an optional `Map<WidgetState, Style>? styleOverrides` and thread it into ev
 `resolve` call. It is the per-instance escape hatch for state-dependent bits (one
 row blinks on the app's signal) without a whole custom `XStyle`.
 
-## 6. NO_COLOR is free
+## 6. NO_COLOR and ANSI-16 are free
 
-You don't handle it. The resolver carries a `RenderPolicy`; under a `NO_COLOR`
-terminal it re-expresses meaning through modifiers in one place — `fill →
-Modifier.reversed`, `ink →` its modifiers with the color dropped, `wash →` nothing
-(a crosshair correctly collapses to the cursor cell). `Application` sets the policy
-from the terminal profile before the first frame, so every `StyleResolver(theme)`
-you build adopts it automatically. Just route through the resolver and a selected
-row stays visible when its color is stripped.
+You don't handle either. The resolver carries a `RenderPolicy` with three
+values, and applies the right one inside every projection call, so a widget
+never branches on which terminal it's running in:
+
+- **`RenderPolicy.color`** — full RGB, as authored.
+- **`RenderPolicy.ansi16`** — a plain 16-color terminal. The resolver doesn't
+  downsample the theme's RGB here (a nearest-color search over just sixteen
+  slots would quietly lose the theme's intent); it re-expresses each tone
+  through a *named* ANSI-16 pair from `Theme.tones16` instead — `error` stays
+  red-family, `selection` stays blue-family, and so on. A theme may
+  hand-author this table; one that doesn't gets one derived automatically
+  from its RGB tones. A `wash` has no subtle tint to spend at this tier, so it
+  drops entirely, same as NO_COLOR.
+- **`RenderPolicy.noColor`** — color is off entirely, so meaning re-expresses
+  through modifiers: `fill → Modifier.reversed`, `ink →` its modifiers with
+  the color dropped, `wash →` nothing (a crosshair correctly collapses to the
+  cursor cell — a loss the wash was never able to avoid without color).
+
+`Application` maps the terminal's color profile to one of these before the
+first frame and sets it on `StyleResolver.defaultPolicy`, so every
+`StyleResolver(theme)` you build adopts it automatically. Just route through
+the resolver and a selected row stays visible — as a real color one tier
+down, as a modifier at the bottom — however far its color has been stripped.
+
+## 7. Picking dark or light at startup
+
+Choosing *which* `Theme` to render with — `Theme.dark` vs. `Theme.light` — is
+a different question from the color-tier one above, and it is the app's
+call, not kiko's. The startup capability probe reports the terminal's own
+background as a tri-state on `InitMsg.hasDarkBackground`: `true` for dark,
+`false` for light, `null` when the terminal never answered a probe (treat
+`null` as dark — most terminal defaults are). A typical app reads it once,
+in `update` on the first `InitMsg`, and picks its starting theme accordingly;
+nothing in kiko ever switches a theme by itself.
 
 ## Which knob serves which user
 

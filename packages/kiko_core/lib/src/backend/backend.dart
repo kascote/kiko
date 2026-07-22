@@ -154,6 +154,17 @@ abstract interface class Backend {
   /// only ever say no.
   bool get supportsKeyboardEnhancement;
 
+  /// Whether the startup probe found the terminal's background dark.
+  ///
+  /// Reads the background color the probe already queried (OSC 11), part of
+  /// the same batched round-trip as every other startup capability check —
+  /// this adds no query of its own. `true` means dark, `false` means light,
+  /// `null` means the terminal never answered; a backend that never probed a
+  /// real terminal can only ever say `null`. Kiko never picks a theme from
+  /// this itself — an app that wants light/dark switching reads it and
+  /// decides.
+  bool? get hasDarkBackground;
+
   /// Enables bracketed paste, so a paste arrives as one paste event.
   void enableBracketedPaste();
 

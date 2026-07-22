@@ -275,7 +275,14 @@ class NoneMsg extends Msg {
 /// Allows update function to return initial commands (fetch data, start timer).
 class InitMsg extends Msg {
   /// Creates an InitMsg.
-  const InitMsg();
+  const InitMsg({this.hasDarkBackground});
+
+  /// Whether the startup probe found the terminal's background dark.
+  ///
+  /// `true` means dark, `false` means light, `null` means the terminal never
+  /// answered — treat `null` as dark by convention. Kiko never picks a theme
+  /// from this itself; the app reads it and decides.
+  final bool? hasDarkBackground;
 }
 
 /// Message sent on each tick interval.

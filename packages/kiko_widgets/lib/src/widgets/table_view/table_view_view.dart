@@ -61,6 +61,10 @@ class _TableViewport extends Node {
     // windowing must stay keyed to the widget's own laid-out size, or a
     // partially scrolled-off table pins its content to the viewport edge.
     final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
-    TableRenderer(model, theme, styleOverrides, measurer: _measurer).paint(area, surface);
+    TableRenderer(model, theme, styleOverrides, measurer: _measurer).paint(
+      area,
+      surface,
+      mark: (region, r) => markRegion(region, r.toPlume()),
+    );
   }
 }

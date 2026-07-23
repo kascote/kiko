@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import '../row_region.dart';
 import 'list_view_model.dart';
 import 'types.dart';
 
@@ -140,6 +141,11 @@ class _ListViewport<T, K> extends Node {
 
       final itemArea = Rect.create(x: area.x, y: y, width: area.width, height: m.itemHeight).intersection(area);
       if (itemArea.isEmpty) break;
+
+      // Mark this item's painted rect — itemHeight lines tall — as its row
+      // region, in the same loop that paints it, so a pointer anywhere on the
+      // item resolves to it. Separator lines and the blank tail stay unmarked.
+      markRegion(RowRegion(i), itemArea.toPlume());
 
       // Honest anatomy, not borrowed states: the base item style, then the
       // hover wash (weakest, so selection/cursor read over it), then the

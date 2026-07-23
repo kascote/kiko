@@ -26,6 +26,7 @@ export 'src/mvu/mvu_runtime.dart';
 // helpers, marked @internal; PointerMsg's own fields and isWheel getter are
 // the public surface for the same questions.
 export 'src/mvu/pointer_msg.dart' hide isWheelAction, pointerFieldsFrom;
+export 'src/mvu/region.dart';
 export 'src/mvu/update_context.dart';
 export 'src/plume/aliases.dart';
 export 'src/plume/buffer_surface.dart';

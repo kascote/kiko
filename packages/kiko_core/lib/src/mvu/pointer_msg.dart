@@ -4,6 +4,7 @@ import 'package:termparser/termparser_events.dart' as evt;
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import 'msg.dart';
+import 'region.dart';
 
 /// Whether [action] is one of the four wheel notches.
 ///
@@ -183,6 +184,23 @@ class PointerMsg extends Msg implements Routed {
   /// rather than merely sitting under it.
   final bool captured;
 
+  /// The painted part of the target widget under the pointer, or `null` when
+  /// the pointer is over no marked part.
+  ///
+  /// A view marks its discrete parts (rows, a header, an expand indicator) while
+  /// painting, and the router resolves the innermost one under the pointer; a
+  /// model switches over its own region types instead of re-deriving which part
+  /// a coordinate falls on. `null` means the pointer is on nothing marked — an
+  /// unmarked separator, the blank tail below the last row, or a widget that
+  /// marks no regions at all — and is always `null` without a [targetId]. While
+  /// a gesture is [captured] it is recomputed per event and is `null` whenever
+  /// the pointer has left the widget holding it.
+  ///
+  /// [local] stays valid at every tier: region complements it, never replaces
+  /// it. A continuous surface (a text editor's click-to-caret) marks no regions
+  /// and reads [local]; that is a permanent tier, not a legacy one.
+  final Region? region;
+
   /// Addresses a pointer event to a target.
   const PointerMsg({
     required this.global,
@@ -195,6 +213,7 @@ class PointerMsg extends Msg implements Routed {
     this.targetId,
     this.targetRect,
     this.captured = false,
+    this.region,
   });
 
   /// Whether a button went down.
@@ -250,11 +269,16 @@ class PointerMsg extends Msg implements Routed {
   }
 
   /// This event re-addressed to [targetId], whose painted bounds are
-  /// [targetRect].
+  /// [targetRect], carrying [region] as the part under the pointer within that
+  /// new target.
   ///
   /// The physical event — position, action, button, modifiers, capture state —
-  /// is carried unchanged; [local] is recomputed against the new rect.
-  PointerMsg retarget({required String targetId, required Rect targetRect}) => PointerMsg(
+  /// is carried unchanged; [local] is recomputed against the new rect. [region]
+  /// is *not* carried over from this message: the incoming region was resolved
+  /// against the old target's parts and means nothing under the new one, so a
+  /// caller re-resolves it against the new target and passes it here (`null`
+  /// when the new target marks nothing under the pointer).
+  PointerMsg retarget({required String targetId, required Rect targetRect, Region? region}) => PointerMsg(
     global: global,
     action: action,
     button: button,
@@ -265,6 +289,7 @@ class PointerMsg extends Msg implements Routed {
     local: Position(global.x - targetRect.x, global.y - targetRect.y),
     targetRect: targetRect,
     captured: captured,
+    region: region,
   );
 
   @override
@@ -280,15 +305,17 @@ class PointerMsg extends Msg implements Routed {
           targetId == other.targetId &&
           local == other.local &&
           targetRect == other.targetRect &&
-          captured == other.captured;
+          captured == other.captured &&
+          region == other.region;
 
   @override
-  int get hashCode => Object.hash(global, action, button, shift, ctrl, alt, targetId, local, targetRect, captured);
+  int get hashCode =>
+      Object.hash(global, action, button, shift, ctrl, alt, targetId, local, targetRect, captured, region);
 
   @override
   String toString() =>
       'PointerMsg(${action.name} at $global, target: $targetId, local: $local'
-      '${captured ? ', captured' : ''})';
+      '${region == null ? '' : ', region: $region'}${captured ? ', captured' : ''})';
 }
 
 /// The pointer has left a widget: no further event will address it.

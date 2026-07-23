@@ -230,7 +230,11 @@ class FocusRouter {
       if (viaAlias && msg is PointerMsg) {
         final rect = ctx.hits.rectOf(memberId);
         if (rect == null) return const Declined();
-        routed = msg.retarget(targetId: memberId, targetRect: rect);
+        // Re-resolve the region against the member's own parts at the pointer:
+        // the incoming region was scoped to the chrome, so retarget takes a
+        // fresh one rather than carrying the chrome's over.
+        final region = ctx.hits.regionAt(memberId, msg.global.x, msg.global.y);
+        routed = msg.retarget(targetId: memberId, targetRect: rect, region: region);
       }
 
       // A leave or cancel reached via alias keeps the chrome id — it has no

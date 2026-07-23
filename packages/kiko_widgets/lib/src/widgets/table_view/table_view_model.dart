@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 
 import '../../load/data_view.dart';
 import '../../load/load.dart';
+import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'table_column.dart';
 import 'table_data_source.dart';
@@ -240,17 +241,6 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
     return _scrollRow - before;
   }
 
-  /// The data row at [local], or null when the click lands on the sticky header
-  /// or past the loaded window. The header occupies row 0 when [stickyHeader].
-  @override
-  int? localToRow(Position local) {
-    final headerRows = stickyHeader ? 1 : 0;
-    if (local.y < headerRows) return null;
-    final row = _scrollRow + local.y - headerRows;
-    if (row < _loadedStart || row >= _loadedEnd) return null;
-    return row;
-  }
-
   // ─────────────────────────────────────────────
   // Getters - State
   // ─────────────────────────────────────────────
@@ -451,19 +441,32 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      final row = localToRow(pointer.local);
-      if (pointer.isDown) {
-        // A click on the header or past the loaded rows is not ours; bubble it.
-        if (row == null) return const Declined();
-        hoverRow = row;
-        // A click is the keyboard's cursor-move + confirm collapsed into one
-        // event: move to the row, then emit the same command Enter emits.
-        _cursorRow = row;
-        _adjustScrollToCursor();
-        return Handled(TableActionCmd(id, 'primary'));
+      // The part under the pointer is resolved by the framework and carried on
+      // the message. A data row activates like Enter.
+      final region = pointer.region;
+      if (region is RowScoped) {
+        return handleRowPointer(
+          pointer,
+          region.index,
+          setHover: (r) => hoverRow = r,
+          moveCursorTo: (r) {
+            _cursorRow = r;
+            _adjustScrollToCursor();
+          },
+          activate: () => TableActionCmd(id, 'primary'),
+        );
       }
-      // A move, drag, or the release half of a click only refreshes the hover.
-      hoverRow = row;
+      if (region is TableHeaderRegion) {
+        // Marked from day one so a future column sort hangs off the region
+        // instead of new geometry. For now a press declines and bubbles,
+        // exactly as before regions existed, and any pointer clears the hover.
+        hoverRow = null;
+        return pointer.isDown ? const Declined() : const Handled();
+      }
+      // No marked part — the empty-state line or the blank tail. A press
+      // bubbles; a move clears the hover.
+      if (pointer.isDown) return const Declined();
+      hoverRow = null;
       return const Handled();
     }
     if (msg is PointerLeaveMsg) {

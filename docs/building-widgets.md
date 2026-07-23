@@ -42,11 +42,14 @@ abstract interface class View {
 ```
 
 `Line` and `Text` are views. `Container`, `Row`, `Column`, `Center`, `Padding`
-are views that compose other views. A widget's view class is just one more of
-these: it lays its content out by *composing* existing views and lets plume do
-the geometry. Only data-scale widgets (a list windowing 100k rows) drop down to
-a custom `Node` with their own `performLayout`/`paintSelf` — see ListView's
-source when you need that; the palette here never does.
+are views that compose other views. Many widgets' view classes are just one more
+of these: they lay content out by *composing* existing views and let plume do
+the geometry. A widget that wants to *mark hit regions*, though — the palette
+below marks each of its rows — drops down to a custom `Node` with its own
+`performLayout`/`paintSelf`, because a region is marked at the moment its part
+is painted. That is the same custom-`Node` shape a data-scale widget uses to
+window 100k rows (see ListView's source); the palette uses it to paint and mark
+its handful of rows.
 
 ## The command
 
@@ -203,11 +206,12 @@ how a correctly written handler behaves. That is the whole payoff: not one examp
 app needed a code change when the enhancement went from breaking typing to working
 in full.
 
-## The view: rows, states, and the tag
+## The view: painting rows and marking them
 
-The view is stateless and rebuilt every frame. It composes existing views — a
-`Container` pinning the viewport height, a stretched `Column` of rows — and
-stamps the built subtree with the model's id:
+The view is stateless and rebuilt every frame. A widget with discrete parts —
+rows, here — paints them itself, so it can mark each part as a *hit region* in
+the same loop that draws it. `Palette.build` returns that self-painting node,
+stamped with the model's id:
 
 ```dart
 final class Palette implements View {
@@ -221,53 +225,63 @@ final class Palette implements View {
   final Theme theme;
 
   @override
-  Node build() {
-    final resolver = StyleResolver(theme);
-    final m = model;
-    final end = (m.scrollOffset + m.visibleCount).clamp(0, m.options.length);
-
-    return Container(
-      height: m.viewportRows,
-      child: Column(
-        crossAxis: CrossAxisAlignment.stretch,
-        children: [for (var i = m.scrollOffset; i < end; i++) _row(m, resolver, i)],
-      ),
-    ).build()..tag = m.id;
-  }
-```
-
-That `..tag = m.id` line is the whole mouse wiring on the view side. **Widgets
-self-tag**: the tag names this subtree in the frame's hit map, so a pointer
-event resolves to the model's id and arrives at `update` already addressed.
-Where you put the tag decides what a pointer's `local` position means — it is
-counted from the tagged node's top-left cell. We tag the row area itself, so
-`local.y` is a row offset even when the app later wraps the palette in a
-border. (`Tagged(id, child)` exists for regions the *app* composes that no
-model owns — never wrap a self-tagging widget in one.)
-
-Rows layer their paint the way every shipped widget does:
-
-```dart
-  View _row(PaletteModel m, StyleResolver resolver, int i) {
-    // Row paint layers the way the shipped widgets do it: the hover wash first
-    // (weakest, background-only, so the row's own foreground survives), then
-    // the cursor fill over it. `focused` is never a row state — it means "the
-    // widget owns input" and belongs to the chrome around the widget, not to
-    // every row inside it.
-    var style = const Style();
-    if (i == m.hoverRow) {
-      style = style.patch(resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
-    }
-    if (i == m.cursor) {
-      style = style.patch(resolver.resolve(null, const {WidgetState.cursor}));
-    }
-    return Container(
-      background: style,
-      child: Line(' ${m.options[i]}', style: style),
-    );
-  }
+  Node build() => _PaletteViewport(model: model, theme: theme)..tag = model.id;
 }
 ```
+
+That `..tag = model.id` is the whole mouse wiring on the view side, and it is
+the one entry ticket to routing: **a tagged widget receives pointer traffic; an
+untagged one receives none.** Widgets self-tag — the tag names this subtree in
+the frame's hit map, so a pointer resolves to the model's id and arrives at
+`update` already addressed. (`Tagged(id, child)` exists for regions the *app*
+composes that no model owns — never wrap a self-tagging widget in one.)
+
+The node windows the visible options and paints each row; right where it paints
+one, it marks that row as a `RowRegion`:
+
+```dart
+  @override
+  void paintSelf(Surface surface) {
+    final m = model;
+    final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
+    final end = (m.scrollOffset + m.visibleCount).clamp(0, m.options.length);
+
+    var y = area.y;
+    for (var i = m.scrollOffset; i < end; i++) {
+      final rowRect = Rect.create(x: area.x, y: y, width: area.width, height: 1);
+
+      // Mark the row where it is painted. Update switches on this region instead
+      // of computing a row from the pointer's coordinates. `toPlume()` bridges
+      // kiko's cell rect to plume's geometry rect that markRegion wants.
+      markRegion(RowRegion(i), rowRect.toPlume());
+
+      // Row paint layers the way the shipped widgets do: the hover wash first
+      // (weakest, background-only, so the row's foreground survives), then the
+      // cursor fill over it. `focused` is never a row state — it means "the
+      // widget owns input" and belongs to the chrome, not to every row.
+      var style = const Style();
+      if (i == m.hoverRow) {
+        style = style.patch(_resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
+      }
+      if (i == m.cursor) {
+        style = style.patch(_resolver.resolve(null, const {WidgetState.cursor}));
+      }
+
+      fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);
+      paintLine(surface, Line(' ${m.options[i]}', style: style),
+          x: rowRect.x, y: rowRect.y, width: rowRect.width, measurer: _measurer);
+      y++;
+    }
+  }
+```
+
+`markRegion(RowRegion(i), rowRect)` records that row `i` was painted at
+`rowRect`. Because the mark is written by the same loop that painted the row,
+the geometry a click resolves against can never drift from what was drawn — that
+is the whole point, and it is why the model below re-derives nothing. A
+`RowRegion` is a plain value class kiko_widgets shares across ListView,
+TableView and TreeView; a widget with parts of its own defines its own region
+types the same way (a value class implementing `Region`).
 
 The mistakes this shape avoids: putting `WidgetState.focused` in every row's
 state set floods the whole widget with the focus fill (focus belongs on the
@@ -332,9 +346,10 @@ place, that is the only switch.
 ## Making it mouse-aware
 
 A pointer event arrives at `update` already resolved: it knows whose it is, and
-`local` is the position in the widget's own cells. The framework half — router,
-hit map, capture — is `packages/kiko_core/doc/mouse_routing.md`; the widget
-half is this one branch at the **top** of `update`:
+it carries the *region* under it — the part the view marked while painting. The
+framework half — router, hit map, region resolution, capture — is
+`packages/kiko_core/doc/mouse_routing.md`; the widget half is this one branch at
+the **top** of `update`:
 
 ```dart
   @override
@@ -350,26 +365,30 @@ half is this one branch at the **top** of `update`:
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      final row = localToRow(pointer.local);
-      if (pointer.isDown) {
-        // A press below the last option is not ours; the app may bubble it.
-        if (row == null) return const Declined();
-        hoverRow = row;
-        // A click is the keyboard's cursor-move + confirm collapsed into one
-        // event: move to the row, then emit the same command Enter emits.
-        cursor = row;
-        return Handled(PaletteChooseCmd(id, options[row]));
+      // Switch on the region the framework resolved, never on coordinates.
+      if (pointer.region case final RowScoped row) {
+        return handleRowPointer(
+          pointer,
+          row.index,
+          setHover: (r) => hoverRow = r,
+          moveCursorTo: (r) {
+            cursor = r;
+            _snapToCursor();
+          },
+          activate: () => PaletteChooseCmd(id, options[row.index]),
+        );
       }
-      // A move, drag, or the release half of a click only refreshes the hover.
-      hoverRow = row;
+      // No option under the pointer — the blank tail below the last row. A press
+      // bubbles; a move clears the hover.
+      if (pointer.isDown) return const Declined();
+      hoverRow = null;
       return const Handled();
     }
     if (msg is PointerLeaveMsg) {
       hoverRow = null;
       return const Handled();
     }
-    // The palette holds no gesture state (nothing armed on a press), so a
-    // torn-off gesture is not its business.
+    // The palette arms nothing on a press, so a torn-off gesture is not its business.
     if (msg is PointerCancelMsg) return const Declined();
 ```
 
@@ -379,22 +398,41 @@ Walk it rule by rule:
   keyboard only. A wheel must scroll, a click must choose, a hover must
   highlight on an *unfocused* widget — that is how mice behave everywhere else
   on your desktop.
-- **A click emits the keyboard's command.** The press moves the cursor and
-  returns the *same* id-addressed `PaletteChooseCmd` that Enter returns. The
-  app cannot tell which device fired it, so it never grows a second, mouse-only
-  path. A widget never emits a focus command from a click either — moving focus
-  is the app's decision, and `FocusRouter` already does it on the press
-  (`clickToFocus`).
-- **Hover is a plain field.** `int? hoverRow`, set from `local`, folded into
+- **Switch on the region, never on coordinates.** The view marked each row as a
+  `RowRegion` while painting; the framework resolves the one under the pointer
+  and hands it back on `pointer.region`. `handleRowPointer` (from
+  `ScrollableModel`) is the arm every scrollable's rows share — on a press it
+  moves the cursor to the row, snaps the scroll, and returns the widget's
+  activate command; on any other pointer it refreshes the hover. A `null` region
+  means the pointer is on nothing marked (the blank tail): a press bubbles, a
+  move clears the hover.
+- **A click emits the keyboard's command.** The row arm returns the *same*
+  id-addressed `PaletteChooseCmd` that Enter returns. The app cannot tell which
+  device fired it, so it never grows a second, mouse-only path. A widget never
+  emits a focus command from a click either — moving focus is the app's
+  decision, and `FocusRouter` already does it on the press (`clickToFocus`).
+- **Hover is a plain field.** `int? hoverRow`, set by the row arm, folded into
   the row styling in `build`, cleared by `PointerLeaveMsg`. There is no hover
   interface and no enter message — the first `PointerMsg` addressed to the
   widget *is* the enter.
-- **Decline what you don't consume.** A press past the last row is `Declined`
-  so the app can offer it elsewhere (via the hit path); the horizontal wheel is
-  declined because the palette has no use for it. `PointerCancelMsg` is
-  declined here because the palette arms nothing on a press — contrast
-  `ButtonModel`, which sets `pressed` on the down and therefore must consume
-  the cancel to disarm it.
+- **Decline what you don't consume.** A press on no marked part is `Declined` so
+  the app can offer it elsewhere (via the hit path); the horizontal wheel is
+  declined because the palette has no use for it. `PointerCancelMsg` is declined
+  here because the palette arms nothing on a press — contrast `ButtonModel`,
+  which sets `pressed` on the down and therefore must consume the cancel to
+  disarm it.
+
+**Two tiers of mouse support.** The tag is the only entry ticket; past it a
+widget chooses its tier. A widget with discrete parts — rows, a header, an
+expand indicator — *marks regions* and switches on `pointer.region`, as the
+palette does, and never touches coordinates. A widget over a *continuous*
+surface — a text editor mapping a click to a wrap-aware caret — marks no
+regions and reads `pointer.local` instead, the position in its own cells
+(counted from the tagged node's top-left). Both tiers are permanent: `local`
+rides every pointer message whether or not regions are marked, so a continuous
+surface is a first-class tier, not a legacy one. Regions are the default for
+discrete parts because they cannot drift from the paint; `local` is the tool
+only when the thing under the pointer is not a discrete part at all.
 
 ## Scrolling: the `ScrollableModel` surface
 
@@ -418,13 +456,6 @@ uniform surface. Mixing in `ScrollableModel` declares it:
     return _scrollOffset - before;
   }
 
-  @override
-  int? localToRow(Position local) {
-    if (local.y < 0 || local.y >= visibleCount) return null;
-    final row = _scrollOffset + local.y;
-    return row < options.length ? row : null;
-  }
-
   /// Snaps the viewport so the cursor is visible — keyboard navigation always
   /// brings its row into view, even after the wheel scrolled elsewhere.
   void _snapToCursor() {
@@ -445,9 +476,12 @@ The behaviors this buys, all of which the pointer branch above already uses:
   top while wheel-down still scrolls — so a scrollable ancestor gets the
   notch and nested scrolling works. Consuming at the edge would make nesting
   permanently dead.
-- **`localToRow` owns the geometry.** Every pointer-to-row mapping goes through
-  it, so a widget with a sticky header or taller rows adjusts one function and
-  the whole mouse story follows.
+- **`handleRowPointer` is the shared row arm.** The mixin also carries the
+  pointer arm the mouse branch above calls — set the hover, move the cursor,
+  activate — so all three shipped scrollables (and this palette) resolve a row
+  click identically. It is a helper each widget calls from its own switch, not
+  an interception: the `Handled`/`Declined` verdict and any deviation stay in
+  the widget's hands.
 
 `visibleCount` is a fixed constructor value here; a real widget measures its
 viewport while painting and pushes the count into the model — ListView's

@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 
 import '../../load/data_view.dart';
 import '../../load/load.dart';
+import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'types.dart';
 
@@ -171,16 +172,6 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
     return _scrollOffset - before;
   }
 
-  /// The item row at [local], or null when the click falls past the last item.
-  @override
-  int? localToRow(Position local) {
-    if (local.y < 0) return null;
-    final row = _scrollOffset + local.y;
-    final len = dataView.length;
-    if (len != null && row >= len) return null;
-    return row;
-  }
-
   /// Item at cursor, or null if out of bounds.
   T? get cursorItem => _safeItemAt(_cursor);
 
@@ -265,11 +256,13 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// selects, and a hover highlights whether or not the list is focused. A
   /// wheel notch scrolls the viewport without touching the cursor; a notch that
   /// moves nothing in that direction (already at the edge) is declined, so a
-  /// nesting scroll ancestor gets the chance. A button-down on an item moves the
-  /// cursor there and activates it, exactly as Enter does;
-  /// any other pointer only refreshes the hovered row. A pointer that lands on no
-  /// item is declined so the app can offer it to the next widget. The keyboard
-  /// path stays behind the gate.
+  /// nesting scroll ancestor gets the chance — this stays above the region
+  /// logic, so a notch over an unmarked separator still scrolls. A button-down
+  /// on an item's row region moves the cursor there and activates it, exactly as
+  /// Enter does; any other pointer on it only refreshes the hovered row. A
+  /// pointer over no marked part — a separator, the blank tail — declines a press
+  /// so the app can bubble it, and clears the hover on a move. The keyboard path
+  /// stays behind the gate.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -283,19 +276,25 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      final row = localToRow(pointer.local);
-      if (pointer.isDown) {
-        // A click below the last item is not ours; let the app bubble it.
-        if (row == null) return const Declined();
-        hoverRow = row;
-        // A click is the keyboard's cursor-move + confirm collapsed into one
-        // event: move to the row, then emit the same command Enter emits.
-        _cursor = row;
-        _adjustScrollToCursor();
-        return Handled(ListActionCmd(id));
+      // The row under the pointer is resolved by the framework and carried on
+      // the message — no cursor arithmetic here. A click activates like Enter;
+      // any other pointer just refreshes the hover.
+      if (pointer.region case final RowScoped row) {
+        return handleRowPointer(
+          pointer,
+          row.index,
+          setHover: (r) => hoverRow = r,
+          moveCursorTo: (r) {
+            _cursor = r;
+            _adjustScrollToCursor();
+          },
+          activate: () => ListActionCmd(id),
+        );
       }
-      // A move, drag, or the release half of a click only refreshes the hover.
-      hoverRow = row;
+      // No marked part under the pointer — a separator or the blank tail below
+      // the last item. A press is not ours, so it bubbles; a move clears hover.
+      if (pointer.isDown) return const Declined();
+      hoverRow = null;
       return const Handled();
     }
     if (msg is PointerLeaveMsg) {

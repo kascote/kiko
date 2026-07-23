@@ -63,15 +63,6 @@ void main() {
       expect(model.scrollBy(1), equals(0), reason: 'already at the edge');
     });
 
-    test('localToRow maps a local position to the content row', () {
-      final model = scrollable()..scrollBy(2);
-
-      expect(model.localToRow(Position.origin), equals(2));
-      expect(model.localToRow(const Position(3, 3)), equals(5), reason: 'row = scrollOffset + local.y');
-      expect(model.localToRow(const Position(0, -1)), isNull, reason: 'above the first row');
-      expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last content row');
-    });
-
     test('a horizontal wheel is declined so it passes through to composed children', () {
       final model = scrollable();
       expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());

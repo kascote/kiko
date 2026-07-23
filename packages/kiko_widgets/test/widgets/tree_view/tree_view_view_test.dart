@@ -148,4 +148,42 @@ void main() {
       expect(frame.hits.hitId(3, 0), 'files');
     });
   });
+
+  group('hit regions (task 0262)', () {
+    // A branch root at depth 0 (its expand indicator sits at columns 0-1),
+    // followed by a leaf (which paints no indicator).
+    TreeViewModel<String> branchTree() => TreeViewModel<String>(id: 'nav')
+      ..setVisibleCount(10)
+      ..applyRoots(<TreeNode<String>>[
+        TreeNode(path: '/A', label: Line('Alpha')),
+        TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
+      ]);
+
+    test('the default builder marks the expand indicator over the row', () {
+      final hits = (_frame(10, 2)..render(TreeView<String>(model: branchTree(), theme: Theme.dark))).hits;
+
+      // Branch row 0: the indicator wins columns 0-1, the row body owns the rest.
+      expect(hits.regionAt('nav', 0, 0), const TreeIndicatorRegion(0), reason: 'the expand arrow');
+      expect(hits.regionAt('nav', 1, 0), const TreeIndicatorRegion(0));
+      expect(hits.regionAt('nav', 4, 0), const RowRegion(0), reason: 'past the indicator is the row body');
+      // Leaf row 1 paints no indicator — the whole row is the plain region.
+      expect(hits.regionAt('nav', 0, 1), const RowRegion(1), reason: 'a leaf has no indicator');
+      expect(hits.regionAt('nav', 4, 1), const RowRegion(1));
+    });
+
+    test('a custom nodeBuilder marks no indicator, so the indent is the row', () {
+      // The latent bug: the old model toggled on any press in [indent, indent+2)
+      // even when a custom builder drew no arrow there. With no indicator region
+      // marked, that press now resolves to the plain row and activates instead.
+      final node = TreeView<String>(
+        model: branchTree(),
+        theme: Theme.dark,
+        nodeBuilder: (n, depth, state) => n.label,
+      );
+      final hits = (_frame(10, 2)..render(node)).hits;
+
+      expect(hits.regionAt('nav', 0, 0), const RowRegion(0), reason: 'no indicator with a custom builder');
+      expect(hits.regionAt('nav', 1, 0), const RowRegion(0));
+    });
+  });
 }

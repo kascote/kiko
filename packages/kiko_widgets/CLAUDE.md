@@ -146,15 +146,24 @@ and `example/scrollable_form.dart`. The rules:
   and returns the SAME id-addressed command Enter returns; the app cannot tell which device
   fired it. A widget NEVER emits a focus command — moving focus on a press belongs to
   whoever owns the `FocusGroup`: `FocusRouter` (or `focusOnPress`) does it in one line.
-- **Hover is a plain model field** (`int? hoverRow`), set from the pointer's `local` in
-  `update`, folded into the `WidgetState` set in `build`, cleared by `PointerLeaveMsg`.
-  There is no enter message — the first `PointerMsg` addressed to the widget IS the enter.
+- **Discrete parts ride hit regions, not coordinates.** A view marks each row / header /
+  indicator as a `Region` while it paints (`markRegion`); the framework resolves the one
+  under the pointer and delivers it on `pointer.region`, so a model switches on the part
+  instead of computing it from `local`. Rows share `RowRegion(index)` (a `RowScoped`) and go
+  through `handleRowPointer`; a widget-specific part (`TableHeaderRegion`,
+  `TreeIndicatorRegion`) gets its own arm. `local` stays on the message for CONTINUOUS
+  surfaces (a text editor's click-to-caret) — that tier marks no regions and is permanent,
+  not legacy. Full story: `kiko_core/doc/mouse_routing.md`, "Hit regions".
+- **Hover is a plain model field** (`int? hoverRow`), set from the resolved row in `update`
+  (the shared `handleRowPointer` writes it), folded into the `WidgetState` set in `build`,
+  cleared by `PointerLeaveMsg`. There is no enter message — the first `PointerMsg` addressed
+  to the widget IS the enter.
 - **Scrolling rides `ScrollableModel`** (`lib/src/widgets/scrollable_model.dart`):
   `scrollOffset`/`visibleCount`, `scrollBy(rows)` (clamped, returns rows actually moved),
-  `localToRow(local)` (sticky header and indent accounted for), `wheelScrollLines` (3). A
-  wheel notch moves the VIEWPORT and leaves the cursor; the next keypress snaps the
-  viewport back (Vim behaviour). Near-edge scrolling triggers the same load threshold as
-  cursor navigation.
+  `handleRowPointer(...)` (the shared row arm — set hover, move cursor, activate),
+  `wheelScrollLines` (3). A wheel notch moves the VIEWPORT and leaves the cursor; the next
+  keypress snaps the viewport back (Vim behaviour). Near-edge scrolling triggers the same
+  load threshold as cursor navigation.
 - **Wheel doctrine, uniform across every scrollable** (List, Table, Tree, ScrollView): a
   notch that would move nothing in its direction — `scrollBy` returned 0 at that edge — is
   `Declined()`, per-direction; any notch that moves at all, even partially, is consumed.

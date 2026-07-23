@@ -1,7 +1,39 @@
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
 
+import '../row_region.dart';
 import 'tree_node.dart';
+
+// ═══════════════════════════════════════════════════════════
+// HIT REGIONS
+// ═══════════════════════════════════════════════════════════
+
+/// A node's expand/collapse indicator, marked only when the default node
+/// builder actually paints one.
+///
+/// It is [RowScoped] because it lives on a node's row: a press on it toggles
+/// the branch, but a mere hover over it still highlights the node's row, the
+/// same as a hover anywhere else on the row. With a custom node builder no
+/// indicator is painted, so no indicator region exists — a press in the indent
+/// then resolves to the plain [RowRegion] and activates the node, instead of
+/// toggling a branch on geometry the builder never drew.
+@immutable
+class TreeIndicatorRegion implements RowScoped {
+  /// Names the indicator on the node at row [index].
+  const TreeIndicatorRegion(this.index);
+
+  @override
+  final int index;
+
+  @override
+  bool operator ==(Object other) => other is TreeIndicatorRegion && other.index == index;
+
+  @override
+  int get hashCode => index.hashCode;
+
+  @override
+  String toString() => 'TreeIndicatorRegion($index)';
+}
 
 // ═══════════════════════════════════════════════════════════
 // ACTIONS

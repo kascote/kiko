@@ -4,15 +4,16 @@ import 'package:kiko/kiko.dart';
 /// TreeView.
 ///
 /// It gives each model a uniform scroll surface: where the viewport starts, how
-/// many rows it shows, how to move it by a wheel notch, and how to turn a local
-/// pointer position into the row under it. The mouse code drives every scrollable
-/// widget through this one surface, whatever the widget is.
+/// many rows it shows, and how to move it by a wheel notch. It also carries
+/// [handleRowPointer], the pointer arm those widgets' data rows share — the
+/// row a pointer lands on is resolved by the framework as a hit region and
+/// carried on the message, so no model turns a coordinate into a row itself.
 ///
 /// Opt-in and kiko_widgets-only: a model mixes it in with `with ScrollableModel`.
 /// It is deliberately not a framework interface — a flat list, a windowed table
-/// and an indented tree keep their scroll state in different fields and measure
-/// their rows differently, so each member is implemented per model over its own
-/// state. Only [wheelScrollLines] carries a shared default.
+/// and an indented tree keep their scroll state in different fields, so each
+/// member is implemented per model over its own state. Only [wheelScrollLines]
+/// and [handleRowPointer] carry shared behavior.
 mixin ScrollableModel {
   /// The first visible row, in the model's own row space.
   int get scrollOffset;
@@ -43,10 +44,38 @@ mixin ScrollableModel {
   /// consuming at the limit would make nesting permanently dead.
   int scrollBy(int rows);
 
-  /// The row the pointer at [local] falls on, or null when it lands on no row.
+  /// The pointer arm every scrollable's data rows share: hover follows the
+  /// pointer, and a press moves the cursor to the row, scrolls it into view, and
+  /// activates it — the mouse counterpart of the keyboard's move-then-confirm.
   ///
-  /// The position is in the widget's own cells. Each widget maps it with its own
-  /// geometry — a table skips its sticky header, a tree its flattened range — and
-  /// returns null for a click above the first row or below the last.
-  int? localToRow(Position local);
+  /// A widget calls this from its own update switch for a row-scoped region,
+  /// passing the seams the mixin cannot reach into: [setHover] writes the
+  /// model's hover field, [moveCursorTo] sets the cursor and adjusts the scroll,
+  /// and [activate] builds the widget's own action command (`ListActionCmd`,
+  /// `TableActionCmd`, a tree's confirm command, each carrying the model id).
+  /// [activate] is a callback, not a value, so it is built only on a press and
+  /// never on a hot hover move, and it may return `null` when the widget's
+  /// activation produces no command.
+  ///
+  /// A press ([PointerMsg.isDown]) returns [Handled] carrying the activate
+  /// command, exactly as Enter does; any other pointer — a move, a drag, the
+  /// release half of a click — only refreshes the hover and returns a bare
+  /// [Handled]. The verdict and any deviation stay with the widget: the mixin
+  /// never invokes this itself, and a part that should not highlight its row
+  /// (a per-row button, a tree's indicator that toggles instead) is simply not
+  /// routed here.
+  UpdateResult handleRowPointer(
+    PointerMsg pointer,
+    int row, {
+    required void Function(int row) setHover,
+    required void Function(int row) moveCursorTo,
+    required Cmd? Function() activate,
+  }) {
+    setHover(row);
+    if (pointer.isDown) {
+      moveCursorTo(row);
+      return Handled(activate());
+    }
+    return const Handled();
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
+import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -63,6 +64,54 @@ PointerMsg _wheelAt(int x, int y, {String? targetId}) => PointerMsg(
 /// the router routes by address, never by message class.
 class _DomainMsg extends Msg {
   const _DomainMsg();
+}
+
+/// A region naming a row, for the alias region-resolution tests.
+@immutable
+class _Row implements Region {
+  const _Row(this.index);
+
+  final int index;
+
+  @override
+  bool operator ==(Object other) => other is _Row && other.index == index;
+
+  @override
+  int get hashCode => index.hashCode;
+
+  @override
+  String toString() => '_Row($index)';
+}
+
+/// A leaf that self-tags with an id and marks one region over its whole rect —
+/// a member whose view has parts, so a pointer resolves a region on it.
+class _MarkingLeaf extends Node {
+  _MarkingLeaf(String id, {required this.w, required this.h, required this.mark}) {
+    tag = id;
+  }
+
+  final int w;
+  final int h;
+  final Region mark;
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
+
+  @override
+  void paintSelf(Surface surface) => markRegion(mark, rect);
+}
+
+/// A view over a [_MarkingLeaf], usable as a focus-group member's chrome-decorated body.
+class _MarkingMember implements View {
+  const _MarkingMember(this.id, {required this.w, required this.h, required this.mark});
+
+  final String id;
+  final int w;
+  final int h;
+  final Region mark;
+
+  @override
+  Node build() => _MarkingLeaf(id, w: w, h: h, mark: mark);
 }
 
 /// A committed frame with nothing rendered into it, for tests that only
@@ -510,6 +559,69 @@ void main() {
       expect(delivered.local, equals(const Position(1, -1)));
       expect(delivered.targetRect, equals(memberRect));
       expect(result, isA<Declined>(), reason: 'chrome is the outermost tag here — nothing left to bubble to');
+    });
+
+    test('a press via alias resolves the region against the member, dropping the chrome region', () {
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
+      final frame = _frame(3, 4)
+        ..render(
+          const Tagged(
+            'chrome',
+            Column(
+              children: [
+                SizedBox(width: 3, height: 1),
+                _MarkingMember('member', w: 3, h: 3, mark: _Row(0)),
+              ],
+            ),
+          ),
+        );
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      // The incoming press is addressed to chrome and even carries a
+      // chrome-scoped region; the router must drop it and resolve the member's
+      // own part at the pointer instead. Member rect is (0,1,3,3); (1,2) is in.
+      const incoming = PointerMsg(
+        global: Position(1, 2),
+        action: PointerAction.down,
+        targetId: 'chrome',
+        local: Position.origin,
+        region: _Row(99),
+      );
+
+      router.route(incoming, ctx);
+
+      final delivered = member.seen.single as PointerMsg;
+      expect(delivered.targetId, 'member');
+      expect(delivered.region, const _Row(0), reason: "the member's part under the pointer, not the chrome's region");
+    });
+
+    test('a press via alias off the member carries a null region', () {
+      final member = _FakeComponent('member', (_) => const Handled());
+      final focus = FocusGroup<Component>([member]);
+      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
+      final frame = _frame(3, 4)
+        ..render(
+          const Tagged(
+            'chrome',
+            Column(
+              children: [
+                SizedBox(width: 3, height: 1),
+                _MarkingMember('member', w: 3, h: 3, mark: _Row(0)),
+              ],
+            ),
+          ),
+        );
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      // Chrome row 0 sits above the member (member starts at y=1), so the
+      // rebuilt pointer lands on no marked part of it.
+      router.route(_pressAt(1, 0, targetId: 'chrome'), ctx);
+
+      final delivered = member.seen.single as PointerMsg;
+      expect(delivered.targetId, 'member');
+      expect(delivered.region, isNull, reason: 'the pointer is on chrome, off the member — nothing marked there');
     });
 
     test('a wheel notch on the chrome alias reaches the member and scrolls', () {

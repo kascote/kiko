@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
+import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'tree_node.dart';
 import 'types.dart';
@@ -136,16 +137,6 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
     final before = _scrollOffset;
     _scrollOffset = (_scrollOffset + rows).clamp(0, maxOffset < 0 ? 0 : maxOffset);
     return _scrollOffset - before;
-  }
-
-  /// The flattened node row at [local], or null when the click falls past the
-  /// last visible node.
-  @override
-  int? localToRow(Position local) {
-    if (local.y < 0) return null;
-    final row = _scrollOffset + local.y;
-    if (row >= _flatNodes.length) return null;
-    return row;
   }
 
   /// Node at cursor, or null if empty.
@@ -415,23 +406,32 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      final row = localToRow(pointer.local);
-      if (pointer.isDown) {
-        // A click past the last node is not ours; let the app bubble it.
-        if (row == null) return const Declined();
-        hoverRow = row;
-        // Move the cursor to the clicked node, then reuse the keyboard helpers:
-        // a click on the expand indicator toggles, a click on the body activates.
-        _cursor = row;
+      // The part under the pointer is resolved by the framework and carried on
+      // the message. A press on the expand indicator toggles the branch; every
+      // other row part (including a hover over the indicator) goes through the
+      // shared row arm, which moves the cursor and activates on a press.
+      final region = pointer.region;
+      if (region is TreeIndicatorRegion && pointer.isDown) {
+        _cursor = region.index;
         _adjustScrollToCursor();
-        final node = _flatNodes[row];
-        if (!node.isLeaf && _isIndicatorHit(node, pointer.local.x)) {
-          return Handled(_handleToggle());
-        }
-        return Handled(_handleConfirm());
+        return Handled(_handleToggle());
       }
-      // A move, drag, or the release half of a click only refreshes the hover.
-      hoverRow = row;
+      if (region is RowScoped) {
+        return handleRowPointer(
+          pointer,
+          region.index,
+          setHover: (r) => hoverRow = r,
+          moveCursorTo: (r) {
+            _cursor = r;
+            _adjustScrollToCursor();
+          },
+          activate: _handleConfirm,
+        );
+      }
+      // No marked part — the blank tail below the last node. A press bubbles;
+      // a move clears the hover.
+      if (pointer.isDown) return const Declined();
+      hoverRow = null;
       return const Handled();
     }
     if (msg is PointerLeaveMsg) {
@@ -482,15 +482,6 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   // ─────────────────────────────────────────────
   // Private helpers
   // ─────────────────────────────────────────────
-
-  /// Whether [localX] falls on [node]'s expand/collapse indicator.
-  ///
-  /// The view paints the two-cell `'$char '` indicator at the node's indent, so
-  /// a click in that span toggles expansion while one past it activates the node.
-  bool _isIndicatorHit(TreeNode<T> node, int localX) {
-    final indent = node.depth * indentWidth;
-    return localX >= indent && localX < indent + 2;
-  }
 
   void _rebuildFlatNodes() {
     _flatNodes = [];

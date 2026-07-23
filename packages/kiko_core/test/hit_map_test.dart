@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
 
@@ -29,6 +30,65 @@ plume.RenderNode<PaintToken> _threeRows(int w) =>
 /// rows.
 Frame _viewportFrame(int w, int h, int scrollOffset) =>
     _frame(w, h)..renderNode(plume.Viewport<PaintToken>(scrollOffset: scrollOffset, child: _threeRows(w)));
+
+/// A region naming a whole row, the shape all three data widgets share.
+@immutable
+class _Row implements Region {
+  const _Row(this.index);
+
+  final int index;
+
+  @override
+  bool operator ==(Object other) => other is _Row && other.index == index;
+
+  @override
+  int get hashCode => index.hashCode;
+
+  @override
+  String toString() => '_Row($index)';
+}
+
+/// A region naming a row's expand indicator — a smaller part painted over the
+/// row, for the overlap case.
+@immutable
+class _Indicator implements Region {
+  const _Indicator(this.index);
+
+  final int index;
+
+  @override
+  bool operator ==(Object other) => other is _Indicator && other.index == index;
+
+  @override
+  int get hashCode => index.hashCode;
+
+  @override
+  String toString() => '_Indicator($index)';
+}
+
+/// A leaf tagged with an id that marks a fixed set of regions when it paints,
+/// each rect given relative to the leaf's own top-left and translated to
+/// absolute — the shape a data widget's viewport takes.
+class _MarkingLeaf extends plume.RenderNode<PaintToken> {
+  _MarkingLeaf(String id, {required this.w, required this.h, required this.marks}) {
+    tag = id;
+  }
+
+  final int w;
+  final int h;
+  final List<(Region, plume.Rect)> marks;
+
+  @override
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
+      constraints.constrain(plume.Size(w, h));
+
+  @override
+  void paintSelf(plume.Surface<PaintToken> surface) {
+    for (final (region, r) in marks) {
+      markRegion(region, plume.Rect(rect.x + r.x, rect.y + r.y, r.width, r.height));
+    }
+  }
+}
 
 void main() {
   group('hitId', () {
@@ -315,6 +375,118 @@ void main() {
       expect(Hit('a', rect), Hit('a', rect));
       expect(Hit('a', rect).hashCode, Hit('a', rect).hashCode);
       expect(Hit('a', rect), isNot(Hit('b', rect)));
+    });
+  });
+
+  group('regionAt', () {
+    // A 6×5 list body: item 0 two rows tall (y 0-1), a separator row (y 2),
+    // item 1 two rows tall (y 3-4). Separator and any tail stay unmarked.
+    Frame listFrame() => _frame(6, 5)
+      ..renderNode(
+        _MarkingLeaf(
+          'list',
+          w: 6,
+          h: 5,
+          marks: const [
+            (_Row(0), plume.Rect(0, 0, 6, 2)),
+            (_Row(1), plume.Rect(0, 3, 6, 2)),
+          ],
+        ),
+      );
+
+    test('resolves a point on a row to that row', () {
+      final hits = listFrame().hits;
+
+      expect(hits.regionAt('list', 0, 0), const _Row(0));
+      expect(hits.regionAt('list', 0, 3), const _Row(1));
+    });
+
+    test('every line of a multi-line row resolves to the same row', () {
+      // The bug the arc exists to fix: a second painted line must not land on
+      // the next item. Both lines of item 0 are item 0; both of item 1 are 1.
+      final hits = listFrame().hits;
+
+      expect(hits.regionAt('list', 5, 0), const _Row(0));
+      expect(hits.regionAt('list', 5, 1), const _Row(0), reason: "item 0's second line");
+      expect(hits.regionAt('list', 5, 3), const _Row(1));
+      expect(hits.regionAt('list', 5, 4), const _Row(1), reason: "item 1's second line");
+    });
+
+    test('a point on an unmarked separator or tail resolves to nothing', () {
+      final hits = listFrame().hits;
+
+      expect(hits.regionAt('list', 3, 2), isNull, reason: 'the separator belongs to nobody');
+    });
+
+    test('a point off the widget resolves to null', () {
+      final hits = listFrame().hits;
+
+      expect(hits.regionAt('list', 20, 20), isNull);
+    });
+
+    test('an unknown id resolves to null', () {
+      final hits = listFrame().hits;
+
+      expect(hits.regionAt('nope', 0, 0), isNull);
+    });
+
+    test('a smaller part painted over a row wins the overlap', () {
+      // A row, then a 2-cell indicator marked over its left edge (paint order:
+      // coarse then fine). A point on the indicator resolves to it; a point
+      // elsewhere on the row resolves to the row.
+      final frame = _frame(6, 1)
+        ..renderNode(
+          _MarkingLeaf(
+            'tree',
+            w: 6,
+            h: 1,
+            marks: const [
+              (_Row(0), plume.Rect(0, 0, 6, 1)),
+              (_Indicator(0), plume.Rect(0, 0, 2, 1)),
+            ],
+          ),
+        );
+      final hits = frame.hits;
+
+      expect(hits.regionAt('tree', 0, 0), const _Indicator(0), reason: 'the part on top answers the overlap');
+      expect(hits.regionAt('tree', 4, 0), const _Row(0), reason: 'off the indicator, the row answers');
+    });
+
+    test("a nested widget's regions never surface on the enclosing widget", () {
+      // An inner marking leaf tagged 'inner' inside an outer tagged 'outer'
+      // that marks nothing where the inner does.
+      final inner = _MarkingLeaf('inner', w: 4, h: 3, marks: const [(_Row(0), plume.Rect(0, 0, 4, 3))]);
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final hits = (_frame(6, 5)..renderNode(outer)).hits;
+
+      expect(hits.regionAt('inner', 2, 2), const _Row(0), reason: 'the inner widget resolves its own region');
+      expect(hits.regionAt('outer', 2, 2), isNull, reason: "the inner's region does not leak to the outer");
+    });
+
+    test('a widget that marks the same key twice trips the uniqueness assert', () {
+      final frame = _frame(6, 2)
+        ..renderNode(
+          _MarkingLeaf(
+            'dup',
+            w: 6,
+            h: 2,
+            marks: const [
+              (_Row(0), plume.Rect(0, 0, 6, 1)),
+              (_Row(0), plume.Rect(0, 1, 6, 1)),
+            ],
+          ),
+        );
+
+      expect(() => frame.hits, throwsA(isA<AssertionError>()));
+    });
+
+    test('a scrolled-off widget answers null even for a marked part', () {
+      // The row leaf is 9 tall inside a 4-row viewport scrolled fully past it,
+      // so the tag is absent from the map and its regions with it.
+      final leaf = _MarkingLeaf('list', w: 6, h: 9, marks: const [(_Row(0), plume.Rect(0, 0, 6, 2))]);
+      final frame = _frame(6, 4)..renderNode(plume.Viewport<PaintToken>(scrollOffset: 9, child: leaf));
+
+      expect(frame.hits.regionAt('list', 0, 0), isNull);
     });
   });
 }

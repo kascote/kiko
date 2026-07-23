@@ -83,13 +83,6 @@ class PaletteModel with ScrollableModel implements Component {
     return _scrollOffset - before;
   }
 
-  @override
-  int? localToRow(Position local) {
-    if (local.y < 0 || local.y >= visibleCount) return null;
-    final row = _scrollOffset + local.y;
-    return row < options.length ? row : null;
-  }
-
   /// Snaps the viewport so the cursor is visible — keyboard navigation always
   /// brings its row into view, even after the wheel scrolled elsewhere.
   void _snapToCursor() {
@@ -110,18 +103,28 @@ class PaletteModel with ScrollableModel implements Component {
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      final row = localToRow(pointer.local);
-      if (pointer.isDown) {
-        // A press below the last option is not ours; the app may bubble it.
-        if (row == null) return const Declined();
-        hoverRow = row;
-        // A click is the keyboard's cursor-move + confirm collapsed into one
-        // event: move to the row, then emit the same command Enter emits.
-        cursor = row;
-        return Handled(PaletteChooseCmd(id, options[row]));
+      // The row under the pointer is resolved by the framework and carried on
+      // the message as a hit region — the view marks each option's row while it
+      // paints, so update never turns a coordinate into a row. `handleRowPointer`
+      // (from ScrollableModel) is the arm every scrollable shares: on a press it
+      // moves the cursor there, snaps the scroll, and returns the same command
+      // Enter emits; on any other pointer it just refreshes the hover.
+      if (pointer.region case final RowScoped row) {
+        return handleRowPointer(
+          pointer,
+          row.index,
+          setHover: (r) => hoverRow = r,
+          moveCursorTo: (r) {
+            cursor = r;
+            _snapToCursor();
+          },
+          activate: () => PaletteChooseCmd(id, options[row.index]),
+        );
       }
-      // A move, drag, or the release half of a click only refreshes the hover.
-      hoverRow = row;
+      // No option under the pointer — the blank tail below the last row. A press
+      // is not ours (the app may bubble it); a move clears the hover.
+      if (pointer.isDown) return const Declined();
+      hoverRow = null;
       return const Handled();
     }
     if (msg is PointerLeaveMsg) {
@@ -158,7 +161,8 @@ class PaletteModel with ScrollableModel implements Component {
 // ═══════════════════════════════════════════════════════════
 
 /// The render half of the palette: stateless, rebuilt every frame from the
-/// model, and stamped with the model's id so pointer events route back to it.
+/// model. Its node is stamped with the model's id so pointer events route back
+/// to it, and it paints its own rows so it can mark each one as a hit region.
 final class Palette implements View {
   /// Creates a palette view over [model], styled by [theme].
   const Palette({required this.model, required this.theme});
@@ -170,37 +174,72 @@ final class Palette implements View {
   final Theme theme;
 
   @override
-  Node build() {
-    final resolver = StyleResolver(theme);
-    final m = model;
-    final end = (m.scrollOffset + m.visibleCount).clamp(0, m.options.length);
+  Node build() => _PaletteViewport(model: model, theme: theme)..tag = model.id;
+}
 
-    return Container(
-      height: m.viewportRows,
-      child: Column(
-        crossAxis: CrossAxisAlignment.stretch,
-        children: [for (var i = m.scrollOffset; i < end; i++) _row(m, resolver, i)],
-      ),
-    ).build()..tag = m.id;
+/// The self-painting body of a [Palette]: it windows the visible options and
+/// paints each row through the plume `Surface`, marking the row it just drew as
+/// a [RowRegion] so the framework can resolve a pointer to it. A discrete-part
+/// widget paints and marks in the same loop — that is what keeps the geometry a
+/// click resolves against identical to what was drawn.
+class _PaletteViewport extends Node {
+  _PaletteViewport({required this.model, required this.theme});
+
+  final PaletteModel model;
+  final Theme theme;
+
+  late final StyleResolver _resolver = StyleResolver(theme);
+
+  // Captured from the layout context so paint measures text the way the frame
+  // does.
+  TextMeasurer _measurer = const TermUnicodeMeasurer();
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) {
+    _measurer = context.measurer;
+    // A fixed height of viewportRows, to keep the example small; a production
+    // widget measures the space it is given and pushes the count into the model.
+    return constraints.constrain(Size(constraints.maxW ?? 0, model.viewportRows));
   }
 
-  View _row(PaletteModel m, StyleResolver resolver, int i) {
-    // Row paint layers the way the shipped widgets do it: the hover wash first
-    // (weakest, background-only, so the row's own foreground survives), then
-    // the cursor fill over it. `focused` is never a row state — it means "the
-    // widget owns input" and belongs to the chrome around the widget, not to
-    // every row inside it.
-    var style = const Style();
-    if (i == m.hoverRow) {
-      style = style.patch(resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
+  @override
+  void paintSelf(Surface surface) {
+    final m = model;
+    final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
+    final end = (m.scrollOffset + m.visibleCount).clamp(0, m.options.length);
+
+    var y = area.y;
+    for (var i = m.scrollOffset; i < end; i++) {
+      final rowRect = Rect.create(x: area.x, y: y, width: area.width, height: 1);
+
+      // Mark the row where it is painted. Update switches on this region instead
+      // of computing a row from the pointer's coordinates. `toPlume()` bridges
+      // kiko's cell rect to plume's geometry rect that markRegion wants.
+      markRegion(RowRegion(i), rowRect.toPlume());
+
+      // Row paint layers the way the shipped widgets do: the hover wash first
+      // (weakest, background-only, so the row's own foreground survives), then
+      // the cursor fill over it. `focused` is never a row state — it means "the
+      // widget owns input" and belongs to the chrome around the widget.
+      var style = const Style();
+      if (i == m.hoverRow) {
+        style = style.patch(_resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
+      }
+      if (i == m.cursor) {
+        style = style.patch(_resolver.resolve(null, const {WidgetState.cursor}));
+      }
+
+      fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);
+      paintLine(
+        surface,
+        Line(' ${m.options[i]}', style: style),
+        x: rowRect.x,
+        y: rowRect.y,
+        width: rowRect.width,
+        measurer: _measurer,
+      );
+      y++;
     }
-    if (i == m.cursor) {
-      style = style.patch(resolver.resolve(null, const {WidgetState.cursor}));
-    }
-    return Container(
-      background: style,
-      child: Line(' ${m.options[i]}', style: style),
-    );
   }
 }
 

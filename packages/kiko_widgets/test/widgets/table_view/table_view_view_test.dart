@@ -134,4 +134,37 @@ void main() {
       expect(frame.hits.hitId(3, 1), 'grid');
     });
   });
+
+  group('hit regions', () {
+    test('the sticky header and each data row resolve to their own region', () async {
+      // 7×3 frame: header at y0, data row 0 at y1, data row 1 at y2.
+      final model = await _seededTable(id: 'grid');
+      final hits = (_frame(7, 3)..render(TableView(model: model, theme: Theme.dark))).hits;
+
+      expect(hits.regionAt('grid', 0, 0), const TableHeaderRegion(), reason: 'the sticky header sits on row 0');
+      expect(hits.regionAt('grid', 3, 1), const RowRegion(0), reason: 'anywhere across a row is that row');
+      expect(hits.regionAt('grid', 0, 2), const RowRegion(1));
+    });
+
+    test('without a sticky header, data rows start at the top and the tail is unmarked', () async {
+      final rows = <Map<String, Object?>>[
+        <String, Object?>{'id': '1', 'name': 'Al'},
+        <String, Object?>{'id': '2', 'name': 'Bo'},
+      ];
+      final source = TableDataSource.fromList(rows);
+      final page = await source.getPage(0, 2);
+      final model = TableViewModel(
+        id: 'grid',
+        dataSource: source,
+        keyField: 'id',
+        columns: _columns(),
+        stickyHeader: false,
+      )..insertRows(page, 0);
+      final hits = (_frame(7, 3)..render(TableView(model: model, theme: Theme.dark))).hits;
+
+      expect(hits.regionAt('grid', 0, 0), const RowRegion(0), reason: 'no header to push rows down');
+      expect(hits.regionAt('grid', 0, 1), const RowRegion(1));
+      expect(hits.regionAt('grid', 0, 2), isNull, reason: 'the blank tail below the last row');
+    });
+  });
 }

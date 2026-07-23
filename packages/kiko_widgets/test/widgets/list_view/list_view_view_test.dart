@@ -130,4 +130,46 @@ void main() {
       expect(frame.hits.hitId(2, 1), 'menu');
     });
   });
+
+  group('hit regions (task 0254)', () {
+    // A two-line item list with a separator between items — the shape of
+    // example/list_view_multiselect.dart, where the old scrollOffset + local.y
+    // mapping put a click on the second item onto the fourth. Layout on an 9×9
+    // frame: item 0 rows y0-1, separator y2, item 1 rows y3-4, separator y5,
+    // item 2 rows y6-7, blank tail y8.
+    HitMap regionsFor(List<String> items) {
+      final model = ListViewModel<String, String>(
+        id: 'list',
+        dataView: DataView.fromList<String>(items),
+        itemHeight: 2,
+        focused: true,
+      );
+      final node = ListView<String, String>(
+        model: model,
+        theme: Theme.dark,
+        itemBuilder: (item, index, state) => [Line(item), Line('$item.2')],
+        separatorBuilder: () => Line('---'),
+      );
+      return (_frame(9, 9)..render(node)).hits;
+    }
+
+    test('every line of a two-line item resolves to that item', () {
+      final hits = regionsFor(['a', 'b', 'c']);
+
+      expect(hits.regionAt('list', 0, 0), const RowRegion(0));
+      expect(hits.regionAt('list', 4, 1), const RowRegion(0), reason: "item 0's second line is still item 0");
+      expect(hits.regionAt('list', 0, 3), const RowRegion(1));
+      expect(hits.regionAt('list', 8, 4), const RowRegion(1), reason: "item 1's second line is still item 1");
+      expect(hits.regionAt('list', 0, 6), const RowRegion(2));
+      expect(hits.regionAt('list', 0, 7), const RowRegion(2));
+    });
+
+    test('a separator and the blank tail are marked by nobody', () {
+      final hits = regionsFor(['a', 'b', 'c']);
+
+      expect(hits.regionAt('list', 0, 2), isNull, reason: 'the separator between items 0 and 1');
+      expect(hits.regionAt('list', 0, 5), isNull, reason: 'the separator between items 1 and 2');
+      expect(hits.regionAt('list', 0, 8), isNull, reason: 'the blank tail below the last item');
+    });
+  });
 }

@@ -48,12 +48,65 @@ method you call:**
 the runtime supplies it, the model and message cannot yield it, and update
 logic needs it.
 
-Mark a hit region with `Tagged(id, child)`. It is the one place a plume `tag`
+Mark a tag with `Tagged(id, child)`. It is the one place a plume `tag`
 is set. **Where you put the tag decides what `local` means** — tag a bordered
 box and a click is counted from the border, tag the content and it is counted
 from the content. Nothing downstream compensates. **An id names exactly one
 node per frame**; `HitMap` construction asserts it, so wrapping a widget that
 already self-tags with its model id trips in debug.
+
+## Hit regions — the part under the pointer
+
+A tag answers *which widget*; a **hit region** answers *which part of it*. A
+view marks its discrete parts — a row, a sticky header, an expand indicator —
+while painting, and the router resolves the innermost marked part under the
+pointer and delivers it on `PointerMsg.region` (a nullable `Region`, kiko's own
+open marker interface, carried opaquely the way `Msg` and `Cmd` are). A widget
+model switches over its own region types instead of re-deriving which part a
+coordinate falls on.
+
+**The carrier mirrors `tag`.** A plume `RenderNode` stores paint-marked regions
+the same way it stores `tag`: a list of `(key, rect)` pairs the node appends via
+`markRegion` from its `paintSelf`, cleared by the paint traversal before each
+repaint so a mark always describes the last committed frame. Plume never reads
+them; kiko interprets them. `Region` is the key type kiko recognizes; any other
+key is ignored, exactly as a non-string `tag` is.
+
+**One walk, scoped by subtree.** `HitMap` construction records an id→node index
+in the same walk that collects tag rects, so a per-widget lookup —
+`regionAt(id, x, y)` — descends only that widget's subtree, never the whole
+tree. It resolves the innermost marked region containing the point (a smaller
+part painted over a row wins the overlap), stopping at any nested tagged widget:
+a region can therefore only originate from the widget that receives it, and no
+model needs a defensive arm for a neighbour's types. The router resolves the
+pointer's target (`hitId`) and its region (`regionAt` against that target)
+together, and attaches the region to the `PointerMsg` it already builds.
+Uniqueness is asserted in debug — one region key per widget per frame, the
+sibling of the one-tag-per-frame assert.
+
+**Wheel, capture, alias, leave:**
+
+- **The wheel is target-scoped, above all region logic.** A notch cares which
+  widget it is over, never which part, so it scrolls the same over a separator,
+  a header, or a row. A widget's wheel arm sits above its region switch; nesting
+  a wheel inside a region case would make gaps scroll-dead.
+- **A captured gesture recomputes the region per event**, against the captor's
+  own subtree, and it is `null` whenever the pointer has left the captor.
+- **A chrome alias** that rebuilds a pointer against the member's rect
+  (`PointerMsg.retarget`) re-resolves the region against the *member's* parts at
+  the rebuilt position — it never carries the chrome's region over, which meant
+  nothing under the member. `retarget` takes the freshly resolved region as a
+  parameter, `null` by default.
+- **Leave and cancel carry no position, and therefore no region.**
+
+**The tier rule.** The tag is the only entry ticket to routing; past it a widget
+picks a tier, and `local` rides every message at every tier. A widget with
+discrete parts marks regions and switches on `region` — correct by construction,
+since the mark is written by the code that painted the part. A widget over a
+*continuous* surface — a text editor's wrap-aware click-to-caret — marks no
+regions, so its `region` is always `null`, and it reads `local` instead. That is
+a permanent, first-class tier, not a legacy mode: regions complement `local`,
+they never replace it.
 
 ## Viewports and the hit map
 

@@ -1,9 +1,15 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 
+import '../row_region.dart';
 import 'table_column.dart';
 import 'table_view_model.dart';
 import 'types.dart';
+
+/// Records that [region] was painted at [rect] — the seam a table's viewport
+/// wires to its node's region store so marks are written by the same code that
+/// paints the parts they name.
+typedef RegionMark = void Function(Region region, Rect rect);
 
 /// Paints a [TableViewModel] through a plume [Surface].
 ///
@@ -33,7 +39,14 @@ class TableRenderer {
   late final _resolver = StyleResolver(theme);
 
   /// Paints the table into [area] of [surface].
-  void paint(Rect area, Surface surface) {
+  ///
+  /// [mark], when given, is called for each painted part with the region that
+  /// names it and its absolute rect — the sticky header as a [TableHeaderRegion]
+  /// and every data row as a [RowRegion] — so the caller's node records where
+  /// its parts were painted. Marks are emitted in the same loop that computes
+  /// the rects, so the geometry a pointer resolves against cannot drift from
+  /// what was drawn.
+  void paint(Rect area, Surface surface, {RegionMark? mark}) {
     if (area.isEmpty) return;
 
     // Calculate visible columns that fit in area width
@@ -50,6 +63,7 @@ class TableRenderer {
     // 1. Render header (if sticky)
     if (model.stickyHeader) {
       _renderHeader(surface, area, visibleCols);
+      mark?.call(const TableHeaderRegion(), Rect.create(x: area.x, y: area.y, width: area.width, height: headerHeight));
     }
 
     // 2. Check for empty state
@@ -76,18 +90,14 @@ class TableRenderer {
     for (var rowIdx = scrollRow; rowIdx < endRow; rowIdx++) {
       final row = model.getRow(rowIdx);
       final screenY = area.y + headerHeight + (rowIdx - scrollRow);
+      final rowRect = Rect.create(x: area.x, y: screenY, width: area.width, height: 1);
+      // Mark the row's painted rect in the same loop that paints it — a loading
+      // placeholder still sits on its own row, so it is marked too.
+      mark?.call(RowRegion(rowIdx), rowRect);
 
       if (row == null) {
         // Render loading placeholder for missing row
-        _renderLoadingRow(
-          surface,
-          Rect.create(
-            x: area.x,
-            y: screenY,
-            width: area.width,
-            height: 1,
-          ),
-        );
+        _renderLoadingRow(surface, rowRect);
         continue;
       }
 
@@ -95,21 +105,7 @@ class TableRenderer {
       final isSelected = model.isSelected(rowIdx);
       final isHover = model.hoverRow == rowIdx;
 
-      _renderRow(
-        surface,
-        Rect.create(
-          x: area.x,
-          y: screenY,
-          width: area.width,
-          height: 1,
-        ),
-        row,
-        rowIdx,
-        visibleCols,
-        isCursorRow,
-        isSelected,
-        isHover,
-      );
+      _renderRow(surface, rowRect, row, rowIdx, visibleCols, isCursorRow, isSelected, isHover);
     }
   }
 

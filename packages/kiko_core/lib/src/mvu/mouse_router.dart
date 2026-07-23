@@ -130,6 +130,12 @@ class MouseRouter {
     // captor that has since been painted out has no rect, and its events fall
     // back to absolute coordinates.
     final rect = target == null ? null : raw.hits.rectOf(target);
+    // The marked part under the pointer within the target, resolved from the
+    // same map the event was aimed at. Recomputed per event, so a captured
+    // gesture that has dragged off its widget carries a null region. A wheel
+    // addresses what is under the pointer, so its region is that widget's part —
+    // harmless, since wheel handling sits above region logic.
+    final region = target == null ? null : raw.hits.regionAt(target, event.x, event.y);
     final fields = pointerFieldsFrom(event);
     out.add(
       PointerMsg(
@@ -143,6 +149,7 @@ class MouseRouter {
         local: rect == null ? Position(event.x, event.y) : Position(event.x - rect.x, event.y - rect.y),
         targetRect: rect,
         captured: captured,
+        region: region,
       ),
     );
 

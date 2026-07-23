@@ -162,6 +162,13 @@ rules that must survive any edit:
 - **Where you put `Tagged(id, child)` decides what `local` means** — tag a bordered box and
   clicks count from the border; nothing downstream compensates. An id names exactly one
   node per frame (asserted at `HitMap` construction).
+- **A tag answers *which widget*; a hit region answers *which part*.** A view marks its
+  discrete parts (rows, a header, an indicator) while painting via `RenderNode.markRegion`;
+  the router resolves the innermost marked `Region` under the pointer — one `regionAt` walk
+  of the target's own subtree — and delivers it on `PointerMsg.region` (nullable, opaque,
+  scoped so a widget only ever sees its own). `region` is the default for discrete parts;
+  `local` stays for continuous surfaces (a wrap-aware caret) and is never legacy. Full story:
+  `doc/mouse_routing.md`, "Hit regions".
 - **A `Viewport` clips hit *presence*, not *geometry*.** A fully scrolled-off tagged widget
   is absent from the map (`rectOf` → null); a partially visible one answers its full,
   unclipped placement rect. Therefore **never scroll something into view by reading

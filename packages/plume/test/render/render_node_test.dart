@@ -40,6 +40,30 @@ class _Fill<T> extends RenderNode<T> {
   void paintSelf(Surface<T> surface) => surface.fillRect(rect, token);
 }
 
+/// A leaf that marks a caller-chosen set of regions when it paints, so its
+/// [RenderNode.markedRegions] can be inspected. [marker] receives the leaf's
+/// placed [rect] so a test can mark absolute-cell regions; set [skip] to make
+/// `paintSelf` return before it marks anything, exercising an early-out paint.
+class _Marker<T> extends RenderNode<T> {
+  _Marker(this.marker, {this.w = 4, this.h = 2});
+
+  List<MarkedRegion> Function(Rect rect) marker;
+  final int w;
+  final int h;
+  bool skip = false;
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
+
+  @override
+  void paintSelf(Surface<T> surface) {
+    if (skip) return;
+    for (final region in marker(rect)) {
+      markRegion(region.key, region.rect);
+    }
+  }
+}
+
 void main() {
   group('RenderNode', () {
     test('a leaf reports its size, clamped to constraints', () {
@@ -143,6 +167,109 @@ void main() {
         ..place(Offset.zero);
 
       expect(group.hitTest(const Offset(1, 1)), same(over));
+    });
+
+    group('marked regions', () {
+      RecordingSurface<String> paint(RenderNode<String> node) {
+        final surface = RecordingSurface<String>();
+        node.paint(surface);
+        return surface;
+      }
+
+      test('a paint that marks records the (key, rect) pairs it drew', () {
+        final leaf =
+            _Marker<String>(
+                (rect) => const [
+                  MarkedRegion('row-0', Rect(0, 0, 4, 1)),
+                  MarkedRegion('row-1', Rect(0, 1, 4, 1)),
+                ],
+              )
+              ..layout(BoxConstraints.tight(const Size(4, 2)), _context)
+              ..place(Offset.zero);
+        paint(leaf);
+
+        expect(leaf.markedRegions, const [
+          MarkedRegion('row-0', Rect(0, 0, 4, 1)),
+          MarkedRegion('row-1', Rect(0, 1, 4, 1)),
+        ]);
+      });
+
+      test('marks are in absolute cells, following the node down the tree', () {
+        // The leaf marks its own placed rect, so the group offset must show
+        // through — the mark is in the same absolute space paint draws in.
+        final leaf = _Marker<String>((rect) => [MarkedRegion('self', rect)]);
+        final group = _Group<String>([leaf], const [Offset(3, 2)])
+          ..layout(BoxConstraints.tight(const Size(10, 6)), _context)
+          ..place(Offset.zero);
+        paint(group);
+
+        expect(leaf.rect, const Rect(3, 2, 4, 2));
+        expect(leaf.markedRegions, const [MarkedRegion('self', Rect(3, 2, 4, 2))]);
+      });
+
+      test('a node that never marks holds an empty store', () {
+        final leaf = _Fill<String>('x', 2, 2)
+          ..layout(BoxConstraints.tight(const Size(2, 2)), _context)
+          ..place(Offset.zero);
+        paint(leaf);
+
+        expect(leaf.markedRegions, isEmpty);
+      });
+
+      test('a repaint that marks nothing clears the prior frame marks', () {
+        final leaf = _Marker<String>((rect) => [MarkedRegion('self', rect)])
+          ..layout(BoxConstraints.tight(const Size(4, 2)), _context)
+          ..place(Offset.zero);
+        paint(leaf);
+        expect(leaf.markedRegions, isNotEmpty);
+
+        // Next frame the node paints no marked part at all.
+        leaf.marker = (rect) => const [];
+        paint(leaf);
+        expect(leaf.markedRegions, isEmpty);
+      });
+
+      test('the paint traversal clears marks even when paintSelf returns early', () {
+        final leaf = _Marker<String>((rect) => [MarkedRegion('self', rect)])
+          ..layout(BoxConstraints.tight(const Size(4, 2)), _context)
+          ..place(Offset.zero);
+        paint(leaf);
+        expect(leaf.markedRegions, isNotEmpty);
+
+        // paintSelf bails before its marking code runs; the clear still happens
+        // because paint() — the traversal — does it, not the widget.
+        leaf.skip = true;
+        paint(leaf);
+        expect(leaf.markedRegions, isEmpty);
+      });
+
+      test('a marking descendant is cleared and re-marked through a full traversal', () {
+        final leaf = _Marker<String>((rect) => [MarkedRegion('self', rect)]);
+        final group = _Group<String>([leaf], const [Offset(1, 1)])
+          ..layout(BoxConstraints.tight(const Size(8, 8)), _context)
+          ..place(Offset.zero);
+        paint(group);
+        expect(leaf.markedRegions, const [MarkedRegion('self', Rect(1, 1, 4, 2))]);
+
+        // Repainting the same tree is idempotent: the descendant's store holds
+        // one entry, not two.
+        paint(group);
+        expect(leaf.markedRegions, const [MarkedRegion('self', Rect(1, 1, 4, 2))]);
+      });
+    });
+  });
+
+  group('MarkedRegion', () {
+    test('has structural equality over key and rect', () {
+      expect(const MarkedRegion('row-0', Rect(0, 0, 4, 1)), const MarkedRegion('row-0', Rect(0, 0, 4, 1)));
+      expect(
+        const MarkedRegion('row-0', Rect(0, 0, 4, 1)),
+        isNot(const MarkedRegion('row-1', Rect(0, 0, 4, 1))),
+      );
+      expect(
+        const MarkedRegion('row-0', Rect(0, 0, 4, 1)),
+        isNot(const MarkedRegion('row-0', Rect(0, 1, 4, 1))),
+      );
     });
   });
 }

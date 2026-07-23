@@ -1,5 +1,4 @@
 import 'package:kiko/kiko.dart';
-import 'package:plume/plume.dart' as plume;
 
 import 'scroll_view_model.dart';
 import 'types.dart';
@@ -35,7 +34,7 @@ final class ScrollView implements View {
     child: child,
   ).build()..tag = model.id;
 
-  void _onMeasure(plume.ViewportMetrics metrics) {
+  void _onMeasure(ViewportMetrics metrics) {
     final tagRanges = <String, ScrollViewTagRange>{};
     for (final entry in metrics.tagRanges.entries) {
       final tag = entry.key;

@@ -2,12 +2,70 @@ import 'package:kiko/kiko.dart';
 // The router and the un-routed form it consumes never leave the runtime.
 import 'package:kiko/src/mvu/mouse_router.dart';
 import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
+import 'package:meta/meta.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
 /// Something that fills whatever slot it is given.
 View _pane() => Container(border: BorderType.plain, child: Line(''));
+
+/// A region naming a row.
+@immutable
+class _Row implements Region {
+  const _Row(this.index);
+
+  final int index;
+
+  @override
+  bool operator ==(Object other) => other is _Row && other.index == index;
+
+  @override
+  int get hashCode => index.hashCode;
+
+  @override
+  String toString() => '_Row($index)';
+}
+
+/// A leaf tagged with an id that marks a row region per painted item.
+class _MarkingLeaf extends plume.RenderNode<PaintToken> {
+  _MarkingLeaf(String id, {required this.w, required this.h, required this.marks}) {
+    tag = id;
+  }
+
+  final int w;
+  final int h;
+  final List<(Region, plume.Rect)> marks;
+
+  @override
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) =>
+      constraints.constrain(plume.Size(w, h));
+
+  @override
+  void paintSelf(plume.Surface<PaintToken> surface) {
+    for (final (region, r) in marks) {
+      markRegion(region, plume.Rect(rect.x + r.x, rect.y + r.y, r.width, r.height));
+    }
+  }
+}
+
+/// A frame with one marking widget 'list' covering the whole 6×5 surface: item
+/// 0 two rows tall (y 0-1), a separator (y 2), item 1 two rows tall (y 3-4).
+HitMap _listHits() {
+  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 5));
+  return (Frame(buffer.area, buffer, 0)..renderNode(
+        _MarkingLeaf(
+          'list',
+          w: 6,
+          h: 5,
+          marks: const [
+            (_Row(0), plume.Rect(0, 0, 6, 2)),
+            (_Row(1), plume.Rect(0, 3, 6, 2)),
+          ],
+        ),
+      ))
+      .hits;
+}
 
 /// A frame's geometry: two 4×2 panes side by side on a 9×3 surface, so the
 /// bottom row and the last column belong to nobody.
@@ -392,6 +450,63 @@ void main() {
       expect(router.capturing, isFalse);
       expect(router.captureId, isNull);
       expect(router.hoverId, isNull);
+    });
+  });
+
+  group('region', () {
+    late HitMap list;
+
+    setUp(() {
+      list = _listHits();
+    });
+
+    test('a pointer over a marked part carries its region', () {
+      final p0 = _only(router.route(_at(1, 0, _move(), list), list));
+      final p1 = _only(router.route(_at(1, 4, _move(), list), list));
+
+      expect(p0.targetId, 'list');
+      expect(p0.region, const _Row(0));
+      expect(p1.region, const _Row(1), reason: 'the second line of item 1 is still item 1');
+    });
+
+    test('a pointer over an unmarked cell carries a null region', () {
+      final p = _only(router.route(_at(1, 2, _move(), list), list));
+
+      expect(p.targetId, 'list', reason: 'still over the widget');
+      expect(p.region, isNull, reason: 'but the separator is marked by nobody');
+    });
+
+    test('a tag-only widget and the background both carry a null region', () {
+      // `_twoPanes` widgets mark nothing — the permanent tag-only tier — and the
+      // bottom row belongs to no widget at all.
+      final onPane = _only(router.route(_at(1, 1, _move(), hits), hits));
+      final onBackground = _only(router.route(_at(8, 2, _move(), hits), hits));
+
+      expect(onPane.targetId, 'left');
+      expect(onPane.region, isNull, reason: 'a widget that marks no regions delivers a null region');
+      expect(onBackground.targetId, isNull);
+      expect(onBackground.region, isNull);
+    });
+
+    test('a captured gesture recomputes the region per event', () {
+      router.route(_at(1, 0, _down(), list), list);
+
+      final onRow1 = _only(router.route(_at(1, 3, _drag(), list), list));
+      final onSeparator = _only(router.route(_at(1, 2, _drag(), list), list));
+      final offWidget = _only(router.route(_at(20, 1, _drag(), list), list));
+
+      expect(onRow1.captured, isTrue);
+      expect(onRow1.region, const _Row(1), reason: 'the captor resolves the part now under the pointer');
+      expect(onSeparator.region, isNull, reason: 'an unmarked cell inside the captor');
+      expect(offWidget.region, isNull, reason: 'the pointer has left the widget holding the gesture');
+    });
+
+    test('a wheel over a marked part carries its region, harmless above region logic', () {
+      final p = _only(router.route(_at(1, 4, MouseButton.wheelDown(), list), list));
+
+      expect(p.isWheel, isTrue);
+      expect(p.targetId, 'list');
+      expect(p.region, const _Row(1), reason: 'the wheel addresses what is under the pointer');
     });
   });
 }

@@ -5,12 +5,18 @@ import 'package:test/test.dart';
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
-/// A routed wheel/button message over the widget, at local (0, 0).
+/// A routed wheel/button message over the widget, at local (0, 0), on no marked
+/// part — the shape of a pointer over a separator or the blank tail.
 PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
-/// A routed button/move message at a given local cell.
+/// A routed button/move message at a given local cell, on no marked part.
 PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
     PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
+
+/// A routed button/move message over row [row], the way the framework delivers
+/// it once the view has marked the row and the router has resolved it.
+PointerMsg pointerOnRow(PointerAction action, int row) =>
+    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
 
 void main() {
   group('mouse wheel + scroll', () {
@@ -34,20 +40,6 @@ void main() {
       expect((model..scrollBy(-5)).scrollOffset, equals(0), reason: 'cannot scroll above the first row');
       expect((model..scrollBy(100)).scrollOffset, equals(6), reason: 'stops at length - visibleCount (10 - 4)');
       expect((model..scrollBy(50)).scrollOffset, equals(6), reason: 'already at the bottom edge');
-    });
-
-    test('localToRow maps a local position to the item row', () {
-      final model =
-          ListViewModel<String, String>(
-              dataView: DataView.fromList(List.generate(10, (i) => 'item$i')),
-            )
-            ..setVisibleCount(5)
-            ..scrollBy(2);
-
-      expect(model.localToRow(Position.origin), equals(2));
-      expect(model.localToRow(const Position(3, 3)), equals(5), reason: 'row = scrollOffset + local.y');
-      expect(model.localToRow(const Position(0, -1)), isNull, reason: 'above the first row');
-      expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last item');
     });
 
     test('a horizontal wheel and a click past the last item are declined', () {
@@ -128,34 +120,34 @@ void main() {
     test('a click on row N moves the cursor there and emits ListActionCmd', () {
       final model = menu();
 
-      final down = model.update(pointerAt(PointerAction.down, y: 3));
+      final down = model.update(pointerOnRow(PointerAction.down, 3));
 
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActionCmd('menu')));
       expect(model.cursor, equals(3));
 
       // The release half only refreshes hover — it does not fire a second time.
-      final up = model.update(pointerAt(PointerAction.up, y: 3));
+      final up = model.update(pointerOnRow(PointerAction.up, 3));
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
     });
 
-    test('a click below the last item is declined', () {
+    test('a press on no marked part (a separator or the tail) is declined', () {
       expect(menu().update(pointerAt(PointerAction.down, y: 20)), isA<Declined>());
     });
 
     test('a click selects on an unfocused list', () {
-      final model = menu(focused: false)..update(pointerAt(PointerAction.down, y: 2));
+      final model = menu(focused: false)..update(pointerOnRow(PointerAction.down, 2));
 
       expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
     });
 
     test('a pointer sets the hover row; a leave clears it', () {
-      final model = menu()..update(pointerAt(PointerAction.move, y: 4));
+      final model = menu()..update(pointerOnRow(PointerAction.move, 4));
       expect(model.hoverRow, equals(4));
 
-      model.update(pointerAt(PointerAction.move, y: 20));
-      expect(model.hoverRow, isNull, reason: 'a move over no row clears the hover');
+      model.update(pointer(PointerAction.move));
+      expect(model.hoverRow, isNull, reason: 'a move over no marked part clears the hover');
 
-      model.update(pointerAt(PointerAction.move, y: 1));
+      model.update(pointerOnRow(PointerAction.move, 1));
       expect(model.hoverRow, equals(1));
 
       model.update(const PointerLeaveMsg('menu'));

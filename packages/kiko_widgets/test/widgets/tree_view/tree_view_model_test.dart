@@ -5,12 +5,22 @@ import 'package:test/test.dart';
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
-/// A routed wheel/button message over the widget, at local (0, 0).
+/// A routed wheel/button message over the widget, at local (0, 0), on no marked
+/// part.
 PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
-/// A routed button/move message at a given local cell.
+/// A routed button/move message at a given local cell, on no marked part.
 PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
     PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
+
+/// A routed button/move message over the node at [row]'s body, the way the
+/// framework delivers it once the view marked the row and the router resolved it.
+PointerMsg pointerOnRow(PointerAction action, int row) =>
+    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
+
+/// A routed button/move message over the expand indicator of the node at [row].
+PointerMsg pointerOnIndicator(PointerAction action, int row) =>
+    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: TreeIndicatorRegion(row));
 
 /// [count] leaf roots, enough to fill more than one viewport.
 List<TreeNode<String>> leaves(int count) =>
@@ -61,15 +71,6 @@ void main() {
         equals(6),
         reason: 'stops at flattened length - visibleCount (10 - 4)',
       );
-    });
-
-    test('localToRow maps a local position to the flattened node row', () {
-      final model = modelWith(leaves(10), visibleCount: 5)..scrollBy(2);
-
-      expect(model.localToRow(Position.origin), equals(2));
-      expect(model.localToRow(const Position(2, 3)), equals(5), reason: 'row = scrollOffset + local.y');
-      expect(model.localToRow(const Position(0, -1)), isNull, reason: 'above the first node');
-      expect(model.localToRow(const Position(0, 8)), isNull, reason: 'past the last node');
     });
 
     test('a horizontal wheel and a click past the last node are declined', () {
@@ -135,8 +136,7 @@ void main() {
     test('a click on a node body moves the cursor there and emits TreeActionCmd', () {
       final model = tree();
 
-      // Column 4 on row 1 is well past the leaf's two-space indent — the body.
-      final down = model.update(pointerAt(PointerAction.down, x: 4, y: 1));
+      final down = model.update(pointerOnRow(PointerAction.down, 1));
 
       expect(
         down,
@@ -145,21 +145,20 @@ void main() {
       expect(model.cursor, equals(1));
     });
 
-    test('a click on the expand indicator toggles the node', () {
+    test('a press on the expand indicator toggles the node', () {
       final model = tree();
 
-      // Column 0 on row 0 is the branch's expand arrow.
-      final down = model.update(pointer(PointerAction.down));
+      final down = model.update(pointerOnIndicator(PointerAction.down, 0));
 
-      expect(model.isExpanded('/A'), isTrue, reason: 'the indicator click expanded the node');
+      expect(model.isExpanded('/A'), isTrue, reason: 'the indicator press expanded the node');
       expect(
         down,
         isA<Handled>().having((h) => h.cmd, 'cmd', isA<Batch>()),
         reason: 'expanding an uncached node emits the expand event plus a load request',
       );
 
-      // A second indicator click collapses it, emitting a collapse event.
-      final again = model.update(pointer(PointerAction.down));
+      // A second indicator press collapses it, emitting a collapse event.
+      final again = model.update(pointerOnIndicator(PointerAction.down, 0));
       expect(model.isExpanded('/A'), isFalse);
       expect(
         again,
@@ -167,22 +166,32 @@ void main() {
       );
     });
 
-    test('a click past the last node is declined', () {
-      expect(tree().update(pointerAt(PointerAction.down, y: 20)), isA<Declined>());
+    test('a hover over the indicator still highlights its row and does not toggle', () {
+      final model = tree();
+
+      final move = model.update(pointerOnIndicator(PointerAction.move, 0));
+
+      expect(model.hoverRow, equals(0), reason: 'the indicator is row-scoped, so a hover highlights the row');
+      expect(model.isExpanded('/A'), isFalse, reason: 'a hover never toggles');
+      expect(move, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+    });
+
+    test('a press on no marked part (the tail) is declined', () {
+      expect(tree().update(pointer(PointerAction.down)), isA<Declined>());
     });
 
     test('a click activates on an unfocused tree', () {
-      final model = tree(focused: false)..update(pointerAt(PointerAction.down, x: 4, y: 2));
+      final model = tree(focused: false)..update(pointerOnRow(PointerAction.down, 2));
 
       expect(model.cursor, equals(2), reason: 'selection changes without a prior focus');
     });
 
     test('a pointer sets the hover row; a leave clears it', () {
-      final model = tree()..update(pointerAt(PointerAction.move, y: 2));
+      final model = tree()..update(pointerOnRow(PointerAction.move, 2));
       expect(model.hoverRow, equals(2));
 
-      model.update(pointerAt(PointerAction.move, y: 20));
-      expect(model.hoverRow, isNull, reason: 'a move past the last node clears the hover');
+      model.update(pointer(PointerAction.move));
+      expect(model.hoverRow, isNull, reason: 'a move over no marked part clears the hover');
 
       model.update(const PointerLeaveMsg('nav'));
       expect(model.hoverRow, isNull);

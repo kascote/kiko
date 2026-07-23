@@ -4,6 +4,32 @@ import 'package:meta/meta.dart';
 import 'table_column.dart';
 
 // ═══════════════════════════════════════════════════════════
+// HIT REGIONS
+// ═══════════════════════════════════════════════════════════
+
+/// The table's sticky header, marked as one region from day one.
+///
+/// A press on it declines and bubbles, exactly as it did before regions
+/// existed; it exists now so a future column-sort feature hangs off the region
+/// instead of new geometry, refining this one coarse header into per-column
+/// header cells as a TableView-local change. It is not row-scoped — the header
+/// is not a data row — so a model's row arm never mistakes it for one.
+@immutable
+class TableHeaderRegion implements Region {
+  /// The sole header region for a table.
+  const TableHeaderRegion();
+
+  @override
+  bool operator ==(Object other) => other is TableHeaderRegion;
+
+  @override
+  int get hashCode => (TableHeaderRegion).hashCode;
+
+  @override
+  String toString() => 'TableHeaderRegion()';
+}
+
+// ═══════════════════════════════════════════════════════════
 // CELL RENDER CONTEXT
 // ═══════════════════════════════════════════════════════════
 

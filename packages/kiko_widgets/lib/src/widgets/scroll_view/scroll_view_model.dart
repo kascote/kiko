@@ -96,15 +96,6 @@ class ScrollViewModel with ScrollableModel implements Component {
     return _scrollOffset - before;
   }
 
-  /// The content row at [local], or null when it falls past the last row.
-  @override
-  int? localToRow(Position local) {
-    if (local.y < 0) return null;
-    final row = _scrollOffset + local.y;
-    if (row >= _contentRows) return null;
-    return row;
-  }
-
   /// Called by the view during paint to install this frame's geometry: how
   /// many rows the viewport shows, how many the content spans, and every
   /// tagged descendant's content-relative row range.

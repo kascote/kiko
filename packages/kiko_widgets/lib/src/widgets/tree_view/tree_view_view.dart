@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import '../row_region.dart';
 import 'tree_node.dart';
 import 'tree_view_model.dart';
 import 'types.dart';
@@ -131,6 +132,10 @@ class _TreeViewport<T> extends Node {
       final rowArea = Rect.create(x: area.x, y: y, width: area.width, height: 1);
       if (rowArea.isEmpty) break;
 
+      // Mark the whole node row first, so a pointer anywhere on it resolves to
+      // the node.
+      markRegion(RowRegion(i), rowArea.toPlume());
+
       // Honest anatomy, not borrowed states: the base item style, then the
       // hover wash (weakest, so the cursor reads over it), then the cursor fill,
       // then the loading state (warning ink + blink) for a node whose children
@@ -160,6 +165,18 @@ class _TreeViewport<T> extends Node {
       final contentWidth = (area.width - indent).clamp(0, area.width);
       if (contentWidth > 0) {
         paintLine(surface, nodeLine, x: area.x + indent, y: y, width: contentWidth, measurer: _measurer);
+      }
+
+      // The default builder draws a two-cell expand indicator at the indent for
+      // a non-leaf node. Mark it — on top of the row, so a click on it wins the
+      // overlap — only when it is actually painted: a custom nodeBuilder draws
+      // no indicator, so none exists to hit, and a press there falls through to
+      // the row and activates instead of toggling geometry that was never drawn.
+      if (nodeBuilder == null && !node.isLeaf) {
+        final indicator = Rect.create(x: area.x + indent, y: y, width: 2, height: 1).intersection(rowArea);
+        if (!indicator.isEmpty) {
+          markRegion(TreeIndicatorRegion(i), indicator.toPlume());
+        }
       }
 
       y++;

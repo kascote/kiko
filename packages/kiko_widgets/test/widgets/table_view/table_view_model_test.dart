@@ -5,12 +5,22 @@ import 'package:test/test.dart';
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
 
-/// A routed wheel/button message over the widget, at local (0, 0).
+/// A routed wheel/button message over the widget, at local (0, 0), on no marked
+/// part.
 PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
-/// A routed button/move message at a given local cell.
-PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
-    PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
+/// A routed button/move message over data row [row], the way the framework
+/// delivers it once the view has marked the row and the router resolved it.
+PointerMsg pointerOnRow(PointerAction action, int row) =>
+    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
+
+/// A routed button/move message over the sticky header.
+PointerMsg pointerOnHeader(PointerAction action) => PointerMsg(
+  global: Position.origin,
+  action: action,
+  local: Position.origin,
+  region: const TableHeaderRegion(),
+);
 
 /// Sample rows for testing.
 List<Map<String, Object?>> sampleRows([int count = 5]) => List.generate(
@@ -56,40 +66,6 @@ void main() {
 
       expect((model..scrollBy(-5)).scrollRow, equals(0), reason: 'cannot scroll above the first row');
       expect((model..scrollBy(100)).scrollRow, equals(6), reason: 'stops at loadedEnd - visibleRows (10 - 4)');
-    });
-
-    test('localToRow subtracts the sticky header', () {
-      final model =
-          TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(20)),
-              keyField: 'id',
-              columns: sampleColumns(),
-              focused: true,
-            )
-            ..setVisibleDimensions(5, 3)
-            ..insertRows(sampleRows(20), 0)
-            ..scrollBy(2);
-
-      expect(model.localToRow(Position.origin), isNull, reason: 'row 0 is the sticky header');
-      expect(model.localToRow(const Position(1, 1)), equals(2), reason: 'first data row = scrollRow');
-      expect(model.localToRow(const Position(1, 3)), equals(4), reason: 'row = scrollRow + local.y - 1');
-    });
-
-    test('localToRow without a sticky header maps row 0', () {
-      final model =
-          TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(10)),
-              keyField: 'id',
-              columns: sampleColumns(),
-              stickyHeader: false,
-              focused: true,
-            )
-            ..setVisibleDimensions(5, 3)
-            ..insertRows(sampleRows(10), 0);
-
-      expect(model.localToRow(Position.origin), equals(0), reason: 'no header to skip');
-      expect(model.localToRow(const Position(0, 9)), equals(9));
-      expect(model.localToRow(const Position(0, 10)), isNull, reason: 'past the loaded window');
     });
 
     test('a horizontal wheel and other pointers are declined', () {
@@ -194,38 +170,34 @@ void main() {
     test('a click on a data row moves the cursor there and emits TableActionCmd', () {
       final model = table();
 
-      // local.y 3 is data row 2 — the sticky header occupies local.y 0.
-      final down = model.update(pointerAt(PointerAction.down, y: 3));
+      final down = model.update(pointerOnRow(PointerAction.down, 2));
 
       expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActionCmd('grid', 'primary')));
       expect(model.cursorRow, equals(2));
     });
 
-    test('the click accounts for the sticky header', () {
-      // A click at local.y 2 selects data row 1, not row 2: the header at
-      // local.y 0 shifts every data row down by one.
-      final model = table()..update(pointerAt(PointerAction.down, y: 2));
-      expect(model.cursorRow, equals(1));
+    test('a press on the sticky header declines and never moves the cursor', () {
+      final model = table();
 
-      // A click on the header row itself (local.y 0) hits no data row.
-      expect(model.update(pointer(PointerAction.down)), isA<Declined>());
+      expect(model.update(pointerOnHeader(PointerAction.down)), isA<Declined>());
+      expect(model.cursorRow, equals(0), reason: 'the header is not a data row');
     });
 
-    test('a click past the loaded rows is declined', () {
-      expect(table().update(pointerAt(PointerAction.down, y: 40)), isA<Declined>());
+    test('a press on no marked part is declined', () {
+      expect(table().update(pointer(PointerAction.down)), isA<Declined>());
     });
 
     test('a click selects on an unfocused table', () {
-      final model = table(focused: false)..update(pointerAt(PointerAction.down, y: 2));
+      final model = table(focused: false)..update(pointerOnRow(PointerAction.down, 1));
 
       expect(model.cursorRow, equals(1), reason: 'selection changes without a prior focus');
     });
 
-    test('a pointer sets the hover row; a leave clears it', () {
-      final model = table()..update(pointerAt(PointerAction.move, y: 3));
-      expect(model.hoverRow, equals(2), reason: 'the hover row is header-adjusted');
+    test('a pointer sets the hover row; a header or leave clears it', () {
+      final model = table()..update(pointerOnRow(PointerAction.move, 2));
+      expect(model.hoverRow, equals(2));
 
-      model.update(pointer(PointerAction.move));
+      model.update(pointerOnHeader(PointerAction.move));
       expect(model.hoverRow, isNull, reason: 'a move over the header clears the hover');
 
       model.update(const PointerLeaveMsg('grid'));

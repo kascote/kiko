@@ -13,6 +13,7 @@ export 'src/widgets/modal/modal_model.dart';
 export 'src/widgets/modal/modal_view.dart';
 export 'src/widgets/modal/types.dart';
 export 'src/widgets/offer_outward.dart';
+export 'src/widgets/row_region.dart';
 export 'src/widgets/scroll_view/scroll_view_model.dart';
 export 'src/widgets/scroll_view/scroll_view_view.dart';
 export 'src/widgets/scroll_view/types.dart';

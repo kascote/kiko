@@ -39,6 +39,36 @@ abstract class RenderNode<T> {
   /// node that carries it.
   Object? tag;
 
+  /// The regions this node marked while painting itself, or an empty list when
+  /// it marked none.
+  ///
+  /// A *marked region* is a (key, rect) pair a node records for one of its own
+  /// painted parts — a row, a header, an indicator — via [markRegion] from
+  /// [paintSelf]. Like [tag] the key is opaque: the engine stores it and never
+  /// reads it; interpreting it belongs to the embedding framework (kiko's hit
+  /// map descends the committed tree to resolve the part under a pointer). The
+  /// rect is in absolute grid cells, the same space [paint] draws in.
+  ///
+  /// The list describes the last committed frame: [paint] clears it before this
+  /// node repaints, so a stale mark cannot survive a repaint even when a
+  /// widget's paint returns early. A node that never marks never allocates it.
+  List<MarkedRegion> get markedRegions => _markedRegions ?? const <MarkedRegion>[];
+
+  List<MarkedRegion>? _markedRegions;
+
+  /// Records that [key] names the part painted at [rect], appending it to this
+  /// node's [markedRegions].
+  ///
+  /// Call this from [paintSelf], inside the same loop that paints the part, so
+  /// the mark is written by the code that drew it and their geometry cannot
+  /// drift apart. [key] is opaque to Plume (an embedding framework gives it
+  /// meaning); [rect] is in absolute grid cells. Marks made this way are
+  /// cleared automatically before the next repaint — a caller never clears.
+  @protected
+  void markRegion(Object key, Rect rect) {
+    (_markedRegions ??= <MarkedRegion>[]).add(MarkedRegion(key, rect));
+  }
+
   /// Whether this node's [rect] clips its descendants' hit *presence*.
   ///
   /// Plume itself does not consume this — [hitTest] and [tagAt] already prune
@@ -104,7 +134,14 @@ abstract class RenderNode<T> {
   /// paint-only guarantee: it constrains where a node may draw, not whether
   /// [hitTest] or [tagAt] can reach it — those prune independently at each
   /// node's own [rect] (see [hitTest]).
+  ///
+  /// This node's [markedRegions] are dropped before [paintSelf] runs, so the
+  /// marks [paintSelf] makes describe only this repaint. A node whose paint is
+  /// overridden away (for example `Offstage`, a no-op) neither clears nor
+  /// marks — consistent, since such a node hides its whole subtree from hit
+  /// resolution too.
   void paint(Surface<T> surface) {
+    _markedRegions = null;
     surface.pushClip(rect);
     paintSelf(surface);
     for (final child in children) {
@@ -182,4 +219,32 @@ abstract class RenderNode<T> {
     }
     return null;
   }
+}
+
+/// One part a node marked while painting: an opaque [key] and the absolute
+/// [rect] the part was painted at.
+///
+/// A node appends these through [RenderNode.markRegion] and exposes them as
+/// [RenderNode.markedRegions]. Plume treats [key] as opaque — it stores the
+/// pair and never inspects it — exactly as it does [RenderNode.tag]; an
+/// embedding framework matches [key] by equality to give it meaning.
+@immutable
+class MarkedRegion {
+  /// Pairs [key] with the [rect] its part was painted at.
+  const MarkedRegion(this.key, this.rect);
+
+  /// The opaque handle naming the marked part. Compared only by equality.
+  final Object key;
+
+  /// The part's absolute rectangle on the grid, in the space paint draws in.
+  final Rect rect;
+
+  @override
+  bool operator ==(Object other) => other is MarkedRegion && other.key == key && other.rect == rect;
+
+  @override
+  int get hashCode => Object.hash(key, rect);
+
+  @override
+  String toString() => 'MarkedRegion($key, $rect)';
 }

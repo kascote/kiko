@@ -1,5 +1,6 @@
 import 'package:plume/plume.dart' as plume;
 
+import '../layout/rect.dart';
 import 'paint_token.dart';
 
 export 'package:plume/plume.dart'
@@ -38,3 +39,16 @@ typedef Node = plume.RenderNode<PaintToken>;
 
 /// The draw target a laid-out tree paints [PaintToken]s onto. See plume's `Surface`.
 typedef Surface = plume.Surface<PaintToken>;
+
+/// Bridges kiko's cell [Rect] to plume's own geometry `Rect`.
+///
+/// The two carry the same numbers but are different types — kiko has its own
+/// [Rect] with buffer helpers, plume has a geometry-only one, and the bridge
+/// deliberately does not re-export plume's to avoid the name clash. This is the
+/// one seam that converts between them, so a widget marking a paint-time hit
+/// region (`RenderNode.markRegion`, whose rect is plume's) passes
+/// `rect.toPlume()` and never has to import `package:plume` to name the type.
+extension RectToPlume on Rect {
+  /// This rect as a plume geometry rect, cell-for-cell.
+  plume.Rect toPlume() => plume.Rect(x, y, width, height);
+}

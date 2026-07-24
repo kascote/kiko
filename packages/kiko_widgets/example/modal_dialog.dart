@@ -45,14 +45,14 @@ class AppModel with ThemeSwitcher {
     }
 
     return switch (modal.update(msg)) {
-      ModalConfirmCmd(:final payload) => (
+      Handled(cmd: ModalConfirmCmd(:final payload)) => (
         model
           ..modal = null
           ..count += payload! as int
           ..lastAction = 'Confirmed! +$payload',
         null,
       ),
-      ModalCancelCmd() => (
+      Handled(cmd: ModalCancelCmd()) => (
         model
           ..modal = null
           ..lastAction = 'Cancelled',

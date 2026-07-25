@@ -629,6 +629,21 @@ void main() {
         expect(model.errorFor(ListLoadKey.self), equals('boom'));
       });
 
+      test('a refused load clears the slot and installs nothing', () {
+        final model = ListViewModel<String, String>(
+          dataView: DataBuffer<String>(['a', 'b'])..hasMore = true,
+          pageSize: 2,
+          focused: true,
+        )..setVisibleCount(5);
+        final req = model.loadFirstPage();
+        model.applyLoad(LoadResult<List<String>>.cancelled(req.id, key: req.key));
+
+        expect(model.isLoading(), isFalse, reason: 'the slot returns to idle, so the page can be asked for again');
+        expect(model.errorFor(ListLoadKey.self), isNull, reason: 'nothing failed');
+        expect(model.dataView.length, equals(2), reason: 'no items were installed');
+        expect(model.dataView.hasMore, isTrue, reason: 'a refusal teaches the list nothing about where data ends');
+      });
+
       test('a result for an idle slot is dropped (staleness guard)', () {
         final model = paginated();
         // No loadFirstPage — the slot is idle, so this is a stale arrival.

@@ -232,6 +232,12 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
     if (result.key != ListLoadKey.self) return;
     // Staleness guard: only a slot still in flight accepts a result.
     if (!_loads.isLoading(ListLoadKey.self)) return;
+    // A refusal resolves the slot and teaches the list nothing: no items, no
+    // error, and hasMore untouched — the page is simply asked for again later.
+    if (result.cancelled) {
+      _loads.complete(ListLoadKey.self);
+      return;
+    }
     if (result.ok) {
       final items = (result.data as List<T>?) ?? <T>[];
       final buffer = dataView;

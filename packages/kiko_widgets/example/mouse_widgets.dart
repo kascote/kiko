@@ -64,7 +64,7 @@ const departments = ['Engineering', 'Marketing', 'Sales', 'HR', 'Finance', 'Lega
 class AppModel {
   late final table = TableViewModel(
     id: 'employees',
-    dataSource: TableDataSource.fromList(employees),
+    rows: employees,
     keyField: 'id',
     columns: [
       TableColumn(field: 'id', label: Line('ID'), width: 5, alignment: TextAlign.end),
@@ -96,13 +96,6 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // First frame: page the table's initial rows into its cache. Domain
-  // messages the app owns come before any routing.
-  if (msg is InitMsg) {
-    model.table.insertRows(employees, 0);
-    return (model, null);
-  }
-
   // (2) The one routing line, switched on where key and pointer results
   // converge. The activation cases are the whole point: a click and an Enter
   // arrive as the identical id-addressed command, so one case serves both

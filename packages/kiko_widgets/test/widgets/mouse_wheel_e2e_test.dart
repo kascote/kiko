@@ -8,23 +8,6 @@ import 'package:test/test.dart';
 // resolved PointerMsg to the model, and the model scrolls and — at the viewport
 // edge — asks for the next page. Nothing here hand-routes or hand-sets geometry.
 
-/// A paginated table source that always reports more to load. The app owns the
-/// fetch, so these tests never call [getPage]; only [hasMore] is read at
-/// construction to seed the model.
-class _MoreSource implements TableDataSource {
-  _MoreSource(this._rows);
-  final List<Map<String, Object?>> _rows;
-
-  @override
-  Future<List<Map<String, Object?>>> getPage(int pageNum, int pageSize) async => const [];
-
-  @override
-  bool get hasMore => true;
-
-  @override
-  int? get totalCount => _rows.length;
-}
-
 List<Map<String, Object?>> rows(int n) => List.generate(n, (i) => {'id': 'r$i', 'name': 'Name $i'});
 
 /// Runs a real application over [backend], feeding it one of [events] per frame
@@ -89,7 +72,7 @@ void main() {
   test('a wheel to the bottom edge loads the next page (table, end-to-end)', () async {
     final backend = TestBackend(size: const TermSize(20, 7));
     final table = TableViewModel(
-      dataSource: _MoreSource(rows(120)),
+      totalCount: 120,
       keyField: 'id',
       columns: [
         TableColumn(field: 'id', label: Line('ID')),
@@ -109,6 +92,6 @@ void main() {
 
     expect(requests, isNotEmpty, reason: 'wheel alone should page the next batch in');
     expect(requests.first.id, equals('table'));
-    expect(requests.first.key, equals(TableLoadKey.forward));
+    expect(requests.first.key, equals(const TablePageKey(1)));
   });
 }

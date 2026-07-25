@@ -1,3 +1,4 @@
+import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
@@ -5,6 +6,10 @@ import 'package:test/test.dart';
 /// commands/messages below are distinct instances and `operator ==` actually
 /// runs (const canonicalization would otherwise make equal values identical).
 String v(String s) => s;
+
+/// The same passthrough for page numbers, so keys built from it are distinct
+/// instances rather than canonicalized constants.
+int i(int n) => n;
 
 void main() {
   group('LoadState', () {
@@ -90,15 +95,15 @@ void main() {
     });
 
     test('per-key isLoading isolates concurrent slots', () {
-      final t = LoadTracker<TableLoadKey>()..begin(TableLoadKey.forward);
-      expect(t.isLoading(TableLoadKey.forward), isTrue);
-      expect(t.isLoading(TableLoadKey.backward), isFalse);
-      t.begin(TableLoadKey.backward);
-      expect(t.isLoading(TableLoadKey.forward), isTrue);
-      expect(t.isLoading(TableLoadKey.backward), isTrue);
-      t.complete(TableLoadKey.forward);
-      expect(t.isLoading(TableLoadKey.forward), isFalse);
-      expect(t.isLoading(TableLoadKey.backward), isTrue);
+      final t = LoadTracker<TablePageKey>()..begin(TablePageKey(i(0)));
+      expect(t.isLoading(TablePageKey(i(0))), isTrue);
+      expect(t.isLoading(TablePageKey(i(1))), isFalse);
+      t.begin(TablePageKey(i(1)));
+      expect(t.isLoading(TablePageKey(i(0))), isTrue);
+      expect(t.isLoading(TablePageKey(i(1))), isTrue);
+      t.complete(TablePageKey(i(0)));
+      expect(t.isLoading(TablePageKey(i(0))), isFalse);
+      expect(t.isLoading(TablePageKey(i(1))), isTrue);
     });
   });
 
@@ -142,6 +147,27 @@ void main() {
     });
   });
 
+  group('TablePageKey', () {
+    test('equal by page number', () {
+      expect(TablePageKey(i(3)), equals(TablePageKey(i(3))));
+      expect(TablePageKey(i(3)).hashCode, equals(TablePageKey(i(3)).hashCode));
+      expect(TablePageKey(i(3)), isNot(equals(TablePageKey(i(4)))));
+      expect(TablePageKey(i(3)).toString(), 'TablePageKey(3)');
+    });
+
+    test('each page is its own slot, so pages load concurrently', () {
+      final t = LoadTracker<TablePageKey>()
+        ..begin(TablePageKey(i(4)))
+        ..begin(TablePageKey(i(9)));
+      expect(t.isLoading(TablePageKey(i(4))), isTrue);
+      expect(t.isLoading(TablePageKey(i(9))), isTrue);
+      expect(t.isLoading(TablePageKey(i(5))), isFalse);
+      t.complete(TablePageKey(i(4)));
+      expect(t.isLoading(TablePageKey(i(4))), isFalse);
+      expect(t.isLoading(TablePageKey(i(9))), isTrue);
+    });
+  });
+
   group('LoadRequest value equality (address: id + key)', () {
     test('equal iff id and key match', () {
       expect(LoadRequest(v('l'), key: ListLoadKey.self), equals(LoadRequest(v('l'), key: ListLoadKey.self)));
@@ -154,8 +180,8 @@ void main() {
 
     test('key disambiguates (same id, different key)', () {
       expect(
-        LoadRequest(v('t'), key: TableLoadKey.forward),
-        isNot(equals(LoadRequest(v('t'), key: TableLoadKey.backward))),
+        LoadRequest(v('t'), key: TablePageKey(i(0))),
+        isNot(equals(LoadRequest(v('t'), key: TablePageKey(i(1))))),
       );
     });
 
@@ -165,7 +191,7 @@ void main() {
     });
 
     test('toString shows id and key', () {
-      expect(LoadRequest(v('t'), key: TableLoadKey.forward).toString(), 'LoadRequest(t, key: TableLoadKey.forward)');
+      expect(LoadRequest(v('t'), key: TablePageKey(i(4))).toString(), 'LoadRequest(t, key: TablePageKey(4))');
     });
   });
 
@@ -185,8 +211,8 @@ void main() {
     test('differs by id, key, or error', () {
       expect(LoadResult<int>(v('a')), isNot(equals(LoadResult<int>(v('b')))));
       expect(
-        LoadResult<int>(v('a'), key: TableLoadKey.forward),
-        isNot(equals(LoadResult<int>(v('a'), key: TableLoadKey.backward))),
+        LoadResult<int>(v('a'), key: TablePageKey(i(0))),
+        isNot(equals(LoadResult<int>(v('a'), key: TablePageKey(i(1))))),
       );
       expect(LoadResult<int>(v('a'), error: 'x'), isNot(equals(LoadResult<int>(v('a')))));
     });
@@ -201,6 +227,87 @@ void main() {
         LoadResult<int>(v('a'), key: ListLoadKey.self, data: 7).toString(),
         'LoadResult(a, key: ListLoadKey.self, data: 7, error: null)',
       );
+    });
+  });
+
+  group('LoadResult.cancelled — the third outcome', () {
+    test('carries neither data nor error, and is not ok', () {
+      final r = LoadResult<List<int>>.cancelled(v('t'), key: TablePageKey(i(2)));
+      expect(r.cancelled, isTrue);
+      expect(r.ok, isFalse);
+      expect(r.data, isNull);
+      expect(r.error, isNull);
+    });
+
+    test('is distinct from an empty success', () {
+      // An empty page means "the data ends here"; a refusal must teach the
+      // widget nothing, so the two can never be the same value.
+      expect(
+        LoadResult<List<int>>.cancelled(v('t'), key: ListLoadKey.self),
+        isNot(equals(LoadResult<List<int>>(v('t'), key: ListLoadKey.self, data: const []))),
+      );
+      expect(LoadResult<List<int>>(v('t'), data: const []).ok, isTrue);
+    });
+
+    test('a failure is not a refusal', () {
+      final failed = LoadResult<int>(v('t'), error: 'boom');
+      expect(failed.cancelled, isFalse);
+      expect(failed.ok, isFalse);
+      expect(failed, isNot(equals(LoadResult<int>.cancelled(v('t')))));
+    });
+
+    test('equal by id and key', () {
+      expect(
+        LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(2))),
+        equals(LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(2)))),
+      );
+      expect(
+        LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(2))).hashCode,
+        equals(LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(2))).hashCode),
+      );
+      expect(
+        LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(2))),
+        isNot(equals(LoadResult<int>.cancelled(v('t'), key: TablePageKey(i(3))))),
+      );
+    });
+
+    test('toString says it was refused', () {
+      expect(
+        LoadResult<int>.cancelled(v('t'), key: ListLoadKey.self).toString(),
+        'LoadResult.cancelled(t, key: ListLoadKey.self)',
+      );
+    });
+  });
+
+  group('declineLoad', () {
+    test('with no error, emits a refusal addressed to the request', () {
+      final request = LoadRequest(v('table'), key: TablePageKey(i(7)));
+      final cmd = declineLoad(request);
+      expect(cmd, isA<Emit>());
+      final msg = (cmd as Emit).msg;
+      expect(msg, isA<LoadResult<Object?>>());
+      final result = msg as LoadResult<Object?>;
+      expect(result.id, 'table');
+      expect(result.key, TablePageKey(i(7)));
+      expect(result.cancelled, isTrue);
+      expect(result.ok, isFalse);
+      expect(result.data, isNull);
+      expect(result.error, isNull);
+    });
+
+    test('with an error, emits a failure instead of a refusal', () {
+      final request = LoadRequest(v('table'), key: TablePageKey(i(7)));
+      final result = (declineLoad(request, error: 'no source wired for table') as Emit).msg as LoadResult<Object?>;
+      expect(result.cancelled, isFalse);
+      expect(result.ok, isFalse);
+      expect(result.error, 'no source wired for table');
+      expect(result.key, TablePageKey(i(7)));
+    });
+
+    test('threads the request address home for any key type', () {
+      final result = (declineLoad(LoadRequest(v('tree'), key: PathKey(v('/a')))) as Emit).msg as LoadResult<Object?>;
+      expect(result.id, 'tree');
+      expect(result.key, PathKey(v('/a')));
     });
   });
 

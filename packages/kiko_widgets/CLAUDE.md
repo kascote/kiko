@@ -265,13 +265,25 @@ map, worked handler: `doc/async_loading.md`. The doctrine extends Widget→App A
 above — a load is an id-addressed request whose result must come home. The contract:
 
 - **The widget owns the state machine; the app owns the I/O.** Slots are named by typed
-  sealed keys (`ListLoadKey.self`, `TableLoadKey.{forward,backward}`, Tree's
-  `RootsKey()`/`PathKey(path)`), each `idle → loading → error`; success clears back to
-  idle. The widget flips a slot → loading the instant it returns the `LoadRequest` (the
-  self-dedup lives inside the widget, not in an app-side guard), and → idle/error when
-  `applyLoad` receives the matching `LoadResult`. The id-guard and the staleness guard
-  ("is this key still expected?") both live inside `applyLoad` — a late result for a
-  collapsed branch drops.
+  keys that name *the thing being loaded* (`ListLoadKey.self`, `TablePageKey(page)`,
+  Tree's `RootsKey()`/`PathKey(path)`), each `idle → loading → error`; success clears
+  back to idle. The widget flips a slot → loading the instant it returns the
+  `LoadRequest` (the self-dedup lives inside the widget, not in an app-side guard), and
+  → idle/error when `applyLoad` receives the matching `LoadResult`. The id-guard and the
+  staleness guard ("is this key still expected?") both live inside `applyLoad` — a late
+  result for a collapsed branch drops.
+- **Every request resolves its slot — with rows, with an error, or with a refusal.**
+  There is no fourth outcome and `return (model, null)` is a bug: the widget will not
+  ask again while it believes the fetch is in flight, so an unanswered request paints a
+  placeholder forever. `declineLoad(req)` builds the refusal (slot back to idle, nothing
+  installed, no end-of-data recorded — for a policy gate); `declineLoad(req, error: …)`
+  builds the failure, which is what an unwired id gets so it fails visibly. A refusal
+  never re-triggers demand — that would turn a standing refusal into a request storm —
+  so the app calls the widget's demand pass (or `markDemandDirty()`) when its gate lifts.
+- **A windowed widget's demand needs a frame-tick arm**: `FrameTickMsg() => (model,
+  model.table.demandIfDirty())`. A resize reveals rows through the paint path, where a
+  widget cannot return a command, and a page landing frees a slot the in-flight cap
+  truncated. TableView logs a warning when it notices the arm missing.
 - **`DataView.itemAt` MUST NOT await — reads are synchronous by contract.** "Data not here
   yet" is tracker state + a placeholder, never an awaited read. Reads go through
   `DataView<T>` (sync, read-only); mutation lives only on the concrete `DataBuffer<T>`;
@@ -279,7 +291,13 @@ above — a load is an id-addressed request whose result must come home. The con
 - **The app is only the I/O ferry**: see the `LoadRequest`, fire a `Task`, thread **both
   `id` and `key`** into the `LoadResult`, route the receipt with one generic line
   (`if (msg case final LoadResult<Object?> r)` → `applyLoad` by id). The only per-widget
-  code is the request→fetch mapping.
+  code is the request→fetch mapping. `fetchInto(req, source)` writes that `Task` for a
+  `PageSource` and threads the address structurally; one demand pass can carry several
+  requests in a `Batch`, which the app flattens.
+- **Kiko ships per-request helpers, never per-app loops.** `fetchInto` and `declineLoad`
+  each handle one request, so an exception for one widget is just a different arm. A
+  `routeLoad(cmd, sources)` that owns the iteration, and a model-held `loader:` closure,
+  both stay parked for that reason.
 - **Total count is exempt by design**: a TableView app-fired one-shot with no slot — a
   missing count is benign (indeterminate scrollbar), not a failure to recover from.
 

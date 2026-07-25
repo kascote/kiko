@@ -35,12 +35,29 @@ List<TableColumn> sampleColumns() => [
   TableColumn(field: 'value', label: Line('Value')),
 ];
 
+/// The page requests a command carries — one demand pass can ask for several
+/// pages at once, which travel as a [Batch].
+List<LoadRequest> requestsIn(Cmd? cmd) => switch (cmd) {
+  final LoadRequest r => [r],
+  Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
+  _ => const [],
+};
+
+/// The same, for whatever an update returned.
+List<LoadRequest> requestsOf(UpdateResult result) => result is Handled ? requestsIn(result.cmd) : const [];
+
+/// The pages a command asked for, ascending.
+List<int> pagesIn(Cmd? cmd) => requestsIn(cmd).map((r) => (r.key! as TablePageKey).page).toList()..sort();
+
+/// The pages an update asked for, ascending.
+List<int> pagesAsked(UpdateResult result) => pagesIn(result is Handled ? result.cmd : null);
+
 void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused table without moving the cursor', () {
       final model =
           TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(20)),
+              rows: sampleRows(20),
               keyField: 'id',
               columns: sampleColumns(),
             )
@@ -57,7 +74,7 @@ void main() {
     test('scrollBy clamps to the loaded window', () {
       final model =
           TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(10)),
+              rows: sampleRows(10),
               keyField: 'id',
               columns: sampleColumns(),
             )
@@ -71,7 +88,7 @@ void main() {
     test('a horizontal wheel and other pointers are declined', () {
       final model =
           TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(10)),
+              rows: sampleRows(10),
               keyField: 'id',
               columns: sampleColumns(),
               focused: true,
@@ -84,31 +101,30 @@ void main() {
       expect(model.scrollRow, equals(0), reason: 'neither moved the viewport');
     });
 
-    test('a wheel to the bottom edge returns a LoadRequest (unfocused)', () {
+    test('a wheel toward the bottom edge asks for the page it is heading into (unfocused)', () {
       final model =
           TableViewModel(
-              dataSource: _PaginatedSource(sampleRows(120)),
+              totalCount: 120,
               keyField: 'id',
               columns: sampleColumns(),
               pageSize: 10,
               loadThreshold: 3,
             )
             ..setVisibleDimensions(5, 3)
-            ..insertRows(sampleRows(10), 0)
-            // The first notch scrolls the viewport toward the bottom.
-            ..update(pointer(PointerAction.wheelDown));
+            ..insertRows(sampleRows(10), 0);
 
-      // The second notch carries the viewport's bottom edge within the threshold.
+      // One notch carries the viewport's bottom edge within the threshold of
+      // page 1, and demand asks for the page the viewport now covers.
       final result = model.update(pointer(PointerAction.wheelDown));
 
-      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
-      expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'wheel alone crossed the load threshold');
+      expect(pagesAsked(result), equals([1]));
+      expect(model.isLoading(const TablePageKey(1)), isTrue, reason: 'wheel alone crossed the load threshold');
     });
 
     group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
       TableViewModel scrollable({int rows = 10, int visible = 5}) =>
           TableViewModel(
-              dataSource: TableDataSource.fromList(sampleRows(rows)),
+              rows: sampleRows(rows),
               keyField: 'id',
               columns: sampleColumns(),
             )
@@ -159,7 +175,7 @@ void main() {
     TableViewModel table({bool focused = true}) =>
         TableViewModel(
             id: 'grid',
-            dataSource: TableDataSource.fromList(sampleRows(10)),
+            rows: sampleRows(10),
             keyField: 'id',
             columns: sampleColumns(),
             focused: focused,
@@ -209,7 +225,7 @@ void main() {
     group('initialization', () {
       test('default state', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
         );
@@ -222,20 +238,22 @@ void main() {
 
       test('config fields', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           pageSize: 100,
-          windowSize: 500,
+          keepPages: 2,
           loadThreshold: 20,
+          maxConcurrentLoads: 1,
           stickyHeader: false,
           showCrosshair: true,
           selectionEnabled: true,
           focused: true,
         );
         expect(model.pageSize, equals(100));
-        expect(model.windowSize, equals(500));
+        expect(model.keepPages, equals(2));
         expect(model.loadThreshold, equals(20));
+        expect(model.maxConcurrentLoads, equals(1));
         expect(model.stickyHeader, isFalse);
         expect(model.showCrosshair, isTrue);
         expect(model.selectionEnabled, isTrue);
@@ -244,7 +262,7 @@ void main() {
 
       test('showCrosshair defaults to false and is mutable', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
         );
@@ -254,9 +272,9 @@ void main() {
         expect(model.showCrosshair, isTrue);
       });
 
-      test('totalCount from dataSource', () {
+      test('a static table knows its own row count', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows(10)),
+          rows: sampleRows(10),
           keyField: 'id',
           columns: sampleColumns(),
         );
@@ -265,78 +283,70 @@ void main() {
     });
 
     group('data management', () {
-      test('insertRows adds to cache', () async {
-        final source = TableDataSource.fromList(sampleRows(100));
+      test('insertRows seeds the window as whole pages', () async {
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(100).take(10).toList(),
           keyField: 'id',
           columns: sampleColumns(),
           pageSize: 10,
         );
 
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
-
         expect(model.cachedRowCount, equals(10));
-        expect(model.loadedRange, equals((0, 10)));
+        expect(model.cachedPages, equals([0]));
         expect(model.getRow(0)?['id'], equals('row0'));
         expect(model.getRow(9)?['id'], equals('row9'));
       });
 
-      test('insertRows updates loaded range', () async {
-        final source = TableDataSource.fromList(sampleRows(100));
+      test('insertRows splits more rows than a page holds', () {
         final model = TableViewModel(
-          dataSource: source,
           keyField: 'id',
           columns: sampleColumns(),
           pageSize: 10,
-        );
+          totalCount: 100,
+        )..insertRows(sampleRows(25), 0);
 
-        final page0 = await source.getPage(0, 10);
-        final page1 = await source.getPage(1, 10);
-        model
-          ..insertRows(page0, 0)
-          ..insertRows(page1, 1);
-
-        expect(model.cachedRowCount, equals(20));
-        expect(model.loadedRange, equals((0, 20)));
+        expect(model.cachedRowCount, equals(25));
+        expect(model.cachedPages, equals([0, 1, 2]), reason: 'rows land on page boundaries, not wherever they fall');
+        expect(model.getRow(24)?['id'], equals('row24'));
       });
 
-      test('window eviction removes furthest rows', () async {
-        final source = TableDataSource.fromList(sampleRows(100));
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          pageSize: 10,
-          windowSize: 15, // Small window to force eviction
+      test('eviction drops whole pages, and never one the viewport needs', () {
+        final model =
+            TableViewModel(
+                totalCount: 120,
+                keyField: 'id',
+                columns: sampleColumns(),
+                pageSize: 10,
+                keepPages: 0, // keep exactly what the viewport asks for
+                loadThreshold: 0,
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..insertRows(sampleRows(10), 0);
+
+        // Jump to the end: the viewport now needs page 11, and asks for it.
+        expect(pagesAsked(model.update(keyMsg('end'))), equals([11]));
+
+        model.applyLoad(
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(11), data: sampleRows(10)),
         );
 
-        final page0 = await source.getPage(0, 10);
-        final page1 = await source.getPage(1, 10);
-        model
-          ..insertRows(page0, 0)
-          ..insertRows(page1, 1);
-
-        // Window size is 15, so 5 rows should be evicted
-        expect(model.cachedRowCount, equals(15));
+        expect(model.cachedPages, equals([11]), reason: 'page 0 is whole pages away from the viewport');
+        expect(model.cachedRowCount, equals(10), reason: 'a page is evicted whole, never row by row');
       });
 
       test('reset clears state', () async {
-        final source = TableDataSource.fromList(sampleRows(20));
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          selectionEnabled: true,
-          focused: true,
-        )..setVisibleDimensions(10, 3);
-
-        final page = await source.getPage(0, 10);
-        model
-          ..insertRows(page, 0)
-          ..update(keyMsg('down'))
-          ..update(keyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: sampleRows(20).take(10).toList(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                selectionEnabled: true,
+                focused: true,
+              )
+              ..setVisibleDimensions(10, 3)
+              ..update(keyMsg('down'))
+              ..update(keyMsg('space'));
 
         expect(model.cursorRow, equals(1));
         expect(model.getSelectedKeys().length, equals(1));
@@ -354,16 +364,12 @@ void main() {
       late TableViewModel model;
 
       setUp(() async {
-        final source = TableDataSource.fromList(sampleRows(20));
         model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(20),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 20);
-        model.insertRows(page, 0);
       });
 
       test('down moves cursor', () {
@@ -432,16 +438,12 @@ void main() {
       late TableViewModel model;
 
       setUp(() async {
-        final source = TableDataSource.fromList(sampleRows());
         model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(5, 2);
-
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
       });
 
       test('right moves cursor', () {
@@ -498,16 +500,12 @@ void main() {
       late TableViewModel model;
 
       setUp(() async {
-        final source = TableDataSource.fromList(sampleRows(50));
         model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(50),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(5, 2);
-
-        final page = await source.getPage(0, 50);
-        model.insertRows(page, 0);
       });
 
       test('scrollRow adjusts when cursor moves below visible', () {
@@ -548,36 +546,30 @@ void main() {
 
     group('selection', () {
       test('space does nothing without selectionEnabled', () async {
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          focused: true,
-        )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model
-          ..insertRows(page, 0)
-          ..update(keyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: sampleRows(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), isEmpty);
       });
 
       test('space toggles selection', () async {
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          selectionEnabled: true,
-          focused: true,
-        )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model
-          ..insertRows(page, 0)
-          ..update(keyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: sampleRows(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                selectionEnabled: true,
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), equals({'row0'}));
         expect(model.isSelected(0), isTrue);
@@ -585,71 +577,63 @@ void main() {
       });
 
       test('space toggles off', () async {
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          selectionEnabled: true,
-          focused: true,
-        )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model
-          ..insertRows(page, 0)
-          ..update(keyMsg('space'))
-          ..update(keyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: sampleRows(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                selectionEnabled: true,
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..update(keyMsg('space'))
+              ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), isEmpty);
       });
 
       test('multiple rows can be selected', () async {
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          selectionEnabled: true,
-          focused: true,
-        )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model
-          ..insertRows(page, 0)
-          ..update(keyMsg('space'))
-          ..update(keyMsg('down'))
-          ..update(keyMsg('space'))
-          ..update(keyMsg('down'))
-          ..update(keyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: sampleRows(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                selectionEnabled: true,
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..update(keyMsg('space'))
+              ..update(keyMsg('down'))
+              ..update(keyMsg('space'))
+              ..update(keyMsg('down'))
+              ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), equals({'row0', 'row1', 'row2'}));
       });
 
-      test('selection persists after eviction', () async {
-        final source = TableDataSource.fromList(sampleRows(100));
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          selectionEnabled: true,
-          pageSize: 10,
-          windowSize: 15,
-          focused: true,
-        )..setVisibleDimensions(5, 3);
+      test('selection persists after eviction', () {
+        final model =
+            TableViewModel(
+                totalCount: 120,
+                keyField: 'id',
+                columns: sampleColumns(),
+                selectionEnabled: true,
+                pageSize: 10,
+                keepPages: 0,
+                loadThreshold: 0,
+                focused: true,
+              )
+              ..setVisibleDimensions(5, 3)
+              ..insertRows(sampleRows(10), 0)
+              ..update(keyMsg('space')) // select row0
+              ..update(keyMsg('end'));
 
-        final page0 = await source.getPage(0, 10);
-        model
-          ..insertRows(page0, 0)
-          ..update(keyMsg('space')); // Select row0
+        model.applyLoad(
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(11), data: sampleRows(10)),
+        );
 
-        // Load more pages to trigger eviction
-        final page1 = await source.getPage(1, 10);
-        final page2 = await source.getPage(2, 10);
-        model
-          ..insertRows(page1, 1)
-          ..insertRows(page2, 2);
-
-        // Selection should persist even if row was evicted
+        // The row itself was evicted; the selection is keyed, not indexed.
+        expect(model.getRow(0), isNull);
         expect(model.getSelectedKeys(), contains('row0'));
       });
     });
@@ -658,16 +642,12 @@ void main() {
       late TableViewModel model;
 
       setUp(() async {
-        final source = TableDataSource.fromList(sampleRows());
         model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
       });
 
       test('cursorRowKey returns key', () {
@@ -698,16 +678,12 @@ void main() {
 
     group('commands', () {
       test('enter returns TableActionCmd with primary action', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
 
         final result = model.update(keyMsg('enter'));
         expect(
@@ -721,7 +697,7 @@ void main() {
 
       test('declines unhandled key', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
@@ -732,7 +708,7 @@ void main() {
 
       test('declines when unfocused', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
         );
@@ -742,7 +718,7 @@ void main() {
 
       test('declines a message it does not know', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
@@ -756,7 +732,7 @@ void main() {
         // cursor from moving.
         final model =
             TableViewModel(
-                dataSource: _PaginatedSource(sampleRows(120)),
+                totalCount: 120,
                 keyField: 'id',
                 columns: sampleColumns(),
                 pageSize: 10,
@@ -766,26 +742,23 @@ void main() {
               ..setVisibleDimensions(5, 2)
               ..insertRows(sampleRows(10), 0);
 
-        // Reach the end to start a forward load.
+        // Reach the end to start loading the pages there.
         final result = model.update(keyMsg('end'));
-        expect(
-          result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
-        );
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        expect(requestsOf(result), isNotEmpty);
+        expect(model.isLoading(), isTrue);
 
         final rowBefore = model.cursorRow;
         model.update(keyMsg('up'));
         expect(model.cursorRow, equals(rowBefore - 1));
-        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'load still in flight');
+        expect(model.isLoading(), isTrue, reason: 'load still in flight');
       });
     });
 
     group('LoadRequest', () {
-      test('emitted when near end with hasMore', () async {
-        final source = _PaginatedSource(sampleRows(20));
+      test('emitted when the viewport reaches into a page it does not have', () {
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(10),
+          totalCount: 20,
           keyField: 'id',
           columns: sampleColumns(),
           loadThreshold: 5,
@@ -793,30 +766,24 @@ void main() {
           focused: true,
         )..setVisibleDimensions(5, 3);
 
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
-
-        // Move the cursor to just before the threshold (distToEnd == 5).
+        // Walk down until the viewport, widened by the threshold, reaches into
+        // page 1 — the fifth step, where the bottom edge is row 5.
+        var result = const Handled() as UpdateResult;
         for (var i = 0; i < 5; i++) {
-          model.update(keyMsg('down'));
+          result = model.update(keyMsg('down'));
         }
 
-        // This step crosses the threshold and requests the next page.
-        final result = model.update(keyMsg('down'));
-        expect(
-          result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
-        );
-        final req = (result as Handled).cmd! as LoadRequest;
-        expect(req.id, equals(model.id));
-        expect(req.key, equals(TableLoadKey.forward));
-        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'self-marks on emit');
+        final asked = requestsOf(result);
+        expect(asked, hasLength(1));
+        expect(asked.single.id, equals(model.id));
+        expect(asked.single.key, equals(const TablePageKey(1)));
+        expect(model.isLoading(const TablePageKey(1)), isTrue, reason: 'self-marks on emit');
       });
 
-      test('not emitted again while the same direction is loading', () async {
-        final source = _PaginatedSource(sampleRows(40));
+      test('not emitted again while the same page is loading', () {
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(10),
+          totalCount: 40,
           keyField: 'id',
           columns: sampleColumns(),
           loadThreshold: 5,
@@ -824,40 +791,25 @@ void main() {
           focused: true,
         )..setVisibleDimensions(5, 3);
 
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
-
+        var result = const Handled() as UpdateResult;
         for (var i = 0; i < 5; i++) {
-          model.update(keyMsg('down'));
+          result = model.update(keyMsg('down'));
         }
-        // First threshold crossing requests a forward page.
-        expect(
-          model.update(keyMsg('down')),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
-        );
-        // Further near-end keypresses do not re-request while it is in flight.
-        expect(
-          model.update(keyMsg('down')),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
-        );
-        expect(
-          model.update(keyMsg('up')),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
-        );
+        // The viewport reaching into page 1 requests it.
+        expect(pagesAsked(result), equals([1]));
+        // Further near-end keypresses do not re-request it while it is in flight.
+        expect(pagesAsked(model.update(keyMsg('down'))), isEmpty);
+        expect(pagesAsked(model.update(keyMsg('up'))), isEmpty);
       });
 
       test('not emitted when hasMore is false', () async {
-        final source = TableDataSource.fromList(sampleRows(10));
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(10).take(5).toList(),
           keyField: 'id',
           columns: sampleColumns(),
           loadThreshold: 3,
           focused: true,
         )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
 
         // Move to near end
         for (var i = 0; i < 8; i++) {
@@ -869,31 +821,31 @@ void main() {
         expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
 
-      test('nextPageNum returns correct value', () async {
-        final source = TableDataSource.fromList(sampleRows(100));
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          pageSize: 10,
-          focused: true,
-        );
+      test('a jump asks for the page it lands on, not the one after the loaded edge', () {
+        final model =
+            TableViewModel(
+                totalCount: 500,
+                keyField: 'id',
+                columns: sampleColumns(),
+                focused: true,
+              )
+              ..setVisibleDimensions(20, 3)
+              ..insertRows(sampleRows(50), 0);
 
-        final page0 = await source.getPage(0, 10);
-        model.insertRows(page0, 0);
+        // Row 0 → row 499 in one step. Demand follows the viewport, so the
+        // destination is fetched first and the eight pages in between are never
+        // requested at all.
+        final asked = pagesAsked(model.update(keyMsg('end')));
 
-        expect(model.nextPageNum, equals(1));
-
-        final page1 = await source.getPage(1, 10);
-        model.insertRows(page1, 1);
-
-        expect(model.nextPageNum, equals(2));
+        expect(asked, contains(9), reason: 'the page the cursor landed on');
+        expect(asked, isNot(contains(1)), reason: 'the page after the loaded edge is nowhere near the viewport');
+        expect(requestsOf(model.update(keyMsg('end'))), isEmpty, reason: 'nothing is asked for twice');
       });
     });
 
     group('load lifecycle', () {
       TableViewModel paginated({int loadThreshold = 8}) => TableViewModel(
-        dataSource: _PaginatedSource(sampleRows(120)),
+        totalCount: 120,
         keyField: 'id',
         columns: sampleColumns(),
         pageSize: 10,
@@ -901,99 +853,122 @@ void main() {
         focused: true,
       )..setVisibleDimensions(5, 2);
 
-      test('loadFirstPage begins the forward slot and requests page 0', () {
+      test('loadFirstPage begins page 0 and requests it', () {
         final model = paginated();
         final req = model.loadFirstPage();
 
         expect(req.id, equals(model.id));
-        expect(req.key, equals(TableLoadKey.forward));
-        expect(model.pendingPage(TableLoadKey.forward), equals(0));
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        expect(req.key, equals(const TablePageKey(0)));
+        expect(model.isLoading(const TablePageKey(0)), isTrue);
 
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
         expect(model.cachedRowCount, equals(10));
-        expect(model.loadedRange, equals((0, 10)));
-        expect(model.isLoading(TableLoadKey.forward), isFalse);
+        expect(model.cachedPages, equals([0]));
+        expect(model.isLoading(const TablePageKey(0)), isFalse);
       });
 
-      test('applyLoad installs a forward page at its reserved offset', () {
+      test('applyLoad installs a page at the offset its key names', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        final req = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        model.applyLoad(
+          LoadResult<List<Map<String, Object?>>>(
+            model.id,
+            key: const TablePageKey(3),
+            data: sampleRows(10),
+          ),
+        );
+        expect(model.cachedPages, equals([0]), reason: 'a page nobody asked for is stale, not installed');
+
+        final req = requestsOf(model.update(keyMsg('end'))).first;
+        final page = (req.key! as TablePageKey).page;
+        expect(model.isLoading(req.key! as TablePageKey), isTrue);
 
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
-        expect(model.isLoading(TableLoadKey.forward), isFalse);
-        expect(model.cachedRowCount, equals(20));
-        expect(model.loadedRange, equals((0, 20)));
+        expect(model.isLoading(req.key! as TablePageKey), isFalse);
+        expect(model.cachedPages, contains(page));
+        expect(model.getRow(page * 10)?['id'], equals('row0'));
       });
 
-      test('applyLoad records an error, leaving the slot retryable', () {
+      test('applyLoad takes a PageResult, count and end-of-data included', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+
+        model.applyLoad(
+          LoadResult<PageResult<Map<String, Object?>>>(
+            model.id,
+            key: req.key,
+            data: PageResult<Map<String, Object?>>(sampleRows(10), totalCount: 20, hasMore: true),
+          ),
+        );
+
+        expect(model.cachedPages, equals([0]));
+        expect(model.totalCount, equals(20), reason: 'the envelope carried the count');
+
+        // The next page says the data stops there, even though it is full.
+        expect(pagesIn(model.demand()), equals([1]));
+        model.applyLoad(
+          LoadResult<PageResult<Map<String, Object?>>>(
+            model.id,
+            key: const TablePageKey(1),
+            data: PageResult<Map<String, Object?>>(sampleRows(10), hasMore: false),
+          ),
+        );
+        expect(model.demand(), isNull, reason: 'nothing exists past the last page');
+      });
+
+      test('applyLoad records an error, leaving the page retryable', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        final req = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
+        final req = requestsOf(model.update(keyMsg('end'))).first;
+        final key = req.key! as TablePageKey;
         final boom = StateError('boom');
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, error: boom));
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: key, error: boom));
 
-        expect(model.isLoading(TableLoadKey.forward), isFalse);
-        expect(model.errorFor(TableLoadKey.forward), same(boom));
+        expect(model.isLoading(key), isFalse);
+        expect(model.errorFor(key), same(boom));
         expect(model.cachedRowCount, equals(10), reason: 'nothing installed on failure');
 
-        // The slot is no longer loading, so navigating near the edge retries it.
-        final retry = model.update(keyMsg('end'));
-        expect(
-          retry,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
-        );
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
-        expect(model.errorFor(TableLoadKey.forward), isNull, reason: 'retry clears the error');
+        // The page is no longer in flight, so the next demand pass retries it.
+        expect(model.demand(), isNotNull);
+        expect(model.isLoading(key), isTrue);
+        expect(model.errorFor(key), isNull, reason: 'retry clears the error');
       });
 
-      test('applyLoad drops a result for a slot that is not loading', () {
+      test('applyLoad drops a result for a page that is not loading', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        // No forward load was started, so a forward result is stale.
+        // Nothing was requested, so this result is stale.
         model.applyLoad(
-          LoadResult<List<Map<String, Object?>>>(model.id, key: TableLoadKey.forward, data: sampleRows(10)),
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(1), data: sampleRows(10)),
         );
 
         expect(model.cachedRowCount, equals(10));
-        expect(model.isLoading(TableLoadKey.forward), isFalse);
+        expect(model.isLoading(const TablePageKey(1)), isFalse);
       });
 
       test('applyLoad ignores a result for another model', () {
-        final model = paginated()
-          ..insertRows(sampleRows(10), 0)
-          ..update(keyMsg('end'))
-          ..applyLoad(LoadResult<List<Map<String, Object?>>>('other', key: TableLoadKey.forward, data: sampleRows(10)));
+        final model = paginated()..insertRows(sampleRows(10), 0);
+        final key = requestsOf(model.update(keyMsg('end'))).first.key! as TablePageKey;
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>('other', key: key, data: sampleRows(10)));
 
         expect(model.cachedRowCount, equals(10));
-        expect(model.isLoading(TableLoadKey.forward), isTrue, reason: 'slot untouched');
+        expect(model.isLoading(key), isTrue, reason: 'slot untouched');
       });
 
-      test('forward and backward pages load at once', () {
-        // Rows 10..29 loaded, so the cursor can sit near both edges.
-        final model = paginated()
+      test('pages above and below the viewport load at once', () {
+        // Rows 10..29 are held; the viewport sits inside them with a missing
+        // page on each side, both within reach of the threshold.
+        final model = paginated(loadThreshold: 12)
           ..insertRows(sampleRows(10), 1)
-          ..insertRows(sampleRows(10), 2);
+          ..insertRows(sampleRows(10), 2)
+          ..scrollBy(15);
 
-        // End → forward; the cursor near the end pulls the next page.
-        final fwd = (model.update(keyMsg('end')) as Handled).cmd! as LoadRequest;
-        expect(fwd.key, equals(TableLoadKey.forward));
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
-
-        // Home → backward, while the forward page is still in flight.
-        final back = (model.update(keyMsg('home')) as Handled).cmd! as LoadRequest;
-        expect(back.key, equals(TableLoadKey.backward));
-        expect(model.isLoading(TableLoadKey.backward), isTrue);
-
-        // Both slots in flight at the same time — the new slot-aware behavior.
-        expect(model.isLoading(TableLoadKey.forward), isTrue);
+        expect(pagesIn(model.demand()), equals([0, 3]), reason: 'one pass asks for both, as a batch');
         expect(model.isLoading(), isTrue);
-        expect(model.pendingPage(TableLoadKey.forward), equals(3));
-        expect(model.pendingPage(TableLoadKey.backward), equals(0));
+        expect(model.isLoadingAbove, isTrue, reason: 'page 0 sits above the viewport');
+        expect(model.isLoadingBelow, isTrue, reason: 'page 3 sits below it');
       });
 
       test('reset clears in-flight load slots', () {
@@ -1005,14 +980,146 @@ void main() {
         model.reset();
 
         expect(model.isLoading(), isFalse);
-        expect(model.pendingPage(TableLoadKey.forward), isNull);
+        expect(model.cachedRowCount, equals(0));
+      });
+    });
+
+    // The failures spec 0264 exists to remove, driven through the model with no
+    // terminal: hold a navigation key, answer the requests with latency, and
+    // require that nothing is left permanently unloadable.
+    group('held navigation keys', () {
+      const totalRows = 120;
+      const size = 10;
+      const visible = 5;
+
+      TableViewModel held({int keepPages = 1, int loadThreshold = 3}) => TableViewModel(
+        totalCount: totalRows,
+        keyField: 'id',
+        columns: sampleColumns(),
+        pageSize: size,
+        keepPages: keepPages,
+        loadThreshold: loadThreshold,
+        focused: true,
+      )..setVisibleDimensions(visible, 3);
+
+      test('bottom, top and back down leaves no permanently blank tail', () {
+        final model = held();
+        final ferry = _Ferry(model, totalRows, size)..take(model.loadFirstPage());
+
+        // Down to the bottom, up to the top, down again — each burst held long
+        // enough that pages land mid-flight, which is when the old edge-following
+        // bookkeeping lost the tail for good.
+        for (final key in ['pageDown', 'pageUp', 'pageDown']) {
+          for (var i = 0; i < 40; i++) {
+            ferry.take(model.update(keyMsg(key)));
+            if (i.isEven) ferry.deliverOne();
+            expectNeverStuck(model, 'after $key step $i');
+          }
+        }
+        ferry.drain();
+
+        expect(model.cursorRow, equals(totalRows - 1), reason: 'the cursor reached the last row');
+        expect(model.viewportStatus, SliceStatus.ready);
+        expect(ferry.missingVisibleRows(), isEmpty, reason: 'the tail is loadable again, not blank forever');
+      });
+
+      test('reversing direction with a page in flight leaves no permanent hole', () {
+        final model = held();
+        final ferry = _Ferry(model, totalRows, size)..take(model.loadFirstPage());
+
+        // A seeded walk that reverses direction constantly while answers lag —
+        // the shape that used to strand a page-sized hole inside the window.
+        var seed = 12345;
+        int next(int mod) => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % mod;
+        for (var step = 0; step < 200; step++) {
+          final key = switch (next(4)) {
+            0 => 'down',
+            1 => 'up',
+            2 => 'pageDown',
+            _ => 'pageUp',
+          };
+          ferry.take(model.update(keyMsg(key)));
+          // Answer roughly every other request, out of order.
+          if (next(2) == 0) ferry.deliverOne();
+          expectNeverStuck(model, 'at step $step ($key)');
+        }
+        ferry.drain();
+
+        expect(model.viewportStatus, SliceStatus.ready);
+        expect(ferry.missingVisibleRows(), isEmpty, reason: 'no hole survives a demand pass');
+        expect(model.demand(), isNull, reason: 'nothing is left to ask for');
+      });
+
+      test('a refused page is asked for again once something arms demand — and not before', () {
+        final model = held();
+        _Ferry(model, totalRows, size)
+          ..take(model.loadFirstPage())
+          ..drain();
+
+        // Walk to the edge of page 1 so it is requested, then refuse it.
+        final asked = <int>[];
+        for (var i = 0; i < 20 && asked.isEmpty; i++) {
+          asked.addAll(pagesAsked(model.update(keyMsg('down'))));
+        }
+        expect(asked, isNotEmpty);
+        final refused = asked.first;
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>.cancelled(model.id, key: TablePageKey(refused)));
+
+        expect(model.isLoading(TablePageKey(refused)), isFalse, reason: 'the slot is idle again');
+        expect(model.errorFor(TablePageKey(refused)), isNull, reason: 'a refusal is not a failure');
+        expect(model.demandIfDirty(), isNull, reason: 'a refusal must never re-request on its own');
+
+        // The app's gate lifts and pokes the model: the page is asked for again.
+        model.markDemandDirty();
+        expect(pagesIn(model.demandIfDirty()), contains(refused));
+      });
+
+      test('a taller terminal demands the revealed pages on the next pump', () {
+        final model = held();
+        _Ferry(model, totalRows, size)
+          ..take(model.loadFirstPage())
+          ..drain();
+        expect(model.demand(), isNull, reason: 'the short viewport is fully loaded');
+
+        // A resize reaches the model through the paint path, where it cannot
+        // return a command. Nothing else happens — no key, no pointer.
+        model.setVisibleDimensions(40, 3);
+        expect(model.viewportStatus, SliceStatus.stalled, reason: 'the revealed rows have nothing coming yet');
+
+        final revealed = pagesIn(model.demandIfDirty());
+        expect(revealed, isNotEmpty, reason: 'the rows a taller terminal revealed are demanded');
+        expect(model.viewportStatus, SliceStatus.filling, reason: 'one frame-tick pump leaves the stall');
+        expect(model.demandIfDirty(), isNull, reason: 'the flag is spent by the pass it triggered');
+      });
+
+      test('the in-flight cap bounds requests, and the rest drain on later passes', () {
+        final model = TableViewModel(
+          totalCount: totalRows,
+          keyField: 'id',
+          columns: sampleColumns(),
+          pageSize: size,
+          loadThreshold: 30,
+          maxConcurrentLoads: 1,
+          focused: true,
+        )..setVisibleDimensions(visible, 3);
+        final ferry = _Ferry(model, totalRows, size);
+
+        expect(pagesIn(model.demand()), hasLength(1), reason: 'one at a time, as configured');
+        expect(model.demand(), isNull, reason: 'the cap is spent');
+
+        // Answering one frees the slot and arms demand, so the window drains
+        // frame by frame with no input at all.
+        ferry
+          ..take(LoadRequest(model.id, key: const TablePageKey(0)))
+          ..deliverOne();
+        expect(pagesIn(model.demandIfDirty()), hasLength(1));
       });
     });
 
     group('dataView', () {
       test('exposes total count, hasMore, and cached rows', () {
         final model = TableViewModel(
-          dataSource: _PaginatedSource(sampleRows(120)),
+          totalCount: 120,
           keyField: 'id',
           columns: sampleColumns(),
           pageSize: 10,
@@ -1024,16 +1131,19 @@ void main() {
         expect(view.itemAt(0)['id'], equals('row0'));
       });
 
-      test('itemAt throws for an unloaded row; static source has no more', () {
+      test('itemAt throws for an unloaded row; a fully held table has no more', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows(10)),
+          totalCount: 10,
           keyField: 'id',
           columns: sampleColumns(),
           pageSize: 10,
         );
 
-        expect(model.dataView.hasMore, isFalse);
         expect(() => model.dataView.itemAt(0), throwsStateError);
+        expect(model.dataView.hasMore, isTrue, reason: 'the one page that exists is not held yet');
+
+        model.insertRows(sampleRows(10), 0);
+        expect(model.dataView.hasMore, isFalse, reason: 'every page that exists is held');
       });
     });
 
@@ -1049,16 +1159,12 @@ void main() {
           TableColumn(field: 'name', label: Line('Name')),
         ];
 
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: columns,
           focused: true,
         )..setVisibleDimensions(5, 3);
-
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
 
         expect(model.totalColumns, equals(2)); // id and name only
         expect(model.cursorColField, equals('id'));
@@ -1070,7 +1176,7 @@ void main() {
     group('empty table', () {
       test('handles empty data source', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList([]),
+          rows: const <Map<String, Object?>>[],
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
@@ -1083,7 +1189,7 @@ void main() {
       test('navigation on empty table is safe', () {
         final model =
             TableViewModel(
-                dataSource: TableDataSource.fromList([]),
+                rows: const <Map<String, Object?>>[],
                 keyField: 'id',
                 columns: sampleColumns(),
                 focused: true,
@@ -1100,30 +1206,6 @@ void main() {
         expect(model.cursorRow, equals(0));
         expect(model.cursorCol, equals(0));
       });
-    });
-  });
-
-  group('TableDataSource', () {
-    test('fromList creates adapter', () async {
-      final source = TableDataSource.fromList(sampleRows(10));
-      expect(source.totalCount, equals(10));
-      expect(source.hasMore, isFalse);
-
-      final page = await source.getPage(0, 5);
-      expect(page.length, equals(5));
-      expect(page[0]['id'], equals('row0'));
-    });
-
-    test('getPage handles out of bounds', () async {
-      final source = TableDataSource.fromList(sampleRows());
-      final page = await source.getPage(10, 5); // Way past end
-      expect(page, isEmpty);
-    });
-
-    test('getPage returns partial page at end', () async {
-      final source = TableDataSource.fromList(sampleRows(7));
-      final page = await source.getPage(1, 5); // Starts at 5, only 2 left
-      expect(page.length, equals(2));
     });
   });
 
@@ -1155,22 +1237,64 @@ void main() {
   });
 }
 
-/// Test data source with hasMore = true.
-class _PaginatedSource implements TableDataSource {
-  final List<Map<String, Object?>> _rows;
-  _PaginatedSource(this._rows);
+/// Requires that [model] is never stuck: rows it is about to paint may be
+/// missing only while some fetch is still outstanding, because a fetch landing
+/// re-arms demand and fills them. Missing rows with nothing at all in flight is
+/// the permanent failure this whole arc exists to remove.
+void expectNeverStuck(TableViewModel model, String when) {
+  if (model.viewportStatus != SliceStatus.stalled) return;
+  expect(model.isLoading(), isTrue, reason: 'rows missing with nothing in flight, $when');
+}
 
-  @override
-  Future<List<Map<String, Object?>>> getPage(int pageNum, int pageSize) async {
-    final start = pageNum * pageSize;
-    if (start >= _rows.length) return [];
-    final end = (start + pageSize).clamp(0, _rows.length);
-    return _rows.sublist(start, end);
+/// Stands in for the app: collects the pages a table asks for and answers them,
+/// with the latency of a real fetch — a request lands whenever the test says so,
+/// not when it was made.
+class _Ferry {
+  _Ferry(this.model, this.totalRows, this.pageSize);
+
+  final TableViewModel model;
+  final int totalRows;
+  final int pageSize;
+  final List<int> _outstanding = [];
+
+  /// Records every page a command (or an update's command) asked for.
+  void take(Object? source) {
+    final cmd = switch (source) {
+      Handled(:final cmd) => cmd,
+      final Cmd c => c,
+      _ => null,
+    };
+    _outstanding.addAll(pagesIn(cmd));
   }
 
-  @override
-  bool get hasMore => true;
+  /// Answers the oldest outstanding request, if any.
+  void deliverOne() {
+    if (_outstanding.isEmpty) return;
+    final page = _outstanding.removeAt(0);
+    final start = page * pageSize;
+    final rows = start >= totalRows
+        ? const <Map<String, Object?>>[]
+        : sampleRows(totalRows).sublist(start, (start + pageSize).clamp(0, totalRows));
+    model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: TablePageKey(page), data: rows));
+  }
 
-  @override
-  int? get totalCount => _rows.length;
+  /// Answers everything outstanding, then keeps running demand passes until the
+  /// model stops asking — what a running app does over the next few frames.
+  void drain() {
+    for (var round = 0; round < 50; round++) {
+      while (_outstanding.isNotEmpty) {
+        deliverOne();
+      }
+      final more = model.demand();
+      if (more == null) return;
+      take(more);
+    }
+    fail('the table never stopped asking for pages');
+  }
+
+  /// The visible rows whose pages are still missing.
+  List<int> missingVisibleRows() => [
+    for (var row = model.scrollRow; row < model.scrollRow + model.visibleRows && row < model.rowLimit; row++)
+      if (model.getRow(row) == null) row,
+  ];
 }

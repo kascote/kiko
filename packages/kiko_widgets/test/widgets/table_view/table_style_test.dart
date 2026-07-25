@@ -39,9 +39,8 @@ TableViewModel _model({
   bool focused = true,
   TableViewStyle styles = const TableViewStyle(),
 }) {
-  final source = TableDataSource.fromList(_rows(rowCount));
   final model = TableViewModel(
-    dataSource: source,
+    rows: _rows(rowCount),
     keyField: 'id',
     columns: _columns(),
     selectionEnabled: selectionEnabled,
@@ -211,8 +210,7 @@ void main() {
       test('a hole inside the loaded range uses the loadingRow default', () {
         // Page 1 (rows 2-3) is missing between page 0 (0-1) and page 2 (4-5),
         // the way a concurrent forward+backward load can leave a gap.
-        final source = TableDataSource.fromList(_rows(6));
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: _columns(), pageSize: 2)
+        final model = TableViewModel(keyField: 'id', columns: _columns(), pageSize: 2, totalCount: 6)
           ..insertRows(_rows(6).sublist(0, 2), 0)
           ..insertRows(_rows(6).sublist(4, 6), 2);
 
@@ -225,7 +223,7 @@ void main() {
 
       test('the empty-state placeholder uses the muted default', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(const []),
+          rows: const <Map<String, Object?>>[],
           keyField: 'id',
           columns: _columns(),
           emptyPlaceholder: Line('No data'),

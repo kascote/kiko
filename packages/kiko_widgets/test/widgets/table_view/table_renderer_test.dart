@@ -65,16 +65,13 @@ void main() {
   group('TableRenderer', () {
     group('basic rendering', () {
       test('renders header and rows', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
           focused: true,
         );
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
 
         expect(
           render(model, width: 23, height: 4),
@@ -89,15 +86,12 @@ r2   Name 2    20''',
       });
 
       test('updates visibleDimensions', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
 
         render(model, width: 23, height: 4);
 
@@ -107,16 +101,13 @@ r2   Name 2    20''',
       });
 
       test('stickyHeader=false omits header', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
           stickyHeader: false,
         );
-        final page = await source.getPage(0, 5);
-        model.insertRows(page, 0);
 
         // First row is data, not header
         expect(
@@ -138,15 +129,12 @@ r2   Name 2    20''',
           TableColumn(field: 'name', label: Line('Name'), width: 10, visible: false),
           TableColumn(field: 'val', label: Line('Value'), width: 8),
         ];
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows().take(3).toList(),
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 3);
-        model.insertRows(page, 0);
 
         // Only ID and Value columns visible
         expect(
@@ -160,14 +148,11 @@ r0   0''',
       });
 
       test('columns snap to width boundary', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows().take(3).toList(),
           keyField: 'id',
           columns: sampleColumns(),
         );
-        final page = await source.getPage(0, 3);
-        model.insertRows(page, 0);
 
         // Width=5: ID(5) + Name(10) = 15 > 5, so only ID fits
         final result = render(model, width: 5, height: 2);
@@ -177,19 +162,16 @@ r0   0''',
       });
 
       test('horizontal scroll shows later columns', () async {
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: sampleColumns(),
-          focused: true,
-        )..setVisibleDimensions(3, 1);
-
-        final page = await source.getPage(0, 3);
-        model
-          ..insertRows(page, 0)
-          ..update(const KeyMsg('right'))
-          ..update(const KeyMsg('right'));
+        final model =
+            TableViewModel(
+                rows: sampleRows().take(3).toList(),
+                keyField: 'id',
+                columns: sampleColumns(),
+                focused: true,
+              )
+              ..setVisibleDimensions(3, 1)
+              ..update(const KeyMsg('right'))
+              ..update(const KeyMsg('right'));
 
         // scrollCol=2 shows Value column
         expect(
@@ -212,15 +194,12 @@ Value
         final rows = [
           {'id': 'r0', 'a': 'X', 'b': 'Y'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           // default separator is Text(' ')
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // 5 + 1 (sep) + 8 = 14
         expect(
@@ -241,15 +220,12 @@ X     Y''',
         final rows = [
           {'id': 'r0', 'a': 'X', 'b': 'Y'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(' | '),
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // 5 + 3 (sep) + 8 = 16
         expect(
@@ -270,15 +246,12 @@ X     | Y''',
         final rows = [
           {'id': 'r0', 'a': 'X', 'b': 'Y'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // 5 + 0 (sep) + 8 = 13
         expect(
@@ -292,15 +265,12 @@ X    Y''',
       });
 
       test('separator affects visible column count', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows().take(3).toList(),
           keyField: 'id',
           columns: sampleColumns(), // 5 + 10 + 8 = 23
           // default separator adds 2 chars = 25 total
         );
-        final page = await source.getPage(0, 3);
-        model.insertRows(page, 0);
 
         // Width 23 can't fit all 3 columns with separators
         render(model, width: 23, height: 2);
@@ -322,16 +292,13 @@ X    Y''',
         final rows = [
           {'id': 'r0', 'a': 'A0', 'b': 'B0', 'c': 'C0'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(' | '),
           focused: true,
         )..setVisibleDimensions(1, 2);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Initial: shows ColA and ColB
         var result = render(model, width: 14, height: 2);
@@ -369,15 +336,12 @@ B0     | C0''',
         final rows = [
           {'id': 'r0', 'name': 'VeryLongNameThatExceeds', 'val': 0},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Name truncated to "VeryLongN…"
         expect(
@@ -394,16 +358,13 @@ r0   VeryLongN…0''',
         final rows = [
           {'id': 'r0', 'name': 'LongEnoughToTrunc', 'val': 0},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
           ellipsis: '...',
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         expect(
           render(model, width: 23, height: 2),
@@ -427,17 +388,14 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'r0', 'val': '°°°°°°°°°°', 'next': 'XYZ'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
           ellipsis: '.',
           stickyHeader: false,
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Default: '°' is 1 cell wide, so 4 fit before the ellipsis.
         expect(
@@ -466,17 +424,14 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'r0', 'val': '${skinToneThumbsUp}AB'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
           ellipsis: '.',
           stickyHeader: false,
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Column width 3, ellipsis 1 cell → 2 cells left for content, exactly
         // the emoji's width: it is kept whole (with its modifier), not
@@ -492,17 +447,14 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'r0', 'val': '${skinToneThumbsUp}Z'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
           ellipsis: '.',
           stickyHeader: false,
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Column width 2, ellipsis 1 cell → only 1 cell left, too narrow for
         // the 2-cell-wide emoji: it is dropped whole, leaving no stray
@@ -522,10 +474,7 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'X'},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
 
         expect(render(model, width: 8, height: 2), equals('ID\nX'));
       });
@@ -537,10 +486,7 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'X'},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
 
         expect(
           render(model, width: 8, height: 2, showEmptyCells: true),
@@ -559,10 +505,7 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'XX'},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
 
         expect(
           render(model, width: 8, height: 2, showEmptyCells: true),
@@ -588,10 +531,7 @@ r0   LongEno...0''',
         final rows = [
           {'id': 'abc'},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
 
         expect(
           render(model, width: 10, height: 2),
@@ -621,10 +561,7 @@ ID
         final rows = [
           {'id': 'r0', 'name': 'Alice', 'score': 100},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
         render(model, width: 10, height: 2);
 
         expect(captured, isNotNull);
@@ -659,15 +596,12 @@ ID
           {'id': 'r0', 'a': 1, 'b': 2},
           {'id': 'r1', 'a': 3, 'b': 4},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 2);
-        model.insertRows(page, 0);
         render(model, width: 10, height: 3);
 
         // 2 rows x 2 cols = 4 contexts
@@ -712,16 +646,13 @@ ID
           {'id': 'r0', 'a': 1, 'b': 2},
           {'id': 'r1', 'a': 3, 'b': 4},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
           focused: true,
         )..setVisibleDimensions(2, 2);
-        final page = await source.getPage(0, 2);
-        model.insertRows(page, 0);
 
         // Cursor at row 0, col 0 (default)
         contexts.clear();
@@ -770,19 +701,17 @@ ID
           {'id': 'r0', 'a': 1},
           {'id': 'r1', 'a': 2},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(
-          dataSource: source,
-          keyField: 'id',
-          columns: columns,
-          selectionEnabled: true,
-          focused: true,
-        )..setVisibleDimensions(2, 1);
-        final page = await source.getPage(0, 2);
-        // Select row 0
-        model
-          ..insertRows(page, 0)
-          ..update(const KeyMsg('space'));
+        final model =
+            TableViewModel(
+                rows: rows,
+                keyField: 'id',
+                columns: columns,
+                selectionEnabled: true,
+                focused: true,
+              )
+              // Select row 0
+              ..setVisibleDimensions(2, 1)
+              ..update(const KeyMsg('space'));
         contexts.clear();
         render(model, width: 10, height: 3);
 
@@ -804,10 +733,7 @@ ID
           ),
         ];
         final rows = List.generate(50, (i) => {'id': 'r$i', 'a': i});
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns);
         render(model, width: 10, height: 2);
 
         expect(captured!.totalCount, equals(50));
@@ -828,10 +754,7 @@ ID
         final rows = [
           {'id': 'r0', 'a': 1},
         ];
-        final source = TableDataSource.fromList(rows);
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: [col]);
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: [col]);
         render(model, width: 15, height: 2);
 
         expect(captured!.column, same(col));
@@ -859,15 +782,12 @@ ID
           {'id': 'r0', 'name': 'Alice', 'status': 'active'},
           {'id': 'r1', 'name': 'Bob', 'status': 'idle'},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: columns,
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 2);
-        model.insertRows(page, 0);
 
         expect(
           render(model, width: 15, height: 3),
@@ -884,7 +804,7 @@ Bob       idle''',
     group('empty and loading states', () {
       test('renders empty placeholder', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList([]),
+          rows: const <Map<String, Object?>>[],
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
@@ -902,19 +822,14 @@ No data''',
       });
 
       test('renders loading indicator for missing rows', () async {
-        final source = TableDataSource.fromList(sampleRows(10));
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(10).take(2).toList(),
+          totalCount: 10,
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
           loadingIndicator: Line('...'),
-        );
-        // Only load first 2 rows
-        final page = await source.getPage(0, 2);
-        model
-          ..insertRows(page, 0)
-          ..setVisibleDimensions(5, 3);
+        )..setVisibleDimensions(5, 3);
 
         expect(
           render(model, width: 23, height: 4),
@@ -922,24 +837,85 @@ No data''',
             '''
 ID   Name      Value
 r0   Name 0    0
-r1   Name 1    10''',
+r1   Name 1    10
+...''',
           ),
         );
       });
     });
 
+    group('filling and stalled', () {
+      /// A table over a 120-row source holding only its first page, with the
+      /// viewport parked on rows 20-22 — inside a page it does not have.
+      TableViewModel parkedOffPage() =>
+          TableViewModel(
+              totalCount: 120,
+              keyField: 'id',
+              columns: sampleColumns(),
+              columnSeparator: const Text(''),
+              pageSize: 10,
+            )
+            ..insertRows(sampleRows(10), 0)
+            ..setVisibleDimensions(3, 3)
+            ..scrollBy(20);
+
+      test('while a fetch is in flight the nearest held rows paint, not skeletons', () {
+        // page 2 (and its neighbours) go on their way
+        final model = parkedOffPage()..demand();
+
+        expect(model.viewportStatus, SliceStatus.filling);
+        expect(
+          render(model, width: 23, height: 4),
+          equals('''
+ID   Name      Value
+r7   Name 7    70
+r8   Name 8    80
+r9   Name 9    90'''),
+          reason: 'the last complete range keeps the table readable during the jump',
+        );
+      });
+
+      test('with nothing coming the rows paint as skeletons at the real position', () {
+        final model = parkedOffPage();
+
+        expect(model.viewportStatus, SliceStatus.stalled);
+        final painted = render(model, width: 23, height: 4);
+        expect(painted, contains('░'), reason: 'a skeleton keeps the row shape');
+        expect(painted, isNot(contains('r7')), reason: 'no stale rows once nothing is coming');
+      });
+
+      test('a skeleton keeps the columns and separators of a real row', () {
+        final model = TableViewModel(totalCount: 20, keyField: 'id', columns: sampleColumns(), pageSize: 10);
+
+        // Nothing is held, so every visible row is a skeleton.
+        final painted = render(model, width: 25, height: 3);
+        expect(painted.split('\n').length, equals(3), reason: 'header plus two skeleton rows');
+        for (final line in painted.split('\n').skip(1)) {
+          expect(line, matches(RegExp(r'^░+ +░+ +░+$')), reason: 'one dim run per column: $line');
+        }
+      });
+
+      test('a loadingIndicator still replaces the skeleton with its own line', () {
+        final model = TableViewModel(
+          totalCount: 20,
+          keyField: 'id',
+          columns: sampleColumns(),
+          pageSize: 10,
+          loadingIndicator: Line('Loading...'),
+        );
+
+        expect(render(model, width: 25, height: 2), endsWith('Loading...'));
+      });
+    });
+
     group('vertical scrolling', () {
       test('scrolls to show cursor row', () async {
-        final source = TableDataSource.fromList(sampleRows(10));
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(10),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
         )..setVisibleDimensions(3, 3);
-
-        final page = await source.getPage(0, 10);
-        model.insertRows(page, 0);
 
         // Move cursor down past visible area
         for (var i = 0; i < 5; i++) {
@@ -954,7 +930,7 @@ r1   Name 1    10''',
     group('edge cases', () {
       test('handles empty area', () {
         final model = TableViewModel(
-          dataSource: TableDataSource.fromList(sampleRows()),
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
         );
@@ -964,14 +940,11 @@ r1   Name 1    10''',
       });
 
       test('handles area smaller than header', () async {
-        final source = TableDataSource.fromList(sampleRows());
         final model = TableViewModel(
-          dataSource: source,
+          rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
         );
-        final page = await source.getPage(0, 3);
-        model.insertRows(page, 0);
 
         // Height 1 with sticky header = 0 data rows, returns early
         expect(render(model, width: 23, height: 1), isEmpty);
@@ -981,10 +954,7 @@ r1   Name 1    10''',
         final columns = [
           TableColumn(field: 'id', label: Line('ID')),
         ];
-        final source = TableDataSource.fromList(sampleRows());
-        final model = TableViewModel(dataSource: source, keyField: 'id', columns: columns);
-        final page = await source.getPage(0, 3);
-        model.insertRows(page, 0);
+        final model = TableViewModel(rows: sampleRows(), keyField: 'id', columns: columns);
 
         // Width too narrow for column - should not throw
         expect(() => render(model, width: 5, height: 3), returnsNormally);
@@ -994,15 +964,12 @@ r1   Name 1    10''',
         final rows = [
           {'id': 'r0', 'name': null, 'val': null},
         ];
-        final source = TableDataSource.fromList(rows);
         final model = TableViewModel(
-          dataSource: source,
+          rows: rows,
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
         );
-        final page = await source.getPage(0, 1);
-        model.insertRows(page, 0);
 
         // Null renders as empty
         expect(

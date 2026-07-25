@@ -1,7 +1,7 @@
 // Simple TableView example with static data.
 //
 // Shows:
-// - Basic setup with TableDataSource.fromList()
+// - Basic setup: rows straight into the constructor
 // - Column definitions with width/alignment
 // - Cell-level cursor navigation (arrows, h/j/k/l)
 // - Row selection (space)
@@ -64,7 +64,7 @@ const _emberTableStyle = TableViewStyle(
 
 class AppModel with ThemeSwitcher {
   late final table = TableViewModel(
-    dataSource: TableDataSource.fromList(employees),
+    rows: employees,
     keyField: 'id',
     columns: [
       TableColumn(
@@ -131,13 +131,6 @@ String _formatNumber(int n) {
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
-
-  // Initial data load
-  if (msg is InitMsg) {
-    // Load first page synchronously (fromList returns immediately)
-    model.table.insertRows(employees, 0);
-    return (model, null);
-  }
 
   // Crosshair + custom anatomy toggles, ahead of the table's own key
   // bindings so 'c'/'y' never reach it as unhandled keys.

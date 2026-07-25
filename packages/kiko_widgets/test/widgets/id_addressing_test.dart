@@ -18,18 +18,15 @@ List<TableColumn> columns() => [
 ];
 
 /// A focused-by-default table with [n] rows already loaded into its cache.
-TableViewModel table({String? id, int n = 5, bool focused = true, int loadThreshold = 5}) =>
-    TableViewModel(
-        dataSource: TableDataSource.fromList(rows(n)),
-        keyField: 'id',
-        columns: columns(),
-        pageSize: 10,
-        loadThreshold: loadThreshold,
-        id: id,
-        focused: focused,
-      )
-      ..setVisibleDimensions(5, 2)
-      ..insertRows(rows(n), 0);
+TableViewModel table({String? id, int n = 5, bool focused = true, int loadThreshold = 5}) => TableViewModel(
+  rows: rows(n),
+  keyField: 'id',
+  columns: columns(),
+  pageSize: 10,
+  loadThreshold: loadThreshold,
+  id: id,
+  focused: focused,
+)..setVisibleDimensions(5, 2);
 
 /// A two-instance app that resolves commands/results to their owner by id.
 /// A miss is **logged and dropped** — the observable failure references could
@@ -96,29 +93,30 @@ void main() {
     });
 
     test('async load result routes home to only the originating instance', () async {
-      final srcA = _PaginatedSource(rows(40));
-      final a =
-          TableViewModel(
-              dataSource: srcA,
-              keyField: 'id',
-              columns: columns(),
-              pageSize: 10,
-              loadThreshold: 5,
-              id: 'A',
-              focused: true,
-            )
-            ..setVisibleDimensions(5, 2)
-            ..insertRows(rows(10), 0);
-      final b =
-          TableViewModel(
-              dataSource: _PaginatedSource(rows(40)),
-              keyField: 'id',
-              columns: columns(),
-              pageSize: 10,
-              id: 'B',
-            )
-            ..setVisibleDimensions(5, 2)
-            ..insertRows(rows(10), 0);
+      // Both tables hold their first page of a 40-row table; A is the one the
+      // keyboard drives, so only A should ever see the result.
+      final srcA = PageSource.offset<Map<String, Object?>>(
+        pageSize: 10,
+        read: (offset, limit) async => rows(40).skip(offset).take(limit).toList(),
+      );
+      final a = TableViewModel(
+        rows: rows(10),
+        totalCount: 40,
+        keyField: 'id',
+        columns: columns(),
+        pageSize: 10,
+        loadThreshold: 5,
+        id: 'A',
+        focused: true,
+      )..setVisibleDimensions(5, 2);
+      final b = TableViewModel(
+        rows: rows(10),
+        totalCount: 40,
+        keyField: 'id',
+        columns: columns(),
+        pageSize: 10,
+        id: 'B',
+      )..setVisibleDimensions(5, 2);
       final app = _TwoTables(a, b);
 
       // Drive A's cursor toward the end until it requests more data. The widget
@@ -134,16 +132,11 @@ void main() {
       expect(id, equals('A'));
       expect(a.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
 
-      // The app turns the request into a Task whose result carries the id (and
-      // the slot key) home. The page to fetch is the one the model reserved.
-      final owner = app.resolve(id)!;
-      final page = owner.pendingPage(request.key! as TableLoadKey)!;
-      final task = Task<List<Map<String, Object?>>>(
-        () => srcA.getPage(page, owner.pageSize),
-        onSuccess: (loaded) => LoadResult<List<Map<String, Object?>>>(id, key: request!.key, data: loaded),
-      );
+      // The app turns the request into a fetch whose result carries the id and
+      // the key home — which fetchInto does structurally, from the request.
+      final task = fetchInto(request, srcA);
 
-      final msg = await task.execute() as LoadResult<List<Map<String, Object?>>>;
+      final msg = await (task as AsyncCmd).execute() as LoadResult<Object?>;
       expect(msg.id, equals('A'));
 
       // On receipt, resolve home by id and install — only A is touched.
@@ -163,7 +156,7 @@ void main() {
 
       // A result addressed to an instance that no longer exists (row deleted,
       // tab closed, list rebuilt) — exactly the orphan case references hid.
-      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: TableLoadKey.forward, data: rows(3));
+      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: const TablePageKey(1), data: rows(3));
       final dest = app.resolve(orphan.id);
       dest?.applyLoad(orphan);
 
@@ -174,24 +167,4 @@ void main() {
       expect(app.b.cachedRowCount, equals(beforeB));
     });
   });
-}
-
-/// Test data source with hasMore = true (so a load request can be emitted).
-class _PaginatedSource implements TableDataSource {
-  final List<Map<String, Object?>> _rows;
-  _PaginatedSource(this._rows);
-
-  @override
-  Future<List<Map<String, Object?>>> getPage(int pageNum, int pageSize) async {
-    final start = pageNum * pageSize;
-    if (start >= _rows.length) return [];
-    final end = (start + pageSize).clamp(0, _rows.length);
-    return _rows.sublist(start, end);
-  }
-
-  @override
-  bool get hasMore => true;
-
-  @override
-  int? get totalCount => _rows.length;
 }

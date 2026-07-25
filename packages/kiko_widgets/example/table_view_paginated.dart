@@ -1,11 +1,14 @@
 // Paginated TableView with simulated API loading.
 //
 // Shows:
-// - Custom TableDataSource for async pagination
-// - LoadRequest / LoadResult handling for infinite scroll (forward + backward)
-// - Sliding window (keeps windowSize rows in memory)
+// - A PageSource over a simulated offset API, with fetchInto as the ferry glue
+// - LoadRequest / LoadResult handling, keyed by page number
+// - A demand pass that may ask for several pages at once (flattened by the app)
+// - The frame-tick arm that pumps demand after a resize
+// - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Loading state indicator
 // - Total count as a benign one-shot
+// - A policy gate that refuses requests and re-arms demand when it lifts
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
 //   pages the next/previous batch in, same as cursor nav
 
@@ -20,49 +23,37 @@ import 'shared/theme_switcher.dart';
 // DATA SOURCE
 // ═══════════════════════════════════════════════════════════
 
-/// Simulated API data source that loads pages of products.
-class ProductApiDataSource implements TableDataSource {
+/// A simulated product API: an offset-and-limit endpoint with a slow round
+/// trip, plus a separate count query.
+///
+/// This is app code — the shape a real REST or SQL backend has. Kiko only sees
+/// it through the [PageSource] adapter below.
+class ProductApi {
   static const _totalProducts = 500;
 
-  bool _hasMore = true;
-  int? _totalCount;
-
-  @override
-  Future<List<Map<String, Object?>>> getPage(int pageNum, int pageSize) async {
-    // Simulate network delay
+  /// The rows at `[offset, offset + limit)`, after a simulated network delay.
+  Future<List<Map<String, Object?>>> read(int offset, int limit) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
-    final start = pageNum * pageSize;
-    if (start >= _totalProducts) return [];
+    if (offset >= _totalProducts) return [];
+    final count = (offset + limit > _totalProducts) ? _totalProducts - offset : limit;
 
-    final count = (start + pageSize > _totalProducts) ? _totalProducts - start : pageSize;
-
-    final rows = <Map<String, Object?>>[];
-    for (var i = 0; i < count; i++) {
-      final n = start + i + 1;
-      rows.add({
-        'id': 'P${n.toString().padLeft(4, '0')}',
-        'name': _productName(n),
-        'category': _category(n),
-        'price': _price(n),
-        'stock': _stock(n),
-      });
-    }
-
-    _hasMore = start + count < _totalProducts;
-    return rows;
+    return [
+      for (var i = 0; i < count; i++)
+        if (offset + i + 1 case final n)
+          {
+            'id': 'P${n.toString().padLeft(4, '0')}',
+            'name': _productName(n),
+            'category': _category(n),
+            'price': _price(n),
+            'stock': _stock(n),
+          },
+    ];
   }
-
-  @override
-  bool get hasMore => _hasMore;
-
-  @override
-  int? get totalCount => _totalCount;
 
   /// Simulates fetching total count.
   Future<int> fetchCount() async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    _totalCount = _totalProducts;
     return _totalProducts;
   }
 
@@ -99,11 +90,17 @@ class CountLoadedMsg extends Msg {
 // ═══════════════════════════════════════════════════════════
 
 class AppModel with ThemeSwitcher {
-  final dataSource = ProductApiDataSource();
+  final api = ProductApi();
+
+  /// The one page size in the app: the table windows over what the source ships.
+  late final PageSource<Map<String, Object?>> source = PageSource.offset<Map<String, Object?>>(
+    pageSize: 50,
+    read: api.read,
+  );
   final defaultHeaderStyle = Style(fg: Color.white, addModifier: Modifier.bold | Modifier.italic);
 
   late final table = TableViewModel(
-    dataSource: dataSource,
+    pageSize: source.pageSize,
     keyField: 'id',
     columns: [
       TableColumn(
@@ -169,21 +166,46 @@ class AppModel with ThemeSwitcher {
 
   String? error;
   bool initialized = false;
+
+  /// A stand-in for an app-owned policy gate — "do not fetch while a sync is
+  /// running". While it is closed every request is refused rather than fetched,
+  /// and nothing paints an error: the pages keep their placeholders and are
+  /// asked for again once it opens.
+  bool paused = false;
 }
 
 // ═══════════════════════════════════════════════════════════
 // LOAD PLUMBING (one shape for the first page and each near-edge page)
 // ═══════════════════════════════════════════════════════════
 
-/// Turns a table [LoadRequest] into the page fetch that resolves it, routing the
-/// outcome home as a [LoadResult] (rows on success, error on failure).
-Cmd fetchPage(AppModel model, LoadRequest req) {
-  final page = model.table.pendingPage(req.key! as TableLoadKey)!;
-  return Task<List<Map<String, Object?>>>(
-    () => model.dataSource.getPage(page, model.table.pageSize),
-    onSuccess: (rows) => LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, data: rows),
-    onError: (e) => LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, error: e),
-  );
+/// One request, one fetch — explicit arms, read top to bottom.
+///
+/// [fetchInto] threads the request's id and key into the result, so a page can
+/// only ever land on the widget that asked for it, and turns a read that throws
+/// into a failed load rather than a page stuck loading forever.
+Cmd fetchFor(AppModel model, LoadRequest req) {
+  if (req.id == model.table.id) {
+    // Policy, where a reader would look for it. A refusal resolves the page
+    // without fetching and without failing it, so the table asks again later.
+    if (model.paused) return declineLoad(req);
+    return fetchInto(req, model.source);
+  }
+  // Nothing is wired to answer this one, which is a bug rather than a policy:
+  // it resolves as a failure, so the widget shows it instead of a placeholder
+  // nobody will ever fill.
+  return declineLoad(req, error: 'no source wired for ${req.id}');
+}
+
+/// One demand pass can ask for several pages at once, so the app flattens
+/// whatever the table returned and fetches each request.
+Cmd? fetchAll(AppModel model, Cmd? cmd) {
+  final requests = switch (cmd) {
+    final LoadRequest r => [r],
+    Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
+    _ => const <LoadRequest>[],
+  };
+  if (requests.isEmpty) return cmd;
+  return Batch([for (final r in requests) fetchFor(model, r)]);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -198,7 +220,10 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
   if (msg case final LoadResult<Object?> r) {
     if (r.id == model.table.id) {
       model.table.applyLoad(r);
-      model.error = r.ok ? null : 'Failed to load: ${r.error}';
+      // `ok` is false for a refusal as well as a failure, so check `cancelled`
+      // first: a page this app declined on policy grounds did not fail, and
+      // reporting it as an error would be a lie the user has to dismiss.
+      if (!r.cancelled) model.error = r.ok ? null : 'Failed to load: ${r.error}';
     }
     return (model, null);
   }
@@ -216,9 +241,11 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
     return (
       model,
       Batch([
-        fetchPage(model, model.table.loadFirstPage()),
+        fetchFor(model, model.table.loadFirstPage()),
+        // The count arrives as a benign one-shot; the table uses it to know how
+        // far it can jump and which pages exist.
         Task(
-          model.dataSource.fetchCount,
+          model.api.fetchCount,
           onSuccess: (count) => CountLoadedMsg(model.table.id, count),
           onError: (_) => const NoneMsg(),
         ),
@@ -233,21 +260,33 @@ Cmd fetchPage(AppModel model, LoadRequest req) {
     return (model, null);
   }
 
-  // A near-edge navigation may request the next or previous page.
-  final result = model.table.update(msg);
-  if (result case Handled(cmd: final LoadRequest r) when r.id == model.table.id) {
-    return (model, fetchPage(model, r));
+  // A resize reveals rows through the paint path, where the table cannot return
+  // a command, and a page landing can free a slot the in-flight cap truncated.
+  // One arm on the frame tick covers both.
+  if (msg is FrameTickMsg) {
+    return (model, fetchAll(model, model.table.demandIfDirty()));
   }
+
+  // Navigation runs a demand pass, which may ask for one page or several.
+  final result = model.table.update(msg);
 
   switch (result) {
     case Handled(:final cmd):
-      return (model, cmd);
+      return (model, fetchAll(model, cmd));
     case Declined():
       break;
   }
 
-  // Quit
   if (msg case KeyMsg(:final key)) {
+    // Open and close the policy gate. Closing it needs nothing: the next
+    // request is simply refused. Opening it does — a refusal deliberately never
+    // re-triggers demand, or a standing refusal would become a request storm —
+    // so the app pokes the model, and the frame-tick arm above picks it up.
+    if (key == 'p') {
+      model.paused = !model.paused;
+      if (!model.paused) model.table.markDemandDirty();
+      return (model, null);
+    }
     if (key == 'escape' || key == 'ctrl+q') {
       return (model, const Quit());
     }
@@ -287,7 +326,11 @@ void appView(AppModel model, Frame frame) {
   );
 
   // Status
-  final status = loading ? 'Loading...' : model.error ?? 'Ready';
+  final status = model.paused
+      ? 'Paused — loads refused (p to resume)'
+      : loading
+      ? 'Loading...'
+      : model.error ?? 'Ready';
 
   final statusBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
@@ -316,7 +359,7 @@ void appView(AppModel model, Frame frame) {
   // Scroll position
   final scroll = table.getScrollState();
   final scrollInfo = scroll.total != null
-      ? 'Row ${table.cursorRow + 1}/${scroll.total} | Window: ${table.loadedRange}'
+      ? 'Row ${table.cursorRow + 1}/${scroll.total} | Pages: ${table.cachedPages}'
       : 'Row ${table.cursorRow + 1}';
 
   final cursorInfo = 'Cell: ${table.cursorColField}';
@@ -325,7 +368,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓←→/hjkl/click nav | PgUp/PgDn/wheel page | $scrollInfo | $cursorInfo | Esc quit',
+          '↑↓←→/hjkl/click nav | PgUp/PgDn/wheel page | p pause loads | $scrollInfo | $cursorInfo | Esc quit',
           style: theme.muted.ink,
         ),
       ),

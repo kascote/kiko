@@ -1,6 +1,7 @@
 import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
 import '../row_region.dart';
 import 'table_column.dart';
 import 'table_view_model.dart';
@@ -66,9 +67,10 @@ class TableRenderer {
       mark?.call(const TableHeaderRegion(), Rect.create(x: area.x, y: area.y, width: area.width, height: headerHeight));
     }
 
-    // 2. Check for empty state
-    final (loadedStart, loadedEnd) = model.loadedRange;
-    if (loadedStart == loadedEnd && !model.isLoading()) {
+    // 2. Check for empty state — the data itself is empty, not merely unloaded.
+    // A table that knows its size (or has a page on its way) has rows to draw,
+    // even before any of them arrive: they paint as skeletons below.
+    if (model.rowLimit == 0) {
       final placeholder = model.emptyPlaceholder;
       if (placeholder != null) {
         paintLine(
@@ -84,8 +86,22 @@ class TableRenderer {
     }
 
     // 3. Render visible rows
-    final scrollRow = model.scrollRow;
-    final endRow = (scrollRow + dataHeight).clamp(0, loadedEnd);
+    //
+    // The loop walks the viewport and paints a skeleton for any row whose page
+    // isn't held, rather than stopping at the end of the loaded data. A viewport
+    // sitting over a missing page then shows rows filling in, and recovers when
+    // they land, instead of painting a blank body.
+    //
+    // While a fetch is in flight, though, the nearest rows the window holds
+    // whole are better than a screen of skeletons: they keep the table readable
+    // during a jump, and the chrome (getScrollState) still reports where the
+    // cursor really is. Any other incomplete status falls back to skeletons, so
+    // a fetch that never lands stops the view showing stale rows on its own —
+    // no timer decides when.
+    final scrollRow = model.viewportStatus == SliceStatus.filling
+        ? model.nearestHeldStart(dataHeight) ?? model.scrollRow
+        : model.scrollRow;
+    final endRow = (scrollRow + dataHeight).clamp(0, model.rowLimit);
 
     for (var rowIdx = scrollRow; rowIdx < endRow; rowIdx++) {
       final row = model.getRow(rowIdx);
@@ -96,8 +112,7 @@ class TableRenderer {
       mark?.call(RowRegion(rowIdx), rowRect);
 
       if (row == null) {
-        // Render loading placeholder for missing row
-        _renderLoadingRow(surface, rowRect);
+        _renderLoadingRow(surface, rowRect, visibleCols);
         continue;
       }
 
@@ -162,10 +177,50 @@ class TableRenderer {
     }
   }
 
-  /// Renders a loading placeholder row.
-  void _renderLoadingRow(Surface surface, Rect area) {
-    final line = (model.loadingIndicator ?? Line('Loading...')).patchStyle(_loadingRowStyle());
-    paintLine(surface, line, x: area.x, y: area.y, width: area.width, measurer: measurer);
+  /// Renders the placeholder for a row whose page isn't held.
+  ///
+  /// By default it is a skeleton: the row's own shape — its columns and
+  /// separators — with a dim run standing in for each cell. Forty rows each
+  /// reading "Loading..." are unreadable at scrolling speed and look like a
+  /// fault; the same rows as column-shaped runs read as filling in. A caller
+  /// that wants a literal line back sets [TableViewModel.loadingIndicator].
+  void _renderLoadingRow(Surface surface, Rect area, List<TableColumn> visibleCols) {
+    final style = _loadingRowStyle();
+    final indicator = model.loadingIndicator;
+    if (indicator != null) {
+      paintLine(surface, indicator.patchStyle(style), x: area.x, y: area.y, width: area.width, measurer: measurer);
+      return;
+    }
+
+    var x = area.x;
+    final sep = model.columnSeparator;
+    final sepWidth = sep.width(measurer);
+    for (var i = 0; i < visibleCols.length; i++) {
+      if (i > 0 && sepWidth > 0) {
+        paintLine(
+          surface,
+          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          x: x,
+          y: area.y,
+          width: sepWidth,
+          measurer: measurer,
+        );
+        x += sepWidth;
+      }
+      final col = visibleCols[i];
+      // Short of the full width, so the run reads as content pending rather
+      // than as a filled cell.
+      final runWidth = col.width <= 2 ? col.width : (col.width * 3) ~/ 4;
+      paintLine(
+        surface,
+        Line('░' * runWidth).patchStyle(style),
+        x: x,
+        y: area.y,
+        width: col.width,
+        measurer: measurer,
+      );
+      x += col.width;
+    }
   }
 
   /// Renders a data row.

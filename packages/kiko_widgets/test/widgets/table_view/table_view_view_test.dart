@@ -50,9 +50,7 @@ Future<TableViewModel> _seededTable({String? id}) async {
     <String, Object?>{'id': '1', 'name': 'Al'},
     <String, Object?>{'id': '2', 'name': 'Bo'},
   ];
-  final source = TableDataSource.fromList(rows);
-  final page = await source.getPage(0, 2);
-  return TableViewModel(id: id, dataSource: source, keyField: 'id', columns: _columns())..insertRows(page, 0);
+  return TableViewModel(id: id, rows: rows, keyField: 'id', columns: _columns());
 }
 
 void main() {
@@ -105,10 +103,7 @@ void main() {
       // clip's origin — that would pin row 0 to the top of the visible window
       // instead of scrolling it off.
       final rows = List.generate(5, (i) => <String, Object?>{'id': '$i', 'name': 'r$i'});
-      final source = TableDataSource.fromList(rows);
-      final page = await source.getPage(0, 5);
-      final model = TableViewModel(dataSource: source, keyField: 'id', columns: _columns(), stickyHeader: false)
-        ..insertRows(page, 0);
+      final model = TableViewModel(rows: rows, keyField: 'id', columns: _columns(), stickyHeader: false);
 
       final node = TableView(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(7, 5)), _ctx)
@@ -151,15 +146,13 @@ void main() {
         <String, Object?>{'id': '1', 'name': 'Al'},
         <String, Object?>{'id': '2', 'name': 'Bo'},
       ];
-      final source = TableDataSource.fromList(rows);
-      final page = await source.getPage(0, 2);
       final model = TableViewModel(
         id: 'grid',
-        dataSource: source,
+        rows: rows,
         keyField: 'id',
         columns: _columns(),
         stickyHeader: false,
-      )..insertRows(page, 0);
+      );
       final hits = (_frame(7, 3)..render(TableView(model: model, theme: Theme.dark))).hits;
 
       expect(hits.regionAt('grid', 0, 0), const RowRegion(0), reason: 'no header to push rows down');

@@ -87,7 +87,7 @@ class LoadTracker<K> {
 /// A widget returns this from its update rather than fetching anything itself.
 /// The app receives it, runs the actual fetch, and sends the outcome back as a
 /// [LoadResult] carrying the same [id] and [key]. [id] says which widget asked;
-/// [key] says which part of it — a tree branch, a page direction, a list's one
+/// [key] says which part of it — a tree branch, a table page, a list's one
 /// slot.
 ///
 /// [key] is typed as [Object] so a single routing path can carry any widget's
@@ -100,7 +100,7 @@ class LoadRequest extends Cmd {
   /// Identifies the widget that needs data.
   final String id;
 
-  /// Names which load within that widget (e.g. [PathKey], [TableLoadKey.forward]).
+  /// Names which load within that widget (e.g. [PathKey], [TablePageKey]).
   final Object? key;
 
   @override
@@ -118,8 +118,17 @@ class LoadRequest extends Cmd {
 ///
 /// The app builds this after running the fetch a [LoadRequest] asked for,
 /// reusing that request's [id] and [key] so the result lands in the right place.
-/// On success [data] holds the loaded items; on failure [error] is set and [ok]
-/// is false.
+/// There are exactly three outcomes, and every request must end in one of them:
+/// [data] carrying the loaded items, [error] carrying the failure, or
+/// [LoadResult.cancelled] — a refusal that resolves the slot without fetching.
+/// Answering a request with nothing at all leaves whatever asked for it waiting
+/// forever, since the widget will not ask again while it believes the load is
+/// still on its way.
+///
+/// A cancel is a distinct shape rather than an empty success because an empty
+/// page means "the data ends here". A refusal must teach the widget nothing: it
+/// keeps its placeholders, records no failure, and asks again on the next demand
+/// pass. Build one through [declineLoad] rather than by hand.
 ///
 /// [D] is the payload type where the app constructs the result, which keeps that
 /// site type-safe. The widget consumes it through [Loadable], where the type is
@@ -128,7 +137,11 @@ class LoadRequest extends Cmd {
 class LoadResult<D> extends Msg {
   /// Creates a result for ([id], [key]): pass [data] on success, [error] on
   /// failure.
-  const LoadResult(this.id, {this.key, this.data, this.error});
+  const LoadResult(this.id, {this.key, this.data, this.error}) : cancelled = false;
+
+  /// Creates a refusal for ([id], [key]): the load was never run, so the slot
+  /// returns to idle carrying neither data nor a failure.
+  const LoadResult.cancelled(this.id, {this.key}) : data = null, error = null, cancelled = true;
 
   /// Identifies the widget this result is routed to.
   final String id;
@@ -142,20 +155,75 @@ class LoadResult<D> extends Msg {
   /// The failure cause — non-null only when the load failed.
   final Object? error;
 
-  /// Whether the load succeeded.
-  bool get ok => error == null;
+  /// Whether the request was refused instead of run.
+  ///
+  /// A widget receiving this clears the slot to idle and installs nothing — no
+  /// rows, no error, no end-of-data.
+  final bool cancelled;
+
+  /// Whether the load ran and succeeded, so [data] is worth installing.
+  ///
+  /// False for both a failure and a refusal: neither carries data, and treating
+  /// a refusal as an empty success would tell the widget its data ends here.
+  bool get ok => error == null && !cancelled;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LoadResult<D> && other.id == id && other.key == key && other.data == data && other.error == error;
+      other is LoadResult<D> &&
+          other.id == id &&
+          other.key == key &&
+          other.data == data &&
+          other.error == error &&
+          other.cancelled == cancelled;
 
   @override
-  int get hashCode => Object.hash(id, key, data, error);
+  int get hashCode => Object.hash(id, key, data, error, cancelled);
 
   @override
-  String toString() => 'LoadResult($id, key: $key, data: $data, error: $error)';
+  String toString() =>
+      cancelled ? 'LoadResult.cancelled($id, key: $key)' : 'LoadResult($id, key: $key, data: $data, error: $error)';
 }
+
+/// Builds the command that resolves [request] without fetching anything: a
+/// refusal with no [error], a failure with one.
+///
+/// This is the answer for a request an app will not run. A widget marks its slot
+/// loading the moment it emits the request and skips it while it believes it is
+/// in flight, so a request left unanswered paints its placeholder forever — the
+/// same permanently-unloadable state a widget's own bookkeeping must never
+/// produce, arriving from the app instead. The fall-through of a request handler
+/// therefore reads `return declineLoad(r)`, never `return null`.
+///
+/// Which of the two to use:
+///
+/// - **No error — a refusal on policy.** "Do not fetch orders while a sync is
+///   running." Nothing failed, so nothing paints an error: the widget keeps its
+///   placeholders and asks again on its next demand pass. Recovery is the app's
+///   to trigger when its own gate lifts.
+/// - **With an error — nothing is wired to answer.** A request whose id matches
+///   no source is a wiring bug, and it fails visibly rather than leaving a
+///   placeholder no one will ever fill.
+///
+/// ```dart
+/// Cmd fetchFor(AppModel m, LoadRequest r) {
+///   if (r.id == m.products.id) return fetchInto(r, m.productsSource);
+///   if (r.id == m.orders.id) {
+///     if (m.syncing) return declineLoad(r); // policy, where you would look for it
+///     return fetchInto(r, m.ordersSource);
+///   }
+///   return declineLoad(r, error: 'no source wired for ${r.id}');
+/// }
+/// ```
+///
+/// It handles one request and never iterates over an app's sources: an app that
+/// needs different treatment for one widget writes a different arm, and simply
+/// does not call this there.
+Cmd declineLoad(LoadRequest request, {Object? error}) => Emit(
+  error == null
+      ? LoadResult<Object?>.cancelled(request.id, key: request.key)
+      : LoadResult<Object?>(request.id, key: request.key, error: error),
+);
 
 /// A widget model that can receive loaded data.
 ///
@@ -220,21 +288,95 @@ class PathKey extends TreeLoadKey {
   String toString() => 'PathKey($path)';
 }
 
-/// Names which table page is loading: the next page ([forward]) or the previous
-/// one ([backward]).
+/// Names which table page is loading, by its page number.
 ///
-/// The total row count isn't here on purpose — a missing count only leaves the
-/// scrollbar indeterminate, so the app fetches it separately without load state.
-enum TableLoadKey {
-  /// Loading the next page.
-  forward,
+/// A table names the thing it is loading the way the tree names a branch with a
+/// [PathKey]: the key carries the page, so each page gets its own slot, several
+/// pages can be in flight at once, and a result places itself without the model
+/// having to remember which page it reserved for which direction.
+///
+/// The total row count isn't a key here on purpose — a missing count only leaves
+/// the scrollbar indeterminate, so the app fetches it separately without load
+/// state.
+@immutable
+class TablePageKey {
+  /// Creates a key for the page numbered [page], counting from zero.
+  const TablePageKey(this.page);
 
-  /// Loading the previous page.
-  backward,
+  /// The page being loaded — rows `[page * pageSize, page * pageSize + pageSize)`.
+  final int page;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is TablePageKey && other.page == page;
+
+  @override
+  int get hashCode => page.hashCode;
+
+  @override
+  String toString() => 'TablePageKey($page)';
 }
 
 /// Names the single load a list has: appending the next page at the end.
 enum ListLoadKey {
   /// The list's one load slot.
   self,
+}
+
+// ═══════════════════════════════════════════════════════════
+// SLICE STATUS
+// ═══════════════════════════════════════════════════════════
+
+/// What a view can say about the part of its data it is about to paint.
+enum SliceStatus {
+  /// Everything is here; paint it.
+  ready,
+
+  /// Something is missing and a fetch is on its way.
+  filling,
+
+  /// Something is missing and nothing is coming for it.
+  ///
+  /// This is the shape of every permanent failure in a windowed widget — a tail
+  /// that never reloads, a hole nothing re-requests, a request the app dropped,
+  /// a request the in-flight cap starved. It is deliberately not an error and
+  /// never a debug assertion: an app that refuses a load on policy grounds
+  /// produces this state legitimately, and an assertion would fire on correct
+  /// code. It is reported, logged and tested against instead.
+  stalled,
+
+  /// A fetch for something missing failed.
+  failed,
+}
+
+/// The status of the [keys] a view is about to paint: whether they are all
+/// here, on their way, failed, or missing with nothing coming.
+///
+/// A pure function of two inputs — what [loads] says is in flight or failed, and
+/// what [isPresent] says is already held. Key-shaped like [LoadTracker] itself,
+/// so a table passes page keys and a tree could pass path keys without a second
+/// implementation.
+///
+/// A failure outranks a fetch in flight: if one missing key failed while another
+/// is still loading, reporting [SliceStatus.filling] would promise the failed
+/// one is coming.
+///
+/// ```dart
+/// final status = statusFor(
+///   visiblePages.map(TablePageKey.new),
+///   loads,
+///   (key) => window.has(key.page),
+/// );
+/// ```
+SliceStatus statusFor<K>(Iterable<K> keys, LoadTracker<K> loads, bool Function(K key) isPresent) {
+  var loading = false;
+  var missing = false;
+  for (final key in keys) {
+    if (isPresent(key)) continue;
+    missing = true;
+    final state = loads.stateFor(key);
+    if (state.failed) return SliceStatus.failed;
+    if (state.isLoading) loading = true;
+  }
+  if (!missing) return SliceStatus.ready;
+  return loading ? SliceStatus.filling : SliceStatus.stalled;
 }

@@ -222,6 +222,12 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       applyLoad(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
 
   void _installRoots(LoadResult<Object?> result) {
+    // A refusal resolves the slot and installs nothing: the roots stay unloaded
+    // and a later expand asks for them again.
+    if (result.cancelled) {
+      _loads.complete(const RootsKey());
+      return;
+    }
     if (result.ok) {
       _roots = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
       _rootsLoaded = true;
@@ -236,6 +242,11 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
     // Staleness guard: drop results for nodes that are no longer loading
     // (collapsed, already loaded, or never requested).
     if (!_loads.stateFor(PathKey(path)).isLoading) return;
+    if (result.cancelled) {
+      _loads.complete(PathKey(path));
+      _rebuildFlatNodes();
+      return;
+    }
     if (result.ok) {
       _childrenCache[path] = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
       _loads.complete(PathKey(path));

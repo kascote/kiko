@@ -34,7 +34,7 @@ void main() {
     'ScrollViewModel': (msg) => ScrollViewModel(focused: true).update(msg),
     'ListViewModel': (msg) => ListViewModel<String, String>(dataView: DataBuffer(['a']), focused: true).update(msg),
     'TableViewModel': (msg) => TableViewModel(
-      dataSource: TableDataSource.fromList(rows),
+      rows: rows,
       keyField: 'id',
       columns: [TableColumn(field: 'id', label: Line('ID'), width: 2)],
       focused: true,

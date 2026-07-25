@@ -65,11 +65,11 @@ void main() {
     test('TableView cursor cell', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i'});
       final model = TableViewModel(
-        dataSource: TableDataSource.fromList(rows),
+        rows: rows,
         keyField: 'id',
         columns: [TableColumn(field: 'a', label: Line('A'), width: 5)],
         focused: true,
-      )..insertRows(rows, 0);
+      );
       final buffer = canvas(5, 3);
       TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
@@ -82,7 +82,7 @@ void main() {
         'paints the named pair', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i', 'b': 'w$i'});
       final model = TableViewModel(
-        dataSource: TableDataSource.fromList(rows),
+        rows: rows,
         keyField: 'id',
         columns: [
           TableColumn(field: 'a', label: Line('A'), width: 3),
@@ -90,8 +90,8 @@ void main() {
         ],
         focused: true,
         showCrosshair: true,
-      )..insertRows(rows, 0);
-      // cursorRow == 0, cursorCol == 0 (fresh model, per insertRows).
+      );
+      // cursorRow == 0, cursorCol == 0 on a fresh model.
       final buffer = canvas(7, 4); // header + 3 rows; col a (0-2), sep (3), col b (4-6)
       TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
 

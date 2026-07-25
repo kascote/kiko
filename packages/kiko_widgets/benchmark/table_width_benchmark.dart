@@ -76,10 +76,10 @@ List<TableColumn> buildColumns() => <TableColumn>[
 ];
 
 TableViewModel buildModel() => TableViewModel(
-  dataSource: TableDataSource.fromList(const []),
+  rows: buildRows(kVisibleRows + 10),
   keyField: 'id',
   columns: buildColumns(),
-)..insertRows(buildRows(kVisibleRows + 10), 0);
+);
 
 /// Every whole-string `widthString` argument one frame of the table produces on
 /// the kiko side (labels + each visible cell's rendered text). Drives pattern A.

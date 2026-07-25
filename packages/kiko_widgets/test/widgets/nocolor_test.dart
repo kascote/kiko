@@ -58,11 +58,11 @@ void main() {
     test('TableView cursor cell', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i'});
       final model = TableViewModel(
-        dataSource: TableDataSource.fromList(rows),
+        rows: rows,
         keyField: 'id',
         columns: [TableColumn(field: 'a', label: Line('A'), width: 5)],
         focused: true,
-      )..insertRows(rows, 0);
+      );
       final buffer = canvas(5, 3);
       TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)

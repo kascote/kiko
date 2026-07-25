@@ -408,6 +408,21 @@ void main() {
         expect(model.flatNodes.any((n) => n.path == '/a/_loading'), isFalse);
       });
 
+      test('a refused child load clears the slot and caches nothing', () {
+        final model = rootedAt('/a')..expand('/a');
+        expect(model.isPathLoading('/a'), isTrue);
+
+        model.applyLoad(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
+
+        expect(model.isPathLoading('/a'), isFalse, reason: 'the slot returns to idle');
+        expect(model.errorFor(const PathKey('/a')), isNull, reason: 'nothing failed');
+        expect(model.flatNodes.any((n) => n.path == '/a/_error'), isFalse);
+        // Nothing was cached, so collapsing and expanding asks again.
+        model.collapse('/a');
+        expect(model.expand('/a'), isA<Batch>());
+        expect(model.isPathLoading('/a'), isTrue);
+      });
+
       test('a result for a non-loading path is dropped (staleness guard)', () {
         // No expand → slot idle. A stray result must not install.
         final model = rootedAt('/a')..applyChildren('/a', [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)]);

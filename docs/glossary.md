@@ -1,0 +1,110 @@
+# Glossary
+
+The canonical vocabulary for kiko documentation and discussion. Every term of
+art used in `docs/` or a CLAUDE.md is either ordinary English, a code
+identifier, or an entry here. One term, one meaning; if two terms compete for
+one concept, the entry names the winner.
+
+An entry is one or two sentences; the full story belongs to the topic page.
+A term of art added to a page gets its entry here in the same change.
+
+## Runtime and rendering
+
+- **backend** — the seam between kiko and a real terminal. Everything above it
+  uses 0-based buffer cells; terminal event types stop at intake
+  (`docs/backend.md`).
+- **buffer** — the grid of cells a frame is painted into. Two buffers are
+  diffed to find the minimal terminal update.
+- **frame** — one rendered pass: the `Frame` object `Terminal.draw` hands the
+  view callback.
+- **view** — a stateless description of UI (`View`); its `build()` produces a
+  fresh plume node tree each frame.
+- **measurer** — the single `TextMeasurer` that decides every glyph's display
+  width for one application session.
+- **coalescing** — merging queued messages of the same kind so only the latest
+  is processed (pointer moves and drags, resizes).
+- **intake** — the point where a terminal event becomes a kiko message
+  (`eventToMsg`, `pointerFieldsFrom`). No terminal type travels past it
+  (`docs/backend.md`).
+
+## MVU
+
+- **model** — the mutable state object an `update` function owns.
+- **message** (`Msg`) — an event delivered to `update`: a keystroke, a pointer
+  event, a tick, a custom app event.
+- **command** (`Cmd`) — a value returned from `update` describing an effect
+  the runtime (or the app) should perform.
+- **component** — a widget model implementing `Component`: it has a stable
+  `id` and an `update` that returns a verdict (`docs/components.md`).
+- **verdict** — a widget update's return: `Handled` (consumed, with an
+  optional command) or `Declined` (not consumed, still in flight).
+- **decline** — returning `Declined`: the widget did not consume the message,
+  so the caller may offer it elsewhere.
+- **id / addressing** — a component's stable string identity. Widget→app
+  commands and async results carry it as their address.
+- **focus gate** — the `if (!focused) return const Declined();` line that
+  keeps a widget's keyboard handling inactive while unfocused.
+
+## Keyboard
+
+- **spec string** — the canonical string form of a keystroke (`'q'`,
+  `'ctrl+a'`, `'shift+tab'`). `KeyMsg.key` carries one; `KeyBinding` matches
+  on them (`docs/keyboard.md`).
+
+## Pointer
+
+- **hit map** — the per-frame spatial index (`HitMap`) answering which tagged
+  widget is at a cell (`docs/mouse.md`).
+- **tag** — the id a widget attaches to its node so the hit map can find it.
+  Answers *which widget*.
+- **hit region** — a part a view marks while painting (a row, a header).
+  Answers *which part* of the widget; delivered on `PointerMsg.region`.
+- **hit presence** — whether a tagged widget appears in a frame's hit map at
+  all. A widget entirely outside a clipping ancestor's window is absent:
+  `rectOf` answers `null` (`docs/mouse.md`).
+- **hit geometry** — the rect the hit map stores for a present widget: the
+  full, unclipped placement rect. `local` coordinates anchor to its top-left.
+- **capture** — while a button is held, all pointer traffic goes to whatever
+  was under the press, even if the cursor leaves it.
+- **captor** — the widget holding capture: the target resolved at button-down.
+  Every captured event addresses it until the button comes up or the gesture
+  cancels.
+- **reading mode** — how a widget reads a resolved pointer: switch on marked
+  regions (discrete parts) or read `local` (a continuous surface). Both modes
+  are permanent (`docs/mouse.md`).
+- **wheel rule** — decline a wheel notch that would move nothing in its
+  direction; consume any notch that moves at all. Uniform across every
+  scrollable (`docs/mouse.md`).
+- **chrome** — decoration the app composes around a widget (a border, a title
+  row) that no widget model owns.
+- **alias** — a `FocusRouter` entry mapping a chrome id to the member it
+  decorates, so a press on the border acts on the widget inside.
+
+## Data loading
+
+- **load slot** — a widget's per-key loading state: idle, loading, or error
+  (`docs/async-loading.md`).
+- **load key** — the typed name of the thing being loaded (a page number, a
+  tree path); never a direction or an intent.
+- **demand** — a windowed widget's pass that computes which pages the viewport
+  needs and requests the missing ones.
+- **refusal** — the app answering a load request with `declineLoad`: nothing
+  failed, nothing loads, the slot returns to idle.
+- **short page** — a page that comes back with fewer rows than the page size.
+  It marks the end of the data.
+- **windowed widget** — a data widget (List/Table/Tree) that builds only the
+  rows in view, not the whole data set.
+
+## Theming
+
+- **tone** — a color pair `(color, on)`; not paintable until projected
+  (`docs/theming.md`).
+- **projection** — turning a tone into a paintable style: `.ink` (fg only),
+  `.fill` (fg + bg), `.wash` (bg only).
+- **anatomy** — the named parts of a widget that can be styled (`XStyle`
+  classes of nullable slots).
+- **matrix** — the built-in state × class table: the style each
+  `WidgetState` contributes to each paint class (`docs/theming.md`).
+- **tier** — one of three levels of color fidelity a style degrades
+  through: full RGB, the named ANSI-16 table, NO_COLOR modifiers
+  (`docs/theming.md`). The word is reserved for this meaning.

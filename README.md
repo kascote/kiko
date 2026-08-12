@@ -129,11 +129,16 @@ commands (`Quit`, `Tick`, `AsyncCmd`, `Batch`, `Emit`).
 
 - `packages/plume/README.md` — the layout engine: mental model, node catalog, API
 - `docs/building-widgets.md` — writing your own widget: model + view, mouse handling, scrolling, worked end to end
-- `docs/theming-widgets.md` — styling widgets with themes (states pick tones, parts pick projections)
+- `docs/theming.md` — the theming model and the styling recipe (states pick tones, parts pick projections)
 - `docs/widget-testing.md` — testing widgets and whole apps under `dart test`, no terminal attached
-- `specs/theme-doctrine.md` — the reasoning behind the theming model
-- `packages/kiko_core/doc/` — `mouse_routing.md` (hit map, capture, dispatch), `event_scheduling.md` (the event queue, coalescing)
-- `packages/kiko_widgets/doc/` — `async_loading.md` (load slots, `DataView`), `scroll_view.md`
+- `docs/architecture.md` — rendering flow, the MVU runtime, the event queue
+- `docs/backend.md` — the backend seam, TestBackend, resize events
+- `docs/keyboard.md` / `docs/mouse.md` — the input contracts, from terminal event to widget
+- `docs/components.md` — the widget contract: identity, update verdicts, addressing
+- `docs/focus-router.md` — focus traversal and pointer dispatch in one call
+- `docs/async-loading.md` — how the data widgets load (load slots, paging)
+- `docs/scroll-view.md` — scrolling composed content
+- `docs/glossary.md` — the project vocabulary
 
 ## Development
 

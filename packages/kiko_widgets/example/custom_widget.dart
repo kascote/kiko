@@ -103,12 +103,12 @@ class PaletteModel with ScrollableModel implements Component {
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      // The row under the pointer is resolved by the framework and carried on
-      // the message as a hit region — the view marks each option's row while it
+      // The framework resolves the row under the pointer and carries it on the
+      // message as a hit region — the view marks each option's row while it
       // paints, so update never turns a coordinate into a row. `handleRowPointer`
-      // (from ScrollableModel) is the arm every scrollable shares: on a press it
-      // moves the cursor there, snaps the scroll, and returns the same command
-      // Enter emits; on any other pointer it just refreshes the hover.
+      // (from ScrollableModel) is the row handler every scrollable shares: on a
+      // press it moves the cursor there, snaps the scroll, and returns the same
+      // command Enter emits; on any other pointer it refreshes the hover.
       if (pointer.region case final RowScoped row) {
         return handleRowPointer(
           pointer,
@@ -131,8 +131,8 @@ class PaletteModel with ScrollableModel implements Component {
       hoverRow = null;
       return const Handled();
     }
-    // The palette holds no gesture state (nothing armed on a press), so a
-    // torn-off gesture is not its business.
+    // The palette sets no state on a press, so a cancelled gesture leaves it
+    // nothing to clean up.
     if (msg is PointerCancelMsg) return const Declined();
 
     // Keyboard only below this line.
@@ -286,7 +286,7 @@ void view(AppModel model, Frame frame) {
       Center(child: Line('A widget from scratch — ↑/↓ · wheel · enter or click · q quits', style: _theme.muted.ink)),
       const SizedBox(height: 1),
       Center(
-        // The border belongs to the app, not the palette: the tag rides the
+        // The border belongs to the app, not the palette: the tag is on the
         // palette's own subtree, so `local` still counts from the first row.
         child: Container(
           border: BorderType.plain,

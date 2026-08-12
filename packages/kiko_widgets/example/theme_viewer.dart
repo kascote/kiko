@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:kiko/kiko.dart';
 
-// A visual reference for the theme doctrine (specs/theme-doctrine.md).
+// A visual reference for the theme doctrine (docs/theming.md).
 //
 // The doctrine models every styled cell as a `Tone` — a color identity
 // `(color, on)` — projected into paint one of three ways:

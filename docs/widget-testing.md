@@ -1,9 +1,8 @@
 # Widget Testing
 
 How to test kiko widgets — and whole applications — under `dart test`, with no
-terminal attached: no TTY, no escape sequences, no process exit. Every snippet
-below is verified against the current API; the suites named at the end are the
-living versions of these patterns.
+terminal attached: no TTY, no escape sequences, no process exit. The suites
+named at the end run these same patterns for real.
 
 There are three levels, and most tests belong on the cheapest one that answers
 the question:
@@ -21,8 +20,8 @@ Levels 1 and 2 use only the production API. Level 3 adds one import:
 import 'package:kiko/testing.dart';
 ```
 
-which provides `TestBackend`, the in-memory backend. It is scaffolding, not
-production API, which is why it lives outside `package:kiko/kiko.dart`.
+which provides `TestBackend`, the in-memory backend. `TestBackend` is test
+scaffolding, not production API, so it lives outside `package:kiko/kiko.dart`.
 
 ## Testing the model: `update` is just a method
 
@@ -49,8 +48,8 @@ test('an unfocused button declines the same key', () {
 });
 ```
 
-A keystroke that types text carries it in `text` — widgets bind on `key` and
-insert `text`, so a test for insertion must supply both, the way the terminal
+A keystroke that types text carries it in `text`. Widgets bind on `key` and
+insert `text`, so a test for insertion supplies both, the way the terminal
 would:
 
 ```dart
@@ -95,9 +94,9 @@ test('down then up inside the button activates it', () {
 ```
 
 The verdict is worth as much as the state. A widget consumes only what it
-understands and declines everything else, and tests are where that discipline
-is pinned — a wheel notch a button cannot use must come back `Declined` so a
-scrollable ancestor can take it:
+understands and declines everything else, and tests pin that discipline — a
+wheel notch a button cannot use must come back `Declined` so a scrollable
+ancestor can take it:
 
 ```dart
 test('the wheel is declined so a scrollable ancestor can take it', () {
@@ -174,8 +173,8 @@ test('focus tints the glyph, not the background', () {
 ```
 
 `Buffer.empty` measures text with the default `TermUnicodeMeasurer`; pass a
-different measurer only when the test is about width behavior (see the last
-section).
+different measurer only when the test is about width behavior (see "One
+measurer everywhere" below).
 
 ## Testing through a Terminal
 
@@ -209,9 +208,9 @@ test('a widget renders through the terminal onto the backend screen', () async {
 });
 ```
 
-The diff side is what makes this level worth its weight — a `Frame` test
-cannot see double buffering, but a `Terminal` test can pin that an unchanged
-cell is never rewritten:
+The diff is the reason to test at this level. A `Frame` test cannot see double
+buffering; a `Terminal` test can pin that an unchanged cell is never
+rewritten:
 
 ```dart
 test('the second draw repaints only the cell that changed', () async {
@@ -250,15 +249,15 @@ test('a resize is picked up on the next draw', () async {
 `run()` drains messages, renders frames, restores the terminal, and completes
 with the exit code — the framework never calls `exit()`.
 
-Input is driven with `TestBackend`'s emit helpers — `emitKey`, `emitClick`,
-`emitMove`, `emitDrag`, `emitWheel`, `emitPaste`, `emitFocus` — kiko
-vocabulary in, kiko vocabulary out. `emitKey` takes the same spec strings
+Input is driven with `TestBackend`'s emit helpers: `emitKey`, `emitClick`,
+`emitMove`, `emitDrag`, `emitWheel`, `emitPaste`, `emitFocus`. The helpers
+take kiko's own types. `emitKey` takes the same spec strings
 `KeyMsg.key` and `KeyBinding` use (`'q'`, `'ctrl+a'`, `'shift+tab'`); the
 pointer helpers take 0-based buffer cells and the same `PointerButton` and
 modifier booleans `PointerMsg` carries. None of this needs a `termparser`
 import — the helpers build the matching raw event internally and hand it to
-the backend. A convenient place to emit is the `InitMsg` turn, which
-guarantees the loop is listening:
+the backend. A convenient place to emit is the `InitMsg` case in `update`,
+which guarantees the loop is listening:
 
 ```dart
 test('a key event reaches update and quits the app', () async {
@@ -321,20 +320,20 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
 ```
 
 The runtime turns whatever a helper emits into the same `KeyMsg`, `PointerMsg`,
-`PasteMsg` and `FocusMsg` a real session delivers — model-level tests build
-those directly from kiko values, and this level drives them the long way, from
-the event a terminal would have sent.
+`PasteMsg` and `FocusMsg` a real session delivers. A model test constructs
+those messages directly; this level derives them from the event a terminal
+would have sent.
 
-### The escape hatch: raw `emit`
+### Raw `emit`
 
-The helpers cover a click (a paired press/release), a drag, a wheel notch, a
-paste, a focus change, and a plain key press. What they cannot build — a
-key repeat, a key release, or a press and release split across separate
-ticks — still goes through `emit(event)`, which takes a raw `termparser`
-event (`KeyEvent`, `MouseEvent`, `PasteEvent`, `FocusEvent`,
-`WindowResizeEvent`) and feeds it to the backend untranslated. Reach for it
-only when full fidelity matters; it needs `termparser` as an import, so a
-package that never needs it — `kiko_widgets`' suites among them — carries no
+The helpers cover a click (a paired press and release), a drag, a wheel notch,
+a paste, a focus change, and a plain key press. Some events no helper builds:
+a key repeat, a key release, a press and release split across separate ticks.
+Those go through `emit(event)`, which takes a raw `termparser` event
+(`KeyEvent`, `MouseEvent`, `PasteEvent`, `FocusEvent`, `WindowResizeEvent`)
+and feeds it to the backend untranslated. `emit` is the only path that needs a
+`termparser` import, so reach for it only when the raw event matters — a suite
+that stays on the helpers (all of `kiko_widgets`' suites do) carries no
 `termparser` dependency at all:
 
 ```dart
@@ -360,18 +359,17 @@ test('a key release reaches update — no helper builds one', () async {
 ```
 
 This level also answers questions the lower ones cannot: mode setup and
-restore (`backend.rawMode`, `alternateScreen`, and friends, on the way in and
-the way out), exit codes on the error path, and hit-testing through the
-`UpdateContext` the runtime hands `update`.
+restore (`backend.rawMode`, `alternateScreen`, …) at startup and at exit,
+exit codes on the error path, and hit-testing through the `UpdateContext` the
+runtime hands `update`.
 
 ## One measurer everywhere
 
-A session measures every glyph with one `TextMeasurer`, and tests about width
-behavior must respect that: the backend's `screen` applies wide-cell
-bookkeeping with its own measurer, so pass the **same** measurer to the
-backend and to the `Terminal` or `Application` it serves. With the default
-measurer this is automatic; it matters the moment a test opts into another
-one:
+A session measures every glyph with one `TextMeasurer`, and width tests must
+respect that. The backend's `screen` applies wide-cell bookkeeping with its
+own measurer, so pass the **same** measurer to the backend and to the
+`Terminal` or `Application` it serves. With the default measurer this is
+automatic; it matters the moment a test opts into another one:
 
 ```dart
 test('a cjk session widens the ambiguous glyph in layout and paint alike', () async {

@@ -1,0 +1,86 @@
+# ScrollView: scrolling composed content
+
+The reference for `ScrollView`/`ScrollViewModel`
+(`packages/kiko_widgets/lib/src/widgets/scroll_view/`). Worked end to end in
+`packages/kiko_widgets/example/scrollable_form.dart`.
+
+ScrollView scrolls composed content — a form, a settings panel, a sidebar —
+built from ordinary Views. It wraps a plume `Viewport` node; `kiko_core`'s
+`Viewport` View is the bridge. Plume owns the geometry. `ScrollViewModel` owns
+the scroll policy: offset, wheel, keys, `ensureVisible`.
+
+## Composed UI, not data
+
+ScrollView lays out its entire child every frame and clips the paint. The cost
+grows with the content, not the viewport. That is right for a form or a panel
+and wrong at data scale: a 100k-row list belongs on a windowed widget (List,
+Table, Tree), never inside a ScrollView. For the same reason `ScrollViewModel`
+is not `Loadable` — it scrolls composed UI that is already in memory.
+
+## The content-area tag, and chrome
+
+ScrollView tags only its own content area. It ships no border, scrollbar, or
+help text; the app composes those around it. The tag covers the whole content
+area, gaps included, so a wheel between composed children already resolves to
+the ScrollView.
+
+Chrome drawn around the view — a border, a title row — sits outside the tag,
+so it needs its own `Tagged(frameId, ...)`. Point that id at the same
+`ScrollViewModel` with a `FocusRouter` alias (`docs/focus-router.md`); two ids
+naming one Component is legal. A wheel on the border then scrolls the view
+exactly like one over the content. The bordered frame in
+`packages/kiko_widgets/example/scrollable_form.dart` is this recipe.
+
+## The wheel rule
+
+ScrollView follows the wheel rule every scrollable shares: decline a notch
+that would move nothing in its direction; consume any notch that moves at
+all. Declining at an edge lets the app offer the notch to the next scrollable
+ancestor out, which is what makes nesting work (`docs/mouse.md`).
+
+## `offerOutward`
+
+`offerOutward(msg, ctx, targets)`
+(`packages/kiko_widgets/lib/src/widgets/offer_outward.dart`) is the ready-made
+offer. It walks `ctx.hits.hitPath` from the declining widget outward and
+offers the message to each enclosing id present in `targets`. The first
+`Handled` wins; when nobody answers, it declines. `FocusRouter` already runs
+this walk when a routed pointer comes back declined, so an app on the router
+never calls it directly.
+
+Two limits. It resolves by position, so never call it for a `PointerLeaveMsg`
+or `PointerCancelMsg` — neither carries a position to walk from. And an
+enclosing area the app handles directly, with no `Component` behind it, is not
+reachable through `targets`; walk `ctx.hits` inline for that case.
+
+## `ensureVisible(id)`
+
+`ensureVisible(id)` scrolls the minimum amount that brings a tagged descendant
+fully into view. It resolves by tag, so any tagged content works: scrolling to
+the Tab-focused field and scrolling to the first invalid field are the same
+call with a different id.
+
+Never read the descendant's rect from `ctx.hits.rectOf(id)`. A Viewport
+removes a scrolled-off descendant from the hit map entirely, so `rectOf`
+answers `null` in exactly the case that matters (`docs/mouse.md`, "Viewports
+and the hit map"). The model keeps its own map of tag ranges, refreshed each
+paint; `ensureVisible` reads only that map.
+
+## Keyboard
+
+`ScrollViewAction` names the actions: `lineUp`, `lineDown`, `pageUp`,
+`pageDown`, `top`, `bottom`. `defaultScrollViewBindings` maps the default
+keys. The `keyBinding` constructor parameter takes a replacement and defaults
+to a copy; rebind or extend with `map`, `remove`, `unbind`, and `addAll`
+(`docs/keyboard.md`).
+
+Keys sit behind the focus gate: a ScrollView reads them only while focused.
+The wheel does not — it scrolls whether or not the view owns focus, like
+every other scrollable (`docs/mouse.md`).
+
+## `getScrollState()`
+
+`getScrollState()` returns a `ScrollViewScrollState`: `offset`,
+`viewportRows`, `contentRows`, plus `progress` and `thumbSize` getters. Every
+scrollable widget exposes a `getScrollState()`. Kiko ships no scrollbar
+widget; an app-drawn scrollbar reads this state.

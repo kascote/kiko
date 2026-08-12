@@ -15,6 +15,8 @@ Dart workspace with four packages:
 - `packages/kiko_widgets` - higher-level widgets (text input, list/table/tree, etc.)
 - `packages/kiko_log` - logging
 
+Dependencies beyond plume: the local termkit monorepo at `../termkit/packages/` (`termlib` terminal control, `termparser` input parsing, `termunicode` width calculation, `termansi` escape sequences).
+
 ## Commands
 
 Run from package directory (e.g., `packages/kiko_core`):
@@ -29,19 +31,9 @@ make cover                          # coverage report
 
 **Testing tip:** Use `dart test -r failures-only` to avoid ANSI progress output flooding. Shows one-line summary on success, detailed output only on failure.
 
-## Architecture
+## Architecture in brief
 
-### Core Rendering Flow
-
-1. `Terminal` manages double-buffered rendering via two `Buffer` instances
-2. `Terminal.draw()` accepts callback receiving `Frame`
-3. UI is composed from `View`s; `View.build()` inflates a fresh plume `Node` each frame, and `frame.render(view)` lays it out and paints it
-4. `Buffer.diff()` computes minimal changes between frames
-5. `Backend` (abstract) handles actual terminal I/O
-
-### MVU (Model-View-Update) Pattern
-
-Kiko uses MVU in the **Bubble Tea** style (Go), _not_ Elm: models are mutable components, not immutable values. `update` returns `(model, cmd)`, but you are expected to mutate `model` in place and return the same reference — purity is neither assumed nor rewarded here (the widget models beneath you are mutable too). You therefore do _not_ get Elm-style guarantees: no time-travel, identity memoization, or free snapshots.
+`Terminal` renders through two `Buffer`s and sends only the diff to the `Backend`. UI is composed from `View`s: `View.build()` inflates a fresh plume `Node` each frame, and `frame.render(view)` lays it out and paints it. Layout is `plume`'s job (constraints flow down, sizes flow up; see `packages/plume/README.md`). The runtime is MVU in the **Bubble Tea** style: models are mutable; `update(model, msg, ctx)` returns `(model, cmd)` and normally mutates the model in place. All event sources share one FIFO queue; rendering happens on `FrameTickMsg`.
 
 ```dart
 exit(
@@ -57,76 +49,36 @@ exit(
 );
 ```
 
-A `KeyMsg` is a keystroke — a press or an auto-repeat; a key-up arrives as its own
-class (`KeyReleaseMsg`), and so does a bare modifier tap (`ModifierKeyMsg`), so a
-case like `KeyMsg(key: 'q')` above can never misfire on either.
+Full story — rendering flow, MVU contract, event queue, text measurement: `docs/architecture.md`.
 
-`run()` completes with the exit code under every backend — the framework never calls
-`exit()` itself. Terminating the process is the app's call: `exit(await
-Application(...).run(...))`. Two gotchas: Dart ignores `main`'s return value (`run()`'s
-result must reach `exit()` or a top-level `exitCode` assignment, or nothing happens), and
-if the app prints anything after `run()` completes, `await stdout.flush()` before calling
-`exit()` — termlib writes through `dart:io stdout`'s async buffer.
+## Hard rules
 
-`update`'s third argument is an `UpdateContext`: the read-only environment the runtime
-supplies for a turn (the frame's `HitMap` and the viewport `Rect`). Take it as `_` when
-you have no use for it.
+One line each; the linked page explains the rule.
 
-`copyWith`-style immutable models are still allowed and clean for small value-like models (see `kiko_core/example/counter.dart`); mutability is the default for anything app-sized.
+- Bind on `KeyMsg.key`, insert `KeyMsg.text` — never derive one from the other (`docs/keyboard.md`).
+- The framework never calls `exit()`; `run()` completes with the exit code and the app calls `exit(await ...run(...))` (`docs/architecture.md`).
+- Widget→app commands and async results address their target by stable `id`, carried by value — and async results must thread that id home (`docs/components.md`).
 
-**Key types:**
+Package-specific rules live in `packages/kiko_core/CLAUDE.md` and `packages/kiko_widgets/CLAUDE.md`.
 
-- `Msg` - events (KeyMsg, KeyReleaseMsg, ModifierKeyMsg, PointerMsg, TickMsg, FrameTickMsg, InitMsg, ResizeMsg, custom). Bind on `KeyMsg.key`, insert `KeyMsg.text` — never derive one from the other.
-- `Cmd` - side effects (Quit, Tick, AsyncCmd, Batch, Emit)
-- `MvuRuntime` - unified message queue, frame/tick timers, async task handling
+## Documentation map
 
-Widget→app events and effects address their target by **stable `id`** (carried by value),
-not by object reference — and async results must thread that id home. See the addressing
-sections in `packages/kiko_core/CLAUDE.md` and `packages/kiko_widgets/CLAUDE.md`.
+Read the page covering what you touch:
 
-### Event System
-
-Unified stream architecture where all sources push to single FIFO queue:
-
-- **FrameTick** (internal, 60fps default) - drives render loop
-- **Tick** (user timer) - for app logic (clocks, polling)
-- **Terminal events** - keys, mouse, focus, paste, resize
-
-Processing flow:
-
-1. All events queue in FIFO order
-2. Model updates on every message
-3. Render only on FrameTickMsg
-4. Stale frames dropped (>2 frame intervals old)
-5. Mouse moves/drags coalesced (keeps latest)
-
-```dart
-Application(
-  fps: 60,  // frame rate (default 60)
-  // ...
-)
-```
-
-### Key Components
-
-- `Buffer` - grid of `Cell`s (grapheme + fg/bg/modifiers)
-- `Container` (plume) - borders/titles/padding around a child
-- `Line`/`Text` - styled text primitives (Views)
-
-### Layout System
-
-Layout is handled by the `plume` package: a Flutter-style box model — constraints
-flow down, sizes flow up, parents place children, leaves paint. No constraint
-solver. See `packages/plume/README.md` for the model and API.
-
-### Dependencies
-
-`plume` (layout), plus the local termkit monorepo at `../termkit/packages/`:
-
-- `termlib` - terminal control (raw mode, cursor, colors)
-- `termparser` - input parsing (keys, mouse, events)
-- `termunicode` - Unicode width calculation
-- `termansi` - ANSI escape sequences
+| Page                       | Covers                                                                |
+| -------------------------- | --------------------------------------------------------------------- |
+| `docs/architecture.md`     | rendering flow, MVU runtime, event queue, text measurement            |
+| `docs/backend.md`          | the backend seam, TestBackend, resize events                          |
+| `docs/keyboard.md`         | key events, bindings, widget keyboard handling                        |
+| `docs/mouse.md`            | pointer routing, hit map, hit regions, capture, widget mouse handling |
+| `docs/components.md`       | Component contract, ids, widget→app addressing                        |
+| `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome aliases                      |
+| `docs/async-loading.md`    | keyed load slots, paging, demand                                      |
+| `docs/scroll-view.md`      | ScrollView: scrolling composed content                                |
+| `docs/theming.md`          | the theming model, the recipe, per-widget anatomy                     |
+| `docs/building-widgets.md` | widget-authoring tutorial, worked end to end                          |
+| `docs/widget-testing.md`   | testing widgets and apps under `dart test`                            |
+| `docs/glossary.md`         | canonical vocabulary for docs and discussion                          |
 
 ## Code Style
 
@@ -141,7 +93,62 @@ solver. See `packages/plume/README.md` for the model and API.
 - Explain what pattern is being violated
 - Propose root-cause fixes, not band-aids
 
+## Writing Rules
+
+One register for everything written in this repo — docs pages, CLAUDE.md files,
+mikos items, code comments. Inspired by ASD-STE100 (Simplified Technical
+English), without its restricted dictionary. The goal: text a reader can follow
+without having been in the session that wrote it.
+
+1. **Short sentences.** Aim for 25 words or fewer. If a sentence needs three
+   dashes and two parentheticals, split it.
+2. **One instruction per sentence.** A rule and its exception are two sentences.
+3. **Active voice, present tense.** "The router delivers the region", not "the
+   region is delivered".
+4. **One term, one concept.** Every term of art appears in `docs/glossary.md`
+   with one meaning. Do not use two words for one thing, or one word for two
+   things.
+5. **Define before use.** A term that is not ordinary English, a code
+   identifier, or a glossary entry gets defined where it first appears — or
+   does not appear.
+6. **No invented metaphors.** "The app is the I/O ferry" becomes "the app
+   performs all I/O". A metaphor that survives must earn a glossary entry.
+7. **State the rule, then the reason.** Lead with what to do; follow with why,
+   in its own sentence.
+8. **Code identifiers are exempt.** `PointerMsg`, `applyLoad` are names, not
+   jargon; use them freely and mark them as code.
+9. **Paths over prose pointers.** Link a file (`docs/mouse.md`) instead of
+   describing where something lives.
+10. **No session shorthand.** Spec numbers, codenames, and phase labels ("P1")
+    mean something only inside the plan that defines them. Elsewhere, say what
+    the thing is or does.
+11. **Density is not a virtue.** Commit hashes, file paths, and ids are welcome
+    as parentheticals, but the sentence around them must survive their removal.
+12. **Describe the system as it is.** No change history in a page: what a
+    thing replaced, which rework introduced it, or which bug it fixed lives in
+    commit messages and specs. Keep the reason a rule exists; drop the story
+    of how it got there.
+
+Documentation structure: one page per topic, and a topic appears in exactly one
+page. CLAUDE.md files hold only hard-rules lists and a map of when to read each
+page; a hard rule is one line — the rule, then the page that explains it in
+parentheses. Rule lists lead with the rule in bold, then the explanation.
+
+Code comments — all of them, `///` and `//` alike:
+
+- **No spec or design-document citations in comments.** They rot when the
+  document moves. `[CrossLink]`s to other Dart symbols are fine and encouraged.
+- **State what it is and how to use it, not the argument for it.** Design
+  rationale belongs in the spec or the commit message. One short "why" line is
+  OK when a reader would otherwise be confused; never the whole argument.
+- **Doc comments are layered.** First paragraph: what it is, one sentence.
+  Second: how you use it. Third: a technical point, only if genuinely needed —
+  then stop. A final short line may point at a related type to reach for.
+- **Inline comments explain the non-obvious why.** Skip narration of what the
+  code obviously does.
+
 <!-- mikos:start -->
+
 ## Task tracking — mikos
 
 This project tracks specs, plans, notes, and tasks in **mikos**. Start with
@@ -158,23 +165,20 @@ assumptions about — and never read, probe, or modify — where or how mikos st
 (paths, file layout, version control); that is the tool's private business. If the CLI
 can't do something you need — or you hit a rough edge — report it as a gap to fix in the
 CLI rather than reaching for the files.
+
 <!-- mikos:end -->
 
 ### Writing mikos items
 
-Every item must be readable cold, by a person with no memory of the session that
-wrote it. Do **not** imitate the register of older items — they predate this rule.
+The Writing Rules above apply in full. On top of them, an item must be readable
+cold, by a person with no memory of the session that wrote it:
 
-1. **Plain sentences.** No invented shorthand or codenames. A term that isn't in
-   the codebase or ordinary English gets defined on first use — or doesn't appear.
-2. **Self-contained.** The body states the problem and the work in its own words.
-   References to other items are "see also" pointers; they must never be required
-   reading to understand the item.
-3. **Phase labels stay home.** "P1"/"P3a" mean something only inside the plan that
-   defines them. Never put them in titles or in other items' bodies — say what the
-   phase does instead.
-4. **Titles are complete phrases.** Under 80 chars, never truncated mid-thought.
-   Write the title last, after the body is clear.
-5. **Say what done looks like.** A task ends with one plain sentence: "Done when …".
-6. **Density is not a virtue.** Commit hashes, file paths, and ids are welcome as
-   parentheticals, but the sentence around them must survive their removal.
+- **Self-contained.** The body states the problem and the work in its own
+  words. References to other items are "see also" pointers, never required
+  reading.
+- **Titles are complete phrases.** Under 80 chars, never truncated mid-thought.
+  Write the title last, after the body is clear.
+- **Say what done looks like.** A task ends with one plain sentence:
+  "Done when …".
+
+Do **not** imitate the register of older items — they predate this standard.

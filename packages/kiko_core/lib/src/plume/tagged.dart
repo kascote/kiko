@@ -2,10 +2,10 @@ import '../widgets/hit_map.dart';
 import 'aliases.dart';
 import 'view.dart';
 
-/// Marks [child] as a hit region addressable by [id].
+/// Tags [child] with [id] so pointer events resolve to it.
 ///
-/// A tagged region is what a mouse event resolves to: the id reaches `update`
-/// as the target of the event, and [HitMap.rectOf] reports where the region was
+/// A tagged node is what a mouse event resolves to: the id reaches `update`
+/// as the target of the event, and [HitMap.rectOf] reports where the node was
 /// painted. Wrap whatever should answer for a click.
 ///
 /// ```dart
@@ -23,19 +23,19 @@ import 'view.dart';
 /// counted from the content. Neither is more correct, and nothing downstream
 /// compensates — choose the one whose origin the handler wants to measure from.
 ///
-/// **An id names exactly one region per frame.** Wrapping a widget that already
-/// tags its own subtree with its model id puts that id on two nodes, and the
-/// rect of such an id is then ambiguous. Building the frame's [HitMap] asserts
-/// against it in debug. The check cannot live here, because a [Tagged] cannot
-/// see what its siblings tagged.
+/// **An id names exactly one node per frame.** Two guards enforce this in
+/// debug. [build] asserts that [child]'s node carries no tag yet; this catches
+/// wrapping a widget that tags its own root node. Building the frame's
+/// [HitMap] asserts that no id lands on two nodes; this catches what a
+/// [Tagged] cannot see — a sibling or an inner node tagged with the same id.
 final class Tagged implements View {
-  /// Tags [child]'s region with [id].
+  /// Tags [child] with [id].
   const Tagged(this.id, this.child);
 
-  /// The stable id this region answers to.
+  /// The stable id the tagged node answers to.
   final String id;
 
-  /// The view whose region is being tagged.
+  /// The view being tagged.
   final View child;
 
   @override

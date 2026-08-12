@@ -178,7 +178,7 @@ class AppModel with ThemeSwitcher {
 // LOAD PLUMBING (one shape for the first page and each near-edge page)
 // ═══════════════════════════════════════════════════════════
 
-/// One request, one fetch — explicit arms, read top to bottom.
+/// One request, one fetch — explicit cases, read top to bottom.
 ///
 /// [fetchInto] threads the request's id and key into the result, so a page can
 /// only ever land on the widget that asked for it, and turns a read that throws

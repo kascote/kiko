@@ -90,6 +90,9 @@ A term of art added to a page gets its entry here in the same change.
   needs and requests the missing ones.
 - **refusal** — the app answering a load request with `declineLoad`: nothing
   failed, nothing loads, the slot returns to idle.
+- **page window** — the sparse cache of fixed-size pages a windowed widget
+  stores its rows in (`PageWindow`). A page is fetched whole, held whole, and
+  evicted whole (`docs/async-loading.md`).
 - **short page** — a page that comes back with fewer rows than the page size.
   It marks the end of the data.
 - **windowed widget** — a data widget (List/Table/Tree) that builds only the

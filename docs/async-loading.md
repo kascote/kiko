@@ -93,8 +93,12 @@ frame-tick demand case run it.
   its own walk, and re-chunks whatever row counts the server returns.
   Page boundaries are index arithmetic, so **every page except the last must
   contain exactly `pageSize` rows**. A short page marks the end of the data.
-  A source that cannot promise fixed-size pages must re-chunk before
-  answering; `PageSource.cursor` does exactly that.
+  `PageResult.hasMore: false` ends it early when the last page comes back
+  full; no flag extends it past a short page. A source that cannot promise
+  fixed-size pages must re-chunk before answering; `PageSource.cursor` does
+  exactly that. A short page that provably contradicts what the widget holds —
+  a later page loaded or in flight, or a count that says more rows exist — is
+  reported once through the log.
 - `fetchInto(req, source)` / `declineLoad(req, {error})` — the per-request
   helpers. `fetchInto` threads `(id, key)` into the result **structurally**,
   so the rule most often forgotten cannot be forgotten. It also converts a

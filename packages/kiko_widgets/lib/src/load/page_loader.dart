@@ -86,6 +86,7 @@ class PageLoader<T> {
   bool _demandDirty = false;
   int _paintsWhileDirty = 0;
   bool _pumpWarned = false;
+  bool _shortPageWarned = false;
   int _lastPaintedRows = 0;
 
   /// Paints with demand outstanding before the loader suspects the app is
@@ -355,8 +356,14 @@ class PageLoader<T> {
       final List<T> list => list,
       _ => <T>[],
     };
+    // The contradiction check reads the window before install erases the
+    // evidence: recording the end drops the later pages it contradicts.
+    if (rows.length < pageSize) {
+      _warnContradictoryShortPage(page, rows.length, data is PageResult<T> ? data.totalCount : null);
+    }
     _window.install(page, rows, demand: _demandSpan);
     if (data is PageResult<T>) {
+      // The flag only ends the data early; a short page ended it already.
       if (data.hasMore == false) _window.endAt(page);
       if (data.totalCount != null) totalCount = data.totalCount;
     }
@@ -410,6 +417,35 @@ class PageLoader<T> {
   /// What [pages] amount to, as the shared load machinery sees them.
   SliceStatus _statusOf(Iterable<int> pages) =>
       statusFor(pages.map(PageKey.new), _loads, (key) => _window.has(key.page));
+
+  /// Says once, in the log, that a short page contradicts what the loader
+  /// holds — a later page loaded or in flight, or a row count that puts the
+  /// end further along. Each is provable without guessing at the source. A
+  /// data set that shrank between fetches produces the same picture, which is
+  /// why this warns instead of asserting.
+  void _warnContradictoryShortPage(int page, int rowCount, int? resultCount) {
+    if (_shortPageWarned) return;
+    final laterHeld = _window.present.where((p) => p > page);
+    final laterInFlight = _inFlight.where((p) => p > page);
+    final count = resultCount ?? _totalCount;
+    final String evidence;
+    if (laterHeld.isNotEmpty) {
+      evidence = 'page ${laterHeld.first} is already loaded — it will be dropped and not asked for again';
+    } else if (laterInFlight.isNotEmpty) {
+      evidence = 'page ${laterInFlight.first} is still being fetched';
+    } else if (count != null && count > page * pageSize + rowCount) {
+      evidence = 'the known row count ($count) says more rows exist';
+    } else {
+      return;
+    }
+    _shortPageWarned = true;
+    Log.warn(
+      '$widgetName "$id": page $page came back with $rowCount of $pageSize rows, '
+      'but $evidence. A short page marks the end of the data. Every page except '
+      'the last must contain exactly $pageSize rows; a source that cannot '
+      'promise that must re-chunk before answering.',
+    );
+  }
 
   void _beginLoad(int page) {
     _inFlight.add(page);

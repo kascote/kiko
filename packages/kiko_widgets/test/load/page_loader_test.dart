@@ -29,6 +29,12 @@ PageLoader<String> _loader({
 
 List<String> _page(int page, {int size = 10}) => List.generate(size, (i) => 'row${page * size + i}');
 
+LoadResult<PageResult<String>> _result(int page, List<String> rows, {int? totalCount, bool? hasMore}) => LoadResult(
+  'w',
+  key: PageKey(page),
+  data: PageResult(rows, totalCount: totalCount, hasMore: hasMore),
+);
+
 void main() {
   group('PageLoader pump warning', () {
     test('a widget with nothing to request never counts toward the warning', () {
@@ -75,6 +81,91 @@ void main() {
       });
 
       expect(output.records, isEmpty, reason: 'nothing is requestable while the cap is spent');
+    });
+  });
+
+  group('PageLoader short page vs end-of-data flag', () {
+    test('a short page ends the data even when hasMore says more rows follow', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+        ..loadFirstPage()
+        ..apply(_result(0, _page(0, size: 4), hasMore: true));
+
+      expect(loader.knownRowCount, equals(4));
+      expect(loader.demand(), isNull, reason: 'no page past the recorded end is asked for');
+    });
+  });
+
+  group('PageLoader contradictory short page warning', () {
+    test('a short page while a later page is held warns, naming the widget', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.warn).runZoned(() {
+        _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..demand() // requests pages 0 and 1
+          ..apply(_result(1, _page(1)))
+          ..apply(_result(0, _page(0, size: 4)));
+      });
+
+      expect(output.records, hasLength(1));
+      expect(output.records.single.message, contains('TestWidget "w"'));
+      expect(output.records.single.message, contains('page 1 is already loaded'));
+    });
+
+    test('a short page while a later page is in flight warns', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.warn).runZoned(() {
+        _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..demand() // requests pages 0 and 1
+          ..apply(_result(0, _page(0, size: 4)));
+      });
+
+      expect(output.records, hasLength(1));
+      expect(output.records.single.message, contains('page 1 is still being fetched'));
+    });
+
+    test('a short page against a known count warns; the count still sets the end', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.warn).runZoned(() {
+        final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4), totalCount: 100));
+
+        expect(output.records, hasLength(1));
+        expect(output.records.single.message, contains('row count (100)'));
+        expect(loader.knownRowCount, equals(100), reason: 'the count re-records the end past the short page');
+      });
+    });
+
+    test('the warning is said once, not once per contradiction', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.warn).runZoned(() {
+        _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..totalCount = 100
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4))) // contradicts the count: warns
+          ..reset() // drops the pages; the count survives and re-records the end
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4))); // the same contradiction, said nothing
+      });
+
+      expect(output.records, hasLength(1));
+    });
+
+    test('a legitimate final short page warns nothing', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.warn).runZoned(() {
+        _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4)));
+
+        final counted = _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..totalCount = 14
+          ..demand() // requests pages 0 and 1
+          ..apply(_result(0, _page(0)))
+          ..apply(_result(1, _page(1, size: 4)));
+        expect(counted.knownRowCount, equals(14));
+      });
+
+      expect(output.records, isEmpty, reason: 'a short last page is how the end normally arrives');
     });
   });
 }

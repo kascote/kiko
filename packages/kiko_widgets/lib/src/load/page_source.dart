@@ -12,8 +12,8 @@ import 'load.dart';
 ///
 /// [totalCount] and [hasMore] are optional because most sources do not know
 /// them. A source whose envelope carries a count saves the app a separate count
-/// fetch; one that says outright whether more data follows saves the widget
-/// having to infer it from a short page.
+/// fetch; one that flags its last page saves the empty fetch that would
+/// otherwise discover the end.
 @immutable
 class PageResult<T> {
   /// Creates a result carrying [items], and the count or end-of-data flag if the
@@ -26,8 +26,13 @@ class PageResult<T> {
   /// How many rows exist in total, if the response said.
   final int? totalCount;
 
-  /// Whether more rows follow this page, if the response said. Null means the
-  /// source did not say, and a short page is the only clue.
+  /// Whether more rows follow this page, if the response said.
+  ///
+  /// The flag can only end the data early: false on a full page records the
+  /// end there, saving the empty fetch that would otherwise discover it. It
+  /// never extends the data — a page shorter than the page size always ends
+  /// it, whatever this says (see [PageSource.pageSize]). Null means the
+  /// response did not say.
   final bool? hasMore;
 
   @override

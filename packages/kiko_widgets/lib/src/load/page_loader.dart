@@ -423,6 +423,10 @@ class PageLoader<T> {
   /// end further along. Each is provable without guessing at the source. A
   /// data set that shrank between fetches produces the same picture, which is
   /// why this warns instead of asserting.
+  ///
+  /// An empty page while a later probe is merely in flight warns nothing.
+  /// Probing several pages past the end is routine, and those probes normally
+  /// all come back empty.
   void _warnContradictoryShortPage(int page, int rowCount, int? resultCount) {
     if (_shortPageWarned) return;
     final laterHeld = _window.present.where((p) => p > page);
@@ -431,7 +435,7 @@ class PageLoader<T> {
     final String evidence;
     if (laterHeld.isNotEmpty) {
       evidence = 'page ${laterHeld.first} is already loaded — it will be dropped and not asked for again';
-    } else if (laterInFlight.isNotEmpty) {
+    } else if (rowCount > 0 && laterInFlight.isNotEmpty) {
       evidence = 'page ${laterInFlight.first} is still being fetched';
     } else if (count != null && count > page * pageSize + rowCount) {
       evidence = 'the known row count ($count) says more rows exist';

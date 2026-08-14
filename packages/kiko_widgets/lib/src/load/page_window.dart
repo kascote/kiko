@@ -192,12 +192,18 @@ class PageWindow<T> {
   ///
   /// A page shorter than [pageSize] records where the data ends; a full page
   /// past a recorded end withdraws that record, so a source that grew is
-  /// reachable again. Installing is idempotent — a page that arrives twice
-  /// replaces itself — which is what makes results order-independent.
+  /// reachable again. An empty page never moves a recorded end forward: it
+  /// keeps the nearer of the two ends, so concurrent probes whose empty
+  /// results land out of order agree on where the data stops. Installing is
+  /// idempotent — a page that arrives twice replaces itself — which is what
+  /// makes results order-independent.
   void install(int page, List<T> rows, {required PageSpan demand}) {
     _pages[page] = rows;
-    if (rows.length < pageSize) {
-      _recordEnd(rows.isEmpty ? page - 1 : page);
+    if (rows.isEmpty) {
+      final end = page - 1;
+      _recordEnd(_lastPage == null || end < _lastPage! ? end : _lastPage!);
+    } else if (rows.length < pageSize) {
+      _recordEnd(page);
     } else if (_lastPage != null && page > _lastPage!) {
       _lastPage = null;
     }

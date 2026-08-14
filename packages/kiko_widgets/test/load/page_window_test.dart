@@ -193,6 +193,39 @@ void main() {
       expect(w.missing(const PageSpan(0, 3)), isEmpty);
     });
 
+    test('an out-of-order empty page never moves a recorded end forward', () {
+      // Pages 5 and 6 probed concurrently; page 5's empty result lands first.
+      const span = PageSpan(4, 6, anchor: 4);
+      final w = PageWindow<String>(pageSize: 10)
+        ..install(4, pageRows(4, 10), demand: span)
+        ..install(5, const [], demand: span);
+      expect(w.lastPage, 4);
+      // Page 6's empty result lands second; the end stays at page 4.
+      w.install(6, const [], demand: span);
+      expect(w.lastPage, 4);
+      // The stale empty page is not kept as a page of nothing.
+      expect(w.present, [4]);
+      // Page 5 does not read as missing, so nothing re-requests it.
+      expect(w.missing(span), isEmpty);
+    });
+
+    test('a nearer empty page still tightens a recorded end', () {
+      const span = PageSpan(4, 6, anchor: 4);
+      final w = PageWindow<String>(pageSize: 10)
+        ..install(6, const [], demand: span)
+        ..install(5, const [], demand: span);
+      expect(w.lastPage, 4);
+    });
+
+    test('an empty page re-arriving at the recorded end leaves it unchanged', () {
+      const span = PageSpan(4, 5, anchor: 4);
+      final w = PageWindow<String>(pageSize: 10)
+        ..install(5, const [], demand: span)
+        ..install(5, const [], demand: span);
+      expect(w.lastPage, 4);
+      expect(w.present, isEmpty);
+    });
+
     test('a recorded end does not suppress a page that does exist', () {
       final w = PageWindow<String>(pageSize: 50, keepPages: 0)
         ..install(0, pageRows(0, 50), demand: const PageSpan(0, 2))

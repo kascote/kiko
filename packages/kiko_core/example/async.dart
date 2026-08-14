@@ -36,7 +36,6 @@ class AppModel {
 // ═══════════════════════════════════════════════════════════
 // MESSAGES
 // ═══════════════════════════════════════════════════════════
-// ignore: unreachable_from_main
 class FetchRequested extends Msg {}
 
 class FetchSuccess extends Msg {

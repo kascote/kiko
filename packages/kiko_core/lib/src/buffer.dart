@@ -6,9 +6,9 @@ import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:plume/plume.dart' show TextMeasurer;
 
-import './extensions/iterator.dart';
 import 'cell.dart';
 import 'colors.dart';
+import 'extensions/iterator.dart';
 import 'layout/position.dart';
 import 'layout/rect.dart';
 import 'plume/term_unicode_measurer.dart';

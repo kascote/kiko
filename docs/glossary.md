@@ -88,6 +88,11 @@ A term of art added to a page gets its entry here in the same change.
   tree path); never a direction or an intent.
 - **demand** — a windowed widget's pass that computes which pages the viewport
   needs and requests the missing ones.
+- **slice status** — the shared answer for what a view is about to paint
+  (`SliceStatus`): ready, filling (missing, fetch in flight), stalled
+  (missing, nothing coming), or failed. Stalled names every permanent load
+  failure. A refusal produces it legitimately, so it is reported and tested,
+  never asserted.
 - **refusal** — the app answering a load request with `declineLoad`: nothing
   failed, nothing loads, the slot returns to idle.
 - **page window** — the sparse cache of fixed-size pages a windowed widget

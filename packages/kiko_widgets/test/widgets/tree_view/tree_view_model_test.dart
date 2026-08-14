@@ -417,10 +417,37 @@ void main() {
         expect(model.isPathLoading('/a'), isFalse, reason: 'the slot returns to idle');
         expect(model.errorFor(const PathKey('/a')), isNull, reason: 'nothing failed');
         expect(model.flatNodes.any((n) => n.path == '/a/_error'), isFalse);
+        // The branch is expanded with nothing cached and nothing coming: it
+        // paints the stalled placeholder, never the loading line and never
+        // nothing (nothing would read as an empty branch).
+        expect(model.flatNodes.any((n) => n.path == '/a/_loading'), isFalse);
+        expect(model.flatNodes.any((n) => n.path == '/a/_stalled'), isTrue);
         // Nothing was cached, so collapsing and expanding asks again.
         model.collapse('/a');
         expect(model.expand('/a'), isA<Batch>());
         expect(model.isPathLoading('/a'), isTrue);
+      });
+
+      test('branchStatus names each load state: filling, ready, failed, stalled', () {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/b', label: Line('B')),
+        ]);
+
+        expect(model.branchStatus('/a'), SliceStatus.stalled, reason: 'nothing cached, nothing coming');
+
+        model.expand('/a');
+        expect(model.branchStatus('/a'), SliceStatus.filling);
+
+        model.applyChildren('/a', [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)]);
+        expect(model.branchStatus('/a'), SliceStatus.ready);
+
+        model.expand('/b');
+        model.applyLoad(childError(model, '/b', 'boom'));
+        expect(model.branchStatus('/b'), SliceStatus.failed);
+
+        model.collapse('/b');
+        expect(model.branchStatus('/b'), SliceStatus.stalled, reason: 'collapse clears the failure');
       });
 
       test('a result for a non-loading path is dropped (staleness guard)', () {

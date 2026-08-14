@@ -148,8 +148,13 @@ one storage type.
   every expansion** (the load is the separate `LoadRequest`), so the app
   flattens the `Batch` to count expansions on the event and fetch on the
   request. Collapsing a node cancels its slot, so a late child result drops.
+  Each expanded branch paints its placeholder from the shared status,
+  exposed as `branchStatus(path)` so chrome and tests read the same answer.
   A failed child renders an **error placeholder** (`errorIndicator` config);
-  it never spins forever.
+  it never spins forever. A refused child renders a **stalled placeholder**
+  (`stalledIndicator` config): the branch is expanded with nothing coming,
+  which must not read as an empty branch. Collapsing and re-expanding it
+  asks again.
 - **TableView** — `PageKey(page)`, one slot per page, so any number of
   pages can be in flight and a result places itself: the page travels in the
   key (`(req.key as PageKey).page`), and nothing has to remember what
@@ -224,14 +229,17 @@ if (msg case final LoadResult<Object?> r) {
 }
 
 // 2. Request → Task — the ONE domain-specific bit: pick the fetch by (id, key):
-Cmd fetchFor(AppModel model, LoadRequest req) => Task(
-  () => switch (req.key) {
-    RootsKey()           => model.treeData.getRoots(),
-    PathKey(:final path) => model.treeData.getChildren(path),
-    _                    => Future.value(<TreeNode<Category>>[]),
-  },
-  onSuccess: (data) => LoadResult(req.id, key: req.key, data: data),
-  onError:  (e)    => LoadResult(req.id, key: req.key, error: e));
+Cmd fetchFor(AppModel model, LoadRequest req) {
+  final fetch = switch (req.key) {
+    RootsKey()           => model.treeData.getRoots,
+    PathKey(:final path) => () => model.treeData.getChildren(path),
+    _                    => null,
+  };
+  if (fetch == null) return declineLoad(req, error: 'no fetch for ${req.key}');
+  return Task(fetch,
+    onSuccess: (data) => LoadResult(req.id, key: req.key, data: data),
+    onError:  (e)    => LoadResult(req.id, key: req.key, error: e));
+}
 // kick off on init: fetchFor(model, model.tree.loadRoots());
 // honor a request:  if (cmd case LoadRequest r when r.id == model.tree.id) fetchFor(model, r);
 ```

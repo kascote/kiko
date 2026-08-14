@@ -82,6 +82,10 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// Placeholder shown beneath a node whose child load failed.
   final Line errorIndicator;
 
+  /// Placeholder shown beneath an expanded node whose children are missing
+  /// with nothing on the way — a refused load ([SliceStatus.stalled]).
+  final Line stalledIndicator;
+
   /// Anatomy overrides. Mutable so an app can swap in a custom look at runtime,
   /// the way it flips [focused].
   TreeViewStyle styles;
@@ -99,12 +103,14 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
     this.showIcons = false,
     Line? loadingIndicator,
     Line? errorIndicator,
+    Line? stalledIndicator,
     this.styles = const TreeViewStyle(),
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
   }) : id = id ?? autoId('treeview'),
        loadingIndicator = loadingIndicator ?? Line('Loading...'),
-       errorIndicator = errorIndicator ?? Line('Failed to load') {
+       errorIndicator = errorIndicator ?? Line('Failed to load'),
+       stalledIndicator = stalledIndicator ?? Line('Not loaded') {
     this.keyBinding = keyBinding ?? defaultTreeViewBindings.copy();
   }
 
@@ -155,6 +161,21 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
 
   /// The error from a failed load for [key], or null if it didn't fail.
   Object? errorFor(TreeLoadKey key) => _loads.errorFor(key);
+
+  /// The status of the children under the node at [path]: [SliceStatus.ready]
+  /// when they are cached, [SliceStatus.filling] while their fetch is in
+  /// flight, [SliceStatus.failed] after it failed, [SliceStatus.stalled] when
+  /// nothing is cached and nothing is coming — a refused load, or a branch
+  /// never expanded.
+  ///
+  /// The placeholder beneath an expanded branch paints from this, so a test
+  /// asserts on the status instead of inspecting placeholder rows.
+  SliceStatus branchStatus(String path) => statusFor([PathKey(path)], _loads, _hasData);
+
+  bool _hasData(TreeLoadKey key) => switch (key) {
+    RootsKey() => _rootsLoaded,
+    PathKey(:final path) => _childrenCache.containsKey(path),
+  };
 
   /// Whether a node is expanded.
   bool isExpanded(String path) => _expanded.contains(path);
@@ -503,14 +524,15 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
         _flatNodes.add(node);
         if (!_expanded.contains(node.path)) continue;
 
-        final state = _loads.stateFor(PathKey(node.path));
-        if (state.isLoading) {
-          _flatNodes.add(_placeholder(node.path, '_loading', loadingIndicator));
-        } else if (state.failed) {
-          _flatNodes.add(_placeholder(node.path, '_error', errorIndicator));
-        } else {
-          final children = _childrenCache[node.path];
-          if (children != null) addNodes(children);
+        switch (branchStatus(node.path)) {
+          case SliceStatus.ready:
+            addNodes(_childrenCache[node.path]!);
+          case SliceStatus.filling:
+            _flatNodes.add(_placeholder(node.path, '_loading', loadingIndicator));
+          case SliceStatus.failed:
+            _flatNodes.add(_placeholder(node.path, '_error', errorIndicator));
+          case SliceStatus.stalled:
+            _flatNodes.add(_placeholder(node.path, '_stalled', stalledIndicator));
         }
       }
     }

@@ -217,15 +217,19 @@ List<Cmd> flattenCmd(Cmd? cmd) => switch (cmd) {
 };
 
 /// Turns a [LoadRequest] into the fetch that resolves it, routing the outcome
-/// home as a [LoadResult] (data on success, error on failure).
+/// home as a [LoadResult] (data on success, error on failure). A key naming
+/// nothing fetchable is refused with an error, so it fails visibly instead of
+/// leaving a placeholder no one will fill.
 Cmd fetchFor(AppModel model, LoadRequest req) {
   final key = req.key;
+  final fetch = switch (key) {
+    RootsKey() => model.treeData.getRoots,
+    PathKey(:final path) => () => model.treeData.getChildren(path),
+    _ => null,
+  };
+  if (fetch == null) return declineLoad(req, error: 'no fetch for $key');
   return Task<List<TreeNode<Category>>>(
-    () => switch (key) {
-      RootsKey() => model.treeData.getRoots(),
-      PathKey(:final path) => model.treeData.getChildren(path),
-      _ => Future.value(<TreeNode<Category>>[]),
-    },
+    fetch,
     onSuccess: (data) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, data: data),
     onError: (e) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, error: e),
   );

@@ -184,7 +184,9 @@ void main() {
           ..totalCount = 100
           ..loadFirstPage()
           ..apply(_result(0, _page(0, size: 4))) // contradicts the count: warns
-          ..reset() // drops the pages; the count survives and re-records the end
+          ..reset()
+          ..totalCount =
+              100 // the new count re-opens the data past the short page
           ..loadFirstPage()
           ..apply(_result(0, _page(0, size: 4))); // the same contradiction, said nothing
       });
@@ -210,6 +212,93 @@ void main() {
       expect(counted.knownRowCount, equals(14));
 
       expect(output.records, isEmpty, reason: 'a short last page is how the end normally arrives');
+    });
+  });
+
+  group('PageLoader stale count vs recorded end', () {
+    // Several of these contradictions also warn. The warning is pinned above;
+    // here the capturing zone only keeps it out of the test output.
+    // Log.runZoned guards uncaught errors, which would swallow a failed
+    // expectation: act inside the zone, assert outside it.
+    test('a short page tightens an earlier count to the end it recorded', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
+      Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
+        loader
+          ..totalCount = 100
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4)));
+      });
+
+      expect(loader.totalCount, equals(4));
+      expect(loader.knownRowCount, equals(4));
+      expect(loader.rowLimit, equals(4));
+      expect(loader.demand(), isNull, reason: 'no placeholder row is left that no pass will fill');
+    });
+
+    test('the end-of-data flag tightens an earlier count', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+        ..totalCount = 100
+        ..loadFirstPage()
+        ..apply(_result(0, _page(0), hasMore: false));
+
+      expect(loader.totalCount, equals(10));
+      expect(loader.knownRowCount, equals(10));
+      expect(loader.rowLimit, equals(10));
+      expect(loader.demand(), isNull);
+    });
+
+    test('an empty first page tightens an earlier count to zero', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
+      Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
+        loader
+          ..totalCount = 100
+          ..loadFirstPage()
+          ..apply(_result(0, const []));
+      });
+
+      expect(loader.totalCount, equals(0));
+      expect(loader.knownRowCount, equals(0));
+      expect(loader.rowLimit, equals(0));
+      expect(loader.demand(), isNull);
+    });
+
+    test('an empty page far out tightens the count only to the pages still fetchable', () {
+      final loader = _loader(firstRow: () => 50, visibleRows: () => 8);
+      Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
+        loader
+          ..totalCount = 100
+          ..demand() // requests pages 4, 5 and 6
+          ..apply(_result(5, const [])); // ends the data at page 4, still unfetched
+      });
+
+      expect(loader.totalCount, equals(50), reason: 'pages 0..4 can still be fetched whole');
+      expect(loader.knownRowCount, equals(50));
+    });
+
+    test('a short final seed chunk tightens an earlier count', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+        ..totalCount = 100
+        ..seed(_page(0) + _page(1, size: 4));
+
+      expect(loader.totalCount, equals(14));
+      expect(loader.knownRowCount, equals(14));
+      expect(loader.rowLimit, equals(14));
+      expect(loader.demand(), isNull);
+    });
+
+    test('a count arriving after the short evidence re-opens the data', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
+      Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
+        loader
+          ..totalCount = 100
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4)))
+          ..totalCount = 100;
+      });
+
+      expect(loader.totalCount, equals(100));
+      expect(loader.knownRowCount, equals(100));
+      expect(loader.demand(), isNotNull, reason: 'the pages past the short page are fetchable again');
     });
   });
 }

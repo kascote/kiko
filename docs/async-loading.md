@@ -217,7 +217,15 @@ the scrollbar indeterminate. So count stays an app-fired one-shot
 when it knows it. Count has no loading, error, or retry machinery by design.
 A widget that has the count knows which pages exist and can jump straight to
 the end; one without it learns where the data stops from the first short
-page. The scrollbar reads only `int? total` (null ⇒ indeterminate thumb);
+page.
+
+The stored count is current best knowledge, not the app's last word. Evidence
+that ends the data earlier — a short page, an empty page, an end-of-data
+flag — tightens the stored count to match. The widget then never scrolls over
+rows no demand pass will fetch. A count set after that evidence overwrites it
+and re-opens the data.
+
+The scrollbar reads only `int? total` (null ⇒ indeterminate thumb);
 scroll **composes with** load, it does not merge — `total` going unknown → 10
 → 20 as pages land is expected, not a glitch.
 

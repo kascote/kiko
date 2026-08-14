@@ -268,6 +268,10 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// Set it when a count fetch lands: the model uses it to bound navigation and
   /// to know which pages exist, so a list with a count can jump straight to the
   /// end and fetch the page it landed on.
+  ///
+  /// The count is current best knowledge, not the last value set. A page that
+  /// ends the data earlier tightens it to match. Setting it again overwrites
+  /// the tightened value and re-opens the data.
   int? get totalCount => _loader.totalCount;
 
   set totalCount(int? value) {

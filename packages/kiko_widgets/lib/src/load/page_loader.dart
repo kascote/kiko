@@ -108,6 +108,12 @@ class PageLoader<T> {
   /// Set it when a count fetch lands: the loader uses it to bound navigation
   /// and to know which pages exist, so a widget with a count can jump straight
   /// to the end and fetch the page it landed on.
+  ///
+  /// The stored count is current best knowledge, not the last value set.
+  /// Evidence that ends the data earlier — a short page, an empty page, an
+  /// end-of-data flag — tightens the count to match, so it never reports rows
+  /// no demand pass will fetch. Setting it again overwrites the tightened
+  /// value: a count that arrives after such evidence re-opens the data.
   int? get totalCount => _totalCount;
 
   set totalCount(int? value) {
@@ -140,14 +146,7 @@ class PageLoader<T> {
 
   /// How many rows exist, when that is known — from a total count, or from a
   /// short page that showed where the data ends. Null while it is unknown.
-  int? get knownRowCount {
-    if (_totalCount != null) return _totalCount;
-    final last = _window.lastPage;
-    if (last == null) return null;
-    if (last < 0) return 0;
-    final rows = _window.pageAt(last);
-    return rows == null ? (last + 1) * pageSize : last * pageSize + rows.length;
-  }
+  int? get knownRowCount => _totalCount ?? _countFromWindow;
 
   /// Number of rows the window holds.
   int get cachedRowCount => _window.rowCount;
@@ -356,17 +355,23 @@ class PageLoader<T> {
       final List<T> list => list,
       _ => <T>[],
     };
-    // The contradiction check reads the window before install erases the
-    // evidence: recording the end drops the later pages it contradicts.
+    // The contradiction check reads the window and the count before install
+    // erases the evidence: recording the end drops the later pages it
+    // contradicts and tightens the count it contradicts.
     if (rows.length < pageSize) {
       _warnContradictoryShortPage(page, rows.length, data is PageResult<T> ? data.totalCount : null);
     }
     _window.install(page, rows, demand: _demandSpan);
-    if (data is PageResult<T>) {
+    if (data is PageResult<T> && data.hasMore == false) {
       // The flag only ends the data early; a short page ended it already.
-      if (data.hasMore == false) _window.endAt(page);
-      if (data.totalCount != null) totalCount = data.totalCount;
+      _window.endAt(page);
     }
+    // Order is load-bearing: the end just recorded tightens the stored count,
+    // then a count on the result overwrites it. A result carrying both a short
+    // page and a count ends with the count winning — the count is the newer
+    // evidence, and it re-opens the data.
+    _normalizeCount();
+    if (data is PageResult<T> && data.totalCount != null) totalCount = data.totalCount;
     _finishLoad(page);
     // Progress: a slot is free and the window changed, so re-derive what is
     // still missing on the next tick. This is what drains a demand window the
@@ -382,7 +387,10 @@ class PageLoader<T> {
   /// page size, and nothing is evicted: a caller handing over data it already
   /// has means to keep it. Pages that arrive from a [LoadRequest] go through
   /// [apply] instead, which is what evicts.
-  void seed(List<T> rows, {int firstPage = 0}) => _window.seed(rows, firstPage: firstPage);
+  void seed(List<T> rows, {int firstPage = 0}) {
+    _window.seed(rows, firstPage: firstPage);
+    _normalizeCount();
+  }
 
   /// Drops every page, resolves every slot, and forgets where the data ended —
   /// a known [totalCount] still says.
@@ -408,6 +416,29 @@ class PageLoader<T> {
   /// The pages the viewport is asking for right now.
   PageSpan get _demandSpan =>
       _window.spanFor(firstRow: _firstRow(), rowCount: _visibleRows(), threshold: loadThreshold);
+
+  /// The row count the window's recorded end implies, or null while no end is
+  /// recorded. An end whose page is not held gives that page's last row — an
+  /// upper bound the page tightens if it arrives short.
+  int? get _countFromWindow {
+    final last = _window.lastPage;
+    if (last == null) return null;
+    if (last < 0) return 0;
+    final rows = _window.pageAt(last);
+    return rows == null ? (last + 1) * pageSize : last * pageSize + rows.length;
+  }
+
+  /// Tightens the stored count to an end the window recorded earlier than the
+  /// count claims. Runs after every window write that can record an end, so
+  /// [totalCount] never reports rows no demand pass will fetch. A count set
+  /// afterwards overwrites the tightened value — the most recent evidence
+  /// wins.
+  void _normalizeCount() {
+    final count = _totalCount;
+    if (count == null) return;
+    final derived = _countFromWindow;
+    if (derived != null && derived < count) _totalCount = derived;
+  }
 
   /// Whether a demand pass right now would request at least one page.
   bool get _hasDemandableWork =>

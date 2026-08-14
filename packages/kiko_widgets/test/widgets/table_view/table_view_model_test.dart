@@ -1129,7 +1129,7 @@ void main() {
         expect(model.demand(), isNull, reason: 'nothing is left to ask for');
       });
 
-      test('a refused page is asked for again once something arms demand — and not before', () {
+      test('a refused page is asked for again once something marks demand dirty — and not before', () {
         final model = held();
         _Ferry(model, totalRows, size)
           ..take(model.loadFirstPage())
@@ -1186,7 +1186,7 @@ void main() {
         expect(pagesIn(model.demand()), hasLength(1), reason: 'one at a time, as configured');
         expect(model.demand(), isNull, reason: 'the cap is spent');
 
-        // Answering one frees the slot and arms demand, so the window drains
+        // Answering one frees the slot and marks demand dirty, so the window drains
         // frame by frame with no input at all.
         ferry
           ..take(LoadRequest(model.id, key: const PageKey(0)))
@@ -1287,7 +1287,7 @@ void main() {
 
 /// Requires that [model] is never stuck: rows it is about to paint may be
 /// missing only while some fetch is still outstanding, because a fetch landing
-/// re-arms demand and fills them. Missing rows with nothing at all in flight is
+/// re-triggers demand and fills them. Missing rows with nothing at all in flight is
 /// the permanent failure this whole arc exists to remove.
 void expectNeverStuck(TableViewModel model, String when) {
   if (model.viewportStatus != SliceStatus.stalled) return;

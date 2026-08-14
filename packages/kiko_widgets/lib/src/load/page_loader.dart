@@ -90,7 +90,7 @@ class PageLoader<T> {
   int _lastPaintedRows = 0;
 
   /// Paints with demand outstanding before the loader suspects the app is
-  /// missing its frame-tick arm. Half a second at 60fps — long enough that a
+  /// missing its frame-tick demand case. Half a second at 60fps — long enough that a
   /// fetch in progress never trips it.
   static const _pumpWarningPaints = 30;
 
@@ -177,7 +177,7 @@ class PageLoader<T> {
   /// go permanently unpainted, so a test can assert it only ever happens while
   /// some other fetch is outstanding: a stall with nothing at all in flight is
   /// the stuck state, and a stall behind a fetch drains itself when that fetch
-  /// lands and re-arms demand.
+  /// lands and re-triggers demand.
   SliceStatus get viewportStatus => _statusOf(_visibleSpan.pages.where(_window.exists));
 
   /// Whether a page above the viewport is being fetched — the fact a spinner
@@ -271,15 +271,16 @@ class PageLoader<T> {
   /// Runs a [demand] pass only if something has changed what is missing, and
   /// returns whatever it asks for.
   ///
-  /// This backs the app's frame-tick arm. Three things arm it — the visible
-  /// row count changing (a resize, which reaches the owner through the paint
-  /// path where no command can be returned), a page installing successfully
-  /// (which frees a slot the in-flight cap may have truncated), and
-  /// [markDemandDirty]. A refused or failed request arms nothing, which is
-  /// what keeps a standing refusal from becoming a request every frame.
+  /// This backs the app's frame-tick demand case. Three things mark demand
+  /// dirty — the visible row count changing (a resize, which reaches the owner
+  /// through the paint path where no command can be returned), a page
+  /// installing successfully (which frees a slot the in-flight cap may have
+  /// truncated), and [markDemandDirty]. A refused or failed request leaves
+  /// demand clean, which is what keeps a standing refusal from becoming a
+  /// request every frame.
   Cmd? demandIfDirty() => _demandDirty ? demand() : null;
 
-  /// Arms the next [demandIfDirty] pass.
+  /// Marks demand dirty, so the next [demandIfDirty] call runs a pass.
   ///
   /// Call it from wherever an app's own gate lifts — a sync finishing, a
   /// filter clearing — when the pages it was refusing should now be fetched.
@@ -290,12 +291,13 @@ class PageLoader<T> {
   /// Notes that the owner painted; call it once per paint, after the owner has
   /// updated its visible row count.
   ///
-  /// A change in the visible row count arms demand: a taller terminal reveals
-  /// rows nobody has asked for, and the paint path — where a widget cannot
-  /// return a command — is where the owner finds out. The app's frame-tick arm
-  /// picks it up on the next frame. If demand stays armed across many paints
-  /// while a page is actually requestable, the loader says once, in the log,
-  /// that the arm is probably missing. A widget with nothing to request — a
+  /// A change in the visible row count marks demand dirty: a taller terminal
+  /// reveals rows nobody has asked for, and the paint path — where a widget
+  /// cannot return a command — is where the owner finds out. The app's
+  /// frame-tick demand case picks it up on the next frame. If demand stays
+  /// dirty across many paints while a page is actually requestable, the loader
+  /// says once, in the log, that the case is probably missing. A widget with
+  /// nothing to request — a
   /// static one, or one whose fetches are all in flight — never counts toward
   /// the warning.
   void notePaint() {
@@ -311,7 +313,7 @@ class PageLoader<T> {
       _pumpWarned = true;
       Log.warn(
         '$widgetName "$id" has had pages to demand for $_paintsWhileDirty frames '
-        'without a demand pass. Add the frame-tick arm to your update: '
+        'without a demand pass. Add the frame-tick demand case to your update: '
         'FrameTickMsg() => (model, model.demandIfDirty())',
       );
     }

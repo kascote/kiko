@@ -1,14 +1,14 @@
 // Paginated TableView with simulated API loading.
 //
 // Shows:
-// - A PageSource over a simulated offset API, with fetchInto as the ferry glue
+// - A PageSource over a simulated offset API, fetched with the fetchInto helper
 // - LoadRequest / LoadResult handling, keyed by page number
 // - A demand pass that may ask for several pages at once (flattened by the app)
-// - The frame-tick arm that pumps demand after a resize
+// - The frame-tick demand case that picks up what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Loading state indicator
-// - Total count as a benign one-shot
-// - A policy gate that refuses requests and re-arms demand when it lifts
+// - Total count as a deliberate one-shot
+// - A policy gate that refuses requests and re-triggers demand when it lifts
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
 //   pages the next/previous batch in, same as cursor nav
 
@@ -262,7 +262,7 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 
   // A resize reveals rows through the paint path, where the table cannot return
   // a command, and a page landing can free a slot the in-flight cap truncated.
-  // One arm on the frame tick covers both.
+  // One case on the frame tick covers both.
   if (msg is FrameTickMsg) {
     return (model, fetchAll(model, model.table.demandIfDirty()));
   }
@@ -281,7 +281,8 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     // Open and close the policy gate. Closing it needs nothing: the next
     // request is simply refused. Opening it does — a refusal deliberately never
     // re-triggers demand, or a standing refusal would become a request storm —
-    // so the app pokes the model, and the frame-tick arm above picks it up.
+    // so the app pokes the model, and the frame-tick demand case above picks
+    // it up.
     if (key == 'p') {
       model.paused = !model.paused;
       if (!model.paused) model.table.markDemandDirty();

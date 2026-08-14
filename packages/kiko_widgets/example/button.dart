@@ -5,7 +5,8 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 import 'shared/theme_switcher.dart';
 
-// Mouse: a down-press arms whichever button it lands on, in any pane — focus
+// Mouse: a down-press begins a press on whichever button it lands on, in any
+// pane — focus
 // follows the click, since ButtonGroupModel only forwards the keyboard and
 // mouse routing bypasses it (kiko_widgets/CLAUDE.md → Widget mouse
 // handling). The release fires the same ButtonPressCmd Enter does, but only

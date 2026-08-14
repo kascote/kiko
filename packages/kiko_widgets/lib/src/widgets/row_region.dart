@@ -5,13 +5,13 @@ import 'package:meta/meta.dart';
 ///
 /// ListView, TableView and TreeView all paint rows, and several of their parts
 /// belong to a row: the row body itself, a tree's expand indicator. Each such
-/// part implements `RowScoped` so the shared row arm on `ScrollableModel` can
+/// part implements `RowScoped` so the shared row handler on `ScrollableModel` can
 /// move the cursor and the hover to the right row without knowing which concrete
 /// part was hit.
 ///
 /// It carries data, never behavior. What to *do* with the row — activate it,
 /// toggle a branch, decline — stays in the widget's own update switch; a shared
-/// interface only tells the arm which row a part sits on.
+/// interface only tells the handler which row a part sits on.
 abstract interface class RowScoped implements Region {
   /// The row this region lives on, in the widget's own row space (the same
   /// index its data view and cursor count in).

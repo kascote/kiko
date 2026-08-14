@@ -31,11 +31,11 @@ import 'types.dart';
 ///   built by `declineLoad`. A request left unanswered leaves its page painting
 ///   a placeholder forever, because the model will not ask again while it
 ///   believes the page is loading.
-/// - Pump demand on the frame tick: `FrameTickMsg() => (model, model.list
+/// - Run demand on the frame tick: `FrameTickMsg() => (model, model.list
 ///   .demandIfDirty())`. A terminal resize reveals items through the paint
-///   path, where a widget cannot return a command, so without that arm the
+///   path, where a widget cannot return a command, so without that case the
 ///   items a taller terminal reveals are demanded by nobody. The model says so
-///   in the log if it notices the arm missing.
+///   in the log if it notices the case missing.
 ///
 /// A list over items already in memory is one constructor call, and never meets
 /// any of the loading machinery:
@@ -234,9 +234,10 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
 
   /// Called by widget during render to update visible count.
   ///
-  /// A change arms demand: a taller terminal reveals items nobody has asked
-  /// for, and this is where the model finds out — during paint, where it cannot
-  /// return a command. The app's frame-tick arm picks it up on the next frame.
+  /// A change marks demand dirty: a taller terminal reveals items nobody has
+  /// asked for, and this is where the model finds out — during paint, where it
+  /// cannot return a command. The app's frame-tick demand case picks it up on
+  /// the next frame.
   void setVisibleCount(int count) {
     _visibleCount = count;
     _loader.notePaint();
@@ -344,14 +345,14 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// Runs a [demand] pass only if something has changed what is missing, and
   /// returns whatever it asks for.
   ///
-  /// This is the app's frame-tick arm: `FrameTickMsg() => (model, model.list
-  /// .demandIfDirty())`. Three things arm it — the visible item count changing,
-  /// a page installing successfully, and [markDemandDirty]. A refused or failed
-  /// request arms nothing, which is what keeps a standing refusal from becoming
-  /// a request every frame.
+  /// This is the app's frame-tick demand case: `FrameTickMsg() => (model,
+  /// model.list.demandIfDirty())`. Three things mark demand dirty — the visible
+  /// item count changing, a page installing successfully, and
+  /// [markDemandDirty]. A refused or failed request leaves demand clean, which
+  /// is what keeps a standing refusal from becoming a request every frame.
   Cmd? demandIfDirty() => _loader.demandIfDirty();
 
-  /// Arms the next [demandIfDirty] pass.
+  /// Marks demand dirty, so the next [demandIfDirty] call runs a pass.
   ///
   /// Call it from wherever an app's own gate lifts — a sync finishing, a filter
   /// clearing — when the pages it was refusing should now be fetched.

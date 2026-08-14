@@ -446,7 +446,7 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       // The part under the pointer is resolved by the framework and carried on
       // the message. A press on the expand indicator toggles the branch; every
       // other row part (including a hover over the indicator) goes through the
-      // shared row arm, which moves the cursor and activates on a press.
+      // shared row handler, which moves the cursor and activates on a press.
       final region = pointer.region;
       if (region is TreeIndicatorRegion && pointer.isDown) {
         _cursor = region.index;

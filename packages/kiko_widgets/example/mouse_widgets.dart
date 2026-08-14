@@ -12,7 +12,7 @@
 //      panel, a form — not for a widget that tags itself; see
 //      scrollable_form.dart.
 //
-//   2. Hand the FocusGroup to a FocusRouter and call it as one arm of update.
+//   2. Hand the FocusGroup to a FocusRouter and call it as one case of update.
 //      The router delivers a pointer to the widget answering to its id, sends
 //      every other key to the focused widget, moves focus to whatever a press
 //      lands on (focus is the app's to arbitrate — a widget cannot see its

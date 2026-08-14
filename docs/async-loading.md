@@ -135,9 +135,8 @@ A widget gets its items exactly two ways, and nothing sits between them:
   **app-owned** and never lives on a widget model. Reads are synchronous and
   partial by contract: `getItem` / `getRow` answer null for a page the window
   does not hold, and the widget paints a placeholder there. "Not here yet" is
-  a state of the read plus load-slot state — **never** an awaited read. The
-  instant a read could await, the fetcher has crept back into the widget (the
-  bug the id-addressing rework killed).
+  a null read plus load-slot state — **never** an awaited read. The instant a
+  read could await, the fetcher has crept back into the widget.
 
 **TreeView is exempt** — its shape is hierarchical, so it keeps its node read
 path and gets no page window. The uniform thing is the ownership split, not
@@ -190,9 +189,9 @@ one storage type.
   ```
 - **ListView** — `PageKey(page)`, exactly the table's shape: one slot per
   page, demand-driven loading, eviction by distance from the viewport, the
-  same frame-tick arm (`model.list.demandIfDirty()`), and the same consumed
-  confirm on an unheld row. Generic over the
-  item type, so `fetchInto` works with any `PageSource<T>`. Its `pageSize`
+  same frame-tick demand case (`model.list.demandIfDirty()`), and the same
+  consumed confirm on a row the window does not hold. Generic over the item
+  type, so `fetchInto` works with any `PageSource<T>`. Its `pageSize`
   defaults to 20 (an item may be several lines tall) against the table's 50.
   Three list-specific rules sit on top:
 

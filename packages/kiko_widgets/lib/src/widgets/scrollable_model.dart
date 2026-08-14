@@ -5,7 +5,7 @@ import 'package:kiko/kiko.dart';
 ///
 /// It gives each model a uniform scroll surface: where the viewport starts, how
 /// many rows it shows, and how to move it by a wheel notch. It also carries
-/// [handleRowPointer], the pointer arm those widgets' data rows share — the
+/// [handleRowPointer], the row handler those widgets' data rows share — the
 /// row a pointer lands on is resolved by the framework as a hit region and
 /// carried on the message, so no model turns a coordinate into a row itself.
 ///
@@ -44,7 +44,7 @@ mixin ScrollableModel {
   /// consuming at the limit would make nesting permanently dead.
   int scrollBy(int rows);
 
-  /// The pointer arm every scrollable's data rows share: hover follows the
+  /// The row handler every scrollable's data rows share: hover follows the
   /// pointer, and a press moves the cursor to the row, scrolls it into view, and
   /// activates it — the mouse counterpart of the keyboard's move-then-confirm.
   ///

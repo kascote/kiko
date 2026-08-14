@@ -131,7 +131,7 @@ KeyBinding<FocusAction> defaultFocusBindings() => KeyBinding<FocusAction>()
 /// member (a border, a title row) stand in for it: an alias entry maps the
 /// chrome's own tagged id to the member id it decorates.
 ///
-/// An app calls [route] as one arm of its own `update`, after any message it
+/// An app calls [route] as one case of its own `update`, after any message it
 /// wants to intercept first and ahead of its fallback keys — fallback keys
 /// run only for input every widget declined, so a quit key can never fire
 /// while someone is typing into a focused editor:

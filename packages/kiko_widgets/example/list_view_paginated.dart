@@ -1,10 +1,10 @@
 // Paginated ListView with simulated API loading.
 //
 // Shows:
-// - A PageSource over a simulated offset API, with fetchInto as the ferry glue
+// - A PageSource over a simulated offset API, fetched with the fetchInto helper
 // - LoadRequest / LoadResult handling, keyed by page number
 // - A demand pass that may ask for several pages at once (flattened by the app)
-// - The frame-tick arm that pumps demand after a resize
+// - The frame-tick demand case that picks up what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Placeholder items while a page is on its way
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
@@ -139,7 +139,7 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 
   // A resize reveals items through the paint path, where the list cannot
   // return a command, and a page landing can free a slot the in-flight cap
-  // truncated. One arm on the frame tick covers both.
+  // truncated. One case on the frame tick covers both.
   if (msg is FrameTickMsg) {
     return (model, fetchAll(model, model.list.demandIfDirty()));
   }

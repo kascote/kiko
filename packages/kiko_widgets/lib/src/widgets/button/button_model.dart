@@ -85,10 +85,10 @@ class ButtonModel implements Component {
   ///
   /// The pointer branch sits above the focus gate, so a click presses and
   /// activates whether or not the button is focused (the app focuses it on the
-  /// down). A `down` arms the press; an `up` fires [ButtonPressCmd] only when it
+  /// down). A `down` begins the press; an `up` fires [ButtonPressCmd] only when it
   /// lands [PointerMsg.inside] — a press slid off and released does nothing — and
   /// a [PointerCancelMsg] ends the gesture without firing. Hover tracks any
-  /// pointer over the button and clears on [PointerLeaveMsg]. Capture (spec 0141)
+  /// pointer over the button and clears on [PointerLeaveMsg]. Capture
   /// returns the `up`/`cancel` to this button even after the cursor leaves, and
   /// [PointerMsg.targetRect] answers `inside` against its current cells, so the
   /// model stores no grab state. The keyboard path stays behind the gate.

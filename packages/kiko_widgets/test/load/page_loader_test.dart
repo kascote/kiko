@@ -49,10 +49,10 @@ void main() {
         }
       });
 
-      expect(output.records, isEmpty, reason: 'every page that exists is held, so no arm is missing');
+      expect(output.records, isEmpty, reason: 'every page that exists is held, so no demand pass is owed');
     });
 
-    test('demand left armed over a requestable page warns once', () {
+    test('demand left dirty over a requestable page warns once', () {
       final output = _CapturingOutput();
       Log(output: output, level: LogLevel.warn).runZoned(() {
         var rows = 0;
@@ -68,7 +68,7 @@ void main() {
       expect(output.records.single.message, contains('demandIfDirty'));
     });
 
-    test('a fetch in flight against the cap does not count as a missing pump', () {
+    test('a fetch in flight against the cap does not count as a missing demand pass', () {
       final output = _CapturingOutput();
       Log(output: output, level: LogLevel.warn).runZoned(() {
         var rows = 0;

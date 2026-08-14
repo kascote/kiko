@@ -217,8 +217,8 @@ class LoadResult<D> extends Msg {
 /// ```
 ///
 /// It handles one request and never iterates over an app's sources: an app that
-/// needs different treatment for one widget writes a different arm, and simply
-/// does not call this there.
+/// needs different treatment for one widget writes a different branch, and
+/// simply does not call this there.
 Cmd declineLoad(LoadRequest request, {Object? error}) => Emit(
   error == null
       ? LoadResult<Object?>.cancelled(request.id, key: request.key)

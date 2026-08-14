@@ -13,7 +13,7 @@ import 'table_column.dart';
 /// existed; it exists now so a future column-sort feature hangs off the region
 /// instead of new geometry, refining this one coarse header into per-column
 /// header cells as a TableView-local change. It is not row-scoped — the header
-/// is not a data row — so a model's row arm never mistakes it for one.
+/// is not a data row — so a model's row handler never mistakes it for one.
 @immutable
 class TableHeaderRegion implements Region {
   /// The sole header region for a table.

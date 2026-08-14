@@ -1,12 +1,14 @@
 // Paginated ListView with simulated API loading.
 //
 // Shows:
-// - A widget-owned DataBuffer the model appends pages into
-// - LoadRequest / LoadResult handling for infinite scroll
-// - Loading + error state via the LoadTracker (no app-managed flag)
-// - The app owns the fetcher closure; the widget never awaits
+// - A PageSource over a simulated offset API, with fetchInto as the ferry glue
+// - LoadRequest / LoadResult handling, keyed by page number
+// - A demand pass that may ask for several pages at once (flattened by the app)
+// - The frame-tick arm that pumps demand after a resize
+// - Sliding window (keeps the pages around the viewport, plus keepPages more)
+// - Placeholder items while a page is on its way
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
-//   pages the next batch in, same as cursor nav
+//   pages the next/previous batch in, same as cursor nav
 
 import 'dart:io';
 
@@ -27,18 +29,19 @@ class User {
   const User(this.id, this.name, this.role);
 }
 
-/// Simulated API — a pure fetcher the app owns. It returns one page at a given
-/// offset; it holds no list state (the widget's buffer does that now).
+/// A simulated user API: an offset-and-limit endpoint with a slow round trip.
+///
+/// This is app code — the shape a real REST or SQL backend has. Kiko only sees
+/// it through the [PageSource] adapter below.
 class UserApi {
-  static const pageSize = 10;
   static const _totalUsers = 50;
 
-  /// Simulates an API call with a delay, returning the page at [offset].
-  Future<List<User>> fetchPage(int offset) async {
+  /// The users at `[offset, offset + limit)`, after a simulated network delay.
+  Future<List<User>> read(int offset, int limit) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
-    final remaining = _totalUsers - offset;
-    final count = remaining.clamp(0, pageSize);
+    if (offset >= _totalUsers) return [];
+    final count = (offset + limit > _totalUsers) ? _totalUsers - offset : limit;
     return [
       for (var i = 0; i < count; i++) User('u${offset + i + 1}', 'User ${offset + i + 1}', _roleFor(offset + i + 1)),
     ];
@@ -57,11 +60,14 @@ class UserApi {
 
 class AppModel with ThemeSwitcher {
   final api = UserApi();
+
+  /// The one page size in the app: the list windows over what the source ships.
+  late final PageSource<User> source = PageSource.offset<User>(pageSize: 10, read: api.read);
+
   late final list = ListViewModel<User, String>(
-    dataView: DataBuffer<User>(),
     itemKey: (u) => u.id,
     itemHeight: 2,
-    pageSize: UserApi.pageSize,
+    pageSize: source.pageSize,
     focused: true,
   );
 
@@ -70,19 +76,32 @@ class AppModel with ThemeSwitcher {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LOAD PLUMBING (one shape for the first page and each near-edge page)
+// LOAD PLUMBING (one shape for the first page and each demanded page)
 // ═══════════════════════════════════════════════════════════
 
-/// Turns a list [LoadRequest] into the page fetch that resolves it, routing the
-/// outcome home as a [LoadResult] (users on success, error on failure). The next
-/// page starts where the buffer currently ends.
-Cmd fetchUsers(AppModel model, LoadRequest req) {
-  final offset = model.list.dataView.length ?? 0;
-  return Task<List<User>>(
-    () => model.api.fetchPage(offset),
-    onSuccess: (users) => LoadResult<List<User>>(req.id, key: req.key, data: users),
-    onError: (e) => LoadResult<List<User>>(req.id, key: req.key, error: e),
-  );
+/// One request, one fetch — explicit cases, read top to bottom.
+///
+/// [fetchInto] threads the request's id and key into the result, so a page can
+/// only ever land on the widget that asked for it, and turns a read that throws
+/// into a failed load rather than a page stuck loading forever.
+Cmd fetchFor(AppModel model, LoadRequest req) {
+  if (req.id == model.list.id) return fetchInto(req, model.source);
+  // Nothing is wired to answer this one, which is a bug rather than a policy:
+  // it resolves as a failure, so the widget shows it instead of a placeholder
+  // nobody will ever fill.
+  return declineLoad(req, error: 'no source wired for ${req.id}');
+}
+
+/// One demand pass can ask for several pages at once, so the app flattens
+/// whatever the list returned and fetches each request.
+Cmd? fetchAll(AppModel model, Cmd? cmd) {
+  final requests = switch (cmd) {
+    final LoadRequest r => [r],
+    Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
+    _ => const <LoadRequest>[],
+  };
+  if (requests.isEmpty) return cmd;
+  return Batch([for (final r in requests) fetchFor(model, r)]);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -92,12 +111,15 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Page results route home by id, then install generically — applyLoad appends
-  // the page and clears the slot on success, or records the error on failure.
+  // Page results route home by id, then install generically — applyLoad clears
+  // the slot on success or records the error on failure.
   if (msg case final LoadResult<Object?> r) {
     if (r.id == model.list.id) {
       model.list.applyLoad(r);
-      model.error = r.ok ? null : 'Failed to load: ${r.error}';
+      // `ok` is false for a refusal as well as a failure, so check `cancelled`
+      // first: a refused page did not fail, and reporting it as an error would
+      // be a lie the user has to dismiss.
+      if (!r.cancelled) model.error = r.ok ? null : 'Failed to load: ${r.error}';
     }
     return (model, null);
   }
@@ -105,7 +127,7 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
   // Kick off the first page once.
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
-    return (model, fetchUsers(model, model.list.loadFirstPage()));
+    return (model, fetchFor(model, model.list.loadFirstPage()));
   }
 
   // A pointer only reaches the list when it's actually the target — a click
@@ -115,15 +137,19 @@ Cmd fetchUsers(AppModel model, LoadRequest req) {
     return (model, null);
   }
 
-  // A near-edge navigation may request the next page.
-  final result = model.list.update(msg);
-  if (result case Handled(cmd: final LoadRequest r) when r.id == model.list.id) {
-    return (model, fetchUsers(model, r));
+  // A resize reveals items through the paint path, where the list cannot
+  // return a command, and a page landing can free a slot the in-flight cap
+  // truncated. One arm on the frame tick covers both.
+  if (msg is FrameTickMsg) {
+    return (model, fetchAll(model, model.list.demandIfDirty()));
   }
+
+  // Navigation runs a demand pass, which may ask for one page or several.
+  final result = model.list.update(msg);
 
   switch (result) {
     case Handled(:final cmd):
-      return (model, cmd);
+      return (model, fetchAll(model, cmd));
     case Declined():
       break;
   }
@@ -150,7 +176,8 @@ void appView(AppModel model, Frame frame) {
   final loading = model.list.isLoading();
 
   // Status indicator
-  final status = loading ? 'Loading...' : model.error ?? 'Loaded ${model.list.dataView.length} users';
+  final countStr = model.list.knownItemCount?.toString() ?? '?';
+  final status = loading ? 'Loading...' : model.error ?? 'Loaded pages ${model.list.cachedPages} of $countStr users';
 
   // Scroll position
   final scroll = model.list.getScrollState();
@@ -198,7 +225,10 @@ void appView(AppModel model, Frame frame) {
                 ];
               },
               separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border.ink)]),
-              emptyPlaceholder: Line(loading ? 'Loading...' : 'No users', style: theme.muted.ink),
+              // Shows only when the data itself is empty. A page on its way
+              // makes its rows addressable, so a loading list paints skeleton
+              // rows instead of ever reaching this line.
+              emptyPlaceholder: Line('No users', style: theme.muted.ink),
             ),
           ),
         ),

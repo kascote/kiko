@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
 import '../row_region.dart';
 import 'list_view_model.dart';
 import 'types.dart';
@@ -104,10 +105,19 @@ class _ListViewport<T, K> extends Node {
 
   void _paint(Rect area, Surface surface) {
     final m = model;
-    final dataView = m.dataView;
-    final itemCount = dataView.length ?? 0;
 
-    if (itemCount == 0) {
+    final hasSeparator = separatorBuilder != null;
+    final effectiveRowHeight = m.itemHeight + (hasSeparator ? 1 : 0);
+    // The last item needs no trailing separator, so one more can fit.
+    final visibleCount = hasSeparator ? (area.height + 1) ~/ effectiveRowHeight : area.height ~/ effectiveRowHeight;
+    if (visibleCount <= 0) return;
+    m.setVisibleCount(visibleCount);
+
+    // Empty state — the data itself is empty, not merely unloaded. A list that
+    // knows its size (or has a page on its way) has items to draw, even before
+    // any of them arrive: they paint as placeholders below.
+    final itemLimit = m.itemLimit;
+    if (itemLimit == 0) {
       final placeholder = emptyPlaceholder;
       if (placeholder != null) {
         paintLine(
@@ -122,19 +132,22 @@ class _ListViewport<T, K> extends Node {
       return;
     }
 
-    final hasSeparator = separatorBuilder != null;
-    final effectiveRowHeight = m.itemHeight + (hasSeparator ? 1 : 0);
-    // The last item needs no trailing separator, so one more can fit.
-    final visibleCount = hasSeparator ? (area.height + 1) ~/ effectiveRowHeight : area.height ~/ effectiveRowHeight;
-    if (visibleCount <= 0) return;
-    m.setVisibleCount(visibleCount);
-
-    final startIndex = m.scrollOffset;
-    final endIndex = (startIndex + visibleCount).clamp(0, itemCount);
+    // While a fetch is in flight and the cursor is off screen, the nearest run
+    // of items the window holds whole reads better than a screen of
+    // placeholders. With the cursor on screen the true position paints instead:
+    // the cursor is where selection acts, so nothing may stand in for the items
+    // it sits over. Any other incomplete status also paints the true position,
+    // so a fetch that never lands stops the view showing older items on its own
+    // — no timer decides when.
+    final cursorVisible = m.cursor >= m.scrollOffset && m.cursor < m.scrollOffset + visibleCount;
+    final startIndex = m.viewportStatus == SliceStatus.filling && !cursorVisible
+        ? m.nearestHeldStart(visibleCount) ?? m.scrollOffset
+        : m.scrollOffset;
+    final endIndex = (startIndex + visibleCount).clamp(0, itemLimit);
 
     var y = area.y;
     for (var i = startIndex; i < endIndex; i++) {
-      final item = dataView.itemAt(i);
+      final item = m.getItem(i);
       final isCursor = i == m.cursor;
       final isChecked = m.isSelected(i);
       final isDisabled = m.isDisabled?.call(i) ?? false;
@@ -144,13 +157,16 @@ class _ListViewport<T, K> extends Node {
 
       // Mark this item's painted rect — itemHeight lines tall — as its row
       // region, in the same loop that paints it, so a pointer anywhere on the
-      // item resolves to it. Separator lines and the blank tail stay unmarked.
+      // item resolves to it — a placeholder too, carrying its real index.
+      // Separator lines and the blank tail stay unmarked.
       markRegion(RowRegion(i), itemArea.toPlume());
 
       // Honest anatomy, not borrowed states: the base item style, then the
       // hover wash (weakest, so selection/cursor read over it), then the
       // selection fill, then the cursor fill (so the cursor stays visible over
       // a selected run), then the disabled dim — each layer patches the last.
+      // A placeholder row layers the same way, so the cursor stays visible
+      // over items still filling in.
       var rowStyle = m.styles.item ?? const Style();
       var styled = m.styles.item != null;
       if (m.hoverRow == i) {
@@ -175,9 +191,20 @@ class _ListViewport<T, K> extends Node {
         }
       }
 
-      final lines = itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled));
-      for (var li = 0; li < lines.length && li < itemArea.height; li++) {
-        paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
+      if (item == null) {
+        // An item whose page isn't held: the item builder cannot run without
+        // an item, so a dim run stands in on each of its lines. Short of the
+        // full width, so the run reads as content pending, not content.
+        final runWidth = itemArea.width <= 2 ? itemArea.width : (itemArea.width * 3) ~/ 4;
+        final run = Line('░' * runWidth).patchStyle(_loadingItemStyle());
+        for (var li = 0; li < itemArea.height; li++) {
+          paintLine(surface, run, x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
+        }
+      } else {
+        final lines = itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled));
+        for (var li = 0; li < lines.length && li < itemArea.height; li++) {
+          paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
+        }
       }
       y += m.itemHeight;
 
@@ -209,6 +236,9 @@ class _ListViewport<T, K> extends Node {
   /// Disabled rows — `disabled` × `fill` (dim). No anatomy slot: disabled is a
   /// generic state, not a ListView-specific part.
   Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
+
+  /// Placeholder runs for items windowed out of the cache.
+  Style _loadingItemStyle() => model.styles.loadingItem ?? theme.muted.ink;
 
   /// The empty-state line.
   Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;

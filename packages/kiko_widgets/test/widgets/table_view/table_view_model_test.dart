@@ -47,7 +47,7 @@ List<LoadRequest> requestsIn(Cmd? cmd) => switch (cmd) {
 List<LoadRequest> requestsOf(UpdateResult result) => result is Handled ? requestsIn(result.cmd) : const [];
 
 /// The pages a command asked for, ascending.
-List<int> pagesIn(Cmd? cmd) => requestsIn(cmd).map((r) => (r.key! as TablePageKey).page).toList()..sort();
+List<int> pagesIn(Cmd? cmd) => requestsIn(cmd).map((r) => (r.key! as PageKey).page).toList()..sort();
 
 /// The pages an update asked for, ascending.
 List<int> pagesAsked(UpdateResult result) => pagesIn(result is Handled ? result.cmd : null);
@@ -118,7 +118,7 @@ void main() {
       final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(pagesAsked(result), equals([1]));
-      expect(model.isLoading(const TablePageKey(1)), isTrue, reason: 'wheel alone crossed the load threshold');
+      expect(model.isLoading(const PageKey(1)), isTrue, reason: 'wheel alone crossed the load threshold');
     });
 
     group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
@@ -328,7 +328,7 @@ void main() {
         expect(pagesAsked(model.update(keyMsg('end'))), equals([11]));
 
         model.applyLoad(
-          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(11), data: sampleRows(10)),
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(11), data: sampleRows(10)),
         );
 
         expect(model.cachedPages, equals([11]), reason: 'page 0 is whole pages away from the viewport');
@@ -357,6 +357,53 @@ void main() {
         expect(model.cursorCol, equals(0));
         expect(model.getSelectedKeys(), isEmpty);
         expect(model.cachedRowCount, equals(0));
+      });
+    });
+
+    group('the end landing closer than navigation reached', () {
+      // One held page of 5, end unknown: pages past it are presumed to exist,
+      // so navigation runs ahead into rows whose fetch is still out.
+      TableViewModel ranAhead() {
+        final model =
+            TableViewModel(
+                keyField: 'id',
+                columns: sampleColumns(),
+                pageSize: 5,
+                loadThreshold: 2,
+                focused: true,
+              )
+              ..insertRows(sampleRows(), 0)
+              ..setVisibleDimensions(3, 3)
+              ..update(keyMsg('pageDown')) // cursor 3 — demand puts page 1 in flight
+              ..update(keyMsg('pageDown')) // cursor 6, into the pending page
+              ..update(keyMsg('pageDown')); // cursor 9, scroll 7
+        expect(model.cursorRow, equals(9));
+        expect(model.scrollRow, equals(7));
+        return model;
+      }
+
+      test('a short page pulls the cursor and viewport back to the real end', () {
+        final model = ranAhead();
+        final short = LoadResult<List<Map<String, Object?>>>(
+          model.id,
+          key: const PageKey(1),
+          data: const [
+            {'id': 'row5', 'name': 'Name 5', 'value': 50},
+          ],
+        );
+        model.applyLoad(short);
+
+        expect(model.knownRowCount, equals(6));
+        expect(model.cursorRow, equals(5), reason: 'the rows past the end stopped existing');
+        expect(model.scrollRow, equals(3), reason: 'the last row lands on the bottom line (6 - 3 visible)');
+        expect(model.cursorRowKey, equals('row5'));
+      });
+
+      test('a count landing closer than the cursor pulls both back', () {
+        final model = ranAhead()..totalCount = 6;
+
+        expect(model.cursorRow, equals(5));
+        expect(model.scrollRow, equals(3));
       });
     });
 
@@ -629,7 +676,7 @@ void main() {
               ..update(keyMsg('end'));
 
         model.applyLoad(
-          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(11), data: sampleRows(10)),
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(11), data: sampleRows(10)),
         );
 
         // The row itself was evicted; the selection is keyed, not indexed.
@@ -776,8 +823,8 @@ void main() {
         final asked = requestsOf(result);
         expect(asked, hasLength(1));
         expect(asked.single.id, equals(model.id));
-        expect(asked.single.key, equals(const TablePageKey(1)));
-        expect(model.isLoading(const TablePageKey(1)), isTrue, reason: 'self-marks on emit');
+        expect(asked.single.key, equals(const PageKey(1)));
+        expect(model.isLoading(const PageKey(1)), isTrue, reason: 'self-marks on emit');
       });
 
       test('not emitted again while the same page is loading', () {
@@ -858,14 +905,14 @@ void main() {
         final req = model.loadFirstPage();
 
         expect(req.id, equals(model.id));
-        expect(req.key, equals(const TablePageKey(0)));
-        expect(model.isLoading(const TablePageKey(0)), isTrue);
+        expect(req.key, equals(const PageKey(0)));
+        expect(model.isLoading(const PageKey(0)), isTrue);
 
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
         expect(model.cachedRowCount, equals(10));
         expect(model.cachedPages, equals([0]));
-        expect(model.isLoading(const TablePageKey(0)), isFalse);
+        expect(model.isLoading(const PageKey(0)), isFalse);
       });
 
       test('applyLoad installs a page at the offset its key names', () {
@@ -874,19 +921,19 @@ void main() {
         model.applyLoad(
           LoadResult<List<Map<String, Object?>>>(
             model.id,
-            key: const TablePageKey(3),
+            key: const PageKey(3),
             data: sampleRows(10),
           ),
         );
         expect(model.cachedPages, equals([0]), reason: 'a page nobody asked for is stale, not installed');
 
         final req = requestsOf(model.update(keyMsg('end'))).first;
-        final page = (req.key! as TablePageKey).page;
-        expect(model.isLoading(req.key! as TablePageKey), isTrue);
+        final page = (req.key! as PageKey).page;
+        expect(model.isLoading(req.key! as PageKey), isTrue);
 
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
-        expect(model.isLoading(req.key! as TablePageKey), isFalse);
+        expect(model.isLoading(req.key! as PageKey), isFalse);
         expect(model.cachedPages, contains(page));
         expect(model.getRow(page * 10)?['id'], equals('row0'));
       });
@@ -911,7 +958,7 @@ void main() {
         model.applyLoad(
           LoadResult<PageResult<Map<String, Object?>>>(
             model.id,
-            key: const TablePageKey(1),
+            key: const PageKey(1),
             data: PageResult<Map<String, Object?>>(sampleRows(10), hasMore: false),
           ),
         );
@@ -922,7 +969,7 @@ void main() {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
         final req = requestsOf(model.update(keyMsg('end'))).first;
-        final key = req.key! as TablePageKey;
+        final key = req.key! as PageKey;
         final boom = StateError('boom');
         model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: key, error: boom));
 
@@ -941,16 +988,16 @@ void main() {
 
         // Nothing was requested, so this result is stale.
         model.applyLoad(
-          LoadResult<List<Map<String, Object?>>>(model.id, key: const TablePageKey(1), data: sampleRows(10)),
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(1), data: sampleRows(10)),
         );
 
         expect(model.cachedRowCount, equals(10));
-        expect(model.isLoading(const TablePageKey(1)), isFalse);
+        expect(model.isLoading(const PageKey(1)), isFalse);
       });
 
       test('applyLoad ignores a result for another model', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
-        final key = requestsOf(model.update(keyMsg('end'))).first.key! as TablePageKey;
+        final key = requestsOf(model.update(keyMsg('end'))).first.key! as PageKey;
         model.applyLoad(LoadResult<List<Map<String, Object?>>>('other', key: key, data: sampleRows(10)));
 
         expect(model.cachedRowCount, equals(10));
@@ -1063,10 +1110,10 @@ void main() {
         }
         expect(asked, isNotEmpty);
         final refused = asked.first;
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>.cancelled(model.id, key: TablePageKey(refused)));
+        model.applyLoad(LoadResult<List<Map<String, Object?>>>.cancelled(model.id, key: PageKey(refused)));
 
-        expect(model.isLoading(TablePageKey(refused)), isFalse, reason: 'the slot is idle again');
-        expect(model.errorFor(TablePageKey(refused)), isNull, reason: 'a refusal is not a failure');
+        expect(model.isLoading(PageKey(refused)), isFalse, reason: 'the slot is idle again');
+        expect(model.errorFor(PageKey(refused)), isNull, reason: 'a refusal is not a failure');
         expect(model.demandIfDirty(), isNull, reason: 'a refusal must never re-request on its own');
 
         // The app's gate lifts and pokes the model: the page is asked for again.
@@ -1110,40 +1157,9 @@ void main() {
         // Answering one frees the slot and arms demand, so the window drains
         // frame by frame with no input at all.
         ferry
-          ..take(LoadRequest(model.id, key: const TablePageKey(0)))
+          ..take(LoadRequest(model.id, key: const PageKey(0)))
           ..deliverOne();
         expect(pagesIn(model.demandIfDirty()), hasLength(1));
-      });
-    });
-
-    group('dataView', () {
-      test('exposes total count, hasMore, and cached rows', () {
-        final model = TableViewModel(
-          totalCount: 120,
-          keyField: 'id',
-          columns: sampleColumns(),
-          pageSize: 10,
-        )..insertRows(sampleRows(10), 0);
-
-        final view = model.dataView;
-        expect(view.length, equals(120)); // total count
-        expect(view.hasMore, isTrue); // seeded from a paginated source
-        expect(view.itemAt(0)['id'], equals('row0'));
-      });
-
-      test('itemAt throws for an unloaded row; a fully held table has no more', () {
-        final model = TableViewModel(
-          totalCount: 10,
-          keyField: 'id',
-          columns: sampleColumns(),
-          pageSize: 10,
-        );
-
-        expect(() => model.dataView.itemAt(0), throwsStateError);
-        expect(model.dataView.hasMore, isTrue, reason: 'the one page that exists is not held yet');
-
-        model.insertRows(sampleRows(10), 0);
-        expect(model.dataView.hasMore, isFalse, reason: 'every page that exists is held');
       });
     });
 
@@ -1275,7 +1291,7 @@ class _Ferry {
     final rows = start >= totalRows
         ? const <Map<String, Object?>>[]
         : sampleRows(totalRows).sublist(start, (start + pageSize).clamp(0, totalRows));
-    model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: TablePageKey(page), data: rows));
+    model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: PageKey(page), data: rows));
   }
 
   /// Answers everything outstanding, then keeps running demand passes until the

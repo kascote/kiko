@@ -13,10 +13,10 @@ one keyed load-slot state machine in `packages/kiko_widgets/lib/src/load/`.
 The widget owns the **state machine**; the app owns the **I/O**. Concretely:
 
 - A widget has one or more **load slots**, each named by a **typed key `K`**
-  (never a string, never null): `ListLoadKey.self`, `TablePageKey(page)`,
-  `TreeLoadKey` = `RootsKey()` / `PathKey(path)`. **A key names the thing
-  being loaded** — a page number, a branch path — never a direction or an
-  intent.
+  (never a string, never null): `PageKey(page)` for a windowed widget,
+  `TreeLoadKey` = `RootsKey()` / `PathKey(path)` for the tree. **A key names
+  the thing being loaded** — a page number, a branch path — never a direction
+  or an intent.
 - Each slot is `idle → loading → error`; **success clears it back to idle**.
 - The widget flips a slot **to loading the instant it returns the
   `LoadRequest`**. The deduplication that stops the same data being fetched
@@ -82,11 +82,19 @@ frame-tick demand case run it.
   says exactly that instead of claiming a range with holes inside it.
   Retention is **relative** — the pages the viewport needs plus `keepPages`
   more on each side — which makes a load→evict→reload cycle unrepresentable.
+- `PageLoader<T>` — the loading half of a windowed widget: the page window, a
+  load slot per page, and the demand pass, in one object the widget model
+  embeds and delegates to. It performs no I/O. Apps meet it only through the
+  model's own members (`demand`, `demandIfDirty`, `applyLoad`, `reset`, …).
 - `PageSource<T>` + `PageResult<T>` — the app-side source interface: index
   addressed, owning the page size, `Future<PageResult<T>> read(int page)`.
   `PageSource.offset(...)` wraps an offset/limit query. `PageSource.cursor(...)`
   wraps a token chain: it caches the token at each page boundary, serializes
   its own walk, and re-chunks whatever row counts the server returns.
+  Page boundaries are index arithmetic, so **every page except the last must
+  contain exactly `pageSize` rows**. A short page marks the end of the data.
+  A source that cannot promise fixed-size pages must re-chunk before
+  answering; `PageSource.cursor` does exactly that.
 - `fetchInto(req, source)` / `declineLoad(req, {error})` — the per-request
   helpers. `fetchInto` threads `(id, key)` into the result **structurally**,
   so the rule most often forgotten cannot be forgotten. It also converts a
@@ -107,35 +115,29 @@ The id guard and the **staleness guard** ("is this key still expected?") both
 live *inside* `applyLoad` — a late result for a collapsed branch or a
 superseded query is dropped, not applied.
 
-## Data ownership — three roles, three homes
+## Data ownership — two paths, no read interface
 
-A widget's "data source" decomposes into three roles that live in three places.
-Internalizing this is most of understanding the load model:
+A widget gets its items exactly two ways, and nothing sits between them:
 
-| Role          | What it is                                   | Lives where                | Shape                                              |
-| ------------- | -------------------------------------------- | -------------------------- | -------------------------------------------------- |
-| **read-view** | the items the widget renders against         | widget contract (injected) | `DataView<T>` — sync, read-only                    |
-| **buffer**    | the in-memory store that grows as data lands | widget-owned               | a `DataBuffer<T>` the model mutates in `applyLoad` |
-| **fetcher**   | the origin / async I/O                       | **app**-owned              | a closure or a `PageSource<T>`; **never on a widget model** |
+- **Data the app already has** is a plain `List`, handed to the constructor
+  (`items:` on a list, `rows:` on a table). It is a seed, not a seam: the
+  widget copies it into the window as whole pages and never references it
+  again. Unless `totalCount:` says otherwise, a seed is taken to be all the
+  data. Replace it wholesale — a search box swapping its results on every
+  keystroke — with `reset()`, then `insertItems(...)` / `insertRows(...)`,
+  then the new `totalCount`.
+- **Data the app must fetch** loads through the page window, one page at a
+  time, driven by demand. The fetcher — a closure or a `PageSource<T>` — is
+  **app-owned** and never lives on a widget model. Reads are synchronous and
+  partial by contract: `getItem` / `getRow` answer null for a page the window
+  does not hold, and the widget paints a placeholder there. "Not here yet" is
+  a state of the read plus load-slot state — **never** an awaited read. The
+  instant a read could await, the fetcher has crept back into the widget (the
+  bug the id-addressing rework killed).
 
-- `DataView<T>` (`length`/`itemAt`/`hasMore`) is **synchronous by contract.**
-  `itemAt` MUST NOT await. "Data not here yet" is `LoadTracker` state + a
-  placeholder — **never** an awaited read. The instant a read could await, the
-  fetcher has crept back into the widget (the bug the id-addressing rework
-  killed). `DataView.fromList(items)` is the static one-liner
-  (`hasMore = false`, never loads).
-- **Mutation lives only on the concrete `DataBuffer<T>`**
-  (`append`/`replace`/`clear` + settable `hasMore`), never on the `DataView`
-  read face — so nothing rendering through the read-view can mutate it, and a
-  computed/virtual backing (read-only, never loads) isn't forced to implement a
-  write it can't honor. `DataView` (read) ↔ `DataBuffer` (mutable impl) is the
-  naming pair.
-- The **strategy** — append (List, Table-forward) vs replace (combobox) — is
-  the widget's `applyLoad` picking the primitive, not buffer config.
-- List + Table share `DataView<T>` (Table's `T` is a row `Map`; columns are
-  model config). **TreeView is exempt** — its shape is hierarchical, so it
-  keeps its node read path and gets no `DataView`. The uniform thing is the
-  role decomposition, not one interface type.
+**TreeView is exempt** — its shape is hierarchical, so it keeps its node read
+path and gets no page window. The uniform thing is the ownership split, not
+one storage type.
 
 ## Per-widget map
 
@@ -148,9 +150,9 @@ Internalizing this is most of understanding the load model:
   request. Collapsing a node cancels its slot, so a late child result drops.
   A failed child renders an **error placeholder** (`errorIndicator` config);
   it never spins forever.
-- **TableView** — `TablePageKey(page)`, one slot per page, so any number of
+- **TableView** — `PageKey(page)`, one slot per page, so any number of
   pages can be in flight and a result places itself: the page travels in the
-  key (`(req.key as TablePageKey).page`), and nothing has to remember what
+  key (`(req.key as PageKey).page`), and nothing has to remember what
   was reserved. Navigation is **never frozen** during a load. Loading is
   **demand-driven**: every message that moves the viewport runs `demand()`,
   which asks for the pages the viewport covers (widened by `loadThreshold`)
@@ -159,7 +161,10 @@ Internalizing this is most of understanding the load model:
   re-requested like any other absence. One pass can return several requests
   as a `Batch`; **the app flattens it**. Eviction drops whole pages by
   distance from the viewport, keeping `keepPages` beyond what it needs. A
-  failed page retries on the next demand pass.
+  failed page retries on the next demand pass. Navigation may run ahead into
+  pages still on their way; when the end of the data lands closer than
+  navigation reached, the widget pulls its cursor and viewport back to the
+  real end, so the landing sits at the bottom of the view.
 
   Two app-side obligations, both one line:
 
@@ -172,24 +177,34 @@ Internalizing this is most of understanding the load model:
 
   // 2. Answer every request (above) — with rows, an error, or declineLoad.
   ```
-- **ListView** — `ListLoadKey.self` (single slot, append). Renders through a
-  settable `DataView<T> dataView` field; `applyLoad` casts it to `DataBuffer`
-  to `append`. `hasMore` is **derived** on append
-  (`page.length >= pageSize`, a `pageSize` config, default 20) — the same
-  short-page rule the table's page window applies. The search example reassigns the whole backing
-  (`dataView = DataView.fromList(filtered)`) — a synchronous filter, not a
-  load.
+- **ListView** — `PageKey(page)`, exactly the table's shape: one slot per
+  page, demand-driven loading, eviction by distance from the viewport, and
+  the same frame-tick arm (`model.list.demandIfDirty()`). Generic over the
+  item type, so `fetchInto` works with any `PageSource<T>`. Its `pageSize`
+  defaults to 20 (an item may be several lines tall) against the table's 50.
+  Three list-specific rules sit on top:
+
+  - An item whose page isn't held paints as a dim run through the item's own
+    height — the item builder is never called without an item.
+  - While a fetch is in flight and the cursor is off screen, the view paints
+    the nearest run of items it holds whole; with the cursor on screen it
+    paints the true position, placeholders and all. Nothing on screen may
+    assert a position the view is not showing, and the reported scroll state
+    always describes the real viewport.
+  - Confirm on an item that cannot be read is consumed and emits nothing, on
+    the key and the click alike. A range selection swept over items still
+    being fetched completes itself when their page installs.
 
 ## Total count is exempt — a deliberate one-shot
 
 Total row count gets **no load slot**. The `LoadTracker` exists to recover
 from failures that leave rows stuck — a page or child fetch that would
 otherwise spin forever. A missing count leaves nothing stuck; it only leaves
-the scrollbar indeterminate. So count stays a TableView app-fired one-shot
+the scrollbar indeterminate. So count stays an app-fired one-shot
 (`Task(fetchCount, onSuccess: (n) => CountLoadedMsg(id, n))`,
 `onError → NoneMsg`), or the source reports it as `PageResult.totalCount`
 when it knows it. Count has no loading, error, or retry machinery by design.
-A table that has the count knows which pages exist and can jump straight to
+A widget that has the count knows which pages exist and can jump straight to
 the end; one without it learns where the data stops from the first short
 page. The scrollbar reads only `int? total` (null ⇒ indeterminate thumb);
 scroll **composes with** load, it does not merge — `total` going unknown → 10

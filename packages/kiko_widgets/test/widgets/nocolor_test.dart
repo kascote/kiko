@@ -17,7 +17,7 @@ void main() {
   group('NO_COLOR degrades widget surfaces to reversed', () {
     test('ListView cursor row', () {
       final model = ListViewModel<String, String>(
-        dataView: DataView.fromList<String>(<String>['Apple', 'Banana']),
+        items: const <String>['Apple', 'Banana'],
         focused: true,
       );
       final buffer = canvas(8, 2);

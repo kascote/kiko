@@ -29,7 +29,7 @@ ListViewModel<String, String> _list(
   bool Function(int index)? isDisabled,
   ListViewStyle styles = const ListViewStyle(),
 }) => ListViewModel<String, String>(
-  dataView: DataView.fromList<String>(items),
+  items: items,
   focused: true,
   multiSelect: multiSelect,
   isDisabled: isDisabled,

@@ -66,7 +66,7 @@ const allItems = [
 class AppModel with ThemeSwitcher {
   final search = TextInputModel(placeholder: 'Type to filter...');
   late final list = ListViewModel<String, String>(
-    dataView: DataView.fromList(allItems),
+    items: allItems,
   );
 
   String _lastQuery = '';
@@ -82,14 +82,20 @@ class AppModel with ThemeSwitcher {
     return allItems.where((item) => item.toLowerCase().contains(query)).toList();
   }
 
-  /// Update list dataSource when filter changes.
+  /// Update the list's items when the filter changes.
   void refreshFilter() {
     final query = search.value;
     if (query == _lastQuery) return;
     _lastQuery = query;
 
-    // Swap the whole backing in — a synchronous client-side filter, not a load.
-    list.dataView = DataView.fromList(filteredItems);
+    // Replace the items wholesale — a synchronous client-side filter, not a
+    // load. The new length says where the data ends, so the list never asks
+    // for a page past it.
+    final items = filteredItems;
+    list
+      ..reset()
+      ..insertItems(items, 0)
+      ..totalCount = items.length;
   }
 }
 

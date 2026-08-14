@@ -32,7 +32,7 @@ void main() {
     ).update(msg),
     'ModalModel': (msg) => ModalModel().update(msg),
     'ScrollViewModel': (msg) => ScrollViewModel(focused: true).update(msg),
-    'ListViewModel': (msg) => ListViewModel<String, String>(dataView: DataBuffer(['a']), focused: true).update(msg),
+    'ListViewModel': (msg) => ListViewModel<String, String>(items: const ['a'], focused: true).update(msg),
     'TableViewModel': (msg) => TableViewModel(
       rows: rows,
       keyField: 'id',

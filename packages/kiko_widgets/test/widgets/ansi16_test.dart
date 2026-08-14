@@ -19,7 +19,7 @@ void main() {
   group('ANSI-16 degrades widget surfaces to the named tones16 pair', () {
     test('ListView cursor row', () {
       final model = ListViewModel<String, String>(
-        dataView: DataView.fromList<String>(<String>['Apple', 'Banana']),
+        items: const <String>['Apple', 'Banana'],
         focused: true,
       );
       final buffer = canvas(8, 2);

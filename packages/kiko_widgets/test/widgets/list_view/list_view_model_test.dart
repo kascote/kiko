@@ -22,7 +22,7 @@ void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused list without moving the cursor', () {
       final model = ListViewModel<String, String>(
-        dataView: DataView.fromList(List.generate(20, (i) => 'item$i')),
+        items: List.generate(20, (i) => 'item$i'),
       )..setVisibleCount(5);
 
       final result = model.update(pointer(PointerAction.wheelDown));
@@ -34,7 +34,7 @@ void main() {
 
     test('scrollBy clamps at both ends', () {
       final model = ListViewModel<String, String>(
-        dataView: DataView.fromList(List.generate(10, (i) => 'item$i')),
+        items: List.generate(10, (i) => 'item$i'),
       )..setVisibleCount(4);
 
       expect((model..scrollBy(-5)).scrollOffset, equals(0), reason: 'cannot scroll above the first row');
@@ -44,7 +44,7 @@ void main() {
 
     test('a horizontal wheel and a click past the last item are declined', () {
       final model = ListViewModel<String, String>(
-        dataView: DataView.fromList(['a', 'b', 'c']),
+        items: const ['a', 'b', 'c'],
         focused: true,
       )..setVisibleCount(2);
 
@@ -53,21 +53,23 @@ void main() {
       expect(model.scrollOffset, equals(0), reason: 'neither moved the viewport');
     });
 
-    test('a wheel to the bottom edge returns a LoadRequest (unfocused)', () {
+    test('a wheel toward a missing page returns a LoadRequest (unfocused)', () {
       final model = ListViewModel<String, String>(
-        dataView: DataBuffer<String>(List.generate(8, (i) => 'item$i'))..hasMore = true,
-        loadMoreThreshold: 2,
+        items: List.generate(5, (i) => 'item$i'),
+        totalCount: 15,
+        pageSize: 5,
+        loadThreshold: 2,
       )..setVisibleCount(5);
 
       final result = model.update(pointer(PointerAction.wheelDown));
 
       expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
-      expect(model.isLoading(), isTrue, reason: 'wheel alone crossed the load threshold');
+      expect(model.isLoading(), isTrue, reason: 'wheel alone brought a missing page into demand');
     });
 
     group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
       ListViewModel<String, String> scrollable({int items = 10, int visible = 5}) => ListViewModel<String, String>(
-        dataView: DataView.fromList(List.generate(items, (i) => 'item$i')),
+        items: List.generate(items, (i) => 'item$i'),
       )..setVisibleCount(visible);
 
       test('at the top, wheel-up declines while wheel-down handles', () {
@@ -113,7 +115,7 @@ void main() {
   group('mouse click + hover', () {
     ListViewModel<String, String> menu({bool focused = true}) => ListViewModel<String, String>(
       id: 'menu',
-      dataView: DataView.fromList(List.generate(6, (i) => 'item$i')),
+      items: List.generate(6, (i) => 'item$i'),
       focused: focused,
     )..setVisibleCount(6);
 
@@ -128,6 +130,19 @@ void main() {
       // The release half only refreshes hover — it does not fire a second time.
       final up = model.update(pointerOnRow(PointerAction.up, 3));
       expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+    });
+
+    test('a click on an item the window does not hold moves the cursor but emits nothing', () {
+      final model = ListViewModel<String, String>(
+        id: 'menu',
+        totalCount: 6,
+        focused: true,
+      )..setVisibleCount(6);
+
+      final down = model.update(pointerOnRow(PointerAction.down, 3));
+
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'nothing to activate, press consumed');
+      expect(model.cursor, equals(3), reason: 'the cursor still moves where the user pointed');
     });
 
     test('a press on no marked part (a separator or the tail) is declined', () {
@@ -159,36 +174,48 @@ void main() {
     group('initialization', () {
       test('default state', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a', 'b', 'c']),
+          items: const ['a', 'b', 'c'],
         );
         expect(model.cursor, equals(0));
         expect(model.getSelectedKeys(), isEmpty);
         expect(model.focused, isFalse);
-        expect(model.dataView.length, equals(3));
+        expect(model.knownItemCount, equals(3), reason: 'items are taken to be all the data');
         expect(model.cursorItem, equals('a'));
       });
 
       test('config fields', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a']),
+          items: const ['a'],
           itemHeight: 2,
           multiSelect: true,
-          loadMoreThreshold: 10,
+          loadThreshold: 10,
           focused: true,
         );
         expect(model.itemHeight, equals(2));
         expect(model.multiSelect, isTrue);
-        expect(model.loadMoreThreshold, equals(10));
+        expect(model.loadThreshold, equals(10));
         expect(model.focused, isTrue);
+      });
+
+      test('totalCount alongside items seeds a first page of something larger', () {
+        final model = ListViewModel<String, String>(
+          items: const ['a', 'b'],
+          totalCount: 10,
+          pageSize: 2,
+        );
+        expect(model.knownItemCount, equals(10));
+        expect(model.itemLimit, equals(10), reason: 'navigation can reach the end before it is loaded');
+        expect(model.getItem(0), equals('a'));
+        expect(model.getItem(2), isNull, reason: 'a page that has not arrived reads as absent');
       });
 
       test('custom itemKey', () {
         final model =
             ListViewModel<Map<String, dynamic>, String>(
-                dataView: DataView.fromList([
+                items: [
                   {'id': 'a', 'name': 'Alice'},
                   {'id': 'b', 'name': 'Bob'},
-                ]),
+                ],
                 itemKey: (item) => item['id'] as String,
                 multiSelect: true,
                 focused: true,
@@ -206,7 +233,7 @@ void main() {
 
       setUp(() {
         model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
+          items: const ['a', 'b', 'c', 'd', 'e'],
           focused: true,
         )..setVisibleCount(3);
       });
@@ -277,6 +304,25 @@ void main() {
           ..update(keyMsg('pageUp'));
         expect(model.cursor, equals(1));
       });
+
+      test('end jumps to the addressable limit and demands the destination page', () {
+        final paged = ListViewModel<String, String>(
+          items: const ['a', 'b', 'c', 'd', 'e'],
+          totalCount: 15,
+          pageSize: 5,
+          focused: true,
+        )..setVisibleCount(3);
+
+        final result = paged.update(keyMsg('end'));
+
+        expect(paged.cursor, equals(14));
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNotNull),
+          reason: 'the jump lands on missing pages',
+        );
+        expect(paged.isLoading(const PageKey(2)), isTrue, reason: 'the destination page is fetched first');
+      });
     });
 
     group('scroll offset', () {
@@ -284,9 +330,7 @@ void main() {
 
       setUp(() {
         model = ListViewModel<String, String>(
-          dataView: DataView.fromList(
-            List.generate(20, (i) => 'item$i'),
-          ),
+          items: List.generate(20, (i) => 'item$i'),
           focused: true,
         )..setVisibleCount(5);
       });
@@ -323,7 +367,7 @@ void main() {
       group('single select disabled by default', () {
         test('space does nothing without multiSelect', () {
           final model = ListViewModel<String, String>(
-            dataView: DataView.fromList(['a', 'b', 'c']),
+            items: const ['a', 'b', 'c'],
             focused: true,
           )..update(keyMsg('space'));
           expect(model.getSelectedKeys(), isEmpty);
@@ -335,7 +379,7 @@ void main() {
 
         setUp(() {
           model = ListViewModel<String, String>(
-            dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
+            items: const ['a', 'b', 'c', 'd', 'e'],
             multiSelect: true,
             focused: true,
           )..setVisibleCount(5);
@@ -371,7 +415,7 @@ void main() {
 
         setUp(() {
           model = ListViewModel<String, String>(
-            dataView: DataView.fromList(['a', 'b', 'c', 'd', 'e']),
+            items: const ['a', 'b', 'c', 'd', 'e'],
             multiSelect: true,
             focused: true,
           )..setVisibleCount(5);
@@ -429,22 +473,44 @@ void main() {
           expect(model.cursor, equals(3));
           expect(model.getSelectedKeys(), equals({'a', 'b', 'c', 'd'}));
         });
+      });
 
-        test('safe when data source shrinks after anchor set', () {
-          // Start range select at index 3
-          model
-            ..update(keyMsg('end')) // cursor at 4
-            ..update(keyMsg('shift+up')); // anchor at 4, cursor at 3
-          expect(model.getSelectedKeys(), equals({'d', 'e'}));
+      group('range completes itself over arriving pages', () {
+        ListViewModel<String, String> paged() => ListViewModel<String, String>(
+          items: const ['a', 'b'],
+          totalCount: 6,
+          pageSize: 2,
+          loadThreshold: 0,
+          multiSelect: true,
+          focused: true,
+        )..setVisibleCount(2);
 
-          // Shrink data source - anchor (4) now stale
-          model
-            ..dataView = DataView.fromList(['a', 'b'])
-            // Range select should not crash with stale anchor
-            // Loop iterates anchor..cursor but _safeItemAt returns null for invalid
-            ..update(keyMsg('shift+up'));
-          // Old keys remain, only valid index 1 ('b') added
-          expect(model.getSelectedKeys(), equals({'d', 'e', 'b'}));
+        test('a page landing inside an active range contributes its keys', () {
+          final model = paged()
+            ..update(keyMsg('shift+down')) // anchor 0, cursor 1: selects a, b
+            ..update(keyMsg('shift+down')); // cursor 2 — its page is missing, requested now
+          expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'row 2 cannot be captured yet');
+          expect(model.isLoading(const PageKey(1)), isTrue);
+
+          model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+
+          expect(
+            model.getSelectedKeys(),
+            equals({'a', 'b', 'c'}),
+            reason: 'row 2 was inside the range; row 3 was not',
+          );
+        });
+
+        test('a page landing after the anchor cleared contributes nothing', () {
+          final model = paged()
+            ..update(keyMsg('shift+down'))
+            ..update(keyMsg('shift+down')) // requests page 1
+            ..update(keyMsg('down')); // clears the anchor
+          expect(model.isLoading(const PageKey(1)), isTrue);
+
+          model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+
+          expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'no active range to complete');
         });
       });
 
@@ -452,7 +518,7 @@ void main() {
         test('disabled items cannot be checked', () {
           final model =
               ListViewModel<String, String>(
-                  dataView: DataView.fromList(['a', 'b', 'c']),
+                  items: const ['a', 'b', 'c'],
                   multiSelect: true,
                   isDisabled: (i) => i == 1,
                   focused: true,
@@ -466,7 +532,7 @@ void main() {
         test('range select skips disabled', () {
           final model =
               ListViewModel<String, String>(
-                  dataView: DataView.fromList(['a', 'b', 'c', 'd']),
+                  items: const ['a', 'b', 'c', 'd'],
                   multiSelect: true,
                   isDisabled: (i) => i == 1,
                   focused: true,
@@ -481,9 +547,9 @@ void main() {
     });
 
     group('commands', () {
-      test('enter returns ListConfirmCmd', () {
+      test('enter returns ListActionCmd', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a', 'b']),
+          items: const ['a', 'b'],
           focused: true,
         );
         final result = model.update(keyMsg('enter'));
@@ -495,9 +561,24 @@ void main() {
         expect((cmd! as ListActionCmd).id, equals(model.id));
       });
 
+      test('enter on an item the window does not hold is consumed and emits nothing', () {
+        final model = ListViewModel<String, String>(
+          totalCount: 4,
+          focused: true,
+        )..setVisibleCount(4);
+
+        final result = model.update(keyMsg('enter'));
+
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a declined confirm would fire the app fallback bindings',
+        );
+      });
+
       test('unhandled key declines', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a']),
+          items: const ['a'],
           focused: true,
         );
         final result = model.update(keyMsg('tab'));
@@ -506,7 +587,7 @@ void main() {
 
       test('unfocused declines', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a']),
+          items: const ['a'],
         );
         final result = model.update(keyMsg('down'));
         expect(result, isA<Declined>());
@@ -514,7 +595,7 @@ void main() {
 
       test('declines a message it does not know', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList(['a']),
+          items: const ['a'],
           focused: true,
         );
         final result = model.update(const NoneMsg());
@@ -523,52 +604,53 @@ void main() {
     });
 
     group('load requests', () {
-      // Viewport of 2 over 5 items: the load threshold keys on the viewport's
-      // bottom edge, so the list must be taller than the viewport for scrolling
-      // to bring that edge near the end (a fully visible list would sit at the
-      // edge from the start).
+      // Viewport of 2 over one held page of 5, in a data set of 15: demand keys
+      // on the viewport plus the threshold, so scrolling has to bring the
+      // window's edge near the page boundary before anything is asked for.
       ListViewModel<String, String> paginated() => ListViewModel<String, String>(
-        dataView: DataBuffer<String>(['a', 'b', 'c', 'd', 'e'])..hasMore = true,
-        loadMoreThreshold: 2,
+        items: const ['a', 'b', 'c', 'd', 'e'],
+        totalCount: 15,
+        pageSize: 5,
+        loadThreshold: 2,
         focused: true,
       )..setVisibleCount(2);
 
-      test('returns a LoadRequest when the cursor nears the end', () {
+      test('returns a LoadRequest when the viewport nears a missing page', () {
         final model = paginated()
           ..update(keyMsg('down')) // cursor 1
           ..update(keyMsg('down')); // cursor 2
 
-        final result = model.update(keyMsg('down')); // cursor 3 — within threshold
+        final result = model.update(keyMsg('down')); // cursor 3 — threshold reaches page 1
         expect(
           result,
           isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
         );
         final cmd = (result as Handled).cmd;
         expect((cmd! as LoadRequest).id, equals(model.id));
-        expect((cmd as LoadRequest).key, equals(ListLoadKey.self));
+        expect((cmd as LoadRequest).key, equals(const PageKey(1)));
         expect(model.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
       });
 
-      test('does not re-request while a load is already in flight (self-dedup)', () {
+      test('does not re-request while the page is already in flight (self-dedup)', () {
         final model = paginated()
           ..update(keyMsg('down'))
           ..update(keyMsg('down'))
-          ..update(keyMsg('down')); // first request emitted, slot now loading
+          ..update(keyMsg('down')); // first request emitted, page 1 now loading
         expect(model.isLoading(), isTrue);
 
         final result = model.update(keyMsg('down'));
         expect(
           result,
           isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
-          reason: 'the slot is already loading',
+          reason: 'the page is already on its way',
         );
       });
 
-      test('not emitted when hasMore is false', () {
+      test('a fully held list never requests', () {
         final model =
             ListViewModel<String, String>(
-                dataView: DataView.fromList(['a', 'b', 'c']),
-                loadMoreThreshold: 2,
+                items: const ['a', 'b', 'c'],
+                loadThreshold: 2,
                 focused: true,
               )
               ..setVisibleCount(5)
@@ -576,106 +658,170 @@ void main() {
               ..update(keyMsg('down'));
 
         final result = model.update(keyMsg('down'));
-        // A static fromList view has hasMore = false, so no request.
+        // Items seeded with no totalCount are all the data: no page is missing.
         expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       });
     });
 
     group('load lifecycle', () {
-      ListViewModel<String, String> paginated() => ListViewModel<String, String>(
-        dataView: DataBuffer<String>(['a', 'b']),
+      ListViewModel<String, String> paged() => ListViewModel<String, String>(
         pageSize: 2,
         focused: true,
       )..setVisibleCount(5);
 
-      test('loadFirstPage marks the slot loading and returns a request', () {
-        final model = ListViewModel<String, String>(
-          dataView: DataBuffer<String>(),
-          pageSize: 2,
-          focused: true,
-        );
+      test('loadFirstPage marks page 0 loading and returns a request', () {
+        final model = paged();
         final req = model.loadFirstPage();
         expect(req.id, equals(model.id));
-        expect(req.key, equals(ListLoadKey.self));
-        expect(model.isLoading(), isTrue);
+        expect(req.key, equals(const PageKey(0)));
+        expect(model.isLoading(const PageKey(0)), isTrue);
       });
 
-      test('applyLoad appends the page and clears the slot', () {
-        final model = paginated();
+      test('applyLoad installs the page and clears the slot', () {
+        final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['c', 'd']));
+        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
 
-        expect(model.dataView.length, equals(4));
+        expect(model.getItem(0), equals('a'));
         expect(model.cursorItem, equals('a'));
         expect(model.isLoading(), isFalse);
-        expect(model.dataView.hasMore, isTrue, reason: 'a full page means more may remain');
+        expect(model.knownItemCount, isNull, reason: 'a full page says nothing about where the data ends');
       });
 
-      test('a short page ends pagination', () {
-        final model = paginated();
+      test('a short page records where the data ends', () {
+        final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['c']));
+        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['a']));
 
-        expect(model.dataView.length, equals(3));
-        expect(model.dataView.hasMore, isFalse);
+        expect(model.knownItemCount, equals(1));
+        expect(model.itemLimit, equals(1));
       });
 
       test('a failed load records the error and is retryable', () {
-        final model = paginated();
+        final model = paged();
         final req = model.loadFirstPage();
         model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, error: 'boom'));
 
         expect(model.isLoading(), isFalse);
-        expect(model.errorFor(ListLoadKey.self), equals('boom'));
+        expect(model.errorFor(const PageKey(0)), equals('boom'));
+        expect(model.demand(), isNotNull, reason: 'the next demand pass retries');
+        expect(model.isLoading(const PageKey(0)), isTrue, reason: 'the failed page is asked for again');
       });
 
       test('a refused load clears the slot and installs nothing', () {
-        final model = ListViewModel<String, String>(
-          dataView: DataBuffer<String>(['a', 'b'])..hasMore = true,
-          pageSize: 2,
-          focused: true,
-        )..setVisibleCount(5);
+        final model = paged();
         final req = model.loadFirstPage();
         model.applyLoad(LoadResult<List<String>>.cancelled(req.id, key: req.key));
 
         expect(model.isLoading(), isFalse, reason: 'the slot returns to idle, so the page can be asked for again');
-        expect(model.errorFor(ListLoadKey.self), isNull, reason: 'nothing failed');
-        expect(model.dataView.length, equals(2), reason: 'no items were installed');
-        expect(model.dataView.hasMore, isTrue, reason: 'a refusal teaches the list nothing about where data ends');
+        expect(model.errorFor(const PageKey(0)), isNull, reason: 'nothing failed');
+        expect(model.cachedItemCount, equals(0), reason: 'no items were installed');
+        expect(model.knownItemCount, isNull, reason: 'a refusal teaches the list nothing about where data ends');
       });
 
-      test('a result for an idle slot is dropped (staleness guard)', () {
-        final model = paginated();
-        // No loadFirstPage — the slot is idle, so this is a stale arrival.
-        model.applyLoad(LoadResult<List<String>>(model.id, key: ListLoadKey.self, data: const ['x']));
-        expect(model.dataView.length, equals(2), reason: 'a stale result must not append');
+      test('a result for a page not in flight is dropped (staleness guard)', () {
+        final model = paged();
+        // No loadFirstPage — the page is not in flight, so this is a stale arrival.
+        model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(0), data: const ['x']));
+        expect(model.cachedItemCount, equals(0), reason: 'a stale result must not install');
       });
 
       test('a result for another id is ignored', () {
-        final model = paginated()
+        final model = paged()
           ..loadFirstPage()
-          ..applyLoad(const LoadResult<List<String>>('other', key: ListLoadKey.self, data: ['x']));
+          ..applyLoad(const LoadResult<List<String>>('other', key: PageKey(0), data: ['x']));
 
-        expect(model.dataView.length, equals(2));
+        expect(model.cachedItemCount, equals(0));
         expect(model.isLoading(), isTrue, reason: 'still waiting for its own result');
+      });
+    });
+
+    group('the end landing closer than navigation reached', () {
+      // One held page of 5, end unknown: pages past it are presumed to exist,
+      // so navigation runs ahead into rows whose fetch is still out.
+      ListViewModel<String, String> ranAhead() {
+        // Seed through insertItems, not `items:` — a constructor seed is taken
+        // to be all the data, and this scenario needs the end unknown.
+        final model =
+            ListViewModel<String, String>(
+                pageSize: 5,
+                loadThreshold: 2,
+                focused: true,
+              )
+              ..insertItems(const ['a', 'b', 'c', 'd', 'e'], 0)
+              ..setVisibleCount(3)
+              ..update(keyMsg('pageDown')) // cursor 3 — demand puts page 1 in flight
+              ..update(keyMsg('pageDown')) // cursor 6, into the pending page
+              ..update(keyMsg('pageDown')); // cursor 9, scroll 7
+        expect(model.cursor, equals(9));
+        expect(model.scrollOffset, equals(7));
+        return model;
+      }
+
+      test('a short page pulls the cursor and viewport back to the real end', () {
+        final model = ranAhead();
+        final short = LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['f']);
+        model.applyLoad(short);
+
+        expect(model.knownItemCount, equals(6));
+        expect(model.cursor, equals(5), reason: 'the rows past the end stopped existing');
+        expect(model.scrollOffset, equals(3), reason: 'the last item lands on the bottom row (6 - 3 visible)');
+        expect(model.cursorItem, equals('f'));
+      });
+
+      test('a count landing closer than the cursor pulls both back', () {
+        final model = ranAhead()..totalCount = 6;
+
+        expect(model.cursor, equals(5));
+        expect(model.scrollOffset, equals(3));
+      });
+    });
+
+    group('wholesale replacement', () {
+      test('reset + insertItems + totalCount swaps the data and rewinds the view', () {
+        final model =
+            ListViewModel<String, String>(
+                items: const ['a', 'b', 'c', 'd', 'e'],
+                multiSelect: true,
+                focused: true,
+              )
+              ..setVisibleCount(3)
+              ..update(keyMsg('space'))
+              ..update(keyMsg('end'));
+        expect(model.getSelectedKeys(), isNotEmpty);
+        expect(model.cursor, equals(4));
+
+        const filtered = ['b', 'd'];
+        model
+          ..reset()
+          ..insertItems(filtered, 0)
+          ..totalCount = filtered.length;
+
+        expect(model.cursor, equals(0));
+        expect(model.scrollOffset, equals(0));
+        expect(model.getSelectedKeys(), isEmpty);
+        expect(model.knownItemCount, equals(2));
+        expect(model.getItem(0), equals('b'));
+        expect(model.demand(), isNull, reason: 'the new length says where the data ends');
       });
     });
 
     group('empty list', () {
       test('handles empty data source', () {
         final model = ListViewModel<String, String>(
-          dataView: DataView.fromList([]),
+          items: const [],
           focused: true,
         );
         expect(model.cursor, equals(0));
         expect(model.cursorItem, isNull);
-        expect(model.dataView.length, equals(0));
+        expect(model.knownItemCount, equals(0));
+        expect(model.itemLimit, equals(0));
       });
 
       test('navigation on empty list is safe', () {
         final model =
             ListViewModel<String, String>(
-                dataView: DataView.fromList([]),
+                items: const [],
                 focused: true,
               )
               ..setVisibleCount(5)

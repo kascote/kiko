@@ -25,8 +25,7 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
-ListViewModel<String, String> _list(List<String> items) =>
-    ListViewModel<String, String>(dataView: DataView.fromList<String>(items), focused: true);
+ListViewModel<String, String> _list(List<String> items) => ListViewModel<String, String>(items: items, focused: true);
 
 List<Line> _row(String item, int index, ItemState state) => [Line(item)];
 
@@ -95,6 +94,73 @@ void main() {
     });
   });
 
+  group('placeholders and the older run', () {
+    // Width 5 makes the skeleton run (5 * 3) ~/ 4 = 3 cells wide.
+    ListViewModel<String, String> paged() => ListViewModel<String, String>(
+      id: 'list',
+      items: const ['a', 'b', 'c'],
+      totalCount: 9,
+      pageSize: 3,
+      focused: true,
+    );
+
+    test('an item whose page is not held paints as a dim run', () {
+      final model = ListViewModel<String, String>(totalCount: 4, focused: true);
+      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+
+      expect(_dump((_frame(5, 4)..render(node)).buffer), '░░░\n░░░\n░░░\n░░░\n');
+    });
+
+    test('a wheel scroll into a page on its way paints the nearest held run', () {
+      final model = paged();
+      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+
+      // First frame fixes the visible count (3 rows) the model scrolls against.
+      _frame(5, 3).render(node);
+      // One notch lands the viewport fully on page 1, which is now in flight.
+      model.update(const PointerMsg(global: Position.origin, action: PointerAction.wheelDown, local: Position.origin));
+      expect(model.scrollOffset, equals(3));
+      expect(model.viewportStatus, SliceStatus.filling);
+
+      // The cursor (0) is off screen, so the held run stands in — while the
+      // reported scroll state keeps saying where the viewport really is.
+      expect(_dump((_frame(5, 3)..render(node)).buffer), 'a\nb\nc\n');
+      expect(model.getScrollState().offset, equals(3));
+    });
+
+    test('cursor navigation into a page on its way paints the true position', () {
+      final model = paged();
+      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+
+      _frame(5, 3).render(node);
+      for (var i = 0; i < 3; i++) {
+        model.update(const KeyMsg('down'));
+      }
+      expect(model.cursor, equals(3));
+      expect(model.viewportStatus, SliceStatus.filling);
+
+      // The cursor is on screen, so no older run may contradict it: the held
+      // rows paint where they are and the missing row paints as a run — marked
+      // with its real index, so a click on it addresses the row it appears to be.
+      final frame = _frame(5, 3)..render(node);
+      expect(_dump(frame.buffer), 'b\nc\n░░░\n');
+      expect(frame.hits.regionAt('list', 0, 2), const RowRegion(3));
+    });
+
+    test('missing rows with nothing coming paint the true position, not an older run', () {
+      final model = paged();
+      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+
+      _frame(5, 3).render(node);
+      // Move the viewport without running a demand pass: page 1 is missing and
+      // nothing is on its way, so the stall must show itself.
+      model.scrollBy(3);
+      expect(model.viewportStatus, SliceStatus.stalled);
+
+      expect(_dump((_frame(5, 3)..render(node)).buffer), '░░░\n░░░\n░░░\n');
+    });
+  });
+
   group('list view under a partial clip (viewport)', () {
     test('anchors content at the placement rect, not the clip sub-rect', () {
       // Simulates a Viewport ancestor showing only rows 2-4 of a list placed at
@@ -121,7 +187,7 @@ void main() {
     test('a click in the list resolves to its id', () {
       final model = ListViewModel<String, String>(
         id: 'menu',
-        dataView: DataView.fromList<String>(<String>['a', 'b']),
+        items: const ['a', 'b'],
         focused: true,
       );
       final frame = _frame(5, 2)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
@@ -140,7 +206,7 @@ void main() {
     HitMap regionsFor(List<String> items) {
       final model = ListViewModel<String, String>(
         id: 'list',
-        dataView: DataView.fromList<String>(items),
+        items: items,
         itemHeight: 2,
         focused: true,
       );

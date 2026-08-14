@@ -160,7 +160,7 @@ void main() {
   });
 
   group('fetchInto', () {
-    LoadRequest request(int page) => LoadRequest('products', key: TablePageKey(page));
+    LoadRequest request(int page) => LoadRequest('products', key: PageKey(page));
 
     Future<Msg> run(Cmd cmd) => (cmd as AsyncCmd).execute();
 
@@ -175,7 +175,7 @@ void main() {
       expect(msg, isA<LoadResult<PageResult<String>>>());
       final result = msg as LoadResult<PageResult<String>>;
       expect(result.id, equals('products'));
-      expect(result.key, equals(const TablePageKey(1)));
+      expect(result.key, equals(const PageKey(1)));
       expect(result.ok, isTrue);
       expect(result.data!.items.first, equals('r10'));
     });
@@ -193,13 +193,13 @@ void main() {
       expect(result.cancelled, isFalse);
       expect(result.error, same(boom));
       expect(result.id, equals('products'));
-      expect(result.key, equals(const TablePageKey(2)));
+      expect(result.key, equals(const PageKey(2)));
     });
 
     test('a request whose key names no page fails visibly', () async {
       final source = PageSource.offset<String>(pageSize: 10, read: (offset, limit) async => rows(10));
 
-      final cmd = fetchInto(const LoadRequest('products', key: ListLoadKey.self), source);
+      final cmd = fetchInto(const LoadRequest('products', key: RootsKey()), source);
 
       expect(cmd, isA<Emit>());
       final result = (cmd as Emit).msg as LoadResult<Object?>;

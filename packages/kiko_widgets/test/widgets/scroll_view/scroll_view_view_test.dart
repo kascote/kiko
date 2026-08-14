@@ -98,7 +98,7 @@ void main() {
     // outer can scroll too). The list shows 3 of its own 6 items at a time.
     ({ScrollViewModel outer, ListViewModel<String, String> list, HitMap hits}) build() {
       final outer = ScrollViewModel(id: 'outer');
-      final list = ListViewModel<String, String>(id: 'inner-list', dataView: DataView.fromList(_items));
+      final list = ListViewModel<String, String>(id: 'inner-list', items: _items);
 
       final content = Column(
         crossAxis: CrossAxisAlignment.stretch,

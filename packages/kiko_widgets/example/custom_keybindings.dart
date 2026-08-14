@@ -89,7 +89,7 @@ class AppModel with ThemeSwitcher {
       keyBinding: emacsTextInputBindings(),
     ),
     ListViewModel<String, String>(
-      dataView: DataView.fromList(_languages),
+      items: _languages,
       keyBinding: vimListBindings(),
     ),
   ]);

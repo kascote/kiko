@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:characters/characters.dart';
 
-import './extensions/int.dart';
-import './textarea.dart';
+import 'extensions/int.dart';
+import 'textarea.dart';
 
 /// Key type for LineInfo
 typedef RowKey = ({int row, int offset});

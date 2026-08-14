@@ -6,13 +6,13 @@ import 'package:test/test.dart';
 void main() {
   group('statusFor', () {
     /// A tracker over page keys, with [loading] begun and [failed] recorded.
-    LoadTracker<TablePageKey> tracker({List<int> loading = const [], List<int> failed = const []}) {
-      final loads = LoadTracker<TablePageKey>();
+    LoadTracker<PageKey> tracker({List<int> loading = const [], List<int> failed = const []}) {
+      final loads = LoadTracker<PageKey>();
       for (final page in loading) {
-        loads.begin(TablePageKey(page));
+        loads.begin(PageKey(page));
       }
       for (final page in failed) {
-        loads.fail(TablePageKey(page), 'boom');
+        loads.fail(PageKey(page), 'boom');
       }
       return loads;
     }
@@ -24,7 +24,7 @@ void main() {
       List<int> loading = const [],
       List<int> failed = const [],
     }) => statusFor(
-      pages.map(TablePageKey.new),
+      pages.map(PageKey.new),
       tracker(loading: loading, failed: failed),
       (key) => held.contains(key.page),
     );

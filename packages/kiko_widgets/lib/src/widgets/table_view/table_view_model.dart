@@ -1,10 +1,7 @@
 import 'package:kiko/kiko.dart';
-import 'package:kiko_log/kiko_log.dart';
 
-import '../../load/data_view.dart';
 import '../../load/load.dart';
-import '../../load/page_source.dart';
-import '../../load/page_window.dart';
+import '../../load/page_loader.dart';
 import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'table_column.dart';
@@ -20,7 +17,7 @@ import 'types.dart';
 /// sliding window over large datasets.
 ///
 /// The page is the unit of loading: each page gets its own load slot named by a
-/// [TablePageKey], so several pages can be in flight at once, a result places
+/// [PageKey], so several pages can be in flight at once, a result places
 /// itself, and a page is never asked for twice while it is on its way. The model
 /// performs no I/O — anything that moves the viewport runs a [demand] pass, which
 /// returns a [LoadRequest] (or a [Batch] of them) for the pages the viewport
@@ -71,7 +68,10 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// Column definitions.
   final List<TableColumn> columns;
 
-  /// Rows per page load.
+  /// Rows per page. Fixed for the life of the model: page boundaries are index
+  /// arithmetic, so every page except the last must contain exactly this many
+  /// rows. A source that cannot promise that must re-chunk before answering
+  /// (`PageSource.cursor` does).
   final int pageSize;
 
   /// How many pages beyond the ones the viewport needs stay in memory.
@@ -133,7 +133,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   int _scrollRow = 0;
   int _scrollCol = 0;
   final Set<String> _selected = {};
-  late final PageWindow<Map<String, Object?>> _window;
+  late final PageLoader<Map<String, Object?>> _loader;
   int _visibleRows = 0;
   int _visibleCols = 0;
 
@@ -144,24 +144,6 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// leaves. The renderer folds it into the hovered row's style as the weakest
   /// state, so a hovered selected or cursor row still reads selected or cursor.
   int? hoverRow;
-
-  final _loads = LoadTracker<TablePageKey>();
-
-  /// The pages whose fetches are outstanding. The tracker holds their state; this
-  /// says which slots to count against [maxConcurrentLoads] and which to clear on
-  /// a [reset].
-  final Set<int> _inFlight = {};
-
-  bool _demandDirty = false;
-  int _paintsWhileDirty = 0;
-  bool _pumpWarned = false;
-
-  /// Paints with demand outstanding before the model suspects the app is missing
-  /// its frame-tick arm. Half a second at 60fps — long enough that a fetch in
-  /// progress never trips it.
-  static const _pumpWarningPaints = 30;
-
-  int? _totalCount;
 
   /// Whether this model has focus.
   @override
@@ -200,8 +182,17 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
     this.focused = false,
   }) : id = id ?? autoId('tableview') {
     this.keyBinding = keyBinding ?? defaultTableViewBindings.copy();
-    _window = PageWindow<Map<String, Object?>>(pageSize: pageSize, keepPages: keepPages);
-    if (rows != null) _window.seed(rows);
+    _loader = PageLoader<Map<String, Object?>>(
+      id: this.id,
+      widgetName: 'TableView',
+      firstRow: () => _scrollRow,
+      visibleRows: () => _visibleRows,
+      pageSize: pageSize,
+      keepPages: keepPages,
+      loadThreshold: loadThreshold,
+      maxConcurrentLoads: maxConcurrentLoads,
+    );
+    if (rows != null) _loader.seed(rows);
     this.totalCount = totalCount ?? rows?.length;
   }
 
@@ -217,7 +208,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
 
   /// Key of current row, or null if no row at cursor.
   String? get cursorRowKey {
-    final row = _window.rowAt(_cursorRow);
+    final row = _loader.rowAt(_cursorRow);
     if (row == null) return null;
     final key = row[keyField];
     return key?.toString();
@@ -227,10 +218,10 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   String get cursorColField => _visibleColumns[_cursorCol].field;
 
   /// Value at cursor cell.
-  Object? get cursorCellValue => _window.rowAt(_cursorRow)?[cursorColField];
+  Object? get cursorCellValue => _loader.rowAt(_cursorRow)?[cursorColField];
 
   /// Full row data at cursor.
-  Map<String, Object?>? get cursorRowData => _window.rowAt(_cursorRow);
+  Map<String, Object?>? get cursorRowData => _loader.rowAt(_cursorRow);
 
   // ─────────────────────────────────────────────
   // Getters - Selection
@@ -241,7 +232,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
 
   /// Check if row at index is selected.
   bool isSelected(int rowIndex) {
-    final row = _window.rowAt(rowIndex);
+    final row = _loader.rowAt(rowIndex);
     if (row == null) return false;
     final key = row[keyField]?.toString();
     return key != null && _selected.contains(key);
@@ -298,11 +289,11 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// Set it when a count fetch lands: the model uses it to bound navigation and
   /// to know which pages exist, so a table with a count can jump straight to the
   /// end and fetch the page it landed on.
-  int? get totalCount => _totalCount;
+  int? get totalCount => _loader.totalCount;
 
   set totalCount(int? value) {
-    _totalCount = value;
-    if (value != null) _window.endAt(value <= 0 ? -1 : (value - 1) ~/ pageSize);
+    _loader.totalCount = value;
+    _clampToKnownEnd();
   }
 
   /// One past the last row the table can address: the total count when known,
@@ -313,37 +304,17 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// way — so the rows a pending page will fill can paint their placeholders,
   /// while a table whose size nothing has revealed still cannot scroll into a
   /// void.
-  int get rowLimit {
-    var limit = 0;
-    final pages = _window.present;
-    if (pages.isNotEmpty) {
-      limit = pages.last * pageSize + (_window.pageAt(pages.last)?.length ?? 0);
-    }
-    final known = knownRowCount;
-    if (known != null) return known > limit ? known : limit;
-    for (final page in _inFlight) {
-      final end = (page + 1) * pageSize;
-      if (end > limit) limit = end;
-    }
-    return limit;
-  }
+  int get rowLimit => _loader.rowLimit;
 
   /// How many rows exist, when that is known — from a total count, or from a
   /// short page that showed where the data ends. Null while it is unknown.
-  int? get knownRowCount {
-    if (_totalCount != null) return _totalCount;
-    final last = _window.lastPage;
-    if (last == null) return null;
-    if (last < 0) return 0;
-    final rows = _window.pageAt(last);
-    return rows == null ? (last + 1) * pageSize : last * pageSize + rows.length;
-  }
+  int? get knownRowCount => _loader.knownRowCount;
 
   /// Number of rows in the window.
-  int get cachedRowCount => _window.rowCount;
+  int get cachedRowCount => _loader.cachedRowCount;
 
   /// The pages currently held, ascending.
-  List<int> get cachedPages => _window.present;
+  List<int> get cachedPages => _loader.cachedPages;
 
   /// Visible columns (filtered by visible flag).
   List<TableColumn> get _visibleColumns => columns.where((c) => c.visible).toList();
@@ -360,10 +331,10 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
 
   /// Whether a page fetch is in flight — for [key] if given, otherwise for any
   /// page.
-  bool isLoading([TablePageKey? key]) => key == null ? _inFlight.isNotEmpty : _inFlight.contains(key.page);
+  bool isLoading([PageKey? key]) => _loader.isLoading(key);
 
   /// The error from a failed load for [key], or null if it didn't fail.
-  Object? errorFor(TablePageKey key) => _loads.errorFor(key);
+  Object? errorFor(PageKey key) => _loader.errorFor(key);
 
   /// What the rows the table is about to paint amount to: all here, filling in,
   /// failed, or missing with nothing coming.
@@ -376,21 +347,15 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// other fetch is outstanding: a stall with nothing at all in flight is the
   /// stuck state, and a stall behind a fetch drains itself when that fetch lands
   /// and re-arms demand.
-  SliceStatus get viewportStatus => _statusOf(_visibleSpan.pages.where(_window.exists));
+  SliceStatus get viewportStatus => _loader.viewportStatus;
 
   /// Whether a page above the viewport is being fetched — the fact a spinner
   /// over the top edge is driven from.
-  bool get isLoadingAbove {
-    final top = _window.pageOf(_scrollRow);
-    return _statusOf(_demandSpan.pages.where((page) => page < top)) == SliceStatus.filling;
-  }
+  bool get isLoadingAbove => _loader.isLoadingAbove;
 
   /// Whether a page below the viewport is being fetched — the fact a spinner
   /// under the bottom edge is driven from.
-  bool get isLoadingBelow {
-    final bottom = _window.pageOf(_scrollRow + (_visibleRows > 0 ? _visibleRows - 1 : 0));
-    return _statusOf(_demandSpan.pages.where((page) => page > bottom)) == SliceStatus.filling;
-  }
+  bool get isLoadingBelow => _loader.isLoadingBelow;
 
   /// The first row of the nearest run of [count] rows the window holds whole, or
   /// null when it holds no such run.
@@ -399,48 +364,15 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// blanking: the closest complete stretch of rows to where the viewport is
   /// heading. Its own position is reported by [getScrollState], so the chrome
   /// stays honest about where the cursor actually is.
-  int? nearestHeldStart(int count) {
-    if (count <= 0) return null;
-    final pages = _window.present;
-    if (pages.isEmpty) return null;
-
-    int? best;
-    var runStart = pages.first;
-    for (var i = 0; i < pages.length; i++) {
-      final isLast = i == pages.length - 1;
-      if (!isLast && pages[i + 1] == pages[i] + 1) continue;
-      // pages[runStart..pages[i]] is a run of consecutive held pages.
-      final firstRow = runStart * pageSize;
-      final lastRow = pages[i] * pageSize + (_window.pageAt(pages[i])?.length ?? 0);
-      if (lastRow - firstRow >= count) {
-        final candidate = _scrollRow.clamp(firstRow, lastRow - count);
-        if (best == null || (candidate - _scrollRow).abs() < (best - _scrollRow).abs()) best = candidate;
-      }
-      if (!isLast) runStart = pages[i + 1];
-    }
-    return best;
-  }
-
-  /// A read-only view over the cached rows.
-  ///
-  /// [DataView.length] is the total row count (null until known), and
-  /// [DataView.hasMore] reports whether any page is still missing. Only rows in
-  /// pages the window holds are readable: [DataView.itemAt] throws for a row in
-  /// an absent page, so the widget reads through [getRow] to render holes as
-  /// placeholders.
-  DataView<Map<String, Object?>> get dataView => _dataView;
-  late final _dataView = _TableDataView(this);
+  int? nearestHeldStart(int count) => _loader.nearestHeldStart(count);
 
   /// Starts the initial page load: marks page 0 loading and returns the
   /// [LoadRequest] for the app to fetch.
   ///
   /// The app calls this once (e.g. on init), fetches the page named by the
-  /// request's [TablePageKey], and installs the result via [applyLoad]. Every
+  /// request's [PageKey], and installs the result via [applyLoad]. Every
   /// page after this one is asked for by [demand].
-  LoadRequest loadFirstPage() {
-    _beginLoad(0);
-    return LoadRequest(id, key: const TablePageKey(0));
-  }
+  LoadRequest loadFirstPage() => _loader.loadFirstPage();
 
   /// Asks for the pages the viewport needs and does not have.
   ///
@@ -456,20 +388,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// app calls it when its own state changes what it is willing to fetch — after
   /// a policy gate that was refusing requests lifts, say — since a refusal
   /// deliberately never re-triggers demand on its own.
-  Cmd? demand() {
-    _demandDirty = false;
-    _paintsWhileDirty = 0;
-    final budget = maxConcurrentLoads - _inFlight.length;
-    if (budget <= 0) return null;
-    final pages = _window.missing(_demandSpan, pending: _inFlight.contains, limit: budget);
-    if (pages.isEmpty) return null;
-    final requests = <Cmd>[];
-    for (final page in pages) {
-      _beginLoad(page);
-      requests.add(LoadRequest(id, key: TablePageKey(page)));
-    }
-    return requests.length == 1 ? requests.first : Batch(requests);
-  }
+  Cmd? demand() => _loader.demand();
 
   /// Runs a [demand] pass only if something has changed what is missing, and
   /// returns whatever it asks for.
@@ -481,7 +400,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// in-flight cap may have truncated), and [markDemandDirty]. A refused or
   /// failed request arms nothing, which is what keeps a standing refusal from
   /// becoming a request every frame.
-  Cmd? demandIfDirty() => _demandDirty ? demand() : null;
+  Cmd? demandIfDirty() => _loader.demandIfDirty();
 
   /// Arms the next [demandIfDirty] pass.
   ///
@@ -489,12 +408,12 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// clearing — when the pages it was refusing should now be fetched. It is the
   /// same recovery as calling [demand] directly, without a command to thread out
   /// of wherever that state lives.
-  void markDemandDirty() => _demandDirty = true;
+  void markDemandDirty() => _loader.markDemandDirty();
 
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
   /// This is the app's single entry point for delivering a fetched page, keyed by
-  /// page number ([TablePageKey]). A result for another model (by id), a non-page
+  /// page number ([PageKey]). A result for another model (by id), a non-page
   /// key, or a page that is no longer in flight (e.g. after a [reset]) is dropped
   /// rather than corrupting the window.
   ///
@@ -505,38 +424,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// a later demand pass retries the page.
   @override
   void applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return;
-    final key = result.key;
-    if (key is! TablePageKey) return;
-    final page = key.page;
-    // Staleness guard: only a page still in flight accepts a result.
-    if (!_inFlight.contains(page)) return;
-    if (result.cancelled) {
-      _finishLoad(page);
-      return;
-    }
-    if (result.ok) {
-      // A page arrives either as plain rows or as the PageResult a PageSource
-      // returns, which may also carry a count or an outright end-of-data.
-      final data = result.data;
-      final rows = switch (data) {
-        PageResult<Map<String, Object?>>(:final items) => items,
-        final List<Map<String, Object?>> list => list,
-        _ => const <Map<String, Object?>>[],
-      };
-      _window.install(page, rows, demand: _demandSpan);
-      if (data is PageResult<Map<String, Object?>>) {
-        if (data.hasMore == false) _window.endAt(page);
-        if (data.totalCount != null) totalCount = data.totalCount;
-      }
-      _finishLoad(page);
-      // Progress: a slot is free and the window changed, so re-derive what is
-      // still missing on the next tick. This is what drains a demand window the
-      // in-flight cap truncated, with no input at all.
-      markDemandDirty();
-    } else {
-      _finishLoad(page, error: result.error);
-    }
+    if (_loader.apply(result)) _clampToKnownEnd();
   }
 
   // ─────────────────────────────────────────────
@@ -551,22 +439,9 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// up on the next frame. If demand stays armed across many paints, the model
   /// says once, in the log, that the arm is probably missing.
   void setVisibleDimensions(int rows, int cols) {
-    if (rows != _visibleRows) _demandDirty = true;
     _visibleRows = rows;
     _visibleCols = cols;
-    if (!_demandDirty) {
-      _paintsWhileDirty = 0;
-      return;
-    }
-    _paintsWhileDirty++;
-    if (_paintsWhileDirty > _pumpWarningPaints && !_pumpWarned) {
-      _pumpWarned = true;
-      Log.warn(
-        'TableView "$id" has had pages to demand for $_paintsWhileDirty frames '
-        'without a demand pass. Add the frame-tick arm to your update: '
-        'FrameTickMsg() => (model, table.demandIfDirty())',
-      );
-    }
+    _loader.notePaint();
   }
 
   // ─────────────────────────────────────────────
@@ -580,51 +455,19 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// size, and nothing is evicted: a caller handing over data it already has
   /// means to keep it. Pages that arrive from a [LoadRequest] go through
   /// [applyLoad] instead, which is what evicts.
-  void insertRows(List<Map<String, Object?>> rows, int pageNum) => _window.seed(rows, firstPage: pageNum);
+  void insertRows(List<Map<String, Object?>> rows, int pageNum) => _loader.seed(rows, firstPage: pageNum);
 
   /// Get row at index from the window, or null if its page isn't held.
-  Map<String, Object?>? getRow(int index) => _window.rowAt(index);
+  Map<String, Object?>? getRow(int index) => _loader.rowAt(index);
 
   /// Clear the window and reset state.
   void reset() {
-    _window.clear();
     _cursorRow = 0;
     _cursorCol = 0;
     _scrollRow = 0;
     _scrollCol = 0;
     _selected.clear();
-    for (final page in _inFlight) {
-      _loads.complete(TablePageKey(page));
-    }
-    _inFlight.clear();
-    _demandDirty = false;
-    _paintsWhileDirty = 0;
-    // A cleared window forgets where the data ends; a known total still says.
-    totalCount = _totalCount;
-  }
-
-  /// The pages the viewport is painting right now, with no threshold reach.
-  PageSpan get _visibleSpan => _window.spanFor(firstRow: _scrollRow, rowCount: _visibleRows);
-
-  /// What [pages] amount to, as the shared load machinery sees them.
-  SliceStatus _statusOf(Iterable<int> pages) =>
-      statusFor(pages.map(TablePageKey.new), _loads, (key) => _window.has(key.page));
-
-  /// The pages the viewport is asking for right now.
-  PageSpan get _demandSpan => _window.spanFor(firstRow: _scrollRow, rowCount: _visibleRows, threshold: loadThreshold);
-
-  void _beginLoad(int page) {
-    _inFlight.add(page);
-    _loads.begin(TablePageKey(page));
-  }
-
-  void _finishLoad(int page, {Object? error}) {
-    _inFlight.remove(page);
-    if (error == null) {
-      _loads.complete(TablePageKey(page));
-    } else {
-      _loads.fail(TablePageKey(page), error);
-    }
+    _loader.reset();
   }
 
   // ─────────────────────────────────────────────
@@ -745,6 +588,24 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
     _adjustScrollToCursor();
   }
 
+  /// Pulls the cursor and the viewport back when the end of the data lands
+  /// closer than navigation had reached.
+  ///
+  /// Navigation may run ahead into pages still on their way. When the end then
+  /// lands — a short page, or a total count — the rows past it stop existing,
+  /// so the cursor clamps to the last row and the viewport clamps so that row
+  /// sits on the bottom line. Only a known end clamps: a limit that shrank
+  /// because a refusal resolved an in-flight page says nothing about which
+  /// rows exist.
+  void _clampToKnownEnd() {
+    final known = knownRowCount;
+    if (known == null) return;
+    final maxRow = known - 1;
+    if (_cursorRow > maxRow) _cursorRow = maxRow < 0 ? 0 : maxRow;
+    final maxOffset = known - _visibleRows;
+    if (_scrollRow > maxOffset) _scrollRow = maxOffset < 0 ? 0 : maxOffset;
+  }
+
   void _moveCursorCol(int delta) {
     final maxCol = (_visibleColumns.length - 1).clamp(0, 999);
     _cursorCol = (_cursorCol + delta).clamp(0, maxCol);
@@ -786,35 +647,6 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
     } else {
       _selected.add(key);
     }
-  }
-}
-
-/// Read-only [DataView] over a table model's windowed row cache.
-class _TableDataView implements DataView<Map<String, Object?>> {
-  _TableDataView(this._model);
-
-  final TableViewModel _model;
-
-  @override
-  int? get length => _model.totalCount;
-
-  @override
-  bool get hasMore {
-    final last = _model._window.lastPage;
-    if (last == null) return true;
-    return _model._window.pageCount < last + 1;
-  }
-
-  @override
-  Map<String, Object?> itemAt(int index) {
-    final row = _model._window.rowAt(index);
-    if (row == null) {
-      throw StateError(
-        'TableView row $index is not loaded; the windowed view exposes only '
-        'cached rows. Use getRow for hole-tolerant access.',
-      );
-    }
-    return row;
   }
 }
 

@@ -73,7 +73,7 @@ class AppModel {
     ],
   );
 
-  late final list = ListViewModel<String, String>(id: 'departments', dataView: DataView.fromList(departments));
+  late final list = ListViewModel<String, String>(id: 'departments', items: departments);
 
   late final FocusGroup<Component> focus = FocusGroup([table, list]);
 

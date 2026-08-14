@@ -110,6 +110,7 @@ typedef ItemState = ({bool checked, bool cursor, bool disabled});
 /// | `item`         | none (inherits the pane fill)| —                 |
 /// | `selectedItem` | `theme.selection.fill`       | selected × fill   |
 /// | `cursorItem`   | `theme.cursor.fill` + bold   | cursor × fill     |
+/// | `loadingItem`  | `theme.muted.ink`            | anatomy-specific  |
 /// | `placeholder`  | `theme.muted.ink`            | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
@@ -128,6 +129,9 @@ class ListViewStyle {
   /// The current item — the keyboard cursor position.
   final Style? cursorItem;
 
+  /// Placeholder runs for items whose page isn't held.
+  final Style? loadingItem;
+
   /// The empty-state line.
   final Style? placeholder;
 
@@ -136,6 +140,7 @@ class ListViewStyle {
     this.item,
     this.selectedItem,
     this.cursorItem,
+    this.loadingItem,
     this.placeholder,
   });
 }

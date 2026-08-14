@@ -100,7 +100,7 @@ class LoadRequest extends Cmd {
   /// Identifies the widget that needs data.
   final String id;
 
-  /// Names which load within that widget (e.g. [PathKey], [TablePageKey]).
+  /// Names which load within that widget (e.g. [PathKey], [PageKey]).
   final Object? key;
 
   @override
@@ -288,38 +288,33 @@ class PathKey extends TreeLoadKey {
   String toString() => 'PathKey($path)';
 }
 
-/// Names which table page is loading, by its page number.
+/// Names which page is loading, by its page number.
 ///
-/// A table names the thing it is loading the way the tree names a branch with a
-/// [PathKey]: the key carries the page, so each page gets its own slot, several
-/// pages can be in flight at once, and a result places itself without the model
-/// having to remember which page it reserved for which direction.
+/// A windowed widget names the thing it is loading the way the tree names a
+/// branch with a [PathKey]: the key carries the page, so each page gets its own
+/// slot, several pages can be in flight at once, and a result places itself
+/// without the model having to remember which page it reserved for which
+/// direction.
 ///
 /// The total row count isn't a key here on purpose — a missing count only leaves
 /// the scrollbar indeterminate, so the app fetches it separately without load
 /// state.
 @immutable
-class TablePageKey {
+class PageKey {
   /// Creates a key for the page numbered [page], counting from zero.
-  const TablePageKey(this.page);
+  const PageKey(this.page);
 
   /// The page being loaded — rows `[page * pageSize, page * pageSize + pageSize)`.
   final int page;
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is TablePageKey && other.page == page;
+  bool operator ==(Object other) => identical(this, other) || other is PageKey && other.page == page;
 
   @override
   int get hashCode => page.hashCode;
 
   @override
-  String toString() => 'TablePageKey($page)';
-}
-
-/// Names the single load a list has: appending the next page at the end.
-enum ListLoadKey {
-  /// The list's one load slot.
-  self,
+  String toString() => 'PageKey($page)';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -362,7 +357,7 @@ enum SliceStatus {
 ///
 /// ```dart
 /// final status = statusFor(
-///   visiblePages.map(TablePageKey.new),
+///   visiblePages.map(PageKey.new),
 ///   loads,
 ///   (key) => window.has(key.page),
 /// );

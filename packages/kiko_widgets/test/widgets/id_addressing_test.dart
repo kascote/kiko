@@ -156,7 +156,7 @@ void main() {
 
       // A result addressed to an instance that no longer exists (row deleted,
       // tab closed, list rebuilt) — exactly the orphan case references hid.
-      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: const TablePageKey(1), data: rows(3));
+      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: const PageKey(1), data: rows(3));
       final dest = app.resolve(orphan.id);
       dest?.applyLoad(orphan);
 

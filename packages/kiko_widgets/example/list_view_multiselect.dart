@@ -51,7 +51,7 @@ final contacts = [
 
 class AppModel with ThemeSwitcher {
   late final list = ListViewModel<Contact, String>(
-    dataView: DataView.fromList(contacts),
+    items: contacts,
     itemKey: (c) => c.id, // use ID for selection tracking
     itemHeight: 2, // 2 lines per item
     multiSelect: true,

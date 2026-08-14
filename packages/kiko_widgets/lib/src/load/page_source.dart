@@ -61,6 +61,11 @@ class PageResult<T> {
 /// ```
 abstract interface class PageSource<T> {
   /// Rows per page — the fixed index unit the widget windows over.
+  ///
+  /// This is a guarantee, not a hint: every page except the last must contain
+  /// exactly this many rows, because page boundaries are index arithmetic. A
+  /// source that cannot promise that must re-chunk before answering, the way
+  /// [PageSource.cursor] does.
   int get pageSize;
 
   /// The rows of [page]: indexes `[page * pageSize, page * pageSize + pageSize)`.
@@ -151,7 +156,7 @@ class CursorChunk<T, C> {
 /// ```
 Cmd fetchInto<T>(LoadRequest request, PageSource<T> source) {
   final key = request.key;
-  if (key is! TablePageKey) {
+  if (key is! PageKey) {
     return declineLoad(request, error: 'fetchInto: ${request.key} does not name a page');
   }
   return Task<PageResult<T>>(

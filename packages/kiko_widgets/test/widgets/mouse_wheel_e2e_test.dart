@@ -46,8 +46,10 @@ void main() {
   test('a wheel to the bottom edge loads the next page (list, end-to-end)', () async {
     final backend = TestBackend(size: const TermSize(12, 6));
     final list = ListViewModel<String, String>(
-      dataView: DataBuffer<String>(List.generate(8, (i) => 'item$i'))..hasMore = true,
-      loadMoreThreshold: 2,
+      items: List.generate(10, (i) => 'item$i'),
+      totalCount: 30,
+      pageSize: 10,
+      loadThreshold: 2,
       id: 'list',
     );
 
@@ -66,7 +68,7 @@ void main() {
 
     expect(requests, isNotEmpty, reason: 'wheel alone should page the next batch in');
     expect(requests.first.id, equals('list'));
-    expect(requests.first.key, equals(ListLoadKey.self));
+    expect(requests.first.key, equals(const PageKey(1)));
   });
 
   test('a wheel to the bottom edge loads the next page (table, end-to-end)', () async {
@@ -92,6 +94,6 @@ void main() {
 
     expect(requests, isNotEmpty, reason: 'wheel alone should page the next batch in');
     expect(requests.first.id, equals('table'));
-    expect(requests.first.key, equals(const TablePageKey(1)));
+    expect(requests.first.key, equals(const PageKey(1)));
   });
 }

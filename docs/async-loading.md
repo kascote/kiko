@@ -223,7 +223,15 @@ The stored count is current best knowledge, not the app's last word. Evidence
 that ends the data earlier — a short page, an empty page, an end-of-data
 flag — tightens the stored count to match. The widget then never scrolls over
 rows no demand pass will fetch. A count set after that evidence overwrites it
-and re-opens the data.
+and re-opens the data. The refutation also runs the other way: a fetched page
+that reaches past the stored count clears it. A full page landing on the
+recorded last page withdraws that record too. Demand then probes past the old
+end, and a short page ends the data where the grown source now stops.
+
+`reset()` is a cold start: it drops every page, the recorded end, and the
+stored count. A refresh built on `reset()` therefore rediscovers a grown
+source with no new count. An app that still trusts its total sets
+`totalCount` again after the reset, as the wholesale-replace idiom does.
 
 The scrollbar reads only `int? total` (null ⇒ indeterminate thumb);
 scroll **composes with** load, it does not merge — `total` going unknown → 10

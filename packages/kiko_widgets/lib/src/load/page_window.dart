@@ -241,6 +241,14 @@ class PageWindow<T> {
   /// end-of-data flag on the response — rather than by returning a short page.
   void endAt(int page) => _recordEnd(page);
 
+  /// Forgets where the data ends, keeping every held page.
+  ///
+  /// [install] withdraws the record on its own when a full page lands past it.
+  /// Call this when evidence the window cannot see refutes the record — the
+  /// loader does, when a landed page disproves the row count that placed the
+  /// end.
+  void withdrawEnd() => _lastPage = null;
+
   /// Drops every page, and forgets where the data ended.
   void clear() {
     _pages.clear();

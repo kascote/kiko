@@ -113,7 +113,9 @@ class PageLoader<T> {
   /// Evidence that ends the data earlier — a short page, an empty page, an
   /// end-of-data flag — tightens the count to match, so it never reports rows
   /// no demand pass will fetch. Setting it again overwrites the tightened
-  /// value: a count that arrives after such evidence re-opens the data.
+  /// value: a count that arrives after such evidence re-opens the data. A
+  /// fetched page reaching past the count refutes it outright: the count
+  /// clears, and the size is rediscovered the way a cold start finds it.
   int? get totalCount => _totalCount;
 
   set totalCount(int? value) {
@@ -329,6 +331,9 @@ class PageLoader<T> {
   ///
   /// On success the rows install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. A
+  /// page reaching past the stored count refutes it, and the count clears; a
+  /// full page on the recorded end page withdraws that record too, so a
+  /// grown source is rediscovered rather than clipped to old knowledge. A
   /// refusal clears the slot and installs nothing, so the page keeps its
   /// placeholders and is asked for again by the next demand pass. A failure
   /// records the error, and a later demand pass retries the page.
@@ -361,6 +366,15 @@ class PageLoader<T> {
     if (rows.length < pageSize) {
       _warnContradictoryShortPage(page, rows.length, data is PageResult<T> ? data.totalCount : null);
     }
+    // Rows in hand past the stored count refute it, so the count clears. A
+    // full page on the recorded end page also withdraws that record: the
+    // evidence that placed it claimed fewer rows than just landed. Demand
+    // then probes past the old end and rediscovers where the data stops.
+    final count = _totalCount;
+    if (count != null && page * pageSize + rows.length > count) {
+      _totalCount = null;
+      if (rows.length >= pageSize && _window.lastPage == page) _window.withdrawEnd();
+    }
     _window.install(page, rows, demand: _demandSpan);
     if (data is PageResult<T> && data.hasMore == false) {
       // The flag only ends the data early; a short page ended it already.
@@ -392,8 +406,13 @@ class PageLoader<T> {
     _normalizeCount();
   }
 
-  /// Drops every page, resolves every slot, and forgets where the data ended —
-  /// a known [totalCount] still says.
+  /// Drops every page, resolves every slot, and forgets what the data taught —
+  /// the recorded end and the stored count alike.
+  ///
+  /// A reset is a cold start. The next passes re-fetch pages and rediscover
+  /// where the data ends, so a refresh reaches rows the source grew since the
+  /// last look. An app that still trusts a total sets [totalCount] again after
+  /// the reset, as the wholesale-replace idiom does.
   void reset() {
     _window.clear();
     for (final page in _inFlight) {
@@ -402,8 +421,7 @@ class PageLoader<T> {
     _inFlight.clear();
     _demandDirty = false;
     _paintsWhileDirty = 0;
-    // A cleared window forgets where the data ends; a known total still says.
-    totalCount = _totalCount;
+    _totalCount = null;
   }
 
   // ─────────────────────────────────────────────

@@ -291,8 +291,9 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// end and fetch the page it landed on.
   ///
   /// The count is current best knowledge, not the last value set. A page that
-  /// ends the data earlier tightens it to match. Setting it again overwrites
-  /// the tightened value and re-opens the data.
+  /// ends the data earlier tightens it to match. A page that lands past the
+  /// count clears it, and the size is rediscovered. Setting it again
+  /// overwrites the tightened value and re-opens the data.
   int? get totalCount => _loader.totalCount;
 
   set totalCount(int? value) {
@@ -464,7 +465,9 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// Get row at index from the window, or null if its page isn't held.
   Map<String, Object?>? getRow(int index) => _loader.rowAt(index);
 
-  /// Clear the window and reset state.
+  /// Clears every page, the cursor, the selection — and the known count, so a
+  /// refresh rediscovers where the data ends. Set [totalCount] after, if the
+  /// total is still trusted.
   void reset() {
     _cursorRow = 0;
     _cursorCol = 0;

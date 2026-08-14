@@ -270,8 +270,9 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// end and fetch the page it landed on.
   ///
   /// The count is current best knowledge, not the last value set. A page that
-  /// ends the data earlier tightens it to match. Setting it again overwrites
-  /// the tightened value and re-opens the data.
+  /// ends the data earlier tightens it to match. A page that lands past the
+  /// count clears it, and the size is rediscovered. Setting it again
+  /// overwrites the tightened value and re-opens the data.
   int? get totalCount => _loader.totalCount;
 
   set totalCount(int? value) {
@@ -394,7 +395,9 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// [reset], then this, then set [totalCount] to the new length.
   void insertItems(List<T> items, int pageNum) => _loader.seed(items, firstPage: pageNum);
 
-  /// Clear the window and reset state.
+  /// Clears every page, the cursor, the selection — and the known count, so a
+  /// refresh rediscovers where the data ends. Set [totalCount] after, if the
+  /// total is still trusted.
   void reset() {
     _cursor = 0;
     _scrollOffset = 0;

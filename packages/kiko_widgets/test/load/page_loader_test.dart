@@ -301,4 +301,87 @@ void main() {
       expect(loader.demand(), isNotNull, reason: 'the pages past the short page are fetchable again');
     });
   });
+
+  group('PageLoader grown source', () {
+    // Log.runZoned guards uncaught errors, which would swallow a failed
+    // expectation: act inside the zone, assert outside it.
+    test('a refresh rediscovers a grown source the app never re-measured', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
+      Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
+        loader
+          ..totalCount = 100
+          ..loadFirstPage()
+          ..apply(_result(0, _page(0, size: 4))); // the data ends at 4; the count tightens
+      });
+      expect(loader.totalCount, equals(4));
+
+      loader.reset(); // the refresh: from scratch
+      expect(loader.totalCount, isNull, reason: 'the conclusion does not outlive its evidence');
+      expect(loader.knownRowCount, isNull);
+
+      loader
+        ..loadFirstPage()
+        ..apply(_result(0, _page(0))); // the source grew: page 0 is full now
+      expect(loader.demand(), isNotNull, reason: 'a full first page keeps the demand pass probing');
+      expect(loader.isLoading(const PageKey(1)), isTrue);
+
+      loader.apply(_result(1, _page(1, size: 3)));
+      expect(loader.knownRowCount, equals(13), reason: 'the refresh found the grown size on its own');
+      expect(loader.demand(), isNull);
+    });
+
+    test('a full page on the recorded end page past the count re-opens the data', () {
+      final loader = _loader(firstRow: () => 5, visibleRows: () => 8)
+        ..totalCount =
+            15 // the end: page 1
+        ..demand() // requests pages 0 and 1; page 2 does not exist yet
+        ..apply(_result(1, _page(1))); // the source grew: the end page is full
+
+      expect(loader.totalCount, isNull, reason: 'the page holds rows the count said do not exist');
+      expect(loader.knownRowCount, isNull, reason: 'where the data ends is unknown again');
+      expect(loader.demand(), isNotNull, reason: 'page 2 is fetchable again');
+      expect(loader.isLoading(const PageKey(2)), isTrue);
+
+      loader.apply(_result(2, _page(2, size: 3)));
+      expect(loader.knownRowCount, equals(23), reason: 'the grown end is rediscovered');
+    });
+
+    test('a full end page that only reaches the count leaves the end standing', () {
+      var first = 0;
+      final loader = _loader(firstRow: () => first, visibleRows: () => 8)
+        ..totalCount =
+            20 // two exact pages
+        ..demand() // requests pages 0 and 1
+        ..apply(_result(0, _page(0)))
+        ..apply(_result(1, _page(1))); // full, and exactly what the count allows
+
+      first = 12; // the viewport's demand span now covers page 2
+      expect(loader.totalCount, equals(20));
+      expect(loader.demand(), isNull, reason: 'a consistent end pays no probe past it');
+    });
+
+    test('a full page past the recorded end clears the stale count with the record', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+        ..demand() // requests pages 0 and 1, end unknown
+        ..totalCount =
+            5 // a count lands while page 1 is still in flight
+        ..apply(_result(1, _page(1))); // and page 1 comes home full
+
+      expect(loader.totalCount, isNull, reason: 'the rows in hand refute the count');
+      expect(loader.knownRowCount, isNull);
+      expect(loader.rowLimit, equals(20), reason: 'the held rows are addressable');
+    });
+
+    test('a short page past the count replaces it with the end it proves', () {
+      final loader = _loader(firstRow: () => 5, visibleRows: () => 8)
+        ..totalCount =
+            12 // the end: page 1
+        ..demand() // requests pages 0 and 1
+        ..apply(_result(1, _page(1, size: 8))); // 18 rows proved; the count said 12
+
+      expect(loader.totalCount, isNull);
+      expect(loader.knownRowCount, equals(18), reason: 'the short page is the newest end evidence');
+      expect(loader.demand(), isNull, reason: 'nothing exists past the end it recorded');
+    });
+  });
 }

@@ -259,6 +259,16 @@ void main() {
       expect(w.exists(5), isTrue);
     });
 
+    test('withdrawEnd forgets the end and keeps every held page', () {
+      final w = PageWindow<String>(pageSize: 10)..install(1, pageRows(1, 10, count: 4), demand: const PageSpan(0, 1));
+      expect(w.lastPage, 1);
+      w.withdrawEnd();
+      expect(w.lastPage, isNull);
+      expect(w.present, [1]);
+      expect(w.exists(2), isTrue);
+      expect(w.missing(const PageSpan(0, 2)), [0, 2]);
+    });
+
     test('clear forgets both the pages and the end', () {
       final w = PageWindow<String>(pageSize: 10)
         ..install(0, pageRows(0, 10, count: 2), demand: const PageSpan(0, 0))

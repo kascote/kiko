@@ -192,6 +192,21 @@ void main() {
       expect(model.cursorRow, equals(2));
     });
 
+    test('a click on a row the window does not hold moves the cursor but emits nothing', () {
+      final model = TableViewModel(
+        id: 'grid',
+        totalCount: 6,
+        keyField: 'id',
+        columns: sampleColumns(),
+        focused: true,
+      )..setVisibleDimensions(6, 3);
+
+      final down = model.update(pointerOnRow(PointerAction.down, 3));
+
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'nothing to activate, press consumed');
+      expect(model.cursorRow, equals(3), reason: 'the cursor still moves where the user pointed');
+    });
+
     test('a press on the sticky header declines and never moves the cursor', () {
       final model = table();
 
@@ -740,6 +755,23 @@ void main() {
         final actionCmd = (result as Handled).cmd! as TableActionCmd;
         expect(actionCmd.id, equals(model.id));
         expect(actionCmd.action, 'primary');
+      });
+
+      test('enter on a row the window does not hold is consumed and emits nothing', () {
+        final model = TableViewModel(
+          totalCount: 4,
+          keyField: 'id',
+          columns: sampleColumns(),
+          focused: true,
+        )..setVisibleDimensions(4, 3);
+
+        final result = model.update(keyMsg('enter'));
+
+        expect(
+          result,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a declined confirm would fire the app fallback bindings',
+        );
       });
 
       test('declines unhandled key', () {

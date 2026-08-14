@@ -488,6 +488,8 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   ///
   /// Navigation is never frozen by a load: pages load in their own slots, so the
   /// cursor keeps moving and any number of pages can be on their way at once.
+  /// Confirming a row the window does not hold is consumed and emits nothing —
+  /// the table understands the key and has nothing to act on.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -513,7 +515,9 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
             _cursorRow = r;
             _adjustScrollToCursor();
           },
-          activate: () => TableActionCmd(id, 'primary'),
+          // A row the window does not hold cannot be activated: the cursor
+          // still moves, the press stays consumed, and no command is emitted.
+          activate: () => cursorRowData == null ? null : TableActionCmd(id, 'primary'),
         );
       }
       if (region is TableHeaderRegion) {
@@ -569,6 +573,10 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
         case TableViewAction.toggleSelect:
           if (selectionEnabled) _toggleSelectAtCursor();
         case TableViewAction.confirm:
+          // A row the window does not hold cannot be confirmed: the key is
+          // consumed — a declined confirm would fire the app's fallback
+          // bindings — and no command is emitted.
+          if (cursorRowData == null) return const Handled();
           return Handled(TableActionCmd(id, 'primary'));
       }
 

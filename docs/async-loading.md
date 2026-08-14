@@ -169,7 +169,9 @@ one storage type.
   failed page retries on the next demand pass. Navigation may run ahead into
   pages still on their way; when the end of the data lands closer than
   navigation reached, the widget pulls its cursor and viewport back to the
-  real end, so the landing sits at the bottom of the view.
+  real end, so the landing sits at the bottom of the view. Confirm on a row
+  the window does not hold is consumed and emits nothing, on the key and the
+  click alike — the widget understands the input and has nothing to act on.
 
   Two app-side obligations, both one line:
 
@@ -183,8 +185,9 @@ one storage type.
   // 2. Answer every request (above) — with rows, an error, or declineLoad.
   ```
 - **ListView** — `PageKey(page)`, exactly the table's shape: one slot per
-  page, demand-driven loading, eviction by distance from the viewport, and
-  the same frame-tick arm (`model.list.demandIfDirty()`). Generic over the
+  page, demand-driven loading, eviction by distance from the viewport, the
+  same frame-tick arm (`model.list.demandIfDirty()`), and the same consumed
+  confirm on an unheld row. Generic over the
   item type, so `fetchInto` works with any `PageSource<T>`. Its `pageSize`
   defaults to 20 (an item may be several lines tall) against the table's 50.
   Three list-specific rules sit on top:
@@ -196,9 +199,8 @@ one storage type.
     paints the true position, placeholders and all. Nothing on screen may
     assert a position the view is not showing, and the reported scroll state
     always describes the real viewport.
-  - Confirm on an item that cannot be read is consumed and emits nothing, on
-    the key and the click alike. A range selection swept over items still
-    being fetched completes itself when their page installs.
+  - A range selection swept over items still being fetched completes itself
+    when their page installs.
 
 ## Total count is exempt — a deliberate one-shot
 

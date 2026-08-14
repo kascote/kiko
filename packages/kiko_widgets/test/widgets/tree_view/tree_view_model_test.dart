@@ -653,6 +653,18 @@ void main() {
         expect(model.isExpanded('/a/b'), isTrue);
         expect(model.cursorNode?.path, equals('/a/b/c'));
       });
+
+      test('an uncached ancestor is left untouched, never wedged loading', () {
+        // '/a' is a root whose children were never loaded. expandPath cannot
+        // reveal it (no I/O here), and it must not half-expand it either:
+        // beginning its slot would drop the request no app ever sees.
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..expandPath('/a/b/c');
+
+        expect(model.isExpanded('/a'), isFalse);
+        expect(model.isPathLoading('/a'), isFalse, reason: 'no slot begun, so nothing waits on a dropped request');
+        expect(model.branchStatus('/a'), SliceStatus.stalled, reason: 'nothing cached, nothing coming');
+        expect(model.flatNodes.any((n) => n.path == '/a/_loading'), isFalse);
+      });
     });
 
     group('search', () {

@@ -340,9 +340,10 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
 
   /// Expand all cached ancestors of [path], then scroll to it if visible.
   ///
-  /// Best-effort over already-loaded data: ancestors whose children are not yet
-  /// cached cannot be revealed here (the widget performs no I/O). Load the needed
-  /// subtree first (via [expand] + [applyLoad]), then call this.
+  /// Best-effort over already-loaded data: an ancestor whose children are not
+  /// cached is left untouched, because revealing it needs a fetch and the
+  /// widget performs no I/O. Load the needed subtree first (via [expand] +
+  /// [applyLoad]), then call this.
   void expandPath(String path) {
     // Build list of ancestors
     final ancestors = <String>[];
@@ -354,8 +355,12 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       ancestors.insert(0, current);
     }
 
-    // Expand each cached ancestor (load requests for uncached ones are dropped).
-    ancestors.forEach(expand);
+    // Expand only ancestors whose children are cached. Expanding an uncached
+    // one would mark its slot loading and drop the LoadRequest that resolves
+    // it, sticking the branch on its loading placeholder.
+    for (final ancestor in ancestors) {
+      if (_childrenCache.containsKey(ancestor)) expand(ancestor);
+    }
 
     // Scroll to the node
     final index = _flatNodes.indexWhere((n) => n.path == path);

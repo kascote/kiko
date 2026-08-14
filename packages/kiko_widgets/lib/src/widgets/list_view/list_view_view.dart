@@ -12,7 +12,8 @@ import 'types.dart';
 /// protocol. [itemBuilder] returns the lines of each row (one per row of
 /// `model.itemHeight`; a shorter list leaves the remaining rows blank), with an
 /// optional [separatorBuilder] between items and an [emptyPlaceholder] line when
-/// there are no items. Row backgrounds come from the item's honest state
+/// there are no items. An item whose page has not arrived paints as a dim run,
+/// or through [loadingItemBuilder] when given. Row backgrounds come from the item's honest state
 /// (selected / cursor / disabled) painted through the model's [ListViewStyle]
 /// anatomy — each `null` slot deriving from the theme's tones — and overridable
 /// per state with [styleOverrides]. Wrap it in a [Container] for a border or edge
@@ -28,6 +29,7 @@ final class ListView<T, K> implements View {
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
+    this.loadingItemBuilder,
   });
 
   /// The model whose rows, cursor, and selection this view renders.
@@ -38,6 +40,10 @@ final class ListView<T, K> implements View {
 
   /// Builds the lines of the row for [model]'s item at a given index and state.
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
+
+  /// Builds the lines shown for an item whose page has not arrived, called
+  /// with the item's absolute index. `null` paints the built-in dim run.
+  final List<Line> Function(int index)? loadingItemBuilder;
 
   /// Per-state style overrides applied on top of the theme's row styles.
   final Map<WidgetState, Style>? styleOverrides;
@@ -56,6 +62,7 @@ final class ListView<T, K> implements View {
     styleOverrides: styleOverrides,
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
+    loadingItemBuilder: loadingItemBuilder,
   )..tag = model.id;
 }
 
@@ -69,6 +76,7 @@ class _ListViewport<T, K> extends Node {
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
+    this.loadingItemBuilder,
   });
 
   final ListViewModel<T, K> model;
@@ -77,6 +85,7 @@ class _ListViewport<T, K> extends Node {
   final Map<WidgetState, Style>? styleOverrides;
   final Line Function()? separatorBuilder;
   final Line? emptyPlaceholder;
+  final List<Line> Function(int index)? loadingItemBuilder;
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the rows, not just the box chrome.
@@ -191,7 +200,7 @@ class _ListViewport<T, K> extends Node {
         }
       }
 
-      if (item == null) {
+      if (item == null && loadingItemBuilder == null) {
         // An item whose page isn't held: the item builder cannot run without
         // an item, so a dim run stands in on each of its lines. Short of the
         // full width, so the run reads as content pending, not content.
@@ -201,7 +210,12 @@ class _ListViewport<T, K> extends Node {
           paintLine(surface, run, x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
         }
       } else {
-        final lines = itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled));
+        // A held item builds its rows; an unheld one builds the caller's
+        // placeholder from the index alone. Both paint the same way, over the
+        // same state fill.
+        final lines = item != null
+            ? itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled))
+            : loadingItemBuilder!(i);
         for (var li = 0; li < lines.length && li < itemArea.height; li++) {
           paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
         }
@@ -237,7 +251,7 @@ class _ListViewport<T, K> extends Node {
   /// generic state, not a ListView-specific part.
   Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
 
-  /// Placeholder runs for items windowed out of the cache.
+  /// The built-in dim run for items whose page isn't held.
   Style _loadingItemStyle() => model.styles.loadingItem ?? theme.muted.ink;
 
   /// The empty-state line.

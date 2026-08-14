@@ -147,6 +147,46 @@ void main() {
       expect(frame.hits.regionAt('list', 0, 2), const RowRegion(3));
     });
 
+    test('a loadingItemBuilder replaces the dim run with its own lines', () {
+      final model = ListViewModel<String, String>(id: 'list', totalCount: 4, focused: true);
+      final node = ListView<String, String>(
+        model: model,
+        theme: Theme.dark,
+        itemBuilder: _row,
+        loadingItemBuilder: (index) => [Line('#$index')],
+      );
+
+      final frame = _frame(5, 4)..render(node);
+      expect(_dump(frame.buffer), '#0\n#1\n#2\n#3\n');
+      // A custom placeholder still marks its real index, so a click on it
+      // addresses the row it stands in for.
+      expect(frame.hits.regionAt('list', 0, 2), const RowRegion(2));
+    });
+
+    test('held rows build normally beside custom placeholders, which layer like the run', () {
+      final model = paged();
+      final node = ListView<String, String>(
+        model: model,
+        theme: Theme.dark,
+        itemBuilder: _row,
+        loadingItemBuilder: (index) => [Line('#$index')],
+      );
+
+      _frame(5, 3).render(node);
+      for (var i = 0; i < 3; i++) {
+        model.update(const KeyMsg('down'));
+      }
+      expect(model.cursor, equals(3));
+
+      // The held rows build; the missing row paints the caller's placeholder
+      // at its absolute index — under the cursor fill, exactly as the dim run
+      // would, so the cursor stays visible over items still filling in.
+      final frame = _frame(5, 3)..render(node);
+      expect(_dump(frame.buffer), 'b\nc\n#3\n');
+      final trailingCell = frame.buffer[(x: 4, y: 2)];
+      expect(trailingCell.bg, equals(Theme.dark.cursor.color));
+    });
+
     test('missing rows with nothing coming paint the true position, not an older run', () {
       final model = paged();
       final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);

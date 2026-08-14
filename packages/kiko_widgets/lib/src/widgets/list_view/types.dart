@@ -129,7 +129,8 @@ class ListViewStyle {
   /// The current item — the keyboard cursor position.
   final Style? cursorItem;
 
-  /// Placeholder runs for items whose page isn't held.
+  /// The built-in dim run for an item whose page isn't held. A
+  /// `loadingItemBuilder` on the view replaces the run, lines and style both.
   final Style? loadingItem;
 
   /// The empty-state line.

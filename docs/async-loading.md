@@ -197,7 +197,11 @@ one storage type.
   Three list-specific rules sit on top:
 
   - An item whose page isn't held paints as a dim run through the item's own
-    height — the item builder is never called without an item.
+    height — the item builder is never called without an item. An optional
+    `loadingItemBuilder` on the view replaces the run with app-built lines
+    for that index; state fills and the row's click region behave the same.
+    The table's counterpart stays a literal `Line` (`loadingIndicator`): its
+    rows are single-line and column-shaped, so a builder buys nothing there.
   - While a fetch is in flight and the cursor is off screen, the view paints
     the nearest run of items it holds whole; with the cursor on screen it
     paints the true position, placeholders and all. Nothing on screen may

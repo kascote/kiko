@@ -225,19 +225,19 @@ class Application {
 
     unawaited(
       runZonedGuarded(
-        () async {
+        () => log.runZoned(() async {
           Log.info('Application starting');
           _terminal = await Terminal.create(viewport: viewport, backend: backend, measurer: measurer);
           _initTerminal();
           _setupSignalHandlers();
           final rc = await _runLoop(init, update, view);
           await _shutdown(exitCode: rc);
-        },
+        }),
         (error, stackTrace) async {
-          Log.error('Uncaught error', error, stackTrace);
+          // The handler runs outside the logger's zone; log on the instance.
+          log.logError('Uncaught error', error, stackTrace);
           await _shutdown(exitCode: defaultErrorCode, error: error, stack: stackTrace);
         },
-        zoneValues: {#kiko.log: log},
       ),
     );
 

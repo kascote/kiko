@@ -96,8 +96,6 @@ void main() {
   });
 
   group('PageLoader out-of-order empty probes', () {
-    // Log.runZoned guards uncaught errors, which would swallow a failed
-    // expectation: act inside the zone, assert outside it.
     test('empty results from concurrent probes keep the recorded end', () {
       final output = _CapturingOutput();
       var first = 0;
@@ -218,8 +216,6 @@ void main() {
   group('PageLoader stale count vs recorded end', () {
     // Several of these contradictions also warn. The warning is pinned above;
     // here the capturing zone only keeps it out of the test output.
-    // Log.runZoned guards uncaught errors, which would swallow a failed
-    // expectation: act inside the zone, assert outside it.
     test('a short page tightens an earlier count to the end it recorded', () {
       final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
       Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {
@@ -303,8 +299,6 @@ void main() {
   });
 
   group('PageLoader grown source', () {
-    // Log.runZoned guards uncaught errors, which would swallow a failed
-    // expectation: act inside the zone, assert outside it.
     test('a refresh rediscovers a grown source the app never re-measured', () {
       final loader = _loader(firstRow: () => 0, visibleRows: () => 8);
       Log(output: _CapturingOutput(), level: LogLevel.warn).runZoned(() {

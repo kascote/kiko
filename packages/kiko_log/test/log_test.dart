@@ -179,6 +179,25 @@ void main() {
       });
     });
 
+    group('runZoned', () {
+      test('returns the body result', () {
+        expect(log.runZoned(() => 7), 7);
+      });
+
+      test('a sync error propagates to the caller', () {
+        expect(() => log.runZoned(() => throw StateError('boom')), throwsStateError);
+        expect(output.records, isEmpty, reason: 'the zone does not log errors it does not own');
+      });
+
+      test('an async error propagates through the returned future', () async {
+        await expectLater(
+          log.runZoned(() async => throw StateError('boom')),
+          throwsStateError,
+        );
+        expect(output.records, isEmpty);
+      });
+    });
+
     group('static methods', () {
       test('fatal logs at fatal level', () {
         log.runZoned(() => Log.fatal('critical'));

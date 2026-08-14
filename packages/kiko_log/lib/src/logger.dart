@@ -118,15 +118,12 @@ class Log {
   }
 
   /// Runs [body] with this logger in the zone.
+  ///
+  /// Static methods such as [Log.info] reach this logger from anywhere
+  /// inside [body], including async continuations. Errors propagate to the
+  /// caller; error handling stays the caller's business.
   R runZoned<R>(R Function() body) {
-    return runZonedGuarded(
-          body,
-          (error, stack) {
-            _logWithError(LogLevel.error, 'Uncaught error', error, stack);
-          },
-          zoneValues: {_logKey: this},
-        )
-        as R;
+    return Zone.current.fork(zoneValues: {_logKey: this}).run(body);
   }
 
   void _log(LogLevel lvl, String msg) {

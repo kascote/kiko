@@ -22,6 +22,22 @@ List<String> _ids(List<Hit> path) => path.map((h) => h.id).toList();
 plume.RenderNode<PaintToken> _leaf(String id, int w, int h) =>
     plume.SizedBox<PaintToken>(width: w, height: h)..tag = IdTag(id);
 
+/// A composite: a 4×2 'field' leaf inside 1 cell of padding, the padding node
+/// scoped 'cb' — so the scope covers 6×4 and the field sits at (1, 1).
+plume.RenderNode<PaintToken> _scopedField() =>
+    plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: _leaf('field', 4, 2))..tag = ScopeTag('cb');
+
+/// Pins [child] at ([left], [top]) sized [w]×[h] — roots lay out tight to the
+/// frame, so fixed geometry needs a Stack.
+plume.RenderNode<PaintToken> _pinned(plume.RenderNode<PaintToken> child, int left, int top, int w, int h) =>
+    plume.Stack<PaintToken>(
+      children: [plume.Positioned<PaintToken>(left: left, top: top, width: w, height: h, child: child)],
+    );
+
+/// [_scopedField] pinned at (0, 0) as 6×4 on a 9×5 surface, leaving room to
+/// pin a second tree beside it.
+Frame _scopedFrame() => _frame(9, 5)..renderNode(_pinned(_scopedField(), 0, 0, 6, 4));
+
 /// Three stacked rows — 'a', 'b', 'c' — each 3 rows tall and [w] wide, for a
 /// 9-row content total.
 plume.RenderNode<PaintToken> _threeRows(int w) =>
@@ -266,6 +282,115 @@ void main() {
       final frame = _frame(4, 3)..renderNode(_box('A', null)..tag = 'raw');
 
       expect(() => frame.hits, throwsA(isA<AssertionError>()));
+    });
+  });
+
+  group('scope paths', () {
+    test('an id under a scope resolves as a path; the bare id is absent', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.hitId(2, 2), 'cb/field');
+      expect(hits.rectOf('cb/field'), Rect.create(x: 1, y: 1, width: 4, height: 2));
+      expect(hits.rectOf('field'), isNull);
+    });
+
+    test('a flat id under no scope keeps its bare form, unwrapped', () {
+      final frame = _frame(4, 3)..renderNode(_box('A', 'a'));
+
+      expect(frame.hits.hitId(0, 0), 'a');
+      expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 4, height: 3));
+    });
+
+    test('nested scopes stack into one path', () {
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: _scopedField())
+        ..tag = ScopeTag('outer');
+      final hits = (_frame(11, 7)..renderNode(_pinned(outer, 0, 0, 8, 6))).hits;
+
+      expect(hits.hitId(3, 3), 'outer/cb/field');
+      expect(_ids(hits.hitPath(3, 3)), ['outer', 'outer/cb', 'outer/cb/field']);
+    });
+
+    test('one scope name on two trees is legal; leaf paths stay unique', () {
+      // The overlay case: a second root scoped 'cb' holding a popup. A scope
+      // is a qualifier, not an addressable id, so it may repeat.
+      final popup = plume.Padding<PaintToken>(insets: plume.EdgeInsets.zero, child: _leaf('popup', 3, 2))
+        ..tag = ScopeTag('cb');
+      final hits = (_scopedFrame()..renderNode(_pinned(popup, 6, 0, 3, 2))).hits;
+
+      expect(hits.hitId(7, 1), 'cb/popup');
+      expect(hits.hitId(2, 2), 'cb/field');
+      expect(hits.rectOf('cb/popup'), Rect.create(x: 6, y: 0, width: 3, height: 2));
+      expect(hits.rectOf('cb/field'), Rect.create(x: 1, y: 1, width: 4, height: 2));
+    });
+
+    test('the same leaf path under the same scope on two nodes trips the duplicate assert', () {
+      final first = plume.Padding<PaintToken>(insets: plume.EdgeInsets.zero, child: _leaf('field', 3, 2))
+        ..tag = ScopeTag('cb');
+      final second = plume.Padding<PaintToken>(insets: plume.EdgeInsets.zero, child: _leaf('field', 3, 2))
+        ..tag = ScopeTag('cb');
+      final frame = _frame(6, 2)
+        ..renderNode(_pinned(first, 0, 0, 3, 2))
+        ..renderNode(_pinned(second, 3, 0, 3, 2));
+
+      expect(() => frame.hits, throwsA(isA<AssertionError>()));
+    });
+  });
+
+  group('bare-scope hits', () {
+    test('a press on the scope’s own cells resolves to the scope path', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.hitId(0, 0), 'cb');
+      expect(_ids(hits.hitPath(0, 0)), ['cb']);
+    });
+
+    test('hitPath carries the pressed node’s rect for a bare-scope hit', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.hitPath(0, 0), [Hit('cb', Rect.create(x: 0, y: 0, width: 6, height: 4))]);
+    });
+
+    test('rectOf and regionAt answer null for a scope path', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.rectOf('cb'), isNull);
+      expect(hits.regionAt('cb', 0, 0), isNull);
+    });
+  });
+
+  group('isLive', () {
+    test('a leaf path is live exactly while rectOf answers a rect for it', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.isLive('cb/field'), isTrue);
+      expect(hits.isLive('cb/nope'), isFalse);
+    });
+
+    test('a scope path is live while any node carries it, though rectOf answers null', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.isLive('cb'), isTrue);
+      expect(hits.rectOf('cb'), isNull);
+    });
+
+    test('a scope stays live off of either tree it sits on', () {
+      final popup = plume.Padding<PaintToken>(insets: plume.EdgeInsets.zero, child: _leaf('popup', 3, 2))
+        ..tag = ScopeTag('cb');
+      final hits = (_scopedFrame()..renderNode(_pinned(popup, 6, 0, 3, 2))).hits;
+
+      expect(hits.isLive('cb'), isTrue);
+    });
+
+    test('an unknown path is not live', () {
+      final hits = _scopedFrame().hits;
+
+      expect(hits.isLive('nope'), isFalse);
+    });
+
+    test('HitMap.empty answers false for every path', () {
+      const map = HitMap.empty();
+
+      expect(map.isLive('anything'), isFalse);
     });
   });
 

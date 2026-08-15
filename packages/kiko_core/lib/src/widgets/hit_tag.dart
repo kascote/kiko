@@ -35,6 +35,13 @@ sealed class HitTag {
   /// and `isPrefix('cb', of: 'cb')` are true; `isPrefix('cb', of: 'cbx')` is
   /// false.
   static bool isPrefix(String prefix, {required String of}) => of == prefix || of.startsWith('$prefix$separator');
+
+  /// Joins an enclosing scope [prefix] with an inner [segment] into one path.
+  ///
+  /// A node with no enclosing scope passes an empty [prefix] and gets back
+  /// [segment] unchanged, with no leading separator — a flat widget's id
+  /// stays a bare id.
+  static String join(String prefix, String segment) => prefix.isEmpty ? segment : '$prefix$separator$segment';
 }
 
 /// The tag of an addressable node: the id pointer events resolve to.

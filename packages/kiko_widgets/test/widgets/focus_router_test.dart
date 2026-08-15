@@ -14,6 +14,13 @@ Frame _frame(int width, int height) {
 /// node and trip the one-tag-per-frame assert.
 View _region(String id, View child) => Tagged(id, Padding(insets: EdgeInsets.zero, child: child));
 
+/// A member scoped 'cb', one cell of padding around a 4×2 'field' leaf — so a
+/// press on the field resolves as the path 'cb/field'.
+View _scopedMember() => Tagged.scope(
+  'cb',
+  Padding(insets: const EdgeInsets.all(1), child: _region('field', const SizedBox(width: 4, height: 2))),
+);
+
 /// A scriptable [Component] whose [update] returns whatever [onUpdate] says,
 /// and records every message it was asked to handle.
 class _FakeComponent implements Component {
@@ -153,6 +160,31 @@ void main() {
       expect(g.b.focused, isTrue);
     });
 
+    test('a press on a path under a member focuses that member', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final cb = _FakeComponent('cb', (_) => const Declined());
+      final focus = FocusGroup<Component>([a, cb]);
+
+      final moved = focusOnPress(_pressAt(0, 0, targetId: 'cb/field'), focus);
+
+      expect(moved, isTrue);
+      expect(focus.index, equals(1));
+      expect(cb.focused, isTrue);
+    });
+
+    test('a direct prefix match wins over a same-named alias — the alias is never consulted', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final cb = _FakeComponent('cb', (_) => const Declined());
+      final focus = FocusGroup<Component>([a, cb]);
+
+      // The alias claims the same literal path should focus 'a' instead; the
+      // direct prefix match against member ids is tried first and wins.
+      final moved = focusOnPress(_pressAt(0, 0, targetId: 'cb/field'), focus, aliases: {'cb/field': 'a'});
+
+      expect(moved, isTrue);
+      expect(focus.index, equals(1), reason: 'cb, not a');
+    });
+
     test('press on the already-focused member returns false and leaves focus unchanged', () {
       final g = _group();
 
@@ -257,6 +289,29 @@ void main() {
 
       expect(result, isA<Handled>());
       expect((result as Handled).cmd, same(cmd));
+    });
+
+    test('a path under a registered id delivers to it, full path riding along untouched', () {
+      final cb = _FakeComponent('cb', (_) => const Handled());
+      final targets = <String, Component>{'cb': cb};
+
+      final result = routeToTarget(_pressAt(0, 0, targetId: 'cb/field'), _ctx(), targets);
+
+      expect(result, isA<Handled>());
+      expect(cb.seen, hasLength(1));
+      expect((cb.seen.single as PointerMsg).targetId, 'cb/field', reason: 'nothing retargets for a prefix match');
+    });
+
+    test('a registration at the fuller path wins over the shorter one', () {
+      final cb = _FakeComponent('cb', (_) => const Handled());
+      final field = _FakeComponent('cb/field', (_) => const Handled());
+      final targets = <String, Component>{'cb': cb, 'cb/field': field};
+
+      final result = routeToTarget(_pressAt(0, 0, targetId: 'cb/field'), _ctx(), targets);
+
+      expect(result, isA<Handled>());
+      expect(field.seen, hasLength(1));
+      expect(cb.seen, isEmpty, reason: 'the more specific registration wins');
     });
 
     test('a declined positional PointerMsg bubbles outward to the enclosing target', () {
@@ -724,6 +779,72 @@ void main() {
       expect((member.seen[0] as PointerMsg).local, equals(const Position(2, 0)));
       expect((member.seen[1] as PointerMsg).local, equals(const Position(4, 3)));
       expect((member.seen[2] as PointerMsg).local, equals(const Position(0, -1)));
+    });
+  });
+
+  group('FocusRouter prefix resolution', () {
+    test('a press on a path under a member focuses and delivers to it, full path riding along', () {
+      final other = _FakeComponent('other', (_) => const Declined());
+      final cb = _FakeComponent('cb', (_) => const Handled());
+      final focus = FocusGroup<Component>([other, cb]);
+      Component? changed;
+      final router = FocusRouter(focus, onFocusChange: (c) => changed = c);
+      final frame = _frame(6, 4)..render(_scopedMember());
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(2, 2, targetId: 'cb/field'), ctx);
+
+      expect(focus.index, equals(1));
+      expect(changed, same(cb));
+      expect(result, isA<Handled>());
+      expect(cb.seen, hasLength(1));
+      final delivered = cb.seen.single as PointerMsg;
+      expect(delivered.targetId, 'cb/field', reason: 'a prefix match delivers as-is, nothing retargets');
+    });
+
+    test('a fuller registration wins over the shorter one that also prefixes the path', () {
+      final cb = _FakeComponent('cb', (_) => const Declined());
+      final field = _FakeComponent('cb/field', (_) => const Handled());
+      final focus = FocusGroup<Component>([cb]);
+      final router = FocusRouter(focus, extras: [field]);
+      final frame = _frame(6, 4)..render(_scopedMember());
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(2, 2, targetId: 'cb/field'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(field.seen, hasLength(1));
+      expect(cb.seen, isEmpty, reason: 'the more specific registration wins');
+    });
+
+    test('a direct prefix match wins over an alias naming the same literal path', () {
+      final decoy = _FakeComponent('decoy', (_) => const Declined());
+      final cb = _FakeComponent('cb', (_) => const Handled());
+      final focus = FocusGroup<Component>([decoy, cb]);
+      // The alias claims 'cb/field' should retarget to 'decoy'; the direct
+      // prefix match against members and extras is tried first and wins, so
+      // this alias is never consulted — alias mechanics stay byte-for-byte.
+      final router = FocusRouter(focus, aliases: {'cb/field': 'decoy'});
+      final frame = _frame(6, 4)..render(_scopedMember());
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(2, 2, targetId: 'cb/field'), ctx);
+
+      expect(result, isA<Handled>());
+      expect(cb.seen, hasLength(1));
+      expect(decoy.seen, isEmpty);
+    });
+
+    test('an unscoped id is unaffected by prefix logic and still needs an exact or alias match', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]), aliases: {'chrome': 'a'});
+      final frame = _frame(3, 3)..render(_region('chrome', _region('a', const SizedBox(width: 3, height: 3))));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final result = router.route(_pressAt(0, 0, targetId: 'chrome'), ctx);
+
+      expect(result, isA<Handled>(), reason: 'no prefix of "chrome" is registered, so it falls to the alias');
+      expect(a.seen, hasLength(1));
     });
   });
 

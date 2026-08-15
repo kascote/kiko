@@ -98,6 +98,40 @@ void main() {
       expect(outer.seen, hasLength(1));
     });
 
+    test('an entry under an already-tried prefix is skipped, even under a different key', () {
+      // 'mid' scopes 'leaf', so the hit path is ['outer', 'mid', 'mid/leaf'].
+      // The declined target 'mid/leaf' resolves (via its longest registered
+      // prefix) to 'mid' — the same component the walk meets again at the
+      // 'mid' entry itself. Both must be skipped; only 'outer' is offered.
+      final frame = _frame(3, 3)
+        ..render(
+          _region(
+            'outer',
+            Tagged.scope(
+              'mid',
+              Padding(insets: EdgeInsets.zero, child: _region('leaf', const SizedBox(width: 3, height: 3))),
+            ),
+          ),
+        );
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final calls = <String>[];
+      final mid = _FakeComponent('mid', (msg) {
+        calls.add('mid');
+        return const Declined();
+      });
+      final outer = _FakeComponent('outer', (msg) {
+        calls.add('outer');
+        return const Handled();
+      });
+      final targets = <String, Component>{'mid': mid, 'outer': outer};
+
+      final result = offerOutward(_wheelAt(0, 0, targetId: 'mid/leaf'), ctx, targets);
+
+      expect(result, isA<Handled>());
+      expect(calls, equals(['outer']), reason: 'mid already declined under a different key; it is not asked twice');
+    });
+
     test('an enclosing region with no matching Component is skipped, not an error', () {
       // 'chrome' is tagged but has no entry in targets — a bare app-composed
       // region with no model behind it.

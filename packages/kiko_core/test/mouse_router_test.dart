@@ -81,6 +81,33 @@ HitMap _twoPanes({bool swap = false, bool dropLeft = false}) {
   return (Frame(buffer.area, buffer, 0)..render(Stack(fit: plume.StackFit.expand, children: panes))).hits;
 }
 
+/// A leaf tagged with a bare id, for building a scoped composite.
+plume.RenderNode<PaintToken> _idLeaf(String id, int w, int h) =>
+    plume.SizedBox<PaintToken>(width: w, height: h)..tag = IdTag(id);
+
+/// A composite: a 4×2 'field' leaf inside 1 cell of padding, the padding node
+/// scoped 'cb' — so the scope covers 6×4 and the field sits at (1,1).
+plume.RenderNode<PaintToken> _composite() =>
+    plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: _idLeaf('field', 4, 2))
+      ..tag = ScopeTag('cb');
+
+/// Pins [child] at ([left], [top]) sized [w]×[h] — roots are laid out tight to
+/// the frame, so fixed geometry needs a Stack.
+plume.RenderNode<PaintToken> _pinned(plume.RenderNode<PaintToken> child, int left, int top, int w, int h) =>
+    plume.Stack<PaintToken>(
+      children: [plume.Positioned<PaintToken>(left: left, top: top, width: w, height: h, child: child)],
+    );
+
+/// A blank frame with nothing painted into it, [width]×[height].
+Frame _blank(int width, int height) {
+  final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
+  return Frame(buffer.area, buffer, 0);
+}
+
+/// The composite pinned at (0,0) as 6×4 on a 9×5 surface: the columns right
+/// of x=5 and the bottom row belong to the background.
+HitMap _compositeHits() => (_blank(9, 5)..renderNode(_pinned(_composite(), 0, 0, 6, 4))).hits;
+
 /// A mouse event as it waits in the queue, aimed at [hits].
 RawPointerMsg _at(int x, int y, MouseButton button, HitMap hits) => RawPointerMsg(MouseEvent(x, y, button), hits);
 
@@ -233,6 +260,54 @@ void main() {
       expect(drag.captured, isTrue);
       expect(drag.targetRect, isNull);
       expect(drag.local, const Position(6, 1));
+    });
+  });
+
+  group('capture under a scope', () {
+    late HitMap scoped;
+
+    setUp(() {
+      scoped = _compositeHits();
+    });
+
+    test('an inner leaf captures by its path; the gesture stays on it off the composite', () {
+      final down = _only(router.route(_at(2, 2, _down(), scoped), scoped));
+      expect(down.targetId, 'cb/field');
+
+      final drag = _only(router.route(_at(8, 4, _drag(), scoped), scoped));
+      expect(drag.targetId, 'cb/field');
+      expect(drag.captured, isTrue);
+      expect(drag.targetRect, Rect.create(x: 1, y: 1, width: 4, height: 2), reason: 'the field, not the scope');
+
+      final up = _only(router.route(_at(8, 4, _up(), scoped), scoped));
+      expect(up.targetId, 'cb/field');
+    });
+
+    test('a captured bare scope survives rect-less, falling back to absolute coordinates', () {
+      final down = _only(router.route(_at(0, 0, _down(), scoped), scoped));
+      expect(down.targetId, 'cb', reason: 'a press on the scope’s own cells, not on the field');
+      expect(scoped.rectOf('cb'), isNull, reason: 'a scope has no rect of its own');
+
+      final msgs = router.route(_at(3, 3, _drag(), scoped), scoped);
+      expect(msgs.whereType<PointerCancelMsg>(), isEmpty, reason: 'the scope is still on screen');
+      final drag = _only(msgs);
+      expect(drag.targetId, 'cb');
+      expect(drag.captured, isTrue);
+      expect(drag.targetRect, isNull);
+      expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
+
+      final up = _only(router.route(_at(3, 3, _up(), scoped), scoped));
+      expect(up.targetId, 'cb');
+    });
+
+    test('a scope painted out from under the gesture still cancels', () {
+      router.route(_at(0, 0, _down(), scoped), scoped);
+
+      final gone = _blank(9, 5).hits;
+      final msgs = router.route(_at(3, 3, _drag(), gone), gone);
+
+      expect(msgs.whereType<PointerCancelMsg>().single.targetId, 'cb');
+      expect(router.capturing, isFalse);
     });
   });
 

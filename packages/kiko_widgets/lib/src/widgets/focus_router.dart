@@ -5,11 +5,14 @@ import 'offer_outward.dart';
 /// Moves focus to the group member a press landed on.
 ///
 /// A press ([PointerMsg] with [PointerMsg.isDown] true) whose [Routed.targetId]
-/// names a member of [focus] moves focus to that member. [aliases] lets chrome
-/// around a member stand in for it — a border or label tagged with its own id
-/// that should still count as a press on the member it decorates; an alias
-/// entry maps that chrome id to the member id it belongs to. Chrome ids are
-/// never members and are never themselves focused.
+/// resolves — directly, or via the longest registered prefix among member ids
+/// — to a member of [focus] moves focus to that member: a press on a path
+/// under a member's id focuses the member. [aliases] lets chrome around a
+/// member stand in for it — a border or label tagged with its own id that
+/// should still count as a press on the member it decorates; an alias entry
+/// maps that chrome id to the member id it belongs to, and is tried only when
+/// the target resolves to no member directly. Chrome ids are never members and
+/// are never themselves focused.
 ///
 /// Returns whether focus actually changed. A press on the already-focused
 /// member, a non-press message, a background press (`targetId == null`), an
@@ -24,11 +27,9 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus, {Map<String, String> ali
   if (msg is! PointerMsg || !msg.isDown || msg.targetId == null) return false;
 
   final targetId = msg.targetId!;
-  var index = focus.children.indexWhere((c) => c.id == targetId);
-  if (index == -1) {
-    final memberId = aliases[targetId];
-    if (memberId != null) index = focus.children.indexWhere((c) => c.id == memberId);
-  }
+  final memberIds = focus.children.map((c) => c.id).toSet();
+  final memberId = HitTag.resolve(targetId, memberIds) ?? aliases[targetId];
+  final index = memberId == null ? -1 : focus.children.indexWhere((c) => c.id == memberId);
   if (index == -1 || index == focus.index) return false;
 
   focus.setIndex(index);
@@ -39,12 +40,16 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus, {Map<String, String> ali
 /// press outward.
 ///
 /// [msg] must be [Routed] (a [PointerMsg], [PointerLeaveMsg] or
-/// [PointerCancelMsg]) with a non-null [Routed.targetId] present in [targets];
-/// anything else — a non-routed message, a background press, or an id absent
-/// from [targets] — declines without touching any component. The absent-id
-/// guard is deliberate: forwarding untargeted pointer traffic to some
-/// component would route it by coordinate coincidence rather than by the
-/// router's own resolution.
+/// [PointerCancelMsg]) with a non-null [Routed.targetId] that resolves —
+/// directly, or via the longest registered prefix — to a component present in
+/// [targets]; anything else — a non-routed message, a background press, or a
+/// path with no registered prefix in [targets] — declines without touching
+/// any component. The absent-target guard is deliberate: forwarding
+/// untargeted pointer traffic to some component would route it by coordinate
+/// coincidence rather than by the router's own resolution. Resolution never
+/// changes what [msg] carries — the full path, rect and region ride along
+/// as-is, and the resolved component reads [HitTag.leafOf] on the path if it
+/// needs to dispatch inward.
 ///
 /// The addressed target's [Component.update] result is returned as-is, except
 /// a [Declined] answer to a positional [PointerMsg] is re-offered outward via
@@ -61,7 +66,8 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus, {Map<String, String> ali
 /// owning its own composition.
 UpdateResult routeToTarget(Msg msg, UpdateContext ctx, Map<String, Component> targets) {
   if (msg case Routed(:final targetId?)) {
-    final target = targets[targetId];
+    final resolved = HitTag.resolve(targetId, targets.keys.toSet());
+    final target = resolved == null ? null : targets[resolved];
     if (target == null) return const Declined();
 
     final result = target.update(msg);
@@ -200,9 +206,11 @@ class FocusRouter {
   /// the app's to act on.
   ///
   /// Pointer traffic ([Routed]) is the exception to focus addressing because
-  /// it carries its own address: a resolvable target id (via [aliases] if
-  /// need be) dispatches to that member; a background press or an unknown id
-  /// declines — positional traffic is never re-aimed at the focused member.
+  /// it carries its own address: a target path that resolves — directly, or
+  /// via the longest registered prefix, or via [aliases] failing that —
+  /// dispatches to that member; a background press or a path with no
+  /// resolution declines — positional traffic is never re-aimed at the
+  /// focused member.
   UpdateResult route(Msg msg, UpdateContext ctx) {
     if (msg is KeyMsg) {
       final action = bindings.resolve(msg);
@@ -213,9 +221,9 @@ class FocusRouter {
 
     if (msg case Routed(:final targetId?)) {
       final targets = _targets();
-      var memberId = targetId;
+      var memberId = HitTag.resolve(targetId, targets.keys.toSet());
       var viaAlias = false;
-      if (!targets.containsKey(memberId)) {
+      if (memberId == null) {
         final aliased = aliases[targetId];
         if (aliased == null || !targets.containsKey(aliased)) return const Declined();
         memberId = aliased;

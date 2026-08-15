@@ -42,6 +42,27 @@ sealed class HitTag {
   /// [segment] unchanged, with no leading separator — a flat widget's id
   /// stays a bare id.
   static String join(String prefix, String segment) => prefix.isEmpty ? segment : '$prefix$separator$segment';
+
+  /// Returns the id in [registered] that answers for [path], or `null` when
+  /// none does.
+  ///
+  /// Use this to deliver a hit path to whichever registered component owns
+  /// it: a router resolves the path a pointer landed on against the ids it
+  /// knows, and dispatches to the answer. An exact match in [registered]
+  /// wins outright. Otherwise the search climbs [path] one segment at a time
+  /// toward the root, and the first prefix found in [registered] wins — a
+  /// registration under a fuller path beats a shorter one further out. An
+  /// unscoped id has no segment to climb to, so it matches only when [path]
+  /// equals it exactly.
+  static String? resolve(String path, Set<String> registered) {
+    var candidate = path;
+    while (true) {
+      if (registered.contains(candidate)) return candidate;
+      final cut = candidate.lastIndexOf(separator);
+      if (cut < 0) return null;
+      candidate = candidate.substring(0, cut);
+    }
+  }
 }
 
 /// The tag of an addressable node: the id pointer events resolve to.

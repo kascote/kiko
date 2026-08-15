@@ -43,6 +43,37 @@ void main() {
     });
   });
 
+  group('HitTag.resolve', () {
+    test('an exact registration wins', () {
+      expect(HitTag.resolve('cb/field', {'cb', 'cb/field'}), 'cb/field');
+    });
+
+    test('the longest registered prefix wins when there is no exact match', () {
+      expect(HitTag.resolve('cb/field', {'cb'}), 'cb');
+    });
+
+    test('a deeper registration under the same path beats a shallower one', () {
+      expect(HitTag.resolve('a/b/c', {'a', 'a/b'}), 'a/b');
+    });
+
+    test('matching respects segment boundaries', () {
+      expect(HitTag.resolve('cbx/field', {'cb'}), isNull);
+    });
+
+    test('an unscoped path — no separator to climb from — matches only exactly', () {
+      expect(HitTag.resolve('field', {'field'}), 'field');
+      expect(HitTag.resolve('fieldx', {'field'}), isNull, reason: 'no shorter candidate to fall back to');
+    });
+
+    test('a scoped path still resolves to a shorter registered prefix', () {
+      expect(HitTag.resolve('field/inner', {'field'}), 'field');
+    });
+
+    test('nothing registered along the path answers null', () {
+      expect(HitTag.resolve('cb/field', {'elsewhere'}), isNull);
+    });
+  });
+
   group('equality', () {
     test('tags compare by case and segment', () {
       expect(IdTag('a'), IdTag('a'));

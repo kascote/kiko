@@ -189,10 +189,12 @@ class MouseRouter {
   /// Whether the widget holding the pointer has been painted out from under it.
   ///
   /// Asked of the newest frame, not of the one the event was aimed at: a widget
-  /// that has already left the screen cannot be handed a release.
+  /// that has already left the screen cannot be handed a release. Checked with
+  /// [HitMap.isLive] rather than [HitMap.rectOf], because a captured scope has
+  /// no rect of its own but is still on screen.
   bool _captorIsGone(HitMap latest) {
     final id = _captureId;
-    return id != null && latest.rectOf(id) == null;
+    return id != null && !latest.isLive(id);
   }
 
   void _release() {

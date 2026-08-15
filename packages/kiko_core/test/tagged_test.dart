@@ -115,4 +115,34 @@ void main() {
       expect(frame.hits.hitId(0, 0), 't');
     });
   });
+
+  group('Tagged.scope', () {
+    test("stamps a scope tag on the child's own built node", () {
+      final node = Tagged.scope('sidebar', _box('')).build();
+
+      expect(node.tag, ScopeTag('sidebar'));
+    });
+
+    test('adds no node — layout and painted cells match the plain child', () {
+      final plain = _frame(6, 3)..render(_box('hi'));
+      final scoped = _frame(6, 3)..render(Tagged.scope('s', _box('hi')));
+
+      expect(scoped.buffer.buf, plain.buffer.buf);
+    });
+
+    test('asserts against scoping a child that already tags itself', () {
+      final frame = _frame(4, 3);
+
+      expect(
+        () => frame.render(const Tagged.scope('outer', _SelfTagging('inner'))),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('still works when wrapped around an untagged child', () {
+      final frame = _frame(4, 3);
+
+      expect(() => frame.render(Tagged.scope('s', _box(''))), returnsNormally);
+    });
+  });
 }

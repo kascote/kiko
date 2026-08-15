@@ -3,6 +3,7 @@ import 'package:plume/plume.dart' as plume;
 import '../style.dart';
 import '../text/line.dart';
 import '../widgets/border_type.dart';
+import '../widgets/hit_tag.dart';
 import 'aliases.dart';
 import 'paint_token.dart';
 import 'view.dart';
@@ -14,15 +15,37 @@ import 'view.dart';
 /// on [View.build], inflates a fresh plume node with each child built in turn.
 /// Children are typed [View], so a non-view child is a compile error rather than
 /// a paint-time surprise.
+///
+/// Each container also takes an optional `id:`, which stamps [IdTag] on the
+/// node it builds. This is the same tag `Tagged(id, child)` would stamp, so
+/// either spelling produces the same tree; `id:` is the shorter one when the
+/// caller is already constructing the container.
+
+/// Stamps [node] with [IdTag] when [id] is not `null`, otherwise returns it
+/// untouched.
+///
+/// Shared by every container's `id:` parameter, so each behaves like
+/// `Tagged`: a node already carrying a tag must not be silently overwritten.
+Node _withId(Node node, String? id) {
+  if (id == null) return node;
+  assert(
+    node.tag == null,
+    'id: "$id" would overwrite the tag "${node.tag}" this node already '
+    'carries. Built-in widgets tag themselves with their model id — wrap a '
+    'container around one instead, or address it by its own id.',
+  );
+  return node..tag = IdTag(id);
+}
 
 /// A vertical stack of children, laid out top to bottom.
 final class Column implements View {
-  /// Stacks [children] top to bottom.
+  /// Stacks [children] top to bottom, optionally tagged with [id].
   const Column({
     required this.children,
     this.mainAxis = plume.MainAxisAlignment.start,
     this.crossAxis = plume.CrossAxisAlignment.start,
     this.mainAxisSize = plume.MainAxisSize.max,
+    this.id,
   });
 
   /// The children, laid out in order from top to bottom.
@@ -37,23 +60,30 @@ final class Column implements View {
   /// Whether the column fills the available height or shrink-wraps its children.
   final plume.MainAxisSize mainAxisSize;
 
+  /// The stable id this node answers to, or `null` to leave it untagged.
+  final String? id;
+
   @override
-  Node build() => plume.Column<PaintToken>(
-    children: [for (final c in children) c.build()],
-    mainAxisAlignment: mainAxis,
-    crossAxisAlignment: crossAxis,
-    mainAxisSize: mainAxisSize,
+  Node build() => _withId(
+    plume.Column<PaintToken>(
+      children: [for (final c in children) c.build()],
+      mainAxisAlignment: mainAxis,
+      crossAxisAlignment: crossAxis,
+      mainAxisSize: mainAxisSize,
+    ),
+    id,
   );
 }
 
 /// A horizontal row of children, laid out left to right.
 final class Row implements View {
-  /// Lays [children] out left to right.
+  /// Lays [children] out left to right, optionally tagged with [id].
   const Row({
     required this.children,
     this.mainAxis = plume.MainAxisAlignment.start,
     this.crossAxis = plume.CrossAxisAlignment.start,
     this.mainAxisSize = plume.MainAxisSize.max,
+    this.id,
   });
 
   /// The children, laid out in order from left to right.
@@ -68,12 +98,18 @@ final class Row implements View {
   /// Whether the row fills the available width or shrink-wraps its children.
   final plume.MainAxisSize mainAxisSize;
 
+  /// The stable id this node answers to, or `null` to leave it untagged.
+  final String? id;
+
   @override
-  Node build() => plume.Row<PaintToken>(
-    children: [for (final c in children) c.build()],
-    mainAxisAlignment: mainAxis,
-    crossAxisAlignment: crossAxis,
-    mainAxisSize: mainAxisSize,
+  Node build() => _withId(
+    plume.Row<PaintToken>(
+      children: [for (final c in children) c.build()],
+      mainAxisAlignment: mainAxis,
+      crossAxisAlignment: crossAxis,
+      mainAxisSize: mainAxisSize,
+    ),
+    id,
   );
 }
 
@@ -113,11 +149,13 @@ final class Expanded implements View {
 
 /// Layers its children, painting each over the one before it.
 final class Stack implements View {
-  /// Layers [children], aligned by [alignment] and sized per [fit].
+  /// Layers [children], aligned by [alignment] and sized per [fit], optionally
+  /// tagged with [id].
   const Stack({
     required this.children,
     this.alignment = plume.Alignment.topLeft,
     this.fit = plume.StackFit.loose,
+    this.id,
   });
 
   /// The children, painted back to front in order.
@@ -129,11 +167,17 @@ final class Stack implements View {
   /// How non-positioned children are sized.
   final plume.StackFit fit;
 
+  /// The stable id this node answers to, or `null` to leave it untagged.
+  final String? id;
+
   @override
-  Node build() => plume.Stack<PaintToken>(
-    children: [for (final c in children) c.build()],
-    alignment: alignment,
-    fit: fit,
+  Node build() => _withId(
+    plume.Stack<PaintToken>(
+      children: [for (final c in children) c.build()],
+      alignment: alignment,
+      fit: fit,
+    ),
+    id,
   );
 }
 
@@ -246,7 +290,8 @@ final class ConstrainedBox implements View {
 /// the start, and keeps its multi-colour styling because every title inflates
 /// through [Line.build] into a real text node.
 final class Container implements View {
-  /// Wraps [child] with optional sizing, decoration, and edge titles.
+  /// Wraps [child] with optional sizing, decoration, edge titles, and an
+  /// [id] tag.
   const Container({
     required this.child,
     this.padding = plume.EdgeInsets.zero,
@@ -257,6 +302,7 @@ final class Container implements View {
     this.borderStyle = const Style(),
     this.topTitles = const <Line>[],
     this.bottomTitles = const <Line>[],
+    this.id,
   });
 
   /// The wrapped child.
@@ -287,18 +333,24 @@ final class Container implements View {
   /// The titles riding on the bottom edge, packed from the start.
   final List<Line> bottomTitles;
 
+  /// The stable id this node answers to, or `null` to leave it untagged.
+  final String? id;
+
   @override
-  Node build() => plume.Container<PaintToken>(
-    padding: padding,
-    width: width,
-    height: height,
-    background: background == const Style() ? null : PaintToken(background),
-    border: border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols),
-    child: child.build(),
-    labels: <plume.EdgeLabel<PaintToken>>[
-      for (final line in topTitles) _titleLabel(line, plume.EdgeSide.top),
-      for (final line in bottomTitles) _titleLabel(line, plume.EdgeSide.bottom),
-    ],
+  Node build() => _withId(
+    plume.Container<PaintToken>(
+      padding: padding,
+      width: width,
+      height: height,
+      background: background == const Style() ? null : PaintToken(background),
+      border: border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols),
+      child: child.build(),
+      labels: <plume.EdgeLabel<PaintToken>>[
+        for (final line in topTitles) _titleLabel(line, plume.EdgeSide.top),
+        for (final line in bottomTitles) _titleLabel(line, plume.EdgeSide.bottom),
+      ],
+    ),
+    id,
   );
 
   /// Wraps a title [line] as an edge label at the start of [side].

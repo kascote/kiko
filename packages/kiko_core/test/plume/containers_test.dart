@@ -204,6 +204,65 @@ void main() {
     });
   });
 
+  group('id: tags the built node the same way Tagged does', () {
+    test('Container: id: and Tagged stamp the same tag on the same tree', () {
+      final direct = const Container(id: 'x', child: Text('hi')).build();
+      final wrapped = const Tagged('x', Container(child: Text('hi'))).build();
+
+      expect(direct.tag, IdTag('x'));
+      expect(direct.runtimeType, wrapped.runtimeType);
+      expect(_render(direct, 8, 1), _render(wrapped, 8, 1));
+    });
+
+    test('Column: id: and Tagged stamp the same tag on the same tree', () {
+      final direct = const Column(id: 'x', children: [Text('a'), Text('b')]).build();
+      final wrapped = const Tagged('x', Column(children: [Text('a'), Text('b')])).build();
+
+      expect(direct.tag, IdTag('x'));
+      expect(direct.runtimeType, wrapped.runtimeType);
+      expect(_render(direct, 4, 2), _render(wrapped, 4, 2));
+    });
+
+    test('Row: id: and Tagged stamp the same tag on the same tree', () {
+      final direct = const Row(id: 'x', children: [Text('a'), Text('b')]).build();
+      final wrapped = const Tagged('x', Row(children: [Text('a'), Text('b')])).build();
+
+      expect(direct.tag, IdTag('x'));
+      expect(direct.runtimeType, wrapped.runtimeType);
+      expect(_render(direct, 4, 1), _render(wrapped, 4, 1));
+    });
+
+    test('Stack: id: and Tagged stamp the same tag on the same tree', () {
+      final direct = const Stack(id: 'x', children: [Text('a')]).build();
+      final wrapped = const Tagged('x', Stack(children: [Text('a')])).build();
+
+      expect(direct.tag, IdTag('x'));
+      expect(direct.runtimeType, wrapped.runtimeType);
+      expect(_render(direct, 4, 1), _render(wrapped, 4, 1));
+    });
+
+    test("omitting id: leaves the tag null, byte for byte today's behavior", () {
+      expect(const Container(child: Text('a')).build().tag, isNull);
+      expect(const Column(children: [Text('a')]).build().tag, isNull);
+      expect(const Row(children: [Text('a')]).build().tag, isNull);
+      expect(const Stack(children: [Text('a')]).build().tag, isNull);
+    });
+
+    test('id: composes with an outer Tagged, which trips the no-overwrite assert', () {
+      expect(
+        () => const Tagged('outer', Container(id: 'inner', child: Text('a'))).build(),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('id: composes with an outer Tagged.scope, which trips the no-overwrite assert', () {
+      expect(
+        () => const Tagged.scope('outer', Column(id: 'inner', children: [Text('a')])).build(),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
+
   group('Container titles', () {
     test('titles become edge labels at the start of their edge', () {
       final node =

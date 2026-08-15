@@ -57,7 +57,7 @@ final class Button implements View {
       background: style,
       padding: EdgeInsets.symmetric(horizontal: model.padding),
       child: content,
-    ).build()..tag = model.id;
+    ).build()..tag = IdTag(model.id);
   }
 }
 

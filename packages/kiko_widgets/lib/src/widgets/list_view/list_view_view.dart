@@ -63,7 +63,7 @@ final class ListView<T, K> implements View {
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
     loadingItemBuilder: loadingItemBuilder,
-  )..tag = model.id;
+  )..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [ListView]: fills the space the box gives it and

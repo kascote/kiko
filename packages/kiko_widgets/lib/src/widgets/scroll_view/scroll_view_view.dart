@@ -14,8 +14,8 @@ import 'types.dart';
 /// viewport/content extents and every tagged descendant's content-relative
 /// row range back into the model through [ScrollViewModel.setViewportMetrics]
 /// — the same view-pushes-state-in back-channel List and Tree use for
-/// `visibleCount`, one-frame lag accepted. Foreign (non-`String`) tags are
-/// dropped here, mirroring [HitMap]'s own string-tag-only rule.
+/// `visibleCount`, one-frame lag accepted. Foreign (non-[IdTag]) tags are
+/// dropped here, mirroring [HitMap]'s own rule that only ids are addressable.
 final class ScrollView implements View {
   /// Creates a scroll view over [model], showing [child]'s scrolled window.
   const ScrollView({required this.model, required this.child});
@@ -32,14 +32,14 @@ final class ScrollView implements View {
     scrollOffset: model.scrollOffset,
     onMeasure: _onMeasure,
     child: child,
-  ).build()..tag = model.id;
+  ).build()..tag = IdTag(model.id);
 
   void _onMeasure(ViewportMetrics metrics) {
     final tagRanges = <String, ScrollViewTagRange>{};
     for (final entry in metrics.tagRanges.entries) {
       final tag = entry.key;
-      if (tag is String) {
-        tagRanges[tag] = (top: entry.value.top, height: entry.value.height);
+      if (tag is IdTag) {
+        tagRanges[tag.id] = (top: entry.value.top, height: entry.value.height);
       }
     }
     model.setViewportMetrics(

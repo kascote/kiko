@@ -51,7 +51,7 @@ final class TreeView<T> implements View {
     nodeBuilder: nodeBuilder,
     styleOverrides: styleOverrides,
     emptyPlaceholder: emptyPlaceholder,
-  )..tag = model.id;
+  )..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TreeView]: fills the space the box gives it and

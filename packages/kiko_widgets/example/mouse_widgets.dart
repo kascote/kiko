@@ -6,7 +6,7 @@
 // mouse-driven adds almost nothing:
 //
 //   1. Turn the mouse on (`mouseEvents: true`). That is the only wiring: a kiko
-//      widget already tags its own region with its model id (`..tag = model.id`
+//      widget already tags its own region with its model id (`..tag = IdTag(model.id)`
 //      in its build), so a pointer resolves to it with nothing added around it.
 //      `Tagged(...)` is for an app-composed region with no model of its own — a
 //      panel, a form — not for a widget that tags itself; see

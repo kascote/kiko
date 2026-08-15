@@ -9,17 +9,18 @@ Frame _frame(int width, int height) {
   return Frame(buffer.area, buffer, 0);
 }
 
-/// A bordered box tagged [tag], sized by whatever lays it out.
-plume.RenderNode<PaintToken> _box(String label, Object? tag) =>
-    Container(border: BorderType.plain, child: Line(label)).build()..tag = tag;
+/// A bordered box tagged [id] (or untagged for `null`), sized by whatever lays
+/// it out.
+plume.RenderNode<PaintToken> _box(String label, String? id) =>
+    Container(border: BorderType.plain, child: Line(label)).build()..tag = (id == null ? null : IdTag(id));
 
 /// The ids of a hit path, outermost first.
 List<String> _ids(List<Hit> path) => path.map((h) => h.id).toList();
 
-/// A fixed [w]×[h] leaf tagged [tag], for building Viewport content directly
+/// A fixed [w]×[h] leaf tagged [id], for building Viewport content directly
 /// with plume nodes.
-plume.RenderNode<PaintToken> _leaf(Object? tag, int w, int h) =>
-    plume.SizedBox<PaintToken>(width: w, height: h)..tag = tag;
+plume.RenderNode<PaintToken> _leaf(String id, int w, int h) =>
+    plume.SizedBox<PaintToken>(width: w, height: h)..tag = IdTag(id);
 
 /// Three stacked rows — 'a', 'b', 'c' — each 3 rows tall and [w] wide, for a
 /// 9-row content total.
@@ -71,7 +72,7 @@ class _Indicator implements Region {
 /// absolute — the shape a data widget's viewport takes.
 class _MarkingLeaf extends plume.RenderNode<PaintToken> {
   _MarkingLeaf(String id, {required this.w, required this.h, required this.marks}) {
-    tag = id;
+    tag = IdTag(id);
   }
 
   final int w;
@@ -94,7 +95,8 @@ void main() {
   group('hitId', () {
     test('resolves a point to the innermost tagged widget', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitId(2, 2), 'inner');
@@ -122,11 +124,12 @@ void main() {
       expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 4, height: 3));
     });
 
-    test('ignores a non-string tag rather than letting it shadow a string one', () {
+    test('ignores a foreign tag rather than letting it shadow an id tag', () {
       // Plume's `tag` is an opaque Object?. An inner node tagged with something
-      // that is not an id must not hide the addressable widget enclosing it.
-      final inner = _box('i', 42);
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      // that is not a kiko id must not hide the addressable widget enclosing it.
+      final inner = _box('i', null)..tag = 42;
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitId(2, 2), 'outer');
@@ -158,7 +161,8 @@ void main() {
       // The whole point of tag uniqueness: a caller anchoring to the box it
       // tagged gets that box's rect, not a descendant's.
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.rectOf('outer'), Rect.create(x: 0, y: 0, width: 6, height: 5));
@@ -169,7 +173,8 @@ void main() {
   group('hitPath', () {
     test('reports tagged ancestors outermost first', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(_ids(frame.hits.hitPath(2, 2)), ['outer', 'inner']);
@@ -177,7 +182,8 @@ void main() {
 
     test('its last entry is the id hitId names', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       final path = frame.hits.hitPath(2, 2);
@@ -186,7 +192,8 @@ void main() {
 
     test('carries the rect of each entry', () {
       final inner = _box('i', 'inner');
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final frame = _frame(6, 5)..renderNode(outer);
 
       expect(frame.hits.hitPath(2, 2), [
@@ -198,7 +205,8 @@ void main() {
     test('skips untagged nodes along the way', () {
       final inner = _box('i', 'inner');
       final middle = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner);
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: middle)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: middle)
+        ..tag = IdTag('outer');
       final frame = _frame(8, 7)..renderNode(outer);
 
       expect(_ids(frame.hits.hitPath(3, 3)), ['outer', 'inner']);
@@ -216,7 +224,7 @@ void main() {
       final under = _box('U', 'under');
       final overInner = _box('i', 'over-inner');
       final over = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: overInner)
-        ..tag = 'over-outer';
+        ..tag = IdTag('over-outer');
       final frame = _frame(6, 5)
         ..renderNode(under)
         ..renderNode(over);
@@ -248,6 +256,16 @@ void main() {
 
       expect(first.hits.rectOf('same'), isNotNull);
       expect(second.hits.rectOf('same'), isNotNull);
+    });
+  });
+
+  group('tag vocabulary', () {
+    test('a raw String tag trips an assert naming the migration', () {
+      // Kiko stamps HitTag values; a bare string is a stamping-site straggler
+      // and must fail loudly rather than go silently unaddressable.
+      final frame = _frame(4, 3)..renderNode(_box('A', null)..tag = 'raw');
+
+      expect(() => frame.hits, throwsA(isA<AssertionError>()));
     });
   });
 
@@ -456,7 +474,8 @@ void main() {
       // An inner marking leaf tagged 'inner' inside an outer tagged 'outer'
       // that marks nothing where the inner does.
       final inner = _MarkingLeaf('inner', w: 4, h: 3, marks: const [(_Row(0), plume.Rect(0, 0, 4, 3))]);
-      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)..tag = 'outer';
+      final outer = plume.Padding<PaintToken>(insets: const plume.EdgeInsets.all(1), child: inner)
+        ..tag = IdTag('outer');
       final hits = (_frame(6, 5)..renderNode(outer)).hits;
 
       expect(hits.regionAt('inner', 2, 2), const _Row(0), reason: 'the inner widget resolves its own region');

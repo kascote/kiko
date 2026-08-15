@@ -4,6 +4,7 @@ import 'package:plume/plume.dart' as plume;
 import '../layout/rect.dart';
 import '../mvu/region.dart';
 import '../plume/paint_token.dart';
+import 'hit_tag.dart';
 
 /// A tagged widget covering a cell, paired with the rect it was placed at.
 ///
@@ -153,7 +154,7 @@ class HitMap {
     return kids;
   }
 
-  /// Walks [node] in pre-order, recording the rect of every string-tagged node
+  /// Walks [node] in pre-order, recording the rect of every id-tagged node
   /// whose rect survives the [clip] carried down from a `clipsHits` ancestor,
   /// or `null` when nothing upstream clips.
   ///
@@ -175,28 +176,34 @@ class HitMap {
   ) {
     final ownRect = node.rect;
     final tag = node.tag;
-    if (tag is String && (clip == null || !clip.intersect(ownRect).isEmpty)) {
+    assert(
+      tag is! String,
+      'Raw String hit tag "$tag": kiko stamps HitTag values, not bare strings. '
+      'Stamp IdTag("$tag") — or wrap the view in Tagged — instead.',
+    );
+    if (tag is IdTag && (clip == null || !clip.intersect(ownRect).isEmpty)) {
+      final id = tag.id;
       assert(
-        !into.containsKey(tag),
-        'Duplicate hit tag "$tag": a tag id must identify exactly one node per '
+        !into.containsKey(id),
+        'Duplicate hit tag "$id": a tag id must identify exactly one node per '
         'frame, or rectOf cannot say which node it means. Two widgets are '
         'tagging the same id — check for a Tagged() wrapping a widget that '
         'already tags itself with its own model id.',
       );
-      into[tag] = _rectOf(node);
+      into[id] = _rectOf(node);
       // The same visibility gate as the rect: a widget scrolled off a clipping
       // ancestor is absent, so no pointer resolves against its regions either.
-      nodes[tag] = node;
+      nodes[id] = node;
     }
     final childClip = node.clipsHits ? (clip == null ? ownRect : clip.intersect(ownRect)) : clip;
     node.visitChildren((child) => _collectRects(child, into, nodes, childClip));
   }
 
-  /// Returns the innermost string tag under [point] within [node]'s subtree.
+  /// Returns the innermost id tag under [point] within [node]'s subtree.
   ///
   /// Descends children front-to-back so the node the viewer sees on top wins,
   /// and gates on each node's rect exactly as Plume's own hit testing does.
-  /// Non-string tags are ignored rather than allowed to shadow a string tag
+  /// A tag that is not an [IdTag] is ignored rather than allowed to shadow one
   /// further out: Plume's `tag` is an opaque handle of any type, and only the
   /// ids kiko stamps are addressable.
   static String? _hitIdIn(plume.RenderNode<PaintToken> node, plume.Offset point) {
@@ -206,7 +213,7 @@ class HitMap {
       if (id != null) return id;
     }
     final tag = node.tag;
-    return tag is String ? tag : null;
+    return tag is IdTag ? tag.id : null;
   }
 
   /// Returns the innermost region marked under [point] within [node]'s subtree,
@@ -215,13 +222,13 @@ class HitMap {
   /// Descends children front-to-back and, within a node, lets the last-marked
   /// covering region win — both mirror paint order, so the part painted on top
   /// answers a click on an overlap (a tree's indicator drawn over its row). The
-  /// walk stops at any nested string-tagged node other than [node] itself: that
+  /// walk stops at any nested id-tagged node other than [node] itself: that
   /// is a separate widget, and its regions belong to it, never to the enclosing
   /// widget this resolves for. A non-[Region] mark key (Plume's key is an
-  /// opaque `Object`) is ignored, exactly as a non-string tag is.
+  /// opaque `Object`) is ignored, exactly as a non-[IdTag] tag is.
   static Region? _regionIn(plume.RenderNode<PaintToken> node, plume.Offset point, {required bool isRoot}) {
     if (!node.rect.contains(point)) return null;
-    if (!isRoot && node.tag is String) return null;
+    if (!isRoot && node.tag is IdTag) return null;
     for (final child in _childrenOf(node).reversed) {
       final region = _regionIn(child, point, isRoot: false);
       if (region != null) return region;
@@ -246,7 +253,7 @@ class HitMap {
     for (final entry in nodes.entries) {
       final seen = <Object>{};
       void walk(plume.RenderNode<PaintToken> node, {required bool isRoot}) {
-        if (!isRoot && node.tag is String) return;
+        if (!isRoot && node.tag is IdTag) return;
         for (final marked in node.markedRegions) {
           assert(
             seen.add(marked.key),
@@ -263,7 +270,7 @@ class HitMap {
     return true;
   }
 
-  /// Returns the chain of string-tagged nodes over [point], outermost first.
+  /// Returns the chain of id-tagged nodes over [point], outermost first.
   ///
   /// Takes the same branch [_hitIdIn] takes, and reports every tagged node along
   /// it rather than only the last.
@@ -273,9 +280,9 @@ class HitMap {
     for (final child in _childrenOf(node).reversed) {
       final sub = _pathIn(child, point);
       if (sub.isNotEmpty) {
-        return tag is String ? [Hit(tag, _rectOf(node)), ...sub] : sub;
+        return tag is IdTag ? [Hit(tag.id, _rectOf(node)), ...sub] : sub;
       }
     }
-    return tag is String ? [Hit(tag, _rectOf(node))] : const <Hit>[];
+    return tag is IdTag ? [Hit(tag.id, _rectOf(node))] : const <Hit>[];
   }
 }

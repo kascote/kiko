@@ -25,7 +25,7 @@ Node modalDialog({
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
     child: NodeView(content),
-  ).build()..tag = id;
+  ).build()..tag = IdTag(id);
 }
 
 /// Centres [dialog] at a fixed [width]/[height] within [area], as a floating

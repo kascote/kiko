@@ -1,4 +1,5 @@
 import '../widgets/hit_map.dart';
+import '../widgets/hit_tag.dart';
 import 'aliases.dart';
 import 'view.dart';
 
@@ -47,6 +48,6 @@ final class Tagged implements View {
       'already carries. Built-in widgets tag themselves with their model id — '
       'wrap a container around one instead, or address it by its own id.',
     );
-    return node..tag = id;
+    return node..tag = IdTag(id);
   }
 }

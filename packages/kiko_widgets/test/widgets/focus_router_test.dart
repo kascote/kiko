@@ -87,7 +87,7 @@ class _Row implements Region {
 /// a member whose view has parts, so a pointer resolves a region on it.
 class _MarkingLeaf extends Node {
   _MarkingLeaf(String id, {required this.w, required this.h, required this.mark}) {
-    tag = id;
+    tag = IdTag(id);
   }
 
   final int w;

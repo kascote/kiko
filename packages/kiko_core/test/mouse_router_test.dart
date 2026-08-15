@@ -30,7 +30,7 @@ class _Row implements Region {
 /// A leaf tagged with an id that marks a row region per painted item.
 class _MarkingLeaf extends plume.RenderNode<PaintToken> {
   _MarkingLeaf(String id, {required this.w, required this.h, required this.marks}) {
-    tag = id;
+    tag = IdTag(id);
   }
 
   final int w;

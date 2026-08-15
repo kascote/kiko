@@ -11,14 +11,14 @@ Frame _frame(int width, int height) {
 View _box(String label) => Container(border: BorderType.plain, child: Line(label));
 
 /// A widget that tags its own root node, like a self-tagging built-in widget
-/// (e.g. `TextInputView`'s `..tag = model.id`).
+/// (e.g. `TextInputView`'s `..tag = IdTag(model.id)`).
 final class _SelfTagging implements View {
   const _SelfTagging(this.id);
 
   final String id;
 
   @override
-  Node build() => _box('').build()..tag = id;
+  Node build() => _box('').build()..tag = IdTag(id);
 }
 
 void main() {

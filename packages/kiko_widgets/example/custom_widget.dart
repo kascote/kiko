@@ -174,7 +174,7 @@ final class Palette implements View {
   final Theme theme;
 
   @override
-  Node build() => _PaletteViewport(model: model, theme: theme)..tag = model.id;
+  Node build() => _PaletteViewport(model: model, theme: theme)..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [Palette]: it windows the visible options and

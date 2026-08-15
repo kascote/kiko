@@ -13,8 +13,8 @@ void main() {
     // Two bordered boxes side by side, each three cells wide, stamped a and b.
     late Frame frame;
     setUp(() {
-      final a = Container(border: BorderType.plain, child: Line('A')).build()..tag = 'btn-a';
-      final b = Container(border: BorderType.plain, child: Line('B')).build()..tag = 'btn-b';
+      final a = Container(border: BorderType.plain, child: Line('A')).build()..tag = IdTag('btn-a');
+      final b = Container(border: BorderType.plain, child: Line('B')).build()..tag = IdTag('btn-b');
       frame = _frame(6, 3)..renderNode(plume.Row<PaintToken>(children: <plume.RenderNode<PaintToken>>[a, b]));
     });
 
@@ -43,8 +43,8 @@ void main() {
 
   test('a later renderNode wins an overlap', () {
     final frame = _frame(4, 3);
-    final under = Container(border: BorderType.plain, child: Line('U')).build()..tag = 'under';
-    final over = Container(border: BorderType.plain, child: Line('O')).build()..tag = 'over';
+    final under = Container(border: BorderType.plain, child: Line('U')).build()..tag = IdTag('under');
+    final over = Container(border: BorderType.plain, child: Line('O')).build()..tag = IdTag('over');
     frame
       ..renderNode(under)
       ..renderNode(over);

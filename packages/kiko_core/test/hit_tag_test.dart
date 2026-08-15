@@ -1,0 +1,56 @@
+import 'package:kiko/kiko.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('segment validity', () {
+    test('an id may not contain the path separator', () {
+      expect(() => IdTag('a/b'), throwsA(isA<AssertionError>()));
+    });
+
+    test('a scope name may not contain the path separator', () {
+      expect(() => ScopeTag('a/b'), throwsA(isA<AssertionError>()));
+    });
+  });
+
+  group('HitTag.leafOf', () {
+    test('returns the last segment of a path', () {
+      expect(HitTag.leafOf('cb/field'), 'field');
+      expect(HitTag.leafOf('a/b/c'), 'c');
+    });
+
+    test('returns an unscoped id unchanged', () {
+      expect(HitTag.leafOf('field'), 'field');
+    });
+  });
+
+  group('HitTag.isPrefix', () {
+    test('a path is a prefix of itself', () {
+      expect(HitTag.isPrefix('cb', of: 'cb'), isTrue);
+    });
+
+    test('an ancestor on the path is a prefix', () {
+      expect(HitTag.isPrefix('cb', of: 'cb/field'), isTrue);
+      expect(HitTag.isPrefix('a/b', of: 'a/b/c'), isTrue);
+    });
+
+    test('matching stops at segment boundaries', () {
+      expect(HitTag.isPrefix('cb', of: 'cbx'), isFalse);
+      expect(HitTag.isPrefix('cb', of: 'cbx/field'), isFalse);
+    });
+
+    test('a longer path is not a prefix of a shorter one', () {
+      expect(HitTag.isPrefix('cb/field', of: 'cb'), isFalse);
+    });
+  });
+
+  group('equality', () {
+    test('tags compare by case and segment', () {
+      expect(IdTag('a'), IdTag('a'));
+      expect(IdTag('a').hashCode, IdTag('a').hashCode);
+      expect(IdTag('a'), isNot(IdTag('b')));
+      expect(ScopeTag('a'), ScopeTag('a'));
+      expect(ScopeTag('a').hashCode, ScopeTag('a').hashCode);
+      expect(IdTag('a'), isNot(ScopeTag('a')));
+    });
+  });
+}

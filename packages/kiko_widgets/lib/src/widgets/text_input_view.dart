@@ -31,7 +31,7 @@ final class TextInput implements View {
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  Node build() => _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = model.id;
+  Node build() => _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TextInput]: fills the space it is given,

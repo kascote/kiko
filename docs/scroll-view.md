@@ -43,10 +43,12 @@ ancestor out, which is what makes nesting work (`docs/mouse.md`).
 `offerOutward(msg, ctx, targets)`
 (`packages/kiko_widgets/lib/src/widgets/offer_outward.dart`) is the ready-made
 offer. It walks `ctx.hits.hitPath` from the declining widget outward and
-offers the message to each enclosing id present in `targets`. The first
-`Handled` wins; when nobody answers, it declines. `FocusRouter` already runs
-this walk when a routed pointer comes back declined, so an app on the router
-never calls it directly.
+resolves each enclosing entry to a component in `targets` — directly, or via
+its longest registered prefix (`docs/components.md`). No component is asked
+twice: the decliner is skipped, and two entries resolving to one component
+get one offer. The first `Handled` wins; when nobody answers, it declines.
+`FocusRouter` already runs this walk when a routed pointer comes back
+declined, so an app on the router never calls it directly.
 
 Two limits. It resolves by position, so never call it for a `PointerLeaveMsg`
 or `PointerCancelMsg` — neither carries a position to walk from. And an

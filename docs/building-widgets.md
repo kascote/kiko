@@ -173,11 +173,11 @@ final class Palette implements View {
   final Theme theme;
 
   @override
-  Node build() => _PaletteViewport(model: model, theme: theme)..tag = model.id;
+  Node build() => _PaletteViewport(model: model, theme: theme)..tag = IdTag(model.id);
 }
 ```
 
-That `..tag = model.id` is the whole mouse wiring on the view side. The tag is
+That `..tag = IdTag(model.id)` is the whole mouse wiring on the view side. The tag is
 the only requirement for pointer routing: **a tagged widget receives pointer
 traffic; an untagged one receives none.** Widgets self-tag. The tag names this
 subtree in the frame's hit map, so a pointer resolves to the model's id and

@@ -19,7 +19,7 @@ Guidance for Claude Code in `kiko_widgets` — higher-level widgets over
 One line each; the linked page (paths from the repo root) explains the rule.
 
 - Widget models are mutable `Component`s: `update(msg)` returns `Handled` (with optional `Cmd`) or `Declined` — consume only what you understand, decline everything else, and keep every model in `test/widgets/decline_unknown_test.dart` (`docs/components.md`).
-- Widgets self-tag (`..tag = model.id` in `build`); never wrap a self-tagging widget in `Tagged` (`docs/mouse.md`).
+- Widgets self-tag (`..tag = IdTag(model.id)` in `build`); never wrap a self-tagging widget in `Tagged` (`docs/mouse.md`).
 - The pointer cases sit above the focus gate; the keyboard sits behind it (`docs/mouse.md`, `docs/keyboard.md`).
 - A click emits the same id-addressed command Enter does; a widget never emits a focus command (`docs/mouse.md`).
 - Editors insert `msg.text`, never `msg.key`; decline `KeyReleaseMsg` and `ModifierKeyMsg` (`docs/keyboard.md`).
@@ -38,7 +38,7 @@ Read the page covering what you touch (paths from the repo root):
 | -------------------------- | ------------------------------------------------------------ |
 | `docs/components.md`       | Component contract, ids, widget→app addressing               |
 | `docs/keyboard.md`         | key events, bindings, widget keyboard handling               |
-| `docs/mouse.md`            | pointer routing, hit regions, capture, widget mouse handling |
+| `docs/mouse.md`            | pointer routing, hit regions, scopes, capture, widget mouse handling |
 | `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome aliases             |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                             |
 | `docs/scroll-view.md`      | ScrollView: scrolling composed content                       |

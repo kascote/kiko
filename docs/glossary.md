@@ -55,8 +55,18 @@ A term of art added to a page gets its entry here in the same change.
 
 - **hit map** — the per-frame spatial index (`HitMap`) answering which tagged
   widget is at a cell (`docs/mouse.md`).
-- **tag** — the id a widget attaches to its node so the hit map can find it.
-  Answers *which widget*.
+- **tag** — the `HitTag` a widget attaches to its node so the hit map can
+  find it: an id (`IdTag`) or a scope name (`ScopeTag`). Answers *which
+  widget*.
+- **scope** — a node whose name qualifies every tag beneath it, so a
+  composite widget owns its parts' hit identity. A scope name is not an
+  addressable id; it may sit on several nodes in one frame (`docs/mouse.md`).
+- **hit path** — a tagged node's full identity: its enclosing scope names and
+  its id, joined with `/` (`cb/field-3`). A node under no scope has a bare
+  id; "path" for short where the pointer context is clear.
+- **leaf** — the last segment of a hit path: the id of the node itself. The
+  owner of a delivered path reads the leaf to dispatch
+  (`docs/components.md`).
 - **hit region** — a part a view marks while painting (a row, a header).
   Answers *which part* of the widget; delivered on `PointerMsg.region`.
 - **hit presence** — whether a tagged widget appears in a frame's hit map at

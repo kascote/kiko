@@ -70,7 +70,7 @@ Read the page covering what you touch:
 | `docs/architecture.md`     | rendering flow, MVU runtime, event queue, text measurement            |
 | `docs/backend.md`          | the backend seam, TestBackend, resize events                          |
 | `docs/keyboard.md`         | key events, bindings, widget keyboard handling                        |
-| `docs/mouse.md`            | pointer routing, hit map, hit regions, capture, widget mouse handling |
+| `docs/mouse.md`            | pointer routing, hit map, hit regions, scopes, capture, widget mouse handling |
 | `docs/components.md`       | Component contract, ids, widget→app addressing                        |
 | `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome aliases                      |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                                      |

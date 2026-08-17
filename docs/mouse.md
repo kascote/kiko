@@ -35,7 +35,8 @@ in `msg.dart`). Nothing downstream imports termparser to read a message.
 
 `HitMap` (`packages/kiko_core/lib/src/widgets/hit_map.dart`) is an immutable
 spatial index over one frame's tagged widgets: `hitId(x, y)`, `rectOf(id)`,
-`hitPath(x, y)`. It is the only type that answers those questions.
+`hitPath(x, y)`, `isLive(id)`. It is the only type that answers those
+questions.
 
 Which frame a map describes depends on the map you hold, not on the method
 you call:
@@ -53,16 +54,64 @@ you call:
 only if the runtime supplies it, the model and message cannot yield it, and
 update logic needs it.
 
-Mark a tag with `Tagged(id, child)` — the one place app code sets a plume
-`tag` (widgets self-tag; see "The widget side"). **Where you put the tag
-decides what `local` means.** Tag a bordered box and a click is counted from
-the border; tag the content and it is counted from the content. Nothing
-downstream compensates. **An id names exactly one node per frame.** Two
+App code tags a node in two spellings that build the same tree: the `id:`
+parameter on a container view (`Container`, `Column`, `Row`, `Stack`), or
+`Tagged(id, child)` for a view the caller does not construct. Widgets
+self-tag with their model id (see "The widget side"). Every spelling stamps
+a case of the sealed `HitTag` vocabulary (`hit_tag.dart`) into plume's
+opaque `tag` slot: `IdTag(id)` for an addressable node, `ScopeTag(name)` for
+a scope (next section). Apps pass plain strings; the sealed type appears
+only at the stamping sites and in `HitMap`. No segment may contain `/`, the
+path separator; the constructors assert it.
+
+**Where you put the tag decides what `local` means.** Tag a bordered box and
+a click is counted from the border; tag the content and it is counted from
+the content. Nothing downstream compensates. **A path names exactly one node
+per frame** — for a widget under no scope, the path is its bare id. Two
 guards enforce this in debug. `Tagged.build` asserts that its child's node
 carries no tag yet; this catches wrapping a widget that tags its own root
-node. `HitMap` construction asserts that no id lands on two nodes; this
-catches what `Tagged` cannot see — a sibling or an inner node tagged with
-the same id.
+node, or a container that already took an `id:`. `HitMap` construction
+asserts that no path lands on two nodes; this catches what a wrap site
+cannot see — a sibling or an inner node tagged with the same id.
+
+## Scopes — a composite owns its parts
+
+A composite widget is built from other widgets: a combobox embeds a text
+field and a list, and each part self-tags with its own id. A **scope** makes
+those parts belong to the composite. A scope is a node tagged
+`ScopeTag(name)`, stamped by `Tagged.scope(name, child)` or by the
+composite's own `build` — the same idiom widgets use for their id. A scope
+qualifies every tag beneath it: an id under scopes records as the **hit
+path** `scope/.../id`. The last segment of a path is its **leaf** — the id
+of the node itself. A widget under no scope keeps its bare id and behaves
+exactly as it did before scopes existed; flat widgets never see paths. Inner
+widgets keep their real ids: tests and tooling still address the field by
+the field's id, as a path.
+
+Every `HitMap` query keys by full path: `hitId` answers paths, and `rectOf`,
+`regionAt` and `isLive` accept them. The duplicate assert applies to full
+leaf paths. A scope name is a qualifier, not an addressable id, so one name
+may sit on several nodes in one frame — a composite paints its field in the
+base tree and its popup in an overlay pass, and both areas belong to it.
+`hitPath` reports scope entries too, each with the rect of the node that
+carried it.
+
+A press on a scope's own cells — no inner tag under the point — resolves to
+the scope's path and delivers with no region. `rectOf` answers `null` for a
+scope path, because a scope has no single rect. Presence is a separate
+question: `isLive(id)` is true for a leaf path while its rect is recorded,
+and for a scope path while any node carries the scope. Capture asks
+`isLive`, never `rectOf` (see "Capture").
+
+**A scope's rect is its press claim, so a scope must hug its content.** A
+scope node laid out larger than what it paints swallows presses over
+everything beneath it — an overlay scope above the base tree most of all.
+Size the scope to the content it owns.
+
+Delivery is the routers' half: a path resolves to the component registered
+under its longest prefix and arrives as-is, and the owner reads the leaf to
+dispatch. The addressing rules live in `docs/components.md`; the packaged
+routing in `docs/focus-router.md`.
 
 ## Hit regions — the part under the pointer
 
@@ -132,7 +181,7 @@ deliberately different questions:
   entirely outside a `clipsHits` ancestor's window is absent from that
   frame's `HitMap`: `rectOf` answers `null`, exactly as if it had never
   painted. This is not a convenience; it is what keeps capture's abnormal end
-  working (`latest.rectOf(id) == null` → `PointerCancelMsg`). A `Viewport`
+  working (the captor stops being `isLive` → `PointerCancelMsg`). A `Viewport`
   lays out its whole child every frame regardless of scroll, unlike the
   windowed widgets, which never build off-screen rows. Without presence
   clipping, a scrolled-away captor would look present forever and its gesture
@@ -186,11 +235,18 @@ a drag survive a cursor that leaves the widget mid-gesture.
 - **Capture holds the resolution, `null` included.** A drag that starts on
   the background stays on the background; it does not re-target the instant
   the cursor crosses a tagged widget.
+- **Capture holds the hit path, and prefix routing applies while it is
+  held.** The router replays what `hitId` answered, so a drag off a
+  composite keeps the gesture on the captured path.
 - **Three conditions end capture abnormally.** Each drops capture and
   delivers `PointerCancelMsg` to the captor: a bare `moved` arrives while
   captured (the release happened off-window); the captor is absent from the
   newest hit map (it unmounted or scrolled away); the terminal loses focus.
   `up` ends the interaction. `cancel` ends it and means: do not commit it.
+  Absence asks `isLive`, never `rectOf`. A captured bare scope has no rect
+  but is still on screen; it survives, its messages carry a null
+  `targetRect`, and `local` equals `global`. A scope painted out entirely
+  still cancels.
 - **The wheel bypasses capture.** A notch is not part of a button gesture, so
   it always addresses what is under the cursor. Wheel events are never
   coalesced: a notch is a delta, and merging two would eat one. Moves and
@@ -248,6 +304,12 @@ addressed by the same id.
 framework never bubbles. Build propagation from `ctx.hits.hitPath(x, y)` plus
 the existing decline convention: the addressed model returns `Declined`, and
 the app tries the next id out.
+
+A composite's parts deliver as paths, so a hand-rolled target map resolves
+`targetId` with `HitTag.resolve` — the longest registered prefix — instead
+of an exact `containsKey`. A flat app whose ids are all bare needs no
+change; a bare id resolves only exactly. The addressing rules live in
+`docs/components.md`.
 
 `FocusRouter` in `kiko_widgets` packages this exact pattern — the targetId
 guard, keyboard→focused, pointer→targeted, press-moves-focus,
@@ -323,10 +385,10 @@ to end. The rules:
   scrolling work: the inner scrollable at its limit declines, and the app
   (via `offerOutward` or `FocusRouter`) offers the notch to the next
   scrollable ancestor out.
-- **Widgets self-tag** (`..tag = model.id` in `build`); routing works the
-  moment `mouseEvents: true` is on. `Tagged(id, child)` is only for areas the
-  app composes that no widget model owns. Never wrap a self-tagging widget in
-  a `Tagged`. In debug one of two guards trips: `Tagged.build` asserts the
-  child's node is untagged, and `HitMap` construction asserts no id lands on
-  two nodes. In release the guards compile out and the wrap overwrites the
-  widget's own tag, so routing addresses the wrong id.
+- **Widgets self-tag** (`..tag = IdTag(model.id)` in `build`); routing works
+  the moment `mouseEvents: true` is on. `Tagged(id, child)` is only for areas
+  the app composes that no widget model owns. Never wrap a self-tagging
+  widget in a `Tagged`. In debug one of two guards trips: `Tagged.build`
+  asserts the child's node is untagged, and `HitMap` construction asserts no
+  path lands on two nodes. In release the guards compile out and the wrap
+  overwrites the widget's own tag, so routing addresses the wrong id.

@@ -21,8 +21,11 @@ only three:
    goes to the focused member. The traversal keys are reserved, which is what
    keeps a consume-everything widget escapable.
 2. Pointer traffic (`Routed`) goes to its addressed target — members and
-   `extras` by id, chrome via `aliases`. A background press or an unknown id
-   declines. Positional traffic is never re-aimed at the focused member.
+   `extras` by id or by the longest registered prefix of a hit path
+   (`docs/components.md`), chrome via `aliases`. A composite's part delivers
+   to its owner as-is, and a press on it click-focuses the owner. A
+   background press or an unresolved target declines. Positional traffic is
+   never re-aimed at the focused member.
 3. Everything else goes to the focused member, and its verdict returns as-is:
    paste, a future input class, a message the router has never heard of. The
    router never decides for a widget which messages it can handle. That is

@@ -100,3 +100,31 @@ Rules a contributor will otherwise miss:
 - **Log and drop a command whose id resolves to no owner; never ignore it
   silently.** The failure stays observable — the advantage id addressing has
   over reference addressing.
+
+## Composite widgets — prefix addressing
+
+A composite widget embeds other widgets and scopes them, so their hit
+identity records as paths under its name (`docs/mouse.md`). A pointer over
+an embedded part therefore delivers a path (`cb/field-3`), not a bare id.
+Prefix addressing resolves that path to a registered component:
+
+- **The longest registered prefix wins.** `HitTag.resolve(path, registered)`
+  answers the registered id that owns a path: an exact match wins outright;
+  otherwise the search climbs the path one segment at a time toward the
+  root. A target `cb/field-3` delivers to the component registered as `cb`,
+  or to one registered under a fuller path if present. A bare id has no
+  segments to climb, so it matches only exactly.
+- **Delivery is as-is.** The message keeps the resolved path, rect, and
+  region; nothing retargets. The owner reads the path's leaf
+  (`HitTag.leafOf`) to dispatch to the inner widget, whose local math and
+  regions arrive intact.
+- **Inner widgets keep their real ids.** No overwritten tags, no derived
+  ids, no delegate components. The parts stay addressable by their own ids,
+  as paths.
+- **A composite is one focus member.** Its parts never join the
+  `FocusGroup`; the owner decides which inner widget its key events reach.
+  The one path-aware focus move is click-to-focus: a press on any path under
+  a member's id focuses that member.
+
+`FocusRouter` resolves prefixes in all its routing (`docs/focus-router.md`);
+a hand-rolled dispatch calls `HitTag.resolve` itself (`docs/mouse.md`).

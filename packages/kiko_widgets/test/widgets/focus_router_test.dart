@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
-import 'package:meta/meta.dart';
 import 'package:test/test.dart';
 
 Frame _frame(int width, int height) {
@@ -51,14 +50,6 @@ PointerMsg _pressAt(int x, int y, {String? targetId, bool captured = false}) => 
   captured: captured,
 );
 
-PointerMsg _dragAt(int x, int y, {String? targetId, bool captured = false}) => PointerMsg(
-  global: Position(x, y),
-  action: PointerAction.drag,
-  targetId: targetId,
-  local: Position.origin,
-  captured: captured,
-);
-
 PointerMsg _wheelAt(int x, int y, {String? targetId}) => PointerMsg(
   global: Position(x, y),
   action: PointerAction.wheelDown,
@@ -71,54 +62,6 @@ PointerMsg _wheelAt(int x, int y, {String? targetId}) => PointerMsg(
 /// the router routes by address, never by message class.
 class _DomainMsg extends Msg {
   const _DomainMsg();
-}
-
-/// A region naming a row, for the alias region-resolution tests.
-@immutable
-class _Row implements Region {
-  const _Row(this.index);
-
-  final int index;
-
-  @override
-  bool operator ==(Object other) => other is _Row && other.index == index;
-
-  @override
-  int get hashCode => index.hashCode;
-
-  @override
-  String toString() => '_Row($index)';
-}
-
-/// A leaf that self-tags with an id and marks one region over its whole rect —
-/// a member whose view has parts, so a pointer resolves a region on it.
-class _MarkingLeaf extends Node {
-  _MarkingLeaf(String id, {required this.w, required this.h, required this.mark}) {
-    tag = IdTag(id);
-  }
-
-  final int w;
-  final int h;
-  final Region mark;
-
-  @override
-  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.constrain(Size(w, h));
-
-  @override
-  void paintSelf(Surface surface) => markRegion(mark, rect);
-}
-
-/// A view over a [_MarkingLeaf], usable as a focus-group member's chrome-decorated body.
-class _MarkingMember implements View {
-  const _MarkingMember(this.id, {required this.w, required this.h, required this.mark});
-
-  final String id;
-  final int w;
-  final int h;
-  final Region mark;
-
-  @override
-  Node build() => _MarkingLeaf(id, w: w, h: h, mark: mark);
 }
 
 /// A committed frame with nothing rendered into it, for tests that only
@@ -150,16 +93,6 @@ void main() {
       expect(g.b.focused, isTrue);
     });
 
-    test('press via an alias moves focus to the member the alias names', () {
-      final g = _group();
-
-      final moved = focusOnPress(_pressAt(0, 0, targetId: 'b-chrome'), g.focus, aliases: {'b-chrome': 'b'});
-
-      expect(moved, isTrue);
-      expect(g.focus.index, equals(1));
-      expect(g.b.focused, isTrue);
-    });
-
     test('a press on a path under a member focuses that member', () {
       final a = _FakeComponent('a', (_) => const Declined());
       final cb = _FakeComponent('cb', (_) => const Declined());
@@ -170,19 +103,6 @@ void main() {
       expect(moved, isTrue);
       expect(focus.index, equals(1));
       expect(cb.focused, isTrue);
-    });
-
-    test('a direct prefix match wins over a same-named alias — the alias is never consulted', () {
-      final a = _FakeComponent('a', (_) => const Declined());
-      final cb = _FakeComponent('cb', (_) => const Declined());
-      final focus = FocusGroup<Component>([a, cb]);
-
-      // The alias claims the same literal path should focus 'a' instead; the
-      // direct prefix match against member ids is tried first and wins.
-      final moved = focusOnPress(_pressAt(0, 0, targetId: 'cb/field'), focus, aliases: {'cb/field': 'a'});
-
-      expect(moved, isTrue);
-      expect(focus.index, equals(1), reason: 'cb, not a');
     });
 
     test('press on the already-focused member returns false and leaves focus unchanged', () {
@@ -208,15 +128,6 @@ void main() {
       final g = _group();
 
       final moved = focusOnPress(_pressAt(0, 0, targetId: 'ghost'), g.focus);
-
-      expect(moved, isFalse);
-      expect(g.focus.index, equals(0));
-    });
-
-    test('an alias naming a non-member leaves focus untouched', () {
-      final g = _group();
-
-      final moved = focusOnPress(_pressAt(0, 0, targetId: 'chrome'), g.focus, aliases: {'chrome': 'not-a-member'});
 
       expect(moved, isFalse);
       expect(g.focus.index, equals(0));
@@ -518,7 +429,7 @@ void main() {
       expect(a.seen, isEmpty);
     });
 
-    test('an unknown id with no alias declines at the router', () {
+    test('an unknown id declines at the router', () {
       final a = _FakeComponent('a', (_) => const Handled());
       final router = FocusRouter(FocusGroup<Component>([a]));
 
@@ -575,213 +486,6 @@ void main() {
     });
   });
 
-  group('FocusRouter chrome aliases', () {
-    test('an alias naming an id absent from members and extras declines', () {
-      final a = _FakeComponent('a', (_) => const Handled());
-      final router = FocusRouter(FocusGroup<Component>([a]), aliases: {'chrome': 'ghost'});
-
-      final result = router.route(_pressAt(0, 0, targetId: 'chrome'), _ctx());
-
-      expect(result, isA<Declined>());
-      expect(a.seen, isEmpty);
-    });
-
-    test('a press on chrome above the member re-addresses with a negative local and does not bubble past chrome', () {
-      final decoy = _FakeComponent('decoy', (_) => const Declined());
-      final member = _FakeComponent('member', (_) => const Declined());
-      final focus = FocusGroup<Component>([decoy, member]);
-      Component? changed;
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'}, onFocusChange: (c) => changed = c);
-      final frame = _frame(3, 4)
-        ..render(
-          Tagged(
-            'chrome',
-            Column(
-              children: [const SizedBox(width: 3, height: 1), _region('member', const SizedBox(width: 3, height: 3))],
-            ),
-          ),
-        );
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-      final memberRect = ctx.hits.rectOf('member')!;
-
-      final result = router.route(_pressAt(1, 0, targetId: 'chrome'), ctx);
-
-      expect(focus.index, equals(1));
-      expect(changed, same(member));
-      expect(member.seen, hasLength(1));
-      final delivered = member.seen.single as PointerMsg;
-      expect(delivered.targetId, equals('member'));
-      expect(delivered.local, equals(const Position(1, -1)));
-      expect(delivered.targetRect, equals(memberRect));
-      expect(result, isA<Declined>(), reason: 'chrome is the outermost tag here — nothing left to bubble to');
-    });
-
-    test('a press via alias resolves the region against the member, dropping the chrome region', () {
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
-      final frame = _frame(3, 4)
-        ..render(
-          const Tagged(
-            'chrome',
-            Column(
-              children: [
-                SizedBox(width: 3, height: 1),
-                _MarkingMember('member', w: 3, h: 3, mark: _Row(0)),
-              ],
-            ),
-          ),
-        );
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-
-      // The incoming press is addressed to chrome and even carries a
-      // chrome-scoped region; the router must drop it and resolve the member's
-      // own part at the pointer instead. Member rect is (0,1,3,3); (1,2) is in.
-      const incoming = PointerMsg(
-        global: Position(1, 2),
-        action: PointerAction.down,
-        targetId: 'chrome',
-        local: Position.origin,
-        region: _Row(99),
-      );
-
-      router.route(incoming, ctx);
-
-      final delivered = member.seen.single as PointerMsg;
-      expect(delivered.targetId, 'member');
-      expect(delivered.region, const _Row(0), reason: "the member's part under the pointer, not the chrome's region");
-    });
-
-    test('a press via alias off the member carries a null region', () {
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
-      final frame = _frame(3, 4)
-        ..render(
-          const Tagged(
-            'chrome',
-            Column(
-              children: [
-                SizedBox(width: 3, height: 1),
-                _MarkingMember('member', w: 3, h: 3, mark: _Row(0)),
-              ],
-            ),
-          ),
-        );
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-
-      // Chrome row 0 sits above the member (member starts at y=1), so the
-      // rebuilt pointer lands on no marked part of it.
-      router.route(_pressAt(1, 0, targetId: 'chrome'), ctx);
-
-      final delivered = member.seen.single as PointerMsg;
-      expect(delivered.targetId, 'member');
-      expect(delivered.region, isNull, reason: 'the pointer is on chrome, off the member — nothing marked there');
-    });
-
-    test('a wheel notch on the chrome alias reaches the member and scrolls', () {
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
-      final frame = _frame(3, 3)..render(_region('chrome', _region('member', const SizedBox(width: 3, height: 3))));
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-
-      final result = router.route(_wheelAt(1, 1, targetId: 'chrome'), ctx);
-
-      expect(result, isA<Handled>());
-      expect(member.seen, hasLength(1));
-      expect((member.seen.single as PointerMsg).targetId, equals('member'));
-    });
-
-    test('a press on a presence-clipped alias declines but still moves focus', () {
-      final decoy = _FakeComponent('decoy', (_) => const Declined());
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([decoy, member]);
-      Component? changed;
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'}, onFocusChange: (c) => changed = c);
-      // 'member' is never rendered this frame, so it has no rect to re-address against.
-      final frame = _frame(3, 3);
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-
-      final result = router.route(_pressAt(0, 0, targetId: 'chrome'), ctx);
-
-      expect(result, isA<Declined>());
-      expect(member.seen, isEmpty);
-      expect(focus.index, equals(1));
-      expect(changed, same(member));
-    });
-
-    test('a leave via alias reaches the member as the same instance, verbatim and unbubbled', () {
-      final outer = _FakeComponent('outer', (_) => const Handled());
-      final member = _FakeComponent('member', (_) => const Declined());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(
-        focus,
-        extras: [outer],
-        aliases: {'chrome': 'member'},
-      );
-      final frame = _frame(3, 3)
-        ..render(_region('outer', _region('chrome', _region('member', const SizedBox(width: 3, height: 3)))));
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-      const leave = PointerLeaveMsg('chrome');
-
-      final result = router.route(leave, ctx);
-
-      expect(member.seen, hasLength(1));
-      expect(member.seen.single, same(leave));
-      expect(result, isA<Declined>());
-      expect(outer.seen, isEmpty, reason: 'a leave carries no position to bubble from');
-    });
-
-    test('a cancel via alias reaches the member as the same instance, verbatim and unbubbled', () {
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
-      final frame = _frame(3, 3)..render(_region('chrome', _region('member', const SizedBox(width: 3, height: 3))));
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-      const cancel = PointerCancelMsg('chrome');
-
-      final result = router.route(cancel, ctx);
-
-      expect(member.seen, hasLength(1));
-      expect(member.seen.single, same(cancel));
-      expect(result, isA<Handled>());
-    });
-
-    test('a captured drag sequence via alias stays coherent across events', () {
-      final member = _FakeComponent('member', (_) => const Handled());
-      final focus = FocusGroup<Component>([member]);
-      final router = FocusRouter(focus, aliases: {'chrome': 'member'});
-      final frame = _frame(5, 5)
-        ..render(
-          Tagged(
-            'chrome',
-            Column(
-              children: [const SizedBox(width: 5, height: 1), _region('member', const SizedBox(width: 5, height: 4))],
-            ),
-          ),
-        );
-      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
-      final memberRect = ctx.hits.rectOf('member')!;
-
-      router
-        ..route(_pressAt(2, 1, targetId: 'chrome', captured: true), ctx)
-        ..route(_dragAt(4, 4, targetId: 'chrome', captured: true), ctx)
-        ..route(_dragAt(0, 0, targetId: 'chrome', captured: true), ctx);
-
-      expect(member.seen, hasLength(3));
-      for (final msg in member.seen) {
-        final p = msg as PointerMsg;
-        expect(p.targetId, equals('member'));
-        expect(p.captured, isTrue);
-        expect(p.targetRect, equals(memberRect));
-      }
-      expect((member.seen[0] as PointerMsg).local, equals(const Position(2, 0)));
-      expect((member.seen[1] as PointerMsg).local, equals(const Position(4, 3)));
-      expect((member.seen[2] as PointerMsg).local, equals(const Position(0, -1)));
-    });
-  });
-
   group('FocusRouter prefix resolution', () {
     test('a press on a path under a member focuses and delivers to it, full path riding along', () {
       final other = _FakeComponent('other', (_) => const Declined());
@@ -817,14 +521,11 @@ void main() {
       expect(cb.seen, isEmpty, reason: 'the more specific registration wins');
     });
 
-    test('a direct prefix match wins over an alias naming the same literal path', () {
+    test('a direct prefix match on the field delivers to its member alone', () {
       final decoy = _FakeComponent('decoy', (_) => const Declined());
       final cb = _FakeComponent('cb', (_) => const Handled());
       final focus = FocusGroup<Component>([decoy, cb]);
-      // The alias claims 'cb/field' should retarget to 'decoy'; the direct
-      // prefix match against members and extras is tried first and wins, so
-      // this alias is never consulted — alias mechanics stay byte-for-byte.
-      final router = FocusRouter(focus, aliases: {'cb/field': 'decoy'});
+      final router = FocusRouter(focus);
       final frame = _frame(6, 4)..render(_scopedMember());
       final ctx = UpdateContext(hits: frame.hits, area: frame.area);
 
@@ -835,16 +536,59 @@ void main() {
       expect(decoy.seen, isEmpty);
     });
 
-    test('an unscoped id is unaffected by prefix logic and still needs an exact or alias match', () {
+    test('an unscoped id is unaffected by prefix logic and still needs an exact match', () {
       final a = _FakeComponent('a', (_) => const Handled());
-      final router = FocusRouter(FocusGroup<Component>([a]), aliases: {'chrome': 'a'});
+      final router = FocusRouter(FocusGroup<Component>([a]));
       final frame = _frame(3, 3)..render(_region('chrome', _region('a', const SizedBox(width: 3, height: 3))));
       final ctx = UpdateContext(hits: frame.hits, area: frame.area);
 
       final result = router.route(_pressAt(0, 0, targetId: 'chrome'), ctx);
 
-      expect(result, isA<Handled>(), reason: 'no prefix of "chrome" is registered, so it falls to the alias');
-      expect(a.seen, hasLength(1));
+      expect(
+        result,
+        isA<Declined>(),
+        reason: '"chrome" has no "/" to split, so no prefix of it is registered and no exact match exists',
+      );
+      expect(a.seen, isEmpty);
+    });
+
+    test('a wheel notch on a bare scope path resolves to the member by prefix and reaches it as-is', () {
+      final member = _FakeComponent('cb', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([member]));
+
+      final result = router.route(_wheelAt(0, 0, targetId: 'cb'), _ctx());
+
+      expect(result, isA<Handled>());
+      expect(member.seen, hasLength(1));
+      final delivered = member.seen.single as PointerMsg;
+      expect(delivered.targetId, 'cb');
+      expect(delivered.targetRect, isNull, reason: 'a bare scope path carries no rect of its own');
+    });
+
+    test('a leave on a path under a scope resolves to the member by prefix, verbatim and unbubbled', () {
+      final outer = _FakeComponent('outer', (_) => const Handled());
+      final member = _FakeComponent('cb', (_) => const Declined());
+      final router = FocusRouter(FocusGroup<Component>([member]), extras: [outer]);
+      const leave = PointerLeaveMsg('cb/field');
+
+      final result = router.route(leave, _ctx());
+
+      expect(member.seen, hasLength(1));
+      expect(member.seen.single, same(leave));
+      expect(result, isA<Declined>());
+      expect(outer.seen, isEmpty, reason: 'a leave carries no position to bubble from');
+    });
+
+    test('a cancel on a path under a scope resolves to the member by prefix, verbatim and unbubbled', () {
+      final member = _FakeComponent('cb', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([member]));
+      const cancel = PointerCancelMsg('cb/field');
+
+      final result = router.route(cancel, _ctx());
+
+      expect(member.seen, hasLength(1));
+      expect(member.seen.single, same(cancel));
+      expect(result, isA<Handled>());
     });
   });
 

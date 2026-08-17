@@ -7,28 +7,22 @@ import 'offer_outward.dart';
 /// A press ([PointerMsg] with [PointerMsg.isDown] true) whose [Routed.targetId]
 /// resolves — directly, or via the longest registered prefix among member ids
 /// — to a member of [focus] moves focus to that member: a press on a path
-/// under a member's id focuses the member. [aliases] lets chrome around a
-/// member stand in for it — a border or label tagged with its own id that
-/// should still count as a press on the member it decorates; an alias entry
-/// maps that chrome id to the member id it belongs to, and is tried only when
-/// the target resolves to no member directly. Chrome ids are never members and
-/// are never themselves focused.
+/// under a member's id focuses the member.
 ///
 /// Returns whether focus actually changed. A press on the already-focused
-/// member, a non-press message, a background press (`targetId == null`), an
-/// unknown id, or an alias naming a non-member all leave focus untouched and
-/// return false. [FocusRouter] fires its focus-change callback off the
-/// returned bool; an app that owns its own composition calls it directly the
-/// same way.
+/// member, a non-press message, a background press (`targetId == null`), or
+/// an unknown id all leave focus untouched and return false. [FocusRouter]
+/// fires its focus-change callback off the returned bool; an app that owns
+/// its own composition calls it directly the same way.
 ///
 /// This only moves focus — it never consumes [msg]. The press stays in
 /// flight for the caller to route to its target afterwards.
-bool focusOnPress(Msg msg, FocusGroup<Component> focus, {Map<String, String> aliases = const {}}) {
+bool focusOnPress(Msg msg, FocusGroup<Component> focus) {
   if (msg is! PointerMsg || !msg.isDown || msg.targetId == null) return false;
 
   final targetId = msg.targetId!;
   final memberIds = focus.children.map((c) => c.id).toSet();
-  final memberId = HitTag.resolve(targetId, memberIds) ?? aliases[targetId];
+  final memberId = HitTag.resolve(targetId, memberIds);
   final index = memberId == null ? -1 : focus.children.indexWhere((c) => c.id == memberId);
   if (index == -1 || index == focus.index) return false;
 
@@ -57,11 +51,10 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus, {Map<String, String> ali
 /// enclosing id present in [targets]. A declined [PointerLeaveMsg] or
 /// [PointerCancelMsg] never bubbles — neither carries a position to walk from.
 ///
-/// This is pure id dispatch with no focus semantics: it does not move focus
-/// and does no alias resolution — a caller wanting alias-aware chrome routing
-/// composes it with [focusOnPress] or the id remapping of its choice. Several
-/// ids in [targets] may legitimately map to the same component (e.g. a chrome
-/// id and a content id sharing one model). [FocusRouter] composes this with
+/// This is pure id dispatch with no focus semantics — it does not move
+/// focus; a caller wanting that composes it with [focusOnPress]. Several ids
+/// in [targets] may legitimately map to the same component (e.g. a chrome id
+/// and a content id sharing one model). [FocusRouter] composes this with
 /// focus handling; an app can call it directly to keep the same wiring while
 /// owning its own composition.
 UpdateResult routeToTarget(Msg msg, UpdateContext ctx, Map<String, Component> targets) {
@@ -126,16 +119,14 @@ KeyBinding<FocusAction> defaultFocusBindings() => KeyBinding<FocusAction>()
 
 /// Routes keyboard and pointer traffic among a [FocusGroup] and its chrome.
 ///
-/// A router owns none of the widgets it routes to — [focus], [extras] and
-/// [aliases] are all held by reference and re-read on every [route] call, so
-/// swapping a member, growing the extras list, or editing an alias needs no
-/// notice to the router. There is no registration step.
+/// A router owns none of the widgets it routes to — [focus] and [extras] are
+/// both held by reference and re-read on every [route] call, so swapping a
+/// member or growing the extras list needs no notice to the router. There is
+/// no registration step.
 ///
 /// [extras] are components reachable by pointer but never by focus — a
 /// wheel-only scroll surface, a status strip — routed by id like any member
-/// but skipped by Tab and by click-to-focus. [aliases] lets chrome around a
-/// member (a border, a title row) stand in for it: an alias entry maps the
-/// chrome's own tagged id to the member id it decorates.
+/// but skipped by Tab and by click-to-focus.
 ///
 /// An app calls [route] as one case of its own `update`, after any message it
 /// wants to intercept first and ahead of its fallback keys — fallback keys
@@ -158,14 +149,12 @@ class FocusRouter {
   /// Creates a router over [focus].
   ///
   /// [bindings] defaults to a fresh [defaultFocusBindings]. [clickToFocus]
-  /// governs whether a press on a member (direct or via [aliases]) moves
-  /// focus to it before the press is delivered; [onFocusChange] fires with
-  /// the newly focused component whenever focus actually changes, from
-  /// traversal keys or from a click.
+  /// governs whether a press on a member moves focus to it before the press
+  /// is delivered; [onFocusChange] fires with the newly focused component
+  /// whenever focus actually changes, from traversal keys or from a click.
   FocusRouter(
     this.focus, {
     this.extras = const [],
-    this.aliases = const {},
     KeyBinding<FocusAction>? bindings,
     this.clickToFocus = true,
     this.onFocusChange,
@@ -176,10 +165,6 @@ class FocusRouter {
 
   /// Components reachable by pointer but never focused.
   final List<Component> extras;
-
-  /// Chrome id → member id, for chrome that should route and click-to-focus
-  /// like the member it decorates.
-  final Map<String, String> aliases;
 
   /// The key-to-[FocusAction] bindings consulted before a [KeyMsg] reaches
   /// the focused member.
@@ -207,10 +192,9 @@ class FocusRouter {
   ///
   /// Pointer traffic ([Routed]) is the exception to focus addressing because
   /// it carries its own address: a target path that resolves — directly, or
-  /// via the longest registered prefix, or via [aliases] failing that —
-  /// dispatches to that member; a background press or a path with no
-  /// resolution declines — positional traffic is never re-aimed at the
-  /// focused member.
+  /// via the longest registered prefix — dispatches to that member; a
+  /// background press or a path with no resolution declines — positional
+  /// traffic is never re-aimed at the focused member.
   UpdateResult route(Msg msg, UpdateContext ctx) {
     if (msg is KeyMsg) {
       final action = bindings.resolve(msg);
@@ -221,35 +205,14 @@ class FocusRouter {
 
     if (msg case Routed(:final targetId?)) {
       final targets = _targets();
-      var memberId = HitTag.resolve(targetId, targets.keys.toSet());
-      var viaAlias = false;
-      if (memberId == null) {
-        final aliased = aliases[targetId];
-        if (aliased == null || !targets.containsKey(aliased)) return const Declined();
-        memberId = aliased;
-        viaAlias = true;
-      }
+      final memberId = HitTag.resolve(targetId, targets.keys.toSet());
+      if (memberId == null) return const Declined();
 
-      if (clickToFocus && focusOnPress(msg, focus, aliases: aliases)) {
+      if (clickToFocus && focusOnPress(msg, focus)) {
         onFocusChange?.call(focus.focused);
       }
 
-      var routed = msg;
-      if (viaAlias && msg is PointerMsg) {
-        final rect = ctx.hits.rectOf(memberId);
-        if (rect == null) return const Declined();
-        // Re-resolve the region against the member's own parts at the pointer:
-        // the incoming region was scoped to the chrome, so retarget takes a
-        // fresh one rather than carrying the chrome's over.
-        final region = ctx.hits.regionAt(memberId, msg.global.x, msg.global.y);
-        routed = msg.retarget(targetId: memberId, targetRect: rect, region: region);
-      }
-
-      // A leave or cancel reached via alias keeps the chrome id — it has no
-      // position to rebuild from — so the delivery map must resolve that id
-      // too, or the lookup below would miss the member it decorates.
-      final delivery = viaAlias ? {...targets, targetId: targets[memberId]!} : targets;
-      return routeToTarget(routed, ctx, delivery);
+      return routeToTarget(msg, ctx, targets);
     }
 
     // Positional traffic that carries no target — a background press. Never

@@ -135,9 +135,8 @@ class HitMap {
   /// entirely, or on a widget that marks nothing; and `null` too when [id] is
   /// not on screen this frame, or names a scope rather than a leaf.
   ///
-  /// The router calls this for the widget a pointer resolved to (or the widget
-  /// holding a captured gesture); an app rebuilding a pointer against a chrome
-  /// alias calls it for the member the chrome decorates.
+  /// The router calls this for the widget a pointer resolved to, or the widget
+  /// holding a captured gesture.
   Region? regionAt(String id, int x, int y) {
     final node = _nodes[id];
     if (node == null) return null;

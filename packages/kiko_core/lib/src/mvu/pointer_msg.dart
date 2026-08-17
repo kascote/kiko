@@ -268,30 +268,6 @@ class PointerMsg extends Msg implements Routed {
     return local.x >= 0 && local.y >= 0 && local.x < rect.width && local.y < rect.height;
   }
 
-  /// This event re-addressed to [targetId], whose painted bounds are
-  /// [targetRect], carrying [region] as the part under the pointer within that
-  /// new target.
-  ///
-  /// The physical event — position, action, button, modifiers, capture state —
-  /// is carried unchanged; [local] is recomputed against the new rect. [region]
-  /// is *not* carried over from this message: the incoming region was resolved
-  /// against the old target's parts and means nothing under the new one, so a
-  /// caller re-resolves it against the new target and passes it here (`null`
-  /// when the new target marks nothing under the pointer).
-  PointerMsg retarget({required String targetId, required Rect targetRect, Region? region}) => PointerMsg(
-    global: global,
-    action: action,
-    button: button,
-    shift: shift,
-    ctrl: ctrl,
-    alt: alt,
-    targetId: targetId,
-    local: Position(global.x - targetRect.x, global.y - targetRect.y),
-    targetRect: targetRect,
-    captured: captured,
-    region: region,
-  );
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

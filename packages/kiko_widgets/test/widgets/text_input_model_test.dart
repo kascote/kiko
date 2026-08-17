@@ -11,8 +11,17 @@ KeyMsg charMsg(String c) => KeyMsg(c, text: c);
 /// Helper to create a KeyMsg for backspace.
 KeyMsg backspaceMsg() => const KeyMsg('backSpace');
 
-/// A routed pointer message at a given local cell.
-PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
+/// A routed pointer message at a given local cell, over the field's own rect.
+PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) => PointerMsg(
+  global: Position(x, y),
+  action: action,
+  local: Position(x, y),
+  targetRect: Rect.create(x: 0, y: 0, width: 20, height: 1),
+);
+
+/// A routed pointer message with no target rect — a press on the field's own
+/// chrome, which resolves to a bare scope path.
+PointerMsg scopePress(PointerAction action, {int x = 0, int y = 0}) =>
     PointerMsg(global: Position(x, y), action: action, local: Position(x, y));
 
 /// A frame over an empty buffer, measured by [measurer].
@@ -475,6 +484,15 @@ void main() {
       final result = model.update(pointerAt(PointerAction.down, x: 2));
       expect(result, isA<Handled>());
       expect(model.cursor, equals(2));
+    });
+
+    test('a press with no target rect is consumed but leaves the caret', () {
+      final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
+
+      final result = model.update(scopePress(PointerAction.down, x: 1));
+
+      expect(result, isA<Handled>());
+      expect(model.cursor, equals(3), reason: 'no rect means local.x names no character cell');
     });
 
     test('a wheel is declined so a scrollable ancestor gets it', () {

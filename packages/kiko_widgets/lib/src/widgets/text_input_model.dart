@@ -176,14 +176,15 @@ class TextInputModel implements Component {
   ///
   /// The pointer branch sits above the focus gate, so a click places the caret
   /// whether or not the input is focused (the app focuses it). A button-down
-  /// maps the clicked column to a grapheme and moves the caret there; a wheel is
-  /// declined so a scrollable ancestor gets it, and any other pointer traffic is
-  /// declined too. The keyboard and paste paths stay behind the gate.
+  /// with a target rect maps the clicked column to a grapheme and moves the
+  /// caret there; a button-down with no rect is a press on the field's own
+  /// chrome and is consumed without moving the caret. A wheel is declined so a
+  /// scrollable ancestor gets it, and any other pointer traffic is declined
+  /// too. The keyboard and paste paths stay behind the gate.
   ///
-  /// Returns [Handled] for handled keys, for a paste, and for a click that
-  /// moves the caret. Returns [Declined] for keys it doesn't handle (e.g.,
-  /// Tab), for pointers it doesn't consume, for messages it doesn't know, and
-  /// when not focused.
+  /// Returns [Handled] for handled keys, for a paste, and for any button-down.
+  /// Returns [Declined] for keys it doesn't handle (e.g., Tab), for pointers
+  /// it doesn't consume, for messages it doesn't know, and when not focused.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -191,10 +192,15 @@ class TextInputModel implements Component {
       // the wheel.
       if (pointer.isWheel) return const Declined();
       if (pointer.isDown) {
-        // local.x is a display column; add the horizontal scroll to reach the
-        // absolute text column, then map it to a grapheme. A caret move is
-        // internal state, so the click is consumed with no widget→app command.
-        _cursor = _columnToIndex(pointer.local.x + _scrollOffset);
+        // Without a rect, local falls back to the global position, so it
+        // names no character cell — leave the caret where it is.
+        if (pointer.targetRect != null) {
+          // local.x is a display column; add the horizontal scroll to reach
+          // the absolute text column, then map it to a grapheme. A caret move
+          // is internal state, so the click is consumed with no widget→app
+          // command.
+          _cursor = _columnToIndex(pointer.local.x + _scrollOffset);
+        }
         return const Handled();
       }
       // A move, drag, or release half of a click is not ours.

@@ -17,7 +17,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Hit tags are the sealed `HitTag` vocabulary — stamp `IdTag`/`ScopeTag`, never a bare string, and never spell the `/` separator; use the `HitTag` helpers (`docs/mouse.md`).
 - A scope's rect is its press claim: a scope node — an overlay scope above all — must hug its content (`docs/mouse.md`).
 - Captor liveness asks `HitMap.isLive`, never `rectOf` — a scope has no single rect (`docs/mouse.md`).
-- Deliver a hit path as-is to the longest registered prefix (`HitTag.resolve`); never retarget it (`docs/components.md`).
+- Deliver a hit path as-is to the longest registered prefix (`HitTag.resolve`); never rebuild the message against the resolved target (`docs/components.md`).
 - Never scroll something into view by reading `ctx.hits.rectOf(id)` — a viewport clips hit presence, so a scrolled-off id answers null exactly when it matters (`docs/mouse.md`).
 - Rendering never depends on `ResizeMsg`; `Terminal.draw` polls the backend size before every frame (`docs/backend.md`).
 - `Theme`, `Tone`, `StyleResolver`, `WidgetState` and `KeyBinding` live here, but the styling doctrine lives in `docs/theming.md`; touch `style_resolver.dart`, `theme.dart` or `tone.dart` only with it open.

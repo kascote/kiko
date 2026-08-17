@@ -22,6 +22,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Widgets self-tag (`..tag = IdTag(model.id)` in `build`); never wrap a self-tagging widget in `Tagged` (`docs/mouse.md`).
 - The pointer cases sit above the focus gate; the keyboard sits behind it (`docs/mouse.md`, `docs/keyboard.md`).
 - A click emits the same id-addressed command Enter does; a widget never emits a focus command (`docs/mouse.md`).
+- A widget places its caret only from a press that carries a rect (`docs/mouse.md`).
 - Editors insert `msg.text`, never `msg.key`; decline `KeyReleaseMsg` and `ModifierKeyMsg` (`docs/keyboard.md`).
 - Address by stable `id` carried by value; thread both `id` and `key` into every async result (`docs/components.md`).
 - Widgets never perform async I/O; every `LoadRequest` resolves its slot — with data, an error, or `declineLoad` (`docs/async-loading.md`).
@@ -39,7 +40,7 @@ Read the page covering what you touch (paths from the repo root):
 | `docs/components.md`       | Component contract, ids, widget→app addressing               |
 | `docs/keyboard.md`         | key events, bindings, widget keyboard handling               |
 | `docs/mouse.md`            | pointer routing, hit regions, scopes, capture, widget mouse handling |
-| `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome aliases             |
+| `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome scopes              |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                             |
 | `docs/scroll-view.md`      | ScrollView: scrolling composed content                       |
 | `docs/theming.md`          | the theming model, the recipe, per-widget anatomy            |

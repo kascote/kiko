@@ -474,7 +474,7 @@ belongs in that suite.
 - The key contract — `key` vs `text`, bindings, releases: `docs/keyboard.md`.
 - The mouse framework half — hit map, capture, leave/cancel, dispatch:
   `docs/mouse.md`.
-- Multiple widgets, chrome aliases, scroll-into-view, modal layering:
+- Multiple widgets, chrome scopes, scroll-into-view, modal layering:
   `packages/kiko_widgets/example/mouse_widgets.dart` and
   `packages/kiko_widgets/example/scrollable_form.dart`.
 - Widgets that load data asynchronously (the id-addressed `LoadRequest` /

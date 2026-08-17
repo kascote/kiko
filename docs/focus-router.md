@@ -3,10 +3,9 @@
 `FocusRouter` (`packages/kiko_widgets/lib/src/widgets/focus_router.dart`)
 packages the app-side interaction glue behind one `route()` call, made as one
 `case` of the app's `update`: focus traversal, click-to-focus, pointer
-dispatch, chrome aliases, and the outward offer for declined pointers. It owns
-none of the widgets it routes to. The `FocusGroup`, `extras`, and `aliases`
-are held by reference and re-read on every call, so there is no registration
-step.
+dispatch, and the outward offer for declined pointers. It owns none of the
+widgets it routes to. The `FocusGroup` and `extras` are held by reference and
+re-read on every call, so there is no registration step.
 
 Simplest wiring: `packages/kiko_widgets/example/text_input.dart`. Everything
 at once: `packages/kiko_widgets/example/scrollable_form.dart`. The hand-rolled
@@ -21,9 +20,11 @@ only three:
    goes to the focused member. The traversal keys are reserved, which is what
    keeps a consume-everything widget escapable.
 2. Pointer traffic (`Routed`) goes to its addressed target — members and
-   `extras` by id or by the longest registered prefix of a hit path
-   (`docs/components.md`), chrome via `aliases`. A composite's part delivers
-   to its owner as-is, and a press on it click-focuses the owner. A
+   `extras` by id, or by the longest registered prefix of a hit path
+   (`docs/components.md`). Chrome scoped to a member shares the member's id:
+   a press on the chrome resolves to that id directly, and a press on the
+   member inside resolves to it by the same prefix climb. A composite's part
+   delivers to its owner as-is, and a press on it click-focuses the owner. A
    background press or an unresolved target declines. Positional traffic is
    never re-aimed at the focused member.
 3. Everything else goes to the focused member, and its verdict returns as-is:
@@ -61,7 +62,6 @@ escalation order:
   is Tab/Shift+Tab; add jumps with `..map(['alt+1'], const FocusTo('sidebar'))`.
 - `extras:` — components reachable by pointer but never by focus (a
   wheel-only scroll surface, a status strip).
-- `aliases:` — chrome stands in for the member it decorates (next section).
 - `onFocusChange` — the single funnel for every focus move, keyboard or click
   alike. Scroll-the-focused-field-into-view lives here, and nowhere else.
 - `clickToFocus: false` — presses deliver without moving focus.
@@ -70,17 +70,23 @@ escalation order:
   `focus.focused.update(msg)`. `focus_router.dart` is deliberately one
   readable file; it is the reference assembly.
 
-## Chrome aliases
+## Chrome and scopes
 
-**Chrome aliases re-address, never forward raw.** An alias entry maps a
-chrome id (a border, a title row — tagged by the app, never a member itself)
-to the member it decorates. A press on chrome click-focuses the member. The
-pointer is then rebuilt against the member: `targetId`, `local`, and
-`targetRect` all describe the member, and the region is re-resolved against
-the member's own marked parts. A border cell above the content yields a
-negative `local.y`; that is correct, because `local` anchors to the member's
-top-left. A leave or cancel via alias delivers verbatim — it carries no
-position to rebuild from.
+Chrome belongs to the member it decorates through a scope, not through a
+router setting. Wrap the chrome in `Tagged.scope(memberId, chrome)`; the
+member inside self-tags the same id, so its path is `memberId/memberId`. A
+press anywhere on the chrome resolves to a path under `memberId`, and prefix
+resolution (`docs/mouse.md`) delivers it to the member — click-to-focus
+included — the same as a press on the member's own cells.
+
+Chrome around a container of members is the one shape a scope cannot
+express: a scope there would prefix, and swallow, every member's own path
+underneath it. That chrome keeps a plain id instead, and the app forwards
+the id's pointer traffic to the container's model by hand, in the
+`Declined` branch of its own `update`. `routeToTarget`'s note that several
+ids may map to one component covers this case.
+`packages/kiko_widgets/example/scrollable_form.dart` is the worked example;
+read its header comment for the full story.
 
 `FocusSlot` is a focusable placeholder that declines everything. It gives a
 widget-less pane a place in the focus order.

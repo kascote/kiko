@@ -60,7 +60,9 @@ A term of art added to a page gets its entry here in the same change.
   widget*.
 - **scope** — a node whose name qualifies every tag beneath it, so a
   composite widget owns its parts' hit identity. A scope name is not an
-  addressable id; it may sit on several nodes in one frame (`docs/mouse.md`).
+  addressable id; it may sit on several nodes in one frame. Chrome wrapped in
+  a scope named by a member's id becomes part of that member's own hit
+  territory (`docs/mouse.md`).
 - **hit path** — a tagged node's full identity: its enclosing scope names and
   its id, joined with `/` (`cb/field-3`). A node under no scope has a bare
   id; "path" for short where the pointer context is clear.
@@ -87,8 +89,6 @@ A term of art added to a page gets its entry here in the same change.
   scrollable (`docs/mouse.md`).
 - **chrome** — decoration the app composes around a widget (a border, a title
   row) that no widget model owns.
-- **alias** — a `FocusRouter` entry mapping a chrome id to the member it
-  decorates, so a press on the border acts on the widget inside.
 
 ## Data loading
 

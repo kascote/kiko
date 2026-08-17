@@ -24,12 +24,19 @@ help text; the app composes those around it. The tag covers the whole content
 area, gaps included, so a wheel between composed children already resolves to
 the ScrollView.
 
-Chrome drawn around the view — a border, a title row — sits outside the tag,
-so it needs its own `Tagged(frameId, ...)`. Point that id at the same
-`ScrollViewModel` with a `FocusRouter` alias (`docs/focus-router.md`); two ids
-naming one Component is legal. A wheel on the border then scrolls the view
-exactly like one over the content. The bordered frame in
-`packages/kiko_widgets/example/scrollable_form.dart` is this recipe.
+Chrome drawn around one composed widget sits outside that widget's own tag,
+so it belongs to the widget through a scope: wrap the chrome in
+`Tagged.scope(widgetId, chrome)`, and a press anywhere on it resolves to the
+widget by prefix (`docs/mouse.md`).
+
+The frame around the whole ScrollView is different — it wraps the scrolled
+content, not one member, so a scope there would prefix, and swallow, every
+composed child's own path underneath it. That frame keeps a plain id instead
+(`Tagged(frameId, ...)`), and the app forwards the id's pointer traffic to
+the `ScrollViewModel` by hand, in its own `Declined` branch. A wheel on the
+border then scrolls the view exactly like one over the content. The bordered
+frame in `packages/kiko_widgets/example/scrollable_form.dart` is this recipe;
+read its header comment for the full story.
 
 ## The wheel rule
 

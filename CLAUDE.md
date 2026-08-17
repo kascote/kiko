@@ -72,7 +72,7 @@ Read the page covering what you touch:
 | `docs/keyboard.md`         | key events, bindings, widget keyboard handling                        |
 | `docs/mouse.md`            | pointer routing, hit map, hit regions, scopes, capture, widget mouse handling |
 | `docs/components.md`       | Component contract, ids, widget→app addressing                        |
-| `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome aliases                      |
+| `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome scopes                       |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                                      |
 | `docs/scroll-view.md`      | ScrollView: scrolling composed content                                |
 | `docs/theming.md`          | the theming model, the recipe, per-widget anatomy                     |

@@ -115,9 +115,9 @@ Prefix addressing resolves that path to a registered component:
   or to one registered under a fuller path if present. A bare id has no
   segments to climb, so it matches only exactly.
 - **Delivery is as-is.** The message keeps the resolved path, rect, and
-  region; nothing retargets. The owner reads the path's leaf
-  (`HitTag.leafOf`) to dispatch to the inner widget, whose local math and
-  regions arrive intact.
+  region; the router never rebuilds it against the resolved owner. The owner
+  reads the path's leaf (`HitTag.leafOf`) to dispatch to the inner widget,
+  whose local math and regions arrive intact.
 - **Inner widgets keep their real ids.** No overwritten tags, no derived
   ids, no delegate components. The parts stay addressable by their own ids,
   as paths.

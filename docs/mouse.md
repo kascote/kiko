@@ -143,7 +143,7 @@ against that target) together, and attaches the region to the `PointerMsg` it
 already builds. A debug assert enforces one region key per widget per frame —
 the sibling of the one-tag-per-frame assert.
 
-**Wheel, capture, alias, leave:**
+**Wheel, capture, the bare-scope press, leave:**
 
 - **The wheel is target-scoped, above all region logic.** A notch cares which
   widget it is over, never which part, so it scrolls the same over a
@@ -153,12 +153,13 @@ the sibling of the one-tag-per-frame assert.
 - **A captured gesture recomputes the region on every event**, against the
   captor's own subtree. The region is `null` whenever the pointer is outside
   the captor.
-- **A chrome alias re-resolves the region against the member.** The alias
-  rebuilds the pointer against the member's rect (`PointerMsg.retarget`) and
-  resolves the region against the member's parts at the rebuilt position. It
-  never carries the chrome's region over — that region means nothing under
-  the member. `retarget` takes the freshly resolved region as a parameter,
-  `null` by default.
+- **A bare-scope press carries no rect.** A press on a scope's own cells —
+  no inner tag under the point — resolves to the scope's path with
+  `targetRect: null`, because a scope has no single rect (see "Scopes"
+  above). `PointerMsg.local` then falls back to the global position, since
+  there is no rect to subtract it from. A caret-placing widget reads the
+  missing rect as its cue to leave the caret where it is; it still consumes
+  the press.
 - **Leave and cancel carry no position, and therefore no region.**
 
 **Regions and `local` are two reading modes, both permanent.** The tag is the

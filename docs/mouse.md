@@ -218,9 +218,9 @@ deliberately not a debug assert. Asserts compile out under `dart run` and in
 AOT, exactly the modes a real TUI app runs in, and a silent fallback would
 collapse the child to zero cells. A related rule for plume itself: if
 paint culling is ever added, it must never cull a `Viewport` node. The
-viewport reports its metrics — including the tag→row-range map
-(`ViewportMetrics.tagRanges`) — from a callback that runs during paint, so it
-must paint every frame.
+viewport reports its metrics — including each tagged descendant's ancestor
+tag chain and content-relative row range (`ViewportMetrics.entries`) — from a
+callback that runs during paint, so it must paint every frame.
 
 ## Capture
 

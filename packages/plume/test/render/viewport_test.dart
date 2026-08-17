@@ -129,18 +129,18 @@ void main() {
       expect(metrics!.contentRows, 9);
     });
 
-    test('reports each tagged row as a content-relative range', () {
+    test('reports each tagged row as a one-element chain with a content-relative range', () {
       ViewportMetrics? metrics;
       final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: _taggedRows());
       _paint(viewport, const Size(6, 4));
-      expect(metrics!.tagRanges, {
-        'a': const ViewportTagRange(0, 3),
-        'b': const ViewportTagRange(3, 3),
-        'c': const ViewportTagRange(6, 3),
-      });
+      expect(metrics!.entries, [
+        const ViewportTagEntry(['a'], 0, 3),
+        const ViewportTagEntry(['b'], 3, 3),
+        const ViewportTagEntry(['c'], 6, 3),
+      ]);
     });
 
-    test('tag ranges do not change as scrollOffset changes', () {
+    test('entries do not change as scrollOffset changes', () {
       ViewportMetrics? unscrolled;
       final atTop = Viewport<String>(scrollOffset: 0, onMeasure: (m) => unscrolled = m, child: _taggedRows());
       _paint(atTop, const Size(6, 4));
@@ -149,12 +149,42 @@ void main() {
       final atFive = Viewport<String>(scrollOffset: 5, onMeasure: (m) => scrolled = m, child: _taggedRows());
       _paint(atFive, const Size(6, 4));
 
-      expect(scrolled!.tagRanges, unscrolled!.tagRanges);
+      expect(scrolled!.entries, unscrolled!.entries);
     });
 
     test('a null onMeasure is a no-op — no walk, no callback', () {
       final viewport = Viewport<String>(scrollOffset: 0, child: _taggedRows());
       expect(() => _paint(viewport, const Size(6, 4)), returnsNormally);
+    });
+
+    test('an entry chains its ancestor tags outermost first, own tag last', () {
+      final inner = _Fill<String>('x', 6, 3)..tag = 'x';
+      final outer = Column<String>(children: [inner])..tag = 'outer';
+
+      ViewportMetrics? metrics;
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: outer);
+      _paint(viewport, const Size(6, 4));
+
+      expect(metrics!.entries, [
+        const ViewportTagEntry(['outer'], 0, 3),
+        const ViewportTagEntry(['outer', 'x'], 0, 3),
+      ]);
+    });
+
+    test('two equal tags under different ancestors report separate entries', () {
+      final left = Column<String>(children: [_Fill<String>('l', 6, 2)..tag = 'x'])..tag = 'left';
+      final right = Column<String>(children: [_Fill<String>('r', 6, 2)..tag = 'x'])..tag = 'right';
+      final content = Column<String>(children: [left, right]);
+
+      ViewportMetrics? metrics;
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: content);
+      _paint(viewport, const Size(6, 4));
+
+      final leaves = metrics!.entries.where((e) => e.chain.last == 'x').toList();
+      expect(leaves, [
+        const ViewportTagEntry(['left', 'x'], 0, 2),
+        const ViewportTagEntry(['right', 'x'], 2, 2),
+      ]);
     });
   });
 }

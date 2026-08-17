@@ -58,15 +58,18 @@ reachable through `targets`; walk `ctx.hits` inline for that case.
 ## `ensureVisible(id)`
 
 `ensureVisible(id)` scrolls the minimum amount that brings a tagged descendant
-fully into view. It resolves by tag, so any tagged content works: scrolling to
-the Tab-focused field and scrolling to the first invalid field are the same
-call with a different id.
+fully into view. `id` shares the hit map's own path namespace
+(`docs/mouse.md`). A bare member id names a scope wrapping chrome around the
+member, and brings the whole frame into view. `id/id` names the bare content
+leaf inside it, and brings only that leaf into view. A scope path that
+repeats across several nodes ranges over every occurrence's union: min top to
+max bottom.
 
 Never read the descendant's rect from `ctx.hits.rectOf(id)`. A Viewport
 removes a scrolled-off descendant from the hit map entirely, so `rectOf`
 answers `null` in exactly the case that matters (`docs/mouse.md`, "Viewports
-and the hit map"). The model keeps its own map of tag ranges, refreshed each
-paint; `ensureVisible` reads only that map.
+and the hit map"). The model keeps its own map of ranges keyed by hit path,
+refreshed each paint; `ensureVisible` reads only that map.
 
 ## Keyboard
 

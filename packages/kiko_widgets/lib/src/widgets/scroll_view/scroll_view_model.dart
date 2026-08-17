@@ -110,8 +110,15 @@ class ScrollViewModel with ScrollableModel implements Component {
     _scrollOffset = _scrollOffset.clamp(0, _maxOffset);
   }
 
-  /// Brings the tagged descendant [id] fully into view, scrolling the
-  /// minimum amount needed.
+  /// Brings the tagged descendant at hit path [id] fully into view, scrolling
+  /// the minimum amount needed.
+  ///
+  /// [id] shares the hit map's own path namespace. A bare member id names a
+  /// scoped frame — a scope wrapping chrome around the member — and brings
+  /// the whole frame into view. `'id/id'` names the bare content leaf inside
+  /// it, and brings only that leaf into view. A scope path repeated on more
+  /// than one node ranges over every occurrence's union: min top to max
+  /// bottom.
   ///
   /// A no-op when it is already fully visible; taller than the viewport
   /// top-aligns instead of centering. Does nothing when [id] is absent from

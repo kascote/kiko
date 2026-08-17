@@ -20,7 +20,7 @@ export 'package:plume/plume.dart'
         TextMeasurer,
         ViewportMeasureCallback,
         ViewportMetrics,
-        ViewportTagRange;
+        ViewportTagEntry;
 
 /// Kiko's plume vocabulary, pinned to [PaintToken].
 ///

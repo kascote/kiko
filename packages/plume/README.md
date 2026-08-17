@@ -92,8 +92,9 @@ buffer; nothing else about the tree changes.
   placed `scrollOffset` rows up; the ordinary paint clip cuts off the rest.
   Plume holds no scroll state — the offset is a per-frame input the owner
   computes and clamps — and an optional `onMeasure` callback reports each
-  frame's `ViewportMetrics` (viewport rows, content rows, and every tagged
-  descendant's content-relative row range) back to the owner.
+  frame's `ViewportMetrics` (viewport rows, content rows, and one entry per
+  tagged descendant: its ancestor tag chain paired with its content-relative
+  row range) back to the owner.
 - **Tags** — any node can carry an opaque `tag`, set by whoever builds the tree
   and never interpreted by the engine. `tagAt(point)` answers "which widget is
   under this point"; `nodeForTag(tag)` is the reverse lookup (read the node's

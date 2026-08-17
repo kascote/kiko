@@ -32,8 +32,9 @@ final class Viewport implements View {
   final View child;
 
   /// Fired after each paint with this frame's measured geometry
-  /// ([plume.ViewportMetrics]: viewport rows, content rows, and every tagged
-  /// descendant's content-relative row range), or `null` to skip measurement.
+  /// ([plume.ViewportMetrics]: viewport rows, content rows, and one entry per
+  /// tagged descendant — its ancestor tag chain paired with its
+  /// content-relative row range), or `null` to skip measurement.
   final plume.ViewportMeasureCallback? onMeasure;
 
   @override

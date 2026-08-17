@@ -68,6 +68,60 @@ void main() {
     });
   });
 
+  group('ensureVisible with scoped tag ranges', () {
+    // A scope named 'field' wrapping chrome (an untagged 3-row label/border)
+    // around a content leaf tagged 'field' too — the E-split recipe scopes
+    // enable: the bare id 'field' names the whole frame, 'field/field' names
+    // just the content.
+    View framedField() => const Tagged.scope(
+      'field',
+      Column(
+        children: [
+          SizedBox(width: 6, height: 3),
+          Tagged('field', SizedBox(width: 6, height: 2)),
+        ],
+      ),
+    );
+
+    test('a bare scope name brings the whole framed chrome into view', () {
+      final model = ScrollViewModel();
+      final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
+      _frame(6, 3).render(ScrollView(model: model, child: content));
+
+      model.ensureVisible('field');
+      expect(model.scrollOffset, equals(5), reason: 'the frame spans [5,10), taller than the viewport, top-aligns');
+    });
+
+    test("the 'id/id' leaf path brings only the content leaf into view", () {
+      final model = ScrollViewModel();
+      final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
+      _frame(6, 3).render(ScrollView(model: model, child: content));
+
+      model.ensureVisible('field/field');
+      expect(model.scrollOffset, equals(7), reason: 'the leaf spans [8,10); top+height-viewportRows = 8+2-3');
+    });
+
+    test('a repeated scope path unions its rows across every occurrence', () {
+      final model = ScrollViewModel();
+      const content = Column(
+        children: [
+          SizedBox(width: 6, height: 1),
+          Tagged.scope('group', SizedBox(width: 6, height: 2)), // [1, 3)
+          SizedBox(width: 6, height: 6),
+          Tagged.scope('group', SizedBox(width: 6, height: 2)), // [9, 11)
+        ],
+      );
+      _frame(6, 3).render(ScrollView(model: model, child: content));
+
+      model.ensureVisible('group');
+      expect(
+        model.scrollOffset,
+        equals(1),
+        reason: 'the union spans [1,11), taller than the viewport, top-aligns to the first occurrence',
+      );
+    });
+  });
+
   group('pointer pass-through', () {
     test('a point over a tagged child resolves to the child, not the ScrollView', () {
       final model = ScrollViewModel(id: 'panel');

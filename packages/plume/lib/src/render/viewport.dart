@@ -8,14 +8,23 @@ import 'layout_context.dart';
 import 'render_node.dart';
 import 'single_child_node.dart';
 
-/// A tagged descendant's row extent inside a [Viewport]'s content.
+/// One tagged descendant's placement inside a [Viewport]'s content.
 ///
-/// Both fields are content-relative — measured from the top of the content,
-/// not the viewport — so a range stays the same as the viewport scrolls.
+/// [top] and [height] are content-relative — measured from the top of the
+/// content, not the viewport — so both stay the same as the viewport scrolls.
+///
+/// [chain] is the descendant's ancestor tags, outermost first, ending with
+/// its own tag last. Plume never inspects a tag beyond comparing it for
+/// equality; a host layer that gives tags structure — a scope nesting an id,
+/// say — rebuilds that structure by walking [chain] itself.
 @immutable
-class ViewportTagRange {
-  /// Creates a range starting at content row [top], spanning [height] rows.
-  const ViewportTagRange(this.top, this.height);
+class ViewportTagEntry {
+  /// Creates an entry for [chain], spanning [height] content rows starting
+  /// at [top].
+  const ViewportTagEntry(this.chain, this.top, this.height);
+
+  /// The ancestor tag chain, outermost first, this node's own tag last.
+  final List<Object> chain;
 
   /// The first content row this descendant occupies.
   final int top;
@@ -24,20 +33,27 @@ class ViewportTagRange {
   final int height;
 
   @override
-  bool operator ==(Object other) => other is ViewportTagRange && other.top == top && other.height == height;
+  bool operator ==(Object other) {
+    if (other is! ViewportTagEntry || other.top != top || other.height != height) return false;
+    if (other.chain.length != chain.length) return false;
+    for (var i = 0; i < chain.length; i++) {
+      if (other.chain[i] != chain[i]) return false;
+    }
+    return true;
+  }
 
   @override
-  int get hashCode => Object.hash(top, height);
+  int get hashCode => Object.hash(top, height, Object.hashAll(chain));
 
   @override
-  String toString() => 'ViewportTagRange($top, $height)';
+  String toString() => 'ViewportTagEntry($chain, $top, $height)';
 }
 
 /// The geometry a [Viewport] measured while painting a single frame.
 @immutable
 class ViewportMetrics {
-  /// Creates a snapshot of [viewportRows], [contentRows], and [tagRanges].
-  const ViewportMetrics({required this.viewportRows, required this.contentRows, required this.tagRanges});
+  /// Creates a snapshot of [viewportRows], [contentRows], and [entries].
+  const ViewportMetrics({required this.viewportRows, required this.contentRows, required this.entries});
 
   /// The viewport's own height, in rows.
   final int viewportRows;
@@ -45,8 +61,12 @@ class ViewportMetrics {
   /// The content's full height, in rows — may be taller than [viewportRows].
   final int contentRows;
 
-  /// Every tagged descendant's content-relative row range, keyed by its tag.
-  final Map<Object, ViewportTagRange> tagRanges;
+  /// One entry per tagged descendant, in the order the tree was walked.
+  ///
+  /// Nothing here dedupes or merges: two nodes can carry equal tags — under
+  /// different ancestors, or by coincidence — and each still gets its own
+  /// entry.
+  final List<ViewportTagEntry> entries;
 }
 
 /// Called after each paint with the [Viewport]'s latest [ViewportMetrics].
@@ -78,8 +98,9 @@ class Viewport<T> extends SingleChildNode<T> {
   /// parent.
   final int scrollOffset;
 
-  /// Fired from [paintSelf] with this frame's [ViewportMetrics], or `null` to
-  /// skip measurement.
+  /// Fired from [paintSelf] with this frame's [ViewportMetrics] — one
+  /// [ViewportTagEntry] per tagged descendant — or `null` to skip
+  /// measurement.
   final ViewportMeasureCallback? onMeasure;
 
   int _contentRows = 0;
@@ -103,16 +124,17 @@ class Viewport<T> extends SingleChildNode<T> {
       return;
     }
     final contentTop = child.rect.top;
-    final tagRanges = <Object, ViewportTagRange>{};
-    void walk(RenderNode<T> node) {
+    final entries = <ViewportTagEntry>[];
+    void walk(RenderNode<T> node, List<Object> chain) {
       final tag = node.tag;
+      final nextChain = tag == null ? chain : [...chain, tag];
       if (tag != null) {
-        tagRanges[tag] = ViewportTagRange(node.rect.top - contentTop, node.rect.height);
+        entries.add(ViewportTagEntry(nextChain, node.rect.top - contentTop, node.rect.height));
       }
-      node.visitChildren(walk);
+      node.visitChildren((kid) => walk(kid, nextChain));
     }
 
-    walk(child);
-    callback(ViewportMetrics(viewportRows: rect.height, contentRows: _contentRows, tagRanges: tagRanges));
+    walk(child, const []);
+    callback(ViewportMetrics(viewportRows: rect.height, contentRows: _contentRows, entries: entries));
   }
 }

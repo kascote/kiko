@@ -68,5 +68,16 @@ void main() {
       expect(metrics!.viewportRows, 4);
       expect(metrics!.contentRows, 9);
     });
+
+    test('onMeasure reports each descendant as a one-element IdTag chain through the bridge', () {
+      plume.ViewportMetrics? metrics;
+      frame(6, 4).render(Viewport(scrollOffset: 0, onMeasure: (m) => metrics = m, child: taggedRows(6)));
+
+      expect(metrics!.entries.map((e) => e.chain).toList(), [
+        [IdTag('a')],
+        [IdTag('b')],
+        [IdTag('c')],
+      ]);
+    });
   });
 }

@@ -120,9 +120,9 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (hits) {
-        final field = hits.rectOf('field-0')!;
+        final field = hits.rectOf('field-0/field-0')!;
         // The wheel addresses the field under it; the field declines, and the
         // app offers it outward to the enclosing scroll view, which scrolls.
         return [
@@ -135,7 +135,7 @@ void main() {
     expect(model.scroll.scrollOffset, greaterThan(0), reason: 'the declined wheel should scroll the form');
   });
 
-  test('scrollable_form: a wheel over the bordered frame scrolls it too (E-split recipe)', () async {
+  test('scrollable_form: a wheel on the border of a field scrolls the form too', () async {
     final model = form.AppModel();
 
     await _driveWhenReady<form.AppModel>(
@@ -143,10 +143,36 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (hits) {
-        // The frame's own tag — no field involved, no decline to bubble. It
-        // routes to the SAME ScrollViewModel as the content area's self-tag.
+        final content = hits.rectOf('field-0/field-0')!;
+        // One row above the content, still inside field-0's own border — its
+        // scope, not its content leaf. The field declines the wheel exactly
+        // as it would over its content, and the router's outward walk
+        // reaches the scroll view behind it.
+        return [
+          (b) => b.emitWheel(content.x, content.y - 1, deltaY: 1),
+          (b) => b.emitWheel(content.x, content.y - 1, deltaY: 1),
+        ];
+      },
+    );
+
+    expect(model.scroll.scrollOffset, greaterThan(0), reason: 'a border wheel bubbles out to the scroll view too');
+  });
+
+  test('scrollable_form: a wheel over the bordered frame scrolls it too', () async {
+    final model = form.AppModel();
+
+    await _driveWhenReady<form.AppModel>(
+      backend: TestBackend(size: const TermSize(50, 18)),
+      model: model,
+      update: form.update,
+      view: form.view,
+      readyId: 'field-0/field-0',
+      events: (hits) {
+        // The outer frame's own plain id — no field involved. The router
+        // declines it (the id names no member), and the app forwards it to
+        // the scroll model by hand.
         final frame = hits.rectOf('form-frame')!;
         return [(b) => b.emitWheel(frame.x, frame.y, deltaY: 1)];
       },
@@ -155,7 +181,7 @@ void main() {
     expect(
       model.scroll.scrollOffset,
       greaterThan(0),
-      reason: 'the frame is a second id routed to the same scroll model',
+      reason: "the app forwards the frame id's pointer traffic to the same scroll model",
     );
   });
 
@@ -167,9 +193,9 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (hits) {
-        final field = hits.rectOf('field-0')!;
+        final field = hits.rectOf('field-0/field-0')!;
         // Far more than enough notches to hit the bottom, whatever the
         // viewport height turns out to be.
         return [for (var i = 0; i < 40; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1)];
@@ -177,7 +203,7 @@ void main() {
     );
 
     expect(
-      result.hits.rectOf('field-7'),
+      result.hits.rectOf('field-7/field-7'),
       isNotNull,
       reason: 'the last field must be reachable — no hardcoded visible count to fall short',
     );
@@ -191,22 +217,22 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (hits) {
-        final field = hits.rectOf('field-0')!;
+        final field = hits.rectOf('field-0/field-0')!;
         final frame = hits.rectOf('form-frame')!;
         return [
           // Scroll all the way to the bottom via the field-decline path...
           for (var i = 0; i < 40; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1),
-          // ...then one more notch, straight on the frame: declines, nothing
-          // above consumes it, nothing throws.
+          // ...then one more notch, straight on the frame: the app forwards
+          // it to the scroll model, which declines too — nothing throws.
           (b) => b.emitWheel(frame.x, frame.y, deltaY: 1),
         ];
       },
     );
 
     expect(model.scroll.scrollOffset, equals(model.scroll.contentRows - model.scroll.viewportRows));
-    expect(result.hits.rectOf('field-7'), isNotNull);
+    expect(result.hits.rectOf('field-7/field-7'), isNotNull);
   });
 
   test('scrollable_form: Tab past the viewport edge scrolls the focused field into view', () async {
@@ -217,16 +243,40 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (_) => [for (var i = 0; i < 7; i++) (b) => b.emitKey('tab')],
     );
 
     expect(model.focus.focused.id, equals('field-7'));
     expect(
-      result.hits.rectOf('field-7'),
+      result.hits.rectOf('field-7/field-7'),
       isNotNull,
       reason: 'ensureVisible must have scrolled the last field into view as focus reached it',
     );
+  });
+
+  test('scrollable_form: Tab to the last field scrolls its whole frame into view, border included', () async {
+    final model = form.AppModel();
+
+    final result = await _driveWhenReady<form.AppModel>(
+      backend: TestBackend(size: const TermSize(50, 10)),
+      model: model,
+      update: form.update,
+      view: form.view,
+      readyId: 'field-0/field-0',
+      events: (_) => [for (var i = 0; i < 7; i++) (b) => b.emitKey('tab')],
+    );
+
+    expect(model.focus.focused.id, equals('field-7'));
+    // ensureVisible targets the whole scoped frame, not just the content
+    // leaf, so the scroll must reach exactly the bottom — the last field's
+    // own bottom border included, not just its one content row.
+    expect(
+      model.scroll.scrollOffset,
+      equals(model.scroll.contentRows - model.scroll.viewportRows),
+      reason: "the last field's whole frame, border included, must be fully in view",
+    );
+    expect(result.hits.rectOf('field-7/field-7'), isNotNull);
   });
 
   test('scrollable_form: a field scrolled off-screen leaves no stray terminal cursor (G1)', () async {
@@ -237,9 +287,9 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-0',
+      readyId: 'field-0/field-0',
       events: (hits) {
-        final field = hits.rectOf('field-0')!;
+        final field = hits.rectOf('field-0/field-0')!;
         // Scroll the still-focused field-0 off the top, without moving focus.
         return [for (var i = 0; i < 10; i++) (b) => b.emitWheel(field.x, field.y, deltaY: 1)];
       },
@@ -261,10 +311,31 @@ void main() {
       model: model,
       update: form.update,
       view: form.view,
-      readyId: 'field-1',
+      readyId: 'field-1/field-1',
       events: (hits) {
-        final field = hits.rectOf('field-1')!;
+        final field = hits.rectOf('field-1/field-1')!;
         return [(b) => b.emitClick(field.x, field.y)];
+      },
+    );
+
+    expect(model.focus.focused.id, equals('field-1'));
+  });
+
+  test('scrollable_form: a press on the border of a field focuses it', () async {
+    final model = form.AppModel();
+
+    await _driveWhenReady<form.AppModel>(
+      backend: TestBackend(size: const TermSize(50, 18)),
+      model: model,
+      update: form.update,
+      view: form.view,
+      readyId: 'field-1/field-1',
+      events: (hits) {
+        final content = hits.rectOf('field-1/field-1')!;
+        // A cell on field-1's own border — its scope, not its content leaf.
+        // The scope's bare path is the same id the field itself answers to,
+        // so the router's click-to-focus moves focus there directly.
+        return [(b) => b.emitClick(content.x, content.y - 1)];
       },
     );
 

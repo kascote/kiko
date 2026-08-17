@@ -1,47 +1,49 @@
-// A scrollable form built on ScrollView — the proof for spec 0166 / mikos 0177.
+// A scrollable form built on ScrollView.
 //
-// Fields are composed inside a ScrollView exactly like any other content: no
-// hand-maintained "how many rows does the chrome take" constants, no manual
-// scroll clamp, no bubbling loop written by hand. The view measures its own
-// content every frame and reports the geometry back through the model
-// (`ScrollViewModel.setViewportMetrics`) — the same back-channel List/Table/
-// Tree already use for `visibleCount`.
+// Fields are composed inside a ScrollView like any other content. There is
+// no hand-maintained "how many rows does the chrome take" constant. There is
+// no manual scroll clamp, and no hand-rolled bubbling loop. The view
+// measures its own content every frame, and reports the geometry back
+// through the model (`ScrollViewModel.setViewportMetrics`) — the same
+// back-channel List/Table/Tree use for `visibleCount`.
 //
-// Three things the ScrollView buys for free, each killing a bug the
-// hand-rolled version had (see specs/scrollable-form-findings.md):
+// Every field is always composed as a child; the Viewport windows and clips
+// them. A short terminal shows fewer whole fields, never a partial one. The
+// last field is always reachable by scrolling.
 //
-//   - Every field is always composed as a child; the Viewport windows and
-//     clips them. A short terminal simply shows fewer whole fields — there is
-//     no chrome/field-row arithmetic to get wrong, so the last field is
-//     ALWAYS reachable by scrolling (finding B, dead by construction).
-//   - The ScrollView tags its own content area — border-to-border, gaps
-//     included — so a wheel over a gap between fields already resolves to it
-//     directly (finding E's main case, dead for free).
-//   - `ensureVisible(id)` is one call for ANY tagged descendant: the Tab walk
-//     and the "scroll to the first invalid field" validation demo below are
-//     the exact same line, just a different id.
+// The ScrollView tags only its own content area, border to border, gaps
+// included. A wheel between fields already resolves to it directly.
 //
-// A wheel over a FIELD still can't be handled by the ScrollView directly —
-// the field is the innermost target and the framework never bubbles. The
-// field declines the wheel (nothing to scroll horizontally), and the
-// FocusRouter hands it outward — the same `offerOutward` walk over
-// `ctx.hits.hitPath` the app used to call by hand now runs inside the
-// router's delegation.
+// `ensureVisible(id)` scrolls any tagged descendant into view. The Tab walk
+// below and the "scroll to the first invalid field" demo call the same
+// method, with a different id each time.
 //
-// The bordered frame around the fields demonstrates the "E-split" recipe for
-// user-composed chrome: the ScrollView only tags its OWN content area, so a
-// border drawn around it needs its own `Tagged` — but that tag can point at
-// the SAME ScrollViewModel via a router alias, so a wheel on the border
-// scrolls the form exactly like a wheel over the content does. Two ids, one
-// Component: legal, because the frame's `Container` doesn't self-tag (only
-// wrapping an already self-tagging, model-backed widget would trip the
-// self-tag assert).
+// A wheel over a field still cannot scroll the form itself. The field is
+// the innermost target, and the framework never bubbles. The field declines
+// the wheel — nothing to scroll horizontally — and `FocusRouter` offers it
+// outward along the hit path until the ScrollView picks it up.
 //
-// One policy stays deliberately app-owned: a press on the form's chrome
-// focuses the nearest field. The router has no such heuristic and shouldn't —
-// it declines what it doesn't own, and the app catches the Declined and
-// applies its own policy (`focusFromChrome` below). That is the intended
-// escape hatch: roll your own on top of Declined, not a router flag.
+// Each field's bordered `Container` is a scope named after the field's own
+// id (`Tagged.scope(input.id, ...)`). The `TextInput` inside keeps
+// self-tagging its own id, so its full path becomes `field-N/field-N`. A
+// press on the field's border resolves to the bare scope path `field-N`.
+// That is the same id the field itself answers to, so the router's
+// click-to-focus moves focus there, exactly as a press on the input would.
+// The border press carries no target rect, so the field consumes it without
+// moving its caret. `ensureVisible('field-N')` brings the whole bordered
+// frame into view; `ensureVisible('field-N/field-N')` would bring only the
+// 1-row content leaf.
+//
+// The bordered frame drawn around the whole ScrollView is the one
+// exception. A scope named after the scroll model would prefix — and so
+// swallow — every field's own path underneath it. The frame keeps a plain id
+// instead (`AppModel.frameId`). The app forwards its pointer traffic to
+// `model.scroll` by hand, in the `Declined` branch of `update` below.
+//
+// One policy stays app-owned: a press that names no field — the outer
+// frame, or a gap between fields — focuses the nearest field. `FocusRouter`
+// declines what it does not own; `focusFromChrome` below applies this
+// policy on top of that decline.
 //
 // tab/shift+tab move · type to edit · wheel scrolls · enter validates · esc quits
 
@@ -56,20 +58,10 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 
 const _labels = ['First name', 'Last name', 'Email', 'Phone', 'Company', 'Role', 'City', 'Country'];
 
-/// The E-split recipe (see the header comment), applied per field: a field's
-/// `TextInput` self-tags only its own 1-row content, never the bordered
-/// `Container` drawn around it. Without this second tag, `ensureVisible` only
-/// knows about that 1 row and scrolls the minimum to fit it — clipping the
-/// container's own border on a short terminal. This tag gives the WHOLE field
-/// container a name `ensureVisible` can target, and doubles as its chrome's
-/// hit region (a border click resolves here, same as a click on the outer
-/// frame or a gap).
-String _fieldFrameId(String fieldId) => '$fieldId-frame';
-
 class AppModel {
   AppModel() {
     // Realize the lazily-built FocusGroup now, so the first field is focused —
-    // and drawn as such, with a cursor — on the very first frame (finding A).
+    // and drawn as such, with a cursor — on the very first frame.
     focus.setIndex(0);
   }
 
@@ -81,11 +73,6 @@ class AppModel {
 
   late final Map<String, TextInputModel> fields = {for (final f in fieldList) f.id: f};
 
-  /// Every field's frame tag (see [_fieldFrameId]) — a click landing on one
-  /// is chrome, not content, so it routes through [focusFromChrome] exactly
-  /// like a click on [frameId] or the scroll view's own content-area tag.
-  late final Set<String> fieldFrameIds = {for (final f in fieldList) _fieldFrameId(f.id)};
-
   late final FocusGroup<Component> focus = FocusGroup(fieldList);
 
   /// Scrolls the field column. No app-owned offset, no clamp, no viewport
@@ -93,25 +80,24 @@ class AppModel {
   /// back in every frame.
   final ScrollViewModel scroll = ScrollViewModel(id: 'scroll');
 
-  /// Tags the bordered frame drawn AROUND the scroll view — see the header
-  /// comment's "E-split recipe." Resolves to the same model as [scroll]'s own
-  /// content-area tag, via the router's aliases.
+  /// Tags the bordered frame drawn around the scroll view. This id names no
+  /// field, so a scope here would prefix — and swallow — every field's own
+  /// path underneath it. It stays a plain id instead; the app forwards its
+  /// pointer traffic to [scroll] by hand, in `update`'s `Declined` branch.
   final String frameId = 'form-frame';
 
   /// Routes keys and pointers among the fields and the scroll surface. The
   /// fields are the focusable members; [scroll] rides along as an extra —
-  /// pointer-reachable, never focused, skipped by Tab. Every chrome tag (the
-  /// outer frame, each field's frame) is an alias for [scroll]: the E-split
-  /// recipe's two-ids-one-Component, so a wheel on any border scrolls the
-  /// form exactly like one over the content. A wheel a field declines bubbles
-  /// outward inside the router. Every focus change the router makes — Tab,
-  /// Shift+Tab, a click on a field — scrolls the newly focused field's whole
-  /// frame into view.
+  /// pointer-reachable, never focused, skipped by Tab. A press on a field,
+  /// its border included, moves focus there directly: both resolve to the
+  /// field's own id. A wheel a field declines bubbles outward to whatever
+  /// scrollable ancestor sits behind it. Every focus change the router makes
+  /// — Tab, Shift+Tab, a click on a field — scrolls the newly focused
+  /// field's whole frame into view.
   late final FocusRouter router = FocusRouter(
     focus,
     extras: [scroll],
-    aliases: {frameId: scroll.id, for (final id in fieldFrameIds) id: scroll.id},
-    onFocusChange: (focused) => scroll.ensureVisible(_fieldFrameId(focused.id)),
+    onFocusChange: (focused) => scroll.ensureVisible(focused.id),
   );
 
   /// Non-null while the last [validate] attempt failed on this field's id;
@@ -124,15 +110,15 @@ class AppModel {
     if (i >= 0) focus.setIndex(i);
   }
 
-  /// Focus the field a press on the form's chrome landed on (finding F): a
-  /// press on a field's own border resolves to its frame tag, and a press on
-  /// a gap or the outer frame resolves to the scroll view or the frame — none
-  /// of those name a field directly. Match the click's row against where each
-  /// field is currently drawn, read from the live hit map rather than
-  /// recomputed.
+  /// Focuses the field a press on the form's chrome landed on: the outer
+  /// frame, or a gap between fields. Neither names a field directly, so the
+  /// router left the press unhandled. Match the click's row against where
+  /// each field is currently drawn, read from the live hit map rather than
+  /// recomputed. [HitTag.join] reaches the field's content leaf, because the
+  /// field's own scope path carries no rect.
   void focusFromChrome(int globalY, HitMap hits) {
     for (final f in fieldList) {
-      final rect = hits.rectOf(f.id);
+      final rect = hits.rectOf(HitTag.join(f.id, f.id));
       if (rect != null && (globalY - rect.y).abs() <= 1) {
         focusOn(f.id);
         return;
@@ -149,7 +135,7 @@ class AppModel {
       if (f.value.trim().isEmpty) {
         errorId = f.id;
         focusOn(f.id);
-        scroll.ensureVisible(_fieldFrameId(f.id));
+        scroll.ensureVisible(f.id);
         return;
       }
     }
@@ -165,8 +151,8 @@ class AppModel {
   // The one routing line: keys to the focused field (tab/shift+tab reserved
   // for traversal, with ensureVisible riding on the router's focus-change
   // callback), a press to the field it landed on — focusing it first — and a
-  // wheel to whatever is under it, bubbling outward from a field that
-  // declines it to the scroll view behind, content or chrome alike.
+  // wheel to whatever is under it, bubbling outward from a declining field
+  // to the scroll surface behind it.
   final result = model.router.route(msg, ctx);
 
   // Fixing the errored field's text clears its error mark — checked after
@@ -184,14 +170,27 @@ class AppModel {
       break; // not interaction traffic the router owns — fall through
   }
 
-  // The roll-your-own layer on top of the router's Declined. A press on the
-  // form's CHROME — the outer frame, a field's border, a gap — names no
-  // field, so the router moved no focus and nothing consumed the press. The
-  // app applies its own policy instead: focus the field nearest the click's
-  // row. A policy like this stays app code by design; the router only ever
-  // declines what it doesn't own.
+  // The outer frame names no member the router knows, so its pointer
+  // traffic always declines above. Forward it to the scroll model by hand —
+  // a wheel on the border scrolls the form exactly like one over the
+  // content — and let anything the scroll model also declines, a press
+  // included, fall through to the chrome policy below.
+  if (msg case Routed(targetId: final target?) when target == model.frameId) {
+    switch (model.scroll.update(msg)) {
+      case Handled(:final cmd):
+        return (model, cmd);
+      case Declined():
+        break;
+    }
+  }
+
+  // The roll-your-own layer on top of the router's Declined. A press that
+  // names no field — the outer frame, or a gap between fields — reaches
+  // here unhandled. The app applies its own policy instead: focus the field
+  // nearest the click's row. A policy like this stays app code by design;
+  // the router only ever declines what it doesn't own.
   if (msg case final PointerMsg p when p.isDown) {
-    if (p.targetId == model.frameId || p.targetId == model.scroll.id || model.fieldFrameIds.contains(p.targetId)) {
+    if (p.targetId == model.frameId || p.targetId == model.scroll.id) {
       model.focusFromChrome(p.global.y, ctx.hits);
       return (model, null);
     }
@@ -238,9 +237,10 @@ void view(AppModel model, Frame frame) {
     children: [
       Center(child: Line('Scrollable form — wheel over a field scrolls the form behind it', style: _theme.muted.ink)),
       const SizedBox(height: 1),
-      // The frame's OWN tag (see the header comment's E-split recipe) — a
-      // second id routed to the same ScrollViewModel as the content area's
-      // self-tag, so a wheel on the border scrolls the form too.
+      // The frame's own plain id (see the header comment) — the one
+      // exception to scoping in this example. `update` forwards its pointer
+      // traffic to `model.scroll` by hand, so a wheel on the border scrolls
+      // the form exactly like one over the content.
       Expanded(
         child: Tagged(
           model.frameId,
@@ -262,13 +262,12 @@ void view(AppModel model, Frame frame) {
   frame.render(ui);
 }
 
-View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Tagged(
-  // The frame tag: names the WHOLE container (borders included) so
-  // `ensureVisible` can bring it fully into view — see `_fieldFrameId`'s doc
-  // comment. Legal to wrap in `Tagged` here (unlike the TextInput below)
-  // because `Container` itself never self-tags; only the TextInput inside it
-  // does.
-  _fieldFrameId(input.id),
+View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Tagged.scope(
+  // Names the whole bordered container, borders included, so `ensureVisible`
+  // can bring it fully into view. Legal to wrap in `Tagged.scope` here —
+  // unlike the TextInput below — because `Container` itself never self-tags;
+  // only the TextInput inside it does.
+  input.id,
   Container(
     border: BorderType.plain,
     borderStyle: resolver.border({
@@ -278,9 +277,8 @@ View _field(TextInputModel input, int index, AppModel model, StyleResolver resol
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [Line(' ${_labels[index]} ', style: input.focused ? _theme.focus.ink : _theme.muted.ink)],
     // The TextInput tags its own content with its model id — no `Tagged`
-    // wrapper needed; that self-tag nests inside the frame tag above, so
-    // `hitPath` over a field's content reports the frame, then the scroll
-    // view, just outside it.
+    // wrapper needed. That self-tag nests inside the scope above, so a
+    // click on the input reports the path `field-N/field-N`.
     child: ConstrainedBox(
       additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
       child: TextInput(model: input, theme: _theme),

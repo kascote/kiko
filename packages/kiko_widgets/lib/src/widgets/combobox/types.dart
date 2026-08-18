@@ -37,8 +37,11 @@ class ComboboxStyle {
   /// The popup's status row after the newest query's answer failed.
   final Style? errorRow;
 
+  /// The popup's status row after the newest query was refused.
+  final Style? stalledRow;
+
   /// Creates a ComboboxStyle.
-  const ComboboxStyle({this.toggle, this.popupBackground, this.loadingRow, this.errorRow});
+  const ComboboxStyle({this.toggle, this.popupBackground, this.loadingRow, this.errorRow, this.stalledRow});
 }
 
 // ═══════════════════════════════════════════════════════════

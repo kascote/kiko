@@ -205,39 +205,35 @@ void main() {
   });
 
   group('Combobox.renderPopup (status rows)', () {
-    test('shows a loading row after the standing matches while the newest query is in flight', () {
+    test('a new query clears the matches and shows the loading row alone', () {
       final combo = _remoteBox()
         ..update(_pressOn('combo/toggle')) // asks QueryKey('')
         ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
-        ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'); the matches above stand while it loads
+        ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'), clearing the matches
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
 
-      expect(_rowText(frame.buffer, 1, 0, 5), 'Apple');
-      expect(_rowText(frame.buffer, 2, 0, 6), 'Banana');
-      expect(_rowText(frame.buffer, 3, 0, 8), 'Loading…', reason: 'the status row paints after the matches');
+      expect(_rowText(frame.buffer, 1, 0, 8), 'Loading…', reason: 'the status row owns the cleared popup');
+      expect(_rowText(frame.buffer, 2, 0, 6).trim(), isEmpty, reason: 'no stale match survives the ask');
     });
 
-    test('a status row takes the last row when the matches would otherwise fill the popup', () {
-      final combo = _remoteBox(maxVisibleRows: 2)
-        ..update(_pressOn('combo/toggle'))
-        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
-        ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'); 2 matches stand, popup only fits 2 rows
+    test('a refusal shows the stalled row, styled through ComboboxStyle.stalledRow', () {
+      const stalledStyle = Style(fg: Color.indexed(11));
+      final combo = _remoteBox()
+        ..styles = const ComboboxStyle(stalledRow: stalledStyle)
+        ..update(_pressOn('combo/toggle')) // asks QueryKey('')
+        ..applyLoad(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
 
-      expect(
-        _rowText(frame.buffer, 1, 0, 5),
-        'Apple',
-        reason: 'one fewer match shows, to leave room for the status row',
-      );
-      expect(_rowText(frame.buffer, 2, 0, 8), 'Loading…', reason: "the status row takes the popup's last row");
+      expect(_rowText(frame.buffer, 1, 0, 10), 'Not loaded');
+      expect(frame.buffer[(x: 0, y: 1)].fg, stalledStyle.fg);
     });
 
     test('shows an error row after the newest query fails, styled through ComboboxStyle.errorRow', () {
@@ -246,7 +242,7 @@ void main() {
         ..styles = const ComboboxStyle(errorRow: errorStyle)
         ..update(_pressOn('combo/toggle'))
         ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
-        ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z')
+        ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z'), clearing the matches
         ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
 
       final view = Combobox(model: combo, theme: _theme);
@@ -254,9 +250,39 @@ void main() {
       _renderRow(frame, view);
       view.renderPopup(frame);
 
-      expect(_rowText(frame.buffer, 1, 0, 5), 'Apple', reason: 'the prior options still stand after a failed query');
-      expect(_rowText(frame.buffer, 2, 0, 14), 'Failed to load');
-      expect(frame.buffer[(x: 0, y: 2)].fg, errorStyle.fg);
+      expect(_rowText(frame.buffer, 1, 0, 14), 'Failed to load');
+      expect(frame.buffer[(x: 0, y: 1)].fg, errorStyle.fg);
+      expect(_rowText(frame.buffer, 2, 0, 5).trim(), isEmpty, reason: 'the failed query cleared the prior options');
+    });
+
+    test("an installed empty answer shows the default 'No matches' placeholder", () {
+      final combo = _remoteBox()
+        ..update(_pressOn('combo/toggle'))
+        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 1, 0, 10), 'No matches');
+    });
+
+    test("a label line's own styling wins over the themed base", () {
+      const labelStyle = Style(fg: Color.indexed(12));
+      final combo = _remoteBox()..update(_pressOn('combo/toggle')); // in flight
+
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        loadingLabel: Line('Searching…', style: labelStyle),
+      );
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 1, 0, 10), 'Searching…');
+      expect(frame.buffer[(x: 0, y: 1)].fg, labelStyle.fg);
     });
 
     test('the loading row disappears once the newest query installs', () {

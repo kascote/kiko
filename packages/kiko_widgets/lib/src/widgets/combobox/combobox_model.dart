@@ -70,10 +70,11 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 ///
 /// A remote combobox asks for options through [Loadable.applyLoad]: every
 /// text change, and opening without one, asks with a fresh [QueryKey] naming
-/// the query's text, and only an answer for the newest query the model asked
-/// installs — a superseded one's answer is dropped. A refusal
-/// (`declineLoad`) leaves the current options standing, and an error is kept
-/// for the popup's status row until a later query supersedes it.
+/// the query's text. Asking clears the popup, so it only ever shows the
+/// current query's state — [queryStatus] — and only an answer for the newest
+/// query installs; a superseded one's answer is dropped. A refusal
+/// (`declineLoad`) resolves the query without installing, leaving the popup
+/// stalled until the next query.
 class ComboboxModel<T> implements Component, Loadable {
   @override
   late final String id;
@@ -129,6 +130,12 @@ class ComboboxModel<T> implements Component, Loadable {
   final _loads = LoadTracker<QueryKey>();
   QueryKey? _newestKey;
 
+  /// Whether the newest query's answer has installed.
+  ///
+  /// Distinguishes an installed empty answer (ready) from a refusal
+  /// (stalled), which leave the same empty popup behind.
+  bool _newestInstalled = false;
+
   T? _value;
   bool _isOpen = false;
   bool _focused;
@@ -145,9 +152,9 @@ class ComboboxModel<T> implements Component, Loadable {
   ///
   /// [value], when given, preselects an option: the field starts showing
   /// [label] of it, and opening the popup without editing places the cursor
-  /// on its row (matched against [options] with `==`). A remote combobox has
-  /// nothing to match against until an answer lands, so [value] only seeds
-  /// the field's label there.
+  /// on its row, matched with `==`. A remote combobox applies the same rule
+  /// when that open's answer installs. A fresh instance from a fetch still
+  /// matches, because the comparison is `==`, not identity.
   ComboboxModel({
     required this.label,
     String? id,
@@ -198,13 +205,19 @@ class ComboboxModel<T> implements Component, Loadable {
   /// constructor.
   bool get isRemote => _options == null;
 
-  /// Whether the newest query this combobox asked is in flight.
+  /// Where the newest query stands, in the shared [SliceStatus] vocabulary.
   ///
-  /// An older, superseded query may still be finishing in the background;
-  /// only the newest one drives the popup's status row.
-  bool get isLoadingQuery {
+  /// [SliceStatus.filling] while the newest query is in flight,
+  /// [SliceStatus.failed] after its answer failed, [SliceStatus.stalled]
+  /// when it resolved without installing — a refusal — and
+  /// [SliceStatus.ready] otherwise. An older, superseded query never drives
+  /// this, and an in-memory combobox never leaves ready.
+  SliceStatus get queryStatus {
     final key = _newestKey;
-    return key != null && _loads.isLoading(key);
+    if (key == null) return SliceStatus.ready;
+    if (_loads.isLoading(key)) return SliceStatus.filling;
+    if (_loads.errorFor(key) != null) return SliceStatus.failed;
+    return _newestInstalled ? SliceStatus.ready : SliceStatus.stalled;
   }
 
   /// The error from the newest query's last answer, or null.
@@ -241,12 +254,12 @@ class ComboboxModel<T> implements Component, Loadable {
   @internal
   ListViewModel<T, T> get internalList => _list;
 
-  /// Sets how many popup rows are visible, for page navigation and scroll
-  /// math.
+  /// The query slots.
   ///
-  /// Call this from the view during paint, once the popup's own height is
-  /// known.
-  void setVisibleCount(int count) => _list.setVisibleCount(count);
+  /// Exposed for testing — slot bookkeeping is otherwise invisible.
+  /// Production reads go through [queryStatus] and [queryError].
+  @visibleForTesting
+  LoadTracker<QueryKey> get queryLoads => _loads;
 
   /// Closes the popup, discarding any unfiled edit.
   ///
@@ -262,10 +275,19 @@ class ComboboxModel<T> implements Component, Loadable {
 
   /// Clears the value and empties the field.
   ///
-  /// App-driven: no key binds to this. The popup's open state is untouched.
-  void clear() {
+  /// App-driven: no key binds to this. The popup's open state is untouched,
+  /// but an open popup reseeds so its rows match the now-empty field: an
+  /// in-memory combobox shows the unfiltered options again, and a remote one
+  /// asks the empty query, clearing the popup to that query's state. Forward
+  /// the returned command like one from [update]; it is null except on that
+  /// remote path.
+  Cmd? clear() {
     _value = null;
     _setFieldText('');
+    if (!_isOpen) return null;
+    if (isRemote) return _askQuery('');
+    _seedUnfiltered();
+    return null;
   }
 
   /// Handles a message, reporting whether it was consumed and any effect.
@@ -377,9 +399,8 @@ class ComboboxModel<T> implements Component, Loadable {
       _reseedFilter();
       return result;
     }
-    final ask = _askQuery(field.value);
-    final fieldCmd = result is Handled ? result.cmd : null;
-    return Handled(fieldCmd == null ? ask : Batch([fieldCmd, ask]));
+    // The field emits no commands of its own, so the ask is the only effect.
+    return Handled(_askQuery(field.value));
   }
 
   UpdateResult _commit(KeyMsg msg) => _commitFromList(_list.update(msg));
@@ -426,12 +447,22 @@ class ComboboxModel<T> implements Component, Loadable {
 
   void _openUnfiltered() {
     _isOpen = true;
+    _seedUnfiltered();
+  }
+
+  /// Seeds the popup with the full in-memory set, cursor on the value's row.
+  void _seedUnfiltered() {
     final options = _options!;
     _list
       ..reset()
       ..insertItems(options, 0)
       ..totalCount = options.length;
+    _moveCursorToValue(options);
+  }
 
+  /// Moves the popup cursor to the current value's row, when [options] holds
+  /// an option equal (`==`) to it. Leaves the cursor alone otherwise.
+  void _moveCursorToValue(List<T> options) {
     final current = _value;
     if (current == null) return;
     final index = options.indexWhere((option) => option == current);
@@ -447,23 +478,40 @@ class ComboboxModel<T> implements Component, Loadable {
       ..totalCount = filtered.length;
   }
 
-  /// Asks the app for options matching [query], remembering the key as the
-  /// newest one asked — the one whose answer [applyLoad] is willing to
-  /// install.
+  /// Asks the app for options matching [query], clearing the popup so it
+  /// shows only this query's state, and remembering the key as the newest
+  /// one asked — the one whose answer [applyLoad] is willing to install.
+  ///
+  /// The superseded key's slot is dropped unless it is still in flight;
+  /// [applyLoad] needs a loading slot to resolve and drop that query's late
+  /// answer. Without the drop, one failed slot per distinct query text would
+  /// pile up for the life of the model.
   LoadRequest _askQuery(String query) {
+    _list
+      ..reset()
+      ..totalCount = 0;
+    _newestInstalled = false;
     final key = QueryKey(query);
+    final superseded = _newestKey;
+    if (superseded != null && superseded != key && !_loads.isLoading(superseded)) {
+      _loads.complete(superseded);
+    }
     _newestKey = key;
     _loads.begin(key);
     return LoadRequest(id, key: key);
   }
 
-  /// Replaces the popup's options wholesale with a query's answer, cursor on
-  /// the first row.
+  /// Replaces the popup's options wholesale with a query's answer.
+  ///
+  /// The cursor lands on the first row. After an open without editing — the
+  /// field still pristine, so the answer is the empty query's — it lands on
+  /// the current value's row instead, when the answer holds an equal option.
   void _installRemoteOptions(List<T> options) {
     _list
       ..reset()
       ..insertItems(options, 0)
       ..totalCount = options.length;
+    if (_fieldPristine) _moveCursorToValue(options);
   }
 
   /// Installs a remote query's answer, or records its failure.
@@ -472,9 +520,9 @@ class ComboboxModel<T> implements Component, Loadable {
   /// installs, so a superseded query landing after a newer one was asked is
   /// dropped once its own slot resolves; a query no longer in flight (e.g.
   /// already answered) is dropped outright. A refusal clears the slot and
-  /// installs nothing, leaving the current options standing. A failure is
-  /// kept for [queryError], which the popup reads only while its key is
-  /// still the newest one.
+  /// installs nothing, leaving the popup stalled. A failure is kept for
+  /// [queryError] only while its key is the newest one; a superseded
+  /// query's failure clears its slot like a refusal.
   @override
   void applyLoad(LoadResult<Object?> result) {
     if (result.id != id) return;
@@ -487,13 +535,20 @@ class ComboboxModel<T> implements Component, Loadable {
       return;
     }
     if (!result.ok) {
-      _loads.fail(key, result.error!);
+      // A superseded key's error would never surface — [queryError] reads
+      // only the newest key — so keeping it would only leak the slot.
+      if (key == _newestKey) {
+        _loads.fail(key, result.error!);
+      } else {
+        _loads.complete(key);
+      }
       return;
     }
     _loads.complete(key);
     if (key != _newestKey) return;
 
     final data = result.data;
+    _newestInstalled = true;
     _installRemoteOptions(data is List<T> ? data : const []);
   }
 

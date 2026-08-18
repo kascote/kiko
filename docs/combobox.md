@@ -27,8 +27,11 @@ build a `ComboboxModel<T>` and route to it by `id`, the same as any other
 ## Keys
 
 While the popup is closed, a text-editing key or Down opens it; Enter and
-Escape decline, so the app's own bindings for them still fire. The first
-edit over a pristine committed label clears the field before applying
+Escape decline, so the app's own bindings for them still fire. Opening
+without editing places the popup cursor on the current value's row, matched
+with `==`. A remote combobox applies the same rule when that open's answer
+installs; a typed query's answer keeps the cursor on the first match. The
+first edit over a pristine committed label clears the field before applying
 itself, rather than appending to the shown label.
 
 While the popup is open, Up, Down, Page Up and Page Down move its cursor.
@@ -54,20 +57,31 @@ Omit `options:` and the combobox becomes remote: it implements `Loadable`
 and asks the app for options through the same `LoadRequest`/`LoadResult`
 contract every loading widget uses (`docs/async-loading.md`). Every text
 change, and opening the popup without typing, asks with a `QueryKey` naming
-the query's text. Only the newest query's answer installs; an older query's
-answer is dropped once its own slot resolves. `declineLoad` leaves the
-current options standing — a policy refusal, not a failure.
+the query's text — and every ask clears the popup, so it only ever shows
+the current query's state. Only the newest query's answer installs; an
+older query's answer is dropped once its own slot resolves. `declineLoad`
+resolves a query without installing — a policy refusal, not a failure; the
+popup shows its stalled row until the next query.
 
 ## The query slot
 
-`isLoadingQuery` is true while the newest query is in flight; `queryError`
-holds the newest query's failure, if its last answer failed. Both read only
+`queryStatus` names where the newest query stands, in the shared
+`SliceStatus` vocabulary: `filling` while it is in flight, `failed` after
+its answer failed, `stalled` after it was refused, and `ready` once an
+answer installed. `queryError` holds the failure's cause. Both read only
 the newest query's state, so an older query still finishing in the
-background never overwrites what the popup shows. The view paints a status
-row from these — `loadingLabel` while loading, `errorLabel` after a
-failure — under the popup's standing matches, styled by
-`ComboboxStyle.loadingRow`/`errorRow`. A local combobox never shows one:
-both getters answer false and null when `isRemote` is false.
+background never overwrites what the popup shows.
+
+The view paints one status row from `queryStatus`, alone on the cleared
+popup: `loadingLabel` while filling, `errorLabel` after a failure,
+`stalledLabel` after a refusal. Each is a `Line`. A null label shows its
+built-in text — 'Loading…', 'Failed to load', 'Not loaded' — and a given
+line's own styling wins over the themed base
+(`ComboboxStyle.loadingRow`/`errorRow`/`stalledRow`). A ready answer with
+no options shows `emptyPlaceholder` instead: 'No matches' unless
+overridden, `Line('')` for a blank body. The same placeholder shows when
+no in-memory option matches. An in-memory combobox never shows a status
+row: `queryStatus` stays `ready` and `queryError` null.
 
 ## The popup and placement
 
@@ -135,6 +149,12 @@ combobox never decides on its own when the user wants to start over. An app
 wires its own key or button to call it, the way
 `packages/kiko_widgets/example/combobox.dart` binds Ctrl+R.
 
+While the popup is open, `clear()` also reseeds it, so the rows match the
+now-empty field. An in-memory combobox shows the unfiltered options again.
+A remote one asks the empty query, clearing the popup to that query's
+state; `clear()` returns the query's `LoadRequest`, and the app forwards
+it the way it forwards one from `update`.
+
 ## Theming: `ComboboxStyle`
 
 | slot              | derived default                  | matrix source    |
@@ -143,6 +163,7 @@ wires its own key or button to call it, the way
 | `popupBackground` | `theme.surface.fill`             | anatomy-specific  |
 | `loadingRow`      | `theme.muted.ink`                | anatomy-specific  |
 | `errorRow`        | `theme.muted.ink`                | anatomy-specific  |
+| `stalledRow`      | `theme.muted.ink`                | anatomy-specific  |
 
 A `null` slot derives from the theme by the rule above; a non-null slot is
 the caller's exact style and wins verbatim (`docs/theming.md`). The field's

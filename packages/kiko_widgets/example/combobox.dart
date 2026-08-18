@@ -6,7 +6,8 @@
 // - The remote path: options omitted, so the model asks the app for every
 //   query through a Loadable LoadRequest/LoadResult exchange, keyed by
 //   QueryKey. The app answers with data, an error (typing "err" into the
-//   search), or declineLoad (F3 pauses the search to demonstrate a refusal).
+//   search), or declineLoad (F3 pauses the search to demonstrate a refusal:
+//   the popup shows the stalled row, here 'Search paused').
 // - The app-side outside-press dismissal recipe: a press whose targetId
 //   resolves to neither combobox's own scope closes both, before the press
 //   routes normally.
@@ -163,9 +164,12 @@ bool _outsideBothCombos(String? targetId, AppModel model) =>
   }
 
   if (msg case KeyMsg(:final key)) {
-    // App-driven clear: the combobox binds no key to it itself.
+    // App-driven clear: the combobox binds no key to it itself. A remote
+    // clear() while open re-asks the empty query; run it like any other.
     if (key == 'ctrl+r') {
-      if (model.focus.focused case final ComboboxModel<String> combo) combo.clear();
+      if (model.focus.focused case final ComboboxModel<String> combo) {
+        if (combo.clear() case final LoadRequest req) return (model, fetchFor(model, req));
+      }
       return (model, null);
     }
     if (key == 'f3') {
@@ -192,8 +196,9 @@ void appView(AppModel model, Frame frame) {
   final userView = Combobox<String>(
     model: model.userCombo,
     theme: theme,
-    loadingLabel: 'Searching…',
-    errorLabel: 'Search failed',
+    loadingLabel: Line('Searching…'),
+    errorLabel: Line('Search failed'),
+    stalledLabel: Line('Search paused'),
   );
 
   final helpLine = model.searchPaused

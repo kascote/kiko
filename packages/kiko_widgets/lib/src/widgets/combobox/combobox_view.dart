@@ -1,11 +1,13 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
 import '../list_view/list_view_model.dart';
 import '../list_view/list_view_view.dart';
 import '../list_view/types.dart';
 import '../popup/popup_view.dart';
 import '../text_input_view.dart';
 import 'combobox_model.dart';
+import 'types.dart';
 
 /// A combobox as a view — the plume-native view for [ComboboxModel].
 ///
@@ -25,8 +27,9 @@ final class Combobox<T> implements View {
     this.emptyPlaceholder,
     this.closedGlyph = '▾',
     this.openGlyph = '▴',
-    this.loadingLabel = 'Loading…',
-    this.errorLabel = 'Failed to load',
+    this.loadingLabel,
+    this.errorLabel,
+    this.stalledLabel,
     this.styleOverrides,
   });
 
@@ -41,8 +44,10 @@ final class Combobox<T> implements View {
   /// Defaults to a single line of [ComboboxModel.label].
   final List<Line> Function(T item, int index, ItemState state)? itemBuilder;
 
-  /// The line shown in the popup when no option matches, or `null` for a
-  /// blank body.
+  /// The line shown when the standing answer holds no options — an installed
+  /// empty answer, or an in-memory filter no option matches.
+  ///
+  /// Null shows 'No matches'; pass `Line('')` for a blank body.
   final Line? emptyPlaceholder;
 
   /// The toggle's glyph while the popup is closed.
@@ -52,10 +57,23 @@ final class Combobox<T> implements View {
   final String openGlyph;
 
   /// The popup's status row while the newest remote query is in flight.
-  final String loadingLabel;
+  ///
+  /// Null shows 'Loading…'. A given line's own styling wins over the themed
+  /// base ([ComboboxStyle.loadingRow], or the theme's muted ink).
+  final Line? loadingLabel;
 
   /// The popup's status row after the newest remote query's answer failed.
-  final String errorLabel;
+  ///
+  /// Null shows 'Failed to load'; styling as for [loadingLabel], based on
+  /// [ComboboxStyle.errorRow].
+  final Line? errorLabel;
+
+  /// The popup's status row after the newest remote query was refused:
+  /// resolved, nothing installed, nothing coming.
+  ///
+  /// Null shows 'Not loaded'; styling as for [loadingLabel], based on
+  /// [ComboboxStyle.stalledRow].
+  final Line? stalledLabel;
 
   /// Per-state style overrides applied on top of the theme's derived styles.
   final Map<WidgetState, Style>? styleOverrides;
@@ -122,18 +140,17 @@ final class Combobox<T> implements View {
   }
 
   /// Builds one open popup's node at [height]: the combobox's scope hugging
-  /// exactly the rows the list (and, while remote, its status row) occupy,
-  /// painted over a full-height background fill.
+  /// exactly the rows the list (or its status row) occupies, painted over a
+  /// full-height background fill.
   ///
   /// The list is bounded to its match count rather than to [height] — as
   /// many rows as it has matches, up to [height] — so a short result leaves
   /// the rows past it as the scope's own untagged, background-filled cells
   /// rather than the list's. A press there then resolves to the bare scope
-  /// path, never to the list. A status row ([_statusLine]) paints
-  /// immediately after the matches — chrome this method paints itself, never
-  /// a row of the embedded list, so it can never hold the list's cursor — and
-  /// takes one row from the list's budget so it lands on the popup's last
-  /// row when the matches would otherwise fill it.
+  /// path, never to the list. A status row ([_statusLine]) owns the popup
+  /// outright — every ask clears the list, so matches and status rows never
+  /// coexist — and it is chrome this method paints itself, never a row of
+  /// the embedded list, so it can never hold the list's cursor.
   Node _popup({
     required ListViewModel<T, T> list,
     required Style fill,
@@ -142,13 +159,13 @@ final class Combobox<T> implements View {
   }) {
     final status = _statusLine();
     final int contentHeight;
-    if (status == null) {
+    if (status != null) {
+      contentHeight = 0; // the list is empty while a status row shows
+    } else {
       final rows = list.itemLimit == 0 ? 1 : list.itemLimit;
       contentHeight = rows.clamp(0, height);
-    } else {
-      contentHeight = list.itemLimit.clamp(0, height > 0 ? height - 1 : 0);
     }
-    model.setVisibleCount(contentHeight);
+    list.setVisibleCount(contentHeight);
 
     return Tagged.scope(
       model.id,
@@ -162,7 +179,7 @@ final class Combobox<T> implements View {
                 model: list,
                 theme: theme,
                 itemBuilder: rowBuilder,
-                emptyPlaceholder: emptyPlaceholder,
+                emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
               ),
             ),
             if (status != null && height > 0) status,
@@ -173,12 +190,22 @@ final class Combobox<T> implements View {
   }
 
   /// The popup's status row: a loading line while the newest remote query is
-  /// in flight, an error line after its answer failed, or null while there
-  /// is nothing to report — including whenever [model] is not remote.
-  Line? _statusLine() {
-    if (model.isLoadingQuery) return Line(loadingLabel, style: model.styles.loadingRow ?? theme.muted.ink);
-    if (model.queryError != null) return Line(errorLabel, style: model.styles.errorRow ?? theme.muted.ink);
-    return null;
+  /// in flight, an error line after its answer failed, a stalled line after
+  /// a refusal, or null while an answer stands — always, for an in-memory
+  /// [model].
+  Line? _statusLine() => switch (model.queryStatus) {
+    SliceStatus.filling => _statusRow(loadingLabel, 'Loading…', model.styles.loadingRow),
+    SliceStatus.failed => _statusRow(errorLabel, 'Failed to load', model.styles.errorRow),
+    SliceStatus.stalled => _statusRow(stalledLabel, 'Not loaded', model.styles.stalledRow),
+    SliceStatus.ready => null,
+  };
+
+  /// Materializes one status row: [label] with its own styling patched over
+  /// the themed base, or [fallback] in the base style alone.
+  Line _statusRow(Line? label, String fallback, Style? slot) {
+    final base = slot ?? theme.muted.ink;
+    if (label == null) return Line(fallback, style: base);
+    return Line.fromTexts(label.texts.toList(), style: base.patch(label.style));
   }
 
   List<Line> _defaultItemBuilder(T item, int index, ItemState state) => [Line(model.label(item))];

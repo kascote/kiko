@@ -214,7 +214,9 @@ one storage type.
   earlier answer lands. Only the query the combobox asked most recently
   installs its answer into the popup's options; an older query's answer is
   dropped once its own slot resolves, whether it succeeds, fails, or is
-  refused. A refusal (`declineLoad`) leaves the standing options untouched.
+  refused. Asking a query clears the popup's options, so a refusal
+  (`declineLoad`) leaves the popup empty, showing its stalled row until
+  the next query.
   Opening the popup on an empty field asks with `QueryKey('')`, the same
   request shape as a typed query. A combobox is not a windowed widget: it
   keeps no page window, and every answer replaces its options wholesale

@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
 
+import '../../load/load.dart';
 import '../list_view/list_view_model.dart';
 import '../list_view/types.dart';
 import '../popup/popup_placement.dart';
@@ -47,8 +48,10 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 /// Model for a combobox: a text field paired with a filterable popup list.
 ///
 /// Holds an embedded [TextInputModel] field and, privately, a [ListViewModel]
-/// over [T] that never surfaces on the public API. Options are held in
-/// memory; typing filters them with [matches], and the popup opens and closes
+/// over [T] that never surfaces on the public API. Options come either in
+/// memory (the constructor's `options`) or from the app, one
+/// [QueryKey]-addressed [LoadRequest] per query (`options` omitted — see
+/// [isRemote]). Typing filters or re-queries, and the popup opens and closes
 /// as the keys below describe. Use [update] to handle messages, exactly like
 /// any other widget model.
 ///
@@ -64,7 +67,14 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 /// the popup closes, [value] is set, and the model emits
 /// [ComboboxSelectCmd] addressed by [id]. The app reads the selection back
 /// from [value]; the command carries nothing else.
-class ComboboxModel<T> implements Component {
+///
+/// A remote combobox asks for options through [Loadable.applyLoad]: every
+/// text change, and opening without one, asks with a fresh [QueryKey] naming
+/// the query's text, and only an answer for the newest query the model asked
+/// installs — a superseded one's answer is dropped. A refusal
+/// (`declineLoad`) leaves the current options standing, and an error is kept
+/// for the popup's status row until a later query supersedes it.
+class ComboboxModel<T> implements Component, Loadable {
   @override
   late final String id;
 
@@ -114,8 +124,10 @@ class ComboboxModel<T> implements Component {
   /// own, and its `focused` mirrors the combobox's.
   late final TextInputModel field;
 
-  final List<T> _options;
+  final List<T>? _options;
   late final ListViewModel<T, T> _list;
+  final _loads = LoadTracker<QueryKey>();
+  QueryKey? _newestKey;
 
   T? _value;
   bool _isOpen = false;
@@ -128,25 +140,28 @@ class ComboboxModel<T> implements Component {
   /// field before applying itself, rather than appending to the shown label.
   bool _fieldPristine = true;
 
-  /// Creates a combobox over [options], held in memory.
+  /// Creates a combobox over [options], held in memory, or — when [options]
+  /// is omitted — over options the app loads remotely; see [isRemote].
   ///
   /// [value], when given, preselects an option: the field starts showing
   /// [label] of it, and opening the popup without editing places the cursor
-  /// on its row (matched against [options] with `==`).
+  /// on its row (matched against [options] with `==`). A remote combobox has
+  /// nothing to match against until an answer lands, so [value] only seeds
+  /// the field's label there.
   ComboboxModel({
     required this.label,
     String? id,
     String? fieldId,
     String? toggleId,
     bool Function(T item, String query)? matches,
-    List<T> options = const [],
+    List<T>? options,
     T? value,
     this.maxVisibleRows = 5,
     this.placeholder = '',
     this.styles = const ComboboxStyle(),
     bool focused = false,
   }) : matches = matches ?? _defaultMatches(label),
-       _options = List<T>.of(options),
+       _options = options == null ? null : List<T>.of(options),
        _value = value,
        _focused = focused {
     this.id = id ?? autoId('combobox');
@@ -177,6 +192,29 @@ class ComboboxModel<T> implements Component {
 
   /// Whether the popup is open.
   bool get isOpen => _isOpen;
+
+  /// Whether options come from the app, one [QueryKey]-addressed
+  /// [LoadRequest] per query, rather than an in-memory list handed to the
+  /// constructor.
+  bool get isRemote => _options == null;
+
+  /// Whether the newest query this combobox asked is in flight.
+  ///
+  /// An older, superseded query may still be finishing in the background;
+  /// only the newest one drives the popup's status row.
+  bool get isLoadingQuery {
+    final key = _newestKey;
+    return key != null && _loads.isLoading(key);
+  }
+
+  /// The error from the newest query's last answer, or null.
+  ///
+  /// A later query replaces [_newestKey], so this reads that query's own
+  /// state and stops reporting an older one's failure.
+  Object? get queryError {
+    final key = _newestKey;
+    return key == null ? null : _loads.errorFor(key);
+  }
 
   /// The committed option, or null when none stands.
   T? get value => _value;
@@ -272,10 +310,9 @@ class ComboboxModel<T> implements Component {
       if (!pointer.isDown) return const Declined();
       if (isOpen) {
         close();
-      } else {
-        _openUnfiltered();
+        return const Handled();
       }
-      return const Handled();
+      return Handled(_open());
     }
 
     if (leaf == fieldId) return field.update(pointer);
@@ -293,10 +330,7 @@ class ComboboxModel<T> implements Component {
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();
-    if (msg.key == 'down') {
-      _openUnfiltered();
-      return const Handled();
-    }
+    if (msg.key == 'down') return Handled(_open());
     if (!_isFieldEditingKey(msg)) return const Declined();
 
     // The field shows exactly the committed label while closed, so the first
@@ -306,6 +340,7 @@ class ComboboxModel<T> implements Component {
       ..update(msg);
     _fieldPristine = false;
     _isOpen = true;
+    if (isRemote) return Handled(_askQuery(field.value));
     _reseedFilter();
     return const Handled();
   }
@@ -336,8 +371,15 @@ class ComboboxModel<T> implements Component {
     }
     final before = field.value;
     final result = field.update(msg);
-    if (field.value != before) _reseedFilter();
-    return result;
+    if (field.value == before) return result;
+
+    if (!isRemote) {
+      _reseedFilter();
+      return result;
+    }
+    final ask = _askQuery(field.value);
+    final fieldCmd = result is Handled ? result.cmd : null;
+    return Handled(fieldCmd == null ? ask : Batch([fieldCmd, ask]));
   }
 
   UpdateResult _commit(KeyMsg msg) => _commitFromList(_list.update(msg));
@@ -371,26 +413,88 @@ class ComboboxModel<T> implements Component {
     return msg.text != null;
   }
 
+  /// Opens the popup unfiltered: from [_options] when local, or by asking the
+  /// app for the empty [QueryKey] when [isRemote].
+  Cmd? _open() {
+    if (isRemote) {
+      _isOpen = true;
+      return _askQuery('');
+    }
+    _openUnfiltered();
+    return null;
+  }
+
   void _openUnfiltered() {
     _isOpen = true;
+    final options = _options!;
     _list
       ..reset()
-      ..insertItems(_options, 0)
-      ..totalCount = _options.length;
+      ..insertItems(options, 0)
+      ..totalCount = options.length;
 
     final current = _value;
     if (current == null) return;
-    final index = _options.indexWhere((option) => option == current);
+    final index = options.indexWhere((option) => option == current);
     if (index >= 0) _list.moveCursorTo(index);
   }
 
   void _reseedFilter() {
     final query = field.value;
-    final filtered = _options.where((option) => matches(option, query)).toList();
+    final filtered = _options!.where((option) => matches(option, query)).toList();
     _list
       ..reset()
       ..insertItems(filtered, 0)
       ..totalCount = filtered.length;
+  }
+
+  /// Asks the app for options matching [query], remembering the key as the
+  /// newest one asked — the one whose answer [applyLoad] is willing to
+  /// install.
+  LoadRequest _askQuery(String query) {
+    final key = QueryKey(query);
+    _newestKey = key;
+    _loads.begin(key);
+    return LoadRequest(id, key: key);
+  }
+
+  /// Replaces the popup's options wholesale with a query's answer, cursor on
+  /// the first row.
+  void _installRemoteOptions(List<T> options) {
+    _list
+      ..reset()
+      ..insertItems(options, 0)
+      ..totalCount = options.length;
+  }
+
+  /// Installs a remote query's answer, or records its failure.
+  ///
+  /// Only an answer for the newest query the model asked — [_newestKey] —
+  /// installs, so a superseded query landing after a newer one was asked is
+  /// dropped once its own slot resolves; a query no longer in flight (e.g.
+  /// already answered) is dropped outright. A refusal clears the slot and
+  /// installs nothing, leaving the current options standing. A failure is
+  /// kept for [queryError], which the popup reads only while its key is
+  /// still the newest one.
+  @override
+  void applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return;
+    final key = result.key;
+    if (key is! QueryKey) return;
+    if (!_loads.isLoading(key)) return;
+
+    if (result.cancelled) {
+      _loads.complete(key);
+      return;
+    }
+    if (!result.ok) {
+      _loads.fail(key, result.error!);
+      return;
+    }
+    _loads.complete(key);
+    if (key != _newestKey) return;
+
+    final data = result.data;
+    _installRemoteOptions(data is List<T> ? data : const []);
   }
 
   /// Rewrites the field's text outright.

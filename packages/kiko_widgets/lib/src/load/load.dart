@@ -317,6 +317,31 @@ class PageKey {
   String toString() => 'PageKey($page)';
 }
 
+/// Names which remote query a load refers to, by the text that was typed
+/// when it was asked.
+///
+/// A combobox names its remote load the way a windowed widget names a page
+/// with a [PageKey]: the key carries the query text, so each query gets its
+/// own slot, several can be in flight at once, and an answer places itself
+/// without the model having to remember what it last asked.
+@immutable
+class QueryKey {
+  /// Creates a key for the query [query].
+  const QueryKey(this.query);
+
+  /// The field's text when this query was asked.
+  final String query;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is QueryKey && other.query == query;
+
+  @override
+  int get hashCode => query.hashCode;
+
+  @override
+  String toString() => 'QueryKey($query)';
+}
+
 // ═══════════════════════════════════════════════════════════
 // SLICE STATUS
 // ═══════════════════════════════════════════════════════════

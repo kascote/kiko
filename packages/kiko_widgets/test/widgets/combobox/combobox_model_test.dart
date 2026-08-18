@@ -445,6 +445,177 @@ void main() {
       });
     });
 
+    group('remote options', () {
+      ComboboxModel<String> remoteBox({String? value, bool focused = true}) => ComboboxModel<String>(
+        id: 'combo',
+        fieldId: 'combo-field',
+        toggleId: 'combo-toggle',
+        label: (s) => s,
+        value: value,
+        focused: focused,
+      );
+
+      test('a combobox constructed without options is remote', () {
+        expect(remoteBox().isRemote, isTrue);
+        expect(fruitBox().isRemote, isFalse);
+      });
+
+      test('a text-editing key while closed opens and asks a query for the typed text', () {
+        final combo = remoteBox();
+        final result = combo.update(charMsg('a'));
+
+        expect(combo.isOpen, isTrue);
+        final cmd = (result as Handled).cmd! as LoadRequest;
+        expect(cmd.id, equals('combo'));
+        expect(cmd.key, equals(const QueryKey('a')));
+        expect(combo.isLoadingQuery, isTrue);
+      });
+
+      test('down while closed opens and asks the empty query', () {
+        final combo = remoteBox();
+        final result = combo.update(keyMsg('down'));
+
+        expect(combo.isOpen, isTrue);
+        final cmd = (result as Handled).cmd! as LoadRequest;
+        expect(cmd.key, equals(const QueryKey('')));
+      });
+
+      test('a toggle press while closed asks the empty query', () {
+        final combo = remoteBox();
+        final result = combo.update(pressOn('combo-toggle'));
+
+        expect(combo.isOpen, isTrue);
+        final cmd = (result as Handled).cmd! as LoadRequest;
+        expect(cmd.key, equals(const QueryKey('')));
+      });
+
+      test('further typing asks a new query for the newest text', () {
+        final combo = remoteBox()..update(charMsg('a'));
+        final result = combo.update(charMsg('p'));
+
+        final cmd = (result as Handled).cmd! as LoadRequest;
+        expect(cmd.key, equals(const QueryKey('ap')));
+      });
+
+      test('an installing answer replaces the options wholesale, cursor on the first row', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']));
+
+        expect(combo.isLoadingQuery, isFalse, reason: 'the loading row disappears once the newest query installs');
+        final result = combo.update(keyMsg('enter'));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(combo.value, equals('Apple'));
+      });
+
+      test('an out-of-order answer: the stale one drops, the newest installs', () {
+        final combo = remoteBox()
+          ..update(charMsg('a')) // asks QueryKey('a')
+          ..update(charMsg('p')) // asks QueryKey('ap'), now the newest
+          // The answer to 'a' lands after 'ap' was asked — superseded, so it
+          // resolves its own slot but installs nothing.
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']));
+        final staleCommit = combo.update(keyMsg('enter'));
+        expect(
+          staleCommit,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'the superseded answer never installed, so there is still nothing to commit',
+        );
+
+        // The newest query's own answer lands and installs.
+        combo.applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('ap'), data: ['Apple']));
+        final commit = combo.update(keyMsg('enter'));
+        expect(commit, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(combo.value, equals('Apple'));
+      });
+
+      test('a refusal leaves the current options standing', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']))
+          ..update(charMsg('p')) // asks QueryKey('ap')
+          ..applyLoad(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('ap')));
+
+        expect(combo.isLoadingQuery, isFalse);
+        final result = combo.update(keyMsg('enter'));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(combo.value, equals('Apple'), reason: 'the refusal taught the model nothing; the prior options stand');
+      });
+
+      test('an error for the newest query is recorded, and a later query clears its display', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'));
+
+        expect(combo.isLoadingQuery, isFalse);
+        expect(combo.queryError, equals('boom'));
+
+        combo.update(charMsg('p')); // asks QueryKey('ap'), now the newest
+        expect(combo.queryError, isNull, reason: 'ap has its own, still-idle-or-loading slot');
+        expect(combo.isLoadingQuery, isTrue);
+      });
+
+      test("an error for a superseded key never surfaces — only the newest key's error does", () {
+        final combo = remoteBox()
+          ..update(charMsg('a')) // asks 'a'
+          ..update(charMsg('p')) // asks 'ap', now the newest; 'a' is superseded
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'));
+
+        expect(combo.queryError, isNull, reason: 'the newest key is ap, not the superseded a');
+        expect(combo.isLoadingQuery, isTrue, reason: 'ap is still in flight');
+      });
+
+      test('a result for a query never asked is dropped (staleness guard)', () {
+        final combo = remoteBox()
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple']));
+
+        expect(combo.internalList.cachedItemCount, equals(0), reason: 'a stale result must not install');
+      });
+
+      test('a result for another id is ignored', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('other', key: QueryKey('a'), data: ['Apple']));
+
+        expect(combo.isLoadingQuery, isTrue, reason: 'still waiting for its own result');
+        expect(combo.internalList.cachedItemCount, equals(0));
+      });
+
+      test('commit with no cursor row commits nothing', () {
+        final combo = remoteBox()
+          ..update(keyMsg('down')) // asks the empty query
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
+
+        final result = combo.update(keyMsg('enter'));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(combo.value, isNull);
+        expect(combo.isOpen, isTrue, reason: 'nothing was committed, so nothing closes');
+      });
+
+      test('a status row is never a cursor target: Enter commits nothing while the newest query is still loading', () {
+        final combo = remoteBox()..update(keyMsg('down')); // asks the empty query, no answer yet
+
+        expect(combo.isLoadingQuery, isTrue);
+        final result = combo.update(keyMsg('enter'));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(combo.value, isNull);
+      });
+
+      test('the cursor clamps to the last real match and never reaches a trailing status row', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']))
+          ..update(charMsg('p')) // asks 'ap'; the two matches above stay standing while it loads
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down')); // past the last match
+
+        final result = combo.update(keyMsg('enter'));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(combo.value, equals('Avocado'), reason: 'the cursor clamped to the last real match');
+      });
+    });
+
     group('unfocused', () {
       test('declines a key', () {
         expect(fruitBox(focused: false).update(keyMsg('down')), isA<Declined>());

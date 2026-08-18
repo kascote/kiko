@@ -25,6 +25,8 @@ final class Combobox<T> implements View {
     this.emptyPlaceholder,
     this.closedGlyph = '▾',
     this.openGlyph = '▴',
+    this.loadingLabel = 'Loading…',
+    this.errorLabel = 'Failed to load',
     this.styleOverrides,
   });
 
@@ -48,6 +50,12 @@ final class Combobox<T> implements View {
 
   /// The toggle's glyph while the popup is open.
   final String openGlyph;
+
+  /// The popup's status row while the newest remote query is in flight.
+  final String loadingLabel;
+
+  /// The popup's status row after the newest remote query's answer failed.
+  final String errorLabel;
 
   /// Per-state style overrides applied on top of the theme's derived styles.
   final Map<WidgetState, Style>? styleOverrides;
@@ -114,22 +122,32 @@ final class Combobox<T> implements View {
   }
 
   /// Builds one open popup's node at [height]: the combobox's scope hugging
-  /// exactly the rows the list occupies, painted over a full-height
-  /// background fill.
+  /// exactly the rows the list (and, while remote, its status row) occupy,
+  /// painted over a full-height background fill.
   ///
   /// The list is bounded to its match count rather than to [height] — as
   /// many rows as it has matches, up to [height] — so a short result leaves
   /// the rows past it as the scope's own untagged, background-filled cells
   /// rather than the list's. A press there then resolves to the bare scope
-  /// path, never to the list.
+  /// path, never to the list. A status row ([_statusLine]) paints
+  /// immediately after the matches — chrome this method paints itself, never
+  /// a row of the embedded list, so it can never hold the list's cursor — and
+  /// takes one row from the list's budget so it lands on the popup's last
+  /// row when the matches would otherwise fill it.
   Node _popup({
     required ListViewModel<T, T> list,
     required Style fill,
     required List<Line> Function(T item, int index, ItemState state) rowBuilder,
     required int height,
   }) {
-    final rows = list.itemLimit == 0 ? 1 : list.itemLimit;
-    final contentHeight = rows.clamp(0, height);
+    final status = _statusLine();
+    final int contentHeight;
+    if (status == null) {
+      final rows = list.itemLimit == 0 ? 1 : list.itemLimit;
+      contentHeight = rows.clamp(0, height);
+    } else {
+      contentHeight = list.itemLimit.clamp(0, height > 0 ? height - 1 : 0);
+    }
     model.setVisibleCount(contentHeight);
 
     return Tagged.scope(
@@ -147,10 +165,20 @@ final class Combobox<T> implements View {
                 emptyPlaceholder: emptyPlaceholder,
               ),
             ),
+            if (status != null && height > 0) status,
           ],
         ),
       ),
     ).build();
+  }
+
+  /// The popup's status row: a loading line while the newest remote query is
+  /// in flight, an error line after its answer failed, or null while there
+  /// is nothing to report — including whenever [model] is not remote.
+  Line? _statusLine() {
+    if (model.isLoadingQuery) return Line(loadingLabel, style: model.styles.loadingRow ?? theme.muted.ink);
+    if (model.queryError != null) return Line(errorLabel, style: model.styles.errorRow ?? theme.muted.ink);
+    return null;
   }
 
   List<Line> _defaultItemBuilder(T item, int index, ItemState state) => [Line(model.label(item))];

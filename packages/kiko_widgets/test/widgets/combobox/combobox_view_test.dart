@@ -39,6 +39,20 @@ ComboboxModel<String> _fruitBox({
   maxVisibleRows: maxVisibleRows,
 );
 
+ComboboxModel<String> _remoteBox({
+  String? value,
+  bool focused = true,
+  int maxVisibleRows = 3,
+}) => ComboboxModel<String>(
+  id: 'combo',
+  fieldId: 'field',
+  toggleId: 'toggle',
+  label: (s) => s,
+  value: value,
+  focused: focused,
+  maxVisibleRows: maxVisibleRows,
+);
+
 String _cellAt(Buffer buffer, int x, int y) {
   final cell = buffer[(x: x, y: y)];
   return cell.symbol.isEmpty ? ' ' : cell.symbol;
@@ -187,6 +201,105 @@ void main() {
 
       combo.close();
       expect(combo.placement, isNull);
+    });
+  });
+
+  group('Combobox.renderPopup (status rows)', () {
+    test('shows a loading row after the standing matches while the newest query is in flight', () {
+      final combo = _remoteBox()
+        ..update(_pressOn('combo/toggle')) // asks QueryKey('')
+        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
+        ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'); the matches above stand while it loads
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 1, 0, 5), 'Apple');
+      expect(_rowText(frame.buffer, 2, 0, 6), 'Banana');
+      expect(_rowText(frame.buffer, 3, 0, 8), 'Loading…', reason: 'the status row paints after the matches');
+    });
+
+    test('a status row takes the last row when the matches would otherwise fill the popup', () {
+      final combo = _remoteBox(maxVisibleRows: 2)
+        ..update(_pressOn('combo/toggle'))
+        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
+        ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'); 2 matches stand, popup only fits 2 rows
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(
+        _rowText(frame.buffer, 1, 0, 5),
+        'Apple',
+        reason: 'one fewer match shows, to leave room for the status row',
+      );
+      expect(_rowText(frame.buffer, 2, 0, 8), 'Loading…', reason: "the status row takes the popup's last row");
+    });
+
+    test('shows an error row after the newest query fails, styled through ComboboxStyle.errorRow', () {
+      const errorStyle = Style(fg: Color.indexed(9));
+      final combo = _remoteBox()
+        ..styles = const ComboboxStyle(errorRow: errorStyle)
+        ..update(_pressOn('combo/toggle'))
+        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
+        ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z')
+        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(16, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 1, 0, 5), 'Apple', reason: 'the prior options still stand after a failed query');
+      expect(_rowText(frame.buffer, 2, 0, 14), 'Failed to load');
+      expect(frame.buffer[(x: 0, y: 2)].fg, errorStyle.fg);
+    });
+
+    test('the loading row disappears once the newest query installs', () {
+      final combo = _remoteBox()..update(_pressOn('combo/toggle')); // asks QueryKey(''), no answer yet
+      final view = Combobox(model: combo, theme: _theme);
+
+      final loading = _frame(12, 6);
+      _renderRow(loading, view);
+      view.renderPopup(loading);
+      expect(_rowText(loading.buffer, 1, 0, 8), 'Loading…', reason: 'no options yet, and the query is in flight');
+
+      combo.applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']));
+
+      final installed = _frame(12, 6);
+      _renderRow(installed, view);
+      view.renderPopup(installed);
+      expect(_rowText(installed.buffer, 1, 0, 5), 'Apple');
+      expect(
+        installed.hits.hitId(0, 2),
+        'combo',
+        reason: 'the loading row is gone; the row below the match is back to the blank scope tail',
+      );
+    });
+
+    test('the status row is painted chrome, not a list row: it resolves to the bare scope path', () {
+      final combo = _remoteBox()..update(_pressOn('combo/toggle')); // asks QueryKey(''), still loading
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 1, 0, 8), 'Loading…');
+      expect(frame.hits.hitId(0, 1), 'combo', reason: 'the status row is chrome, never part of the embedded list');
+    });
+
+    test('a local (non-remote) combobox never shows a status row', () {
+      final combo = _fruitBox(options: const ['Apple'])..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(_rowText(frame.buffer, 2, 0, 8).trim(), isEmpty);
     });
   });
 }

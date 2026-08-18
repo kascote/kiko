@@ -1,7 +1,9 @@
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 
 import '../list_view/list_view_model.dart';
 import '../list_view/types.dart';
+import '../popup/popup_placement.dart';
 import '../text_input_model.dart';
 import 'types.dart';
 
@@ -95,6 +97,17 @@ class ComboboxModel<T> implements Component {
   /// Placeholder text shown in the field when it is empty.
   final String placeholder;
 
+  /// Anatomy overrides for the toggle and the popup background. Mutable so
+  /// an app can swap the look at runtime, the way it flips [focused].
+  ComboboxStyle styles;
+
+  /// The popup's held placement decision, or null while closed.
+  ///
+  /// The view sets this every open paint via `renderAnchoredPopup`, so the
+  /// popup keeps one side and height for the whole open session; [close]
+  /// clears it.
+  PopupPlacement? placement;
+
   /// The embedded text field.
   ///
   /// The combobox owns every decision around it — it emits no commands of its
@@ -130,6 +143,7 @@ class ComboboxModel<T> implements Component {
     T? value,
     this.maxVisibleRows = 5,
     this.placeholder = '',
+    this.styles = const ComboboxStyle(),
     bool focused = false,
   }) : matches = matches ?? _defaultMatches(label),
        _options = List<T>.of(options),
@@ -167,6 +181,28 @@ class ComboboxModel<T> implements Component {
   /// The committed option, or null when none stands.
   T? get value => _value;
 
+  /// The field's full hit path — the popup's anchor.
+  ///
+  /// The view passes this to `renderAnchoredPopup` so the app never builds
+  /// path strings by hand.
+  String get anchorPath => HitTag.join(id, fieldId);
+
+  /// The toggle's full hit path.
+  ///
+  /// The view reads its painted rect to size the popup — the union of the
+  /// field's and the toggle's rects.
+  String get togglePath => HitTag.join(id, toggleId);
+
+  /// The embedded popup list, for the view to render.
+  ///
+  /// Not part of the combobox's public surface: the list's own item type,
+  /// commands and cursor state stay implementation detail — [ComboboxSelectCmd]
+  /// is the only command this widget ever emits. Marked [internal] rather
+  /// than left off the model because the view, a separate file in this
+  /// package, must build a real list widget over it.
+  @internal
+  ListViewModel<T, T> get internalList => _list;
+
   /// Sets how many popup rows are visible, for page navigation and scroll
   /// math.
   ///
@@ -181,6 +217,7 @@ class ComboboxModel<T> implements Component {
   void close() {
     if (!_isOpen) return;
     _isOpen = false;
+    placement = null;
     final committed = _value;
     _setFieldText(committed == null ? '' : label(committed));
   }
@@ -195,17 +232,21 @@ class ComboboxModel<T> implements Component {
 
   /// Handles a message, reporting whether it was consumed and any effect.
   ///
-  /// Pointer traffic is resolved by [HitTag.leafOf] against [toggleId] and
-  /// [fieldId] above the focus gate, so the toggle and click-to-caret work
-  /// whether or not the combobox is focused. Keyboard handling sits behind
-  /// the gate: while closed, a text-editing key or Down opens the popup and
+  /// Pointer traffic is resolved by [HitTag.leafOf] against [toggleId],
+  /// [fieldId] and the popup list's own id above the focus gate, so the
+  /// toggle, click-to-caret and popup rows all work whether or not the
+  /// combobox is focused. A press on the bare scope path — a blank popup row,
+  /// or the scope's own untagged cells — is consumed and does nothing: no
+  /// caret move, no commit, no close. Keyboard handling sits behind the
+  /// gate: while closed, a text-editing key or Down opens the popup and
   /// Enter/Esc are declined for the app; while open, Up/Down/PageUp/PageDown
   /// move the popup cursor, Enter commits, Esc closes and restores, and every
   /// other key edits the field.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) return _handlePointer(pointer);
-    if (msg is PointerLeaveMsg) return const Declined();
+    if (msg is PointerLeaveMsg) return _forwardToListIfAddressed(msg, msg.targetId);
+    if (msg case PointerCancelMsg(:final targetId?)) return _forwardToListIfAddressed(msg, targetId);
     if (msg is PointerCancelMsg) return const Declined();
 
     if (!focused) return const Declined();
@@ -220,6 +261,11 @@ class ComboboxModel<T> implements Component {
   UpdateResult _handlePointer(PointerMsg pointer) {
     final targetId = pointer.targetId;
     if (targetId == null) return const Declined();
+    // The bare scope path: our own untagged cells, or a blank popup row past
+    // the last match. Ours to consume — nothing behind the popup should react
+    // to a click on its own chrome — but there is nothing to do with it.
+    if (targetId == id) return const Handled();
+
     final leaf = HitTag.leafOf(targetId);
 
     if (leaf == toggleId) {
@@ -234,8 +280,16 @@ class ComboboxModel<T> implements Component {
 
     if (leaf == fieldId) return field.update(pointer);
 
+    if (leaf == _list.id) return _commitFromList(_list.update(pointer));
+
     return const Declined();
   }
+
+  /// Forwards [msg] to the popup list when [targetId]'s leaf names it —
+  /// clearing its hover on a leave, ending a held gesture on a cancel — and
+  /// declines otherwise.
+  UpdateResult _forwardToListIfAddressed(Msg msg, String targetId) =>
+      HitTag.leafOf(targetId) == _list.id ? _list.update(msg) : const Declined();
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();
@@ -286,15 +340,24 @@ class ComboboxModel<T> implements Component {
     return result;
   }
 
-  UpdateResult _commit(KeyMsg msg) {
-    final result = _list.update(msg);
-    if (result is! Handled || result.cmd == null) return const Handled();
+  UpdateResult _commit(KeyMsg msg) => _commitFromList(_list.update(msg));
+
+  /// Turns the popup list's own verdict into the combobox's: a declined or
+  /// bare-Handled result (nothing at the cursor, a wheel scroll, a hover
+  /// move) passes through unchanged, and a [ListActionCmd] — the list's
+  /// Enter and its row press both produce one — commits the cursor item as
+  /// the value, closes the popup, and re-addresses the effect as
+  /// [ComboboxSelectCmd] so a click and a keyboard Enter are indistinguishable
+  /// to the app.
+  UpdateResult _commitFromList(UpdateResult result) {
+    if (result is! Handled || result.cmd is! ListActionCmd) return result;
 
     final item = _list.cursorItem;
     if (item == null) return const Handled();
 
     _value = item;
     _isOpen = false;
+    placement = null;
     _setFieldText(label(item));
     return Handled(ComboboxSelectCmd(id));
   }

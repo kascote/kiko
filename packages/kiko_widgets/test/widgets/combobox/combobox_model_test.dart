@@ -356,6 +356,95 @@ void main() {
       });
     });
 
+    group('popup pointer forwarding', () {
+      /// A routed pointer [action] addressed to the popup list's own path
+      /// (under the combobox's scope), optionally on a row region.
+      PointerMsg onList(ComboboxModel<String> combo, PointerAction action, {int? row}) => PointerMsg(
+        global: Position.origin,
+        action: action,
+        local: Position.origin,
+        targetId: HitTag.join(combo.id, combo.internalList.id),
+        region: row == null ? null : RowRegion(row),
+      );
+
+      test('a click on a popup row commits it, exactly like Enter', () {
+        final combo = fruitBox()..update(keyMsg('down')); // opens unfiltered
+
+        final result = combo.update(onList(combo, PointerAction.down, row: 1)); // Banana
+
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect((result as Handled).cmd! as ComboboxSelectCmd, ComboboxSelectCmd(combo.id));
+        expect(combo.value, equals('Banana'));
+        expect(combo.field.value, equals('Banana'));
+        expect(combo.isOpen, isFalse);
+        expect(combo.placement, isNull);
+      });
+
+      test('a click on a row the window does not hold is consumed but commits nothing', () {
+        final combo = fruitBox(options: const [])..update(keyMsg('down'));
+
+        final result = combo.update(onList(combo, PointerAction.down, row: 0));
+
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(combo.value, isNull);
+        expect(combo.isOpen, isTrue);
+      });
+
+      test('a press on the bare scope path does nothing — no caret move, no commit, no close', () {
+        final combo = fruitBox(value: 'Banana')
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down')); // cursor moved to Cherry, uncommitted
+
+        final result = combo.update(pressOn('combo'));
+
+        expect(result, isA<Handled>());
+        expect(combo.isOpen, isTrue, reason: 'a bare-scope press never closes the popup');
+        expect(combo.value, equals('Banana'), reason: 'a bare-scope press never commits');
+        expect(combo.field.value, equals('Banana'), reason: 'no field text changes from a bare-scope press');
+      });
+
+      test('hover follows the pointer on the popup rows', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        combo.update(onList(combo, PointerAction.move, row: 2));
+
+        expect(combo.internalList.hoverRow, equals(2));
+      });
+
+      test('a leave addressed to the popup list clears its hover', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+        combo.update(onList(combo, PointerAction.move, row: 2));
+        expect(combo.internalList.hoverRow, equals(2));
+
+        final leaf = HitTag.join(combo.id, combo.internalList.id);
+        final result = combo.update(PointerLeaveMsg(leaf));
+
+        expect(result, isA<Handled>());
+        expect(combo.internalList.hoverRow, isNull);
+      });
+
+      test('a wheel over the popup scrolls it without committing or closing', () {
+        final combo = fruitBox(options: List.generate(10, (i) => 'item$i'))
+          ..update(keyMsg('down'))
+          ..setVisibleCount(3);
+
+        final result = combo.update(onList(combo, PointerAction.wheelDown));
+
+        expect(result, isA<Handled>());
+        expect(combo.internalList.scrollOffset, greaterThan(0));
+        expect(combo.isOpen, isTrue);
+        expect(combo.value, isNull);
+      });
+
+      test('a wheel that would move nothing declines, so it can bubble', () {
+        final combo = fruitBox()..update(keyMsg('down')); // already at the top
+
+        final result = combo.update(onList(combo, PointerAction.wheelUp));
+
+        expect(result, isA<Declined>());
+      });
+    });
+
     group('unfocused', () {
       test('declines a key', () {
         expect(fruitBox(focused: false).update(keyMsg('down')), isA<Declined>());

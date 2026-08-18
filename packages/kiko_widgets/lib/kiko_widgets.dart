@@ -7,6 +7,7 @@ export 'src/widgets/button/button_model.dart';
 export 'src/widgets/button/button_view.dart';
 export 'src/widgets/button/types.dart';
 export 'src/widgets/combobox/combobox_model.dart';
+export 'src/widgets/combobox/combobox_view.dart';
 export 'src/widgets/combobox/types.dart';
 export 'src/widgets/focus_router.dart';
 export 'src/widgets/focus_slot.dart';

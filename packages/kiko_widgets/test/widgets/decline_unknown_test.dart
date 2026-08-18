@@ -30,6 +30,11 @@ void main() {
       buttons: [ButtonModel(id: 'b', label: Line('OK'))],
       focused: true,
     ).update(msg),
+    'ComboboxModel': (msg) => ComboboxModel<String>(
+      label: (s) => s,
+      options: const ['a'],
+      focused: true,
+    ).update(msg),
     'ModalModel': (msg) => ModalModel().update(msg),
     'ScrollViewModel': (msg) => ScrollViewModel(focused: true).update(msg),
     'ListViewModel': (msg) => ListViewModel<String, String>(items: const ['a'], focused: true).update(msg),

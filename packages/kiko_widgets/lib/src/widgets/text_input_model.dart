@@ -142,6 +142,23 @@ class TextInputModel implements Component {
   /// The text as a String.
   String get value => _text.string;
 
+  /// Replaces all the text outright, moving the cursor to the end.
+  ///
+  /// For a program setting the field's state directly — restoring a prior
+  /// value, seeding it from data — rather than a user typing or pasting.
+  /// This is a direct call, not a message, so it bypasses the focus gate: it
+  /// writes whether or not the field is focused.
+  ///
+  /// A single-line field, so `\r` and `\n` are stripped, the way a paste is
+  /// stripped. [inputFilter] and [maxLength] do not apply, the same way the
+  /// constructor's `initial` text bypasses them — the caller is asserting the
+  /// field's state, not typing into it.
+  set value(String text) {
+    _text = Characters(text.replaceAll('\r', '').replaceAll('\n', ''));
+    _cursor = _text.length;
+    _scrollOffset = 0;
+  }
+
   /// Length in grapheme clusters.
   int get length => _text.length;
 

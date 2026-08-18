@@ -38,6 +38,18 @@ void main() {
       });
     });
 
+    group('ComboboxSelectCmd (address: id)', () {
+      test('equal iff id matches', () {
+        expect(ComboboxSelectCmd(v('cb')), equals(ComboboxSelectCmd(v('cb'))));
+        expect(ComboboxSelectCmd(v('cb')).hashCode, equals(ComboboxSelectCmd(v('cb')).hashCode));
+        expect(ComboboxSelectCmd(v('cb')), isNot(equals(ComboboxSelectCmd(v('other')))));
+      });
+
+      test('toString shows the address', () {
+        expect(ComboboxSelectCmd(v('cb')).toString(), equals('ComboboxSelectCmd(cb)'));
+      });
+    });
+
     group('TableActionCmd (address: id + action)', () {
       test('equal iff id and action match', () {
         expect(TableActionCmd(v('t'), v('primary')), equals(TableActionCmd(v('t'), v('primary'))));

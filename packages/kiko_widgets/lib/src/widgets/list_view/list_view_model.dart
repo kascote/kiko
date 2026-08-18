@@ -243,6 +243,18 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
     _loader.notePaint();
   }
 
+  /// Moves the cursor directly to [index], clamped to the addressable range,
+  /// and scrolls it into view.
+  ///
+  /// For a caller that must place the cursor without synthesizing key
+  /// presses — a composite widget driving this list as an embedded part, say.
+  /// Plain keyboard navigation never needs it.
+  void moveCursorTo(int index) {
+    final maxIndex = itemLimit - 1;
+    _cursor = index.clamp(0, maxIndex < 0 ? 0 : maxIndex);
+    _adjustScrollToCursor();
+  }
+
   /// Scroll position info for external scrollbar.
   ScrollState getScrollState() => ScrollState(
     offset: _scrollOffset,

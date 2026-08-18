@@ -84,6 +84,35 @@ void main() {
       expect(model.value, equals('a'));
       expect(model.cursor, equals(1));
     });
+
+    group('the value setter', () {
+      test('replaces the text and moves the cursor to the end', () {
+        final model = TextInputModel(initial: 'hi')..value = 'hello';
+        expect(model.value, equals('hello'));
+        expect(model.cursor, equals(5));
+      });
+
+      test('works while unfocused — a direct call, not a message', () {
+        final model = TextInputModel();
+        expect(model.focused, isFalse);
+
+        model.value = 'hello';
+        expect(model.value, equals('hello'));
+        expect(model.focused, isFalse, reason: 'the write itself never touches focus');
+      });
+
+      test('strips carriage returns and newlines, the way a paste is stripped', () {
+        final model = TextInputModel()..value = 'a\r\nb\nc';
+        expect(model.value, equals('abc'));
+        expect(model.cursor, equals(3));
+      });
+
+      test('setting the empty string clears the field back to its placeholder path', () {
+        final model = TextInputModel(initial: 'hello')..value = '';
+        expect(model.value, isEmpty);
+        expect(model.cursor, equals(0));
+      });
+    });
   });
 
   group('TextInputModel.update character input', () {

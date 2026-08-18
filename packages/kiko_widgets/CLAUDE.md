@@ -11,6 +11,7 @@ Guidance for Claude Code in `kiko_widgets` — higher-level widgets over
 - `ListView`, `TableView`, `TreeView` — windowed data widgets (lazy; see `docs/async-loading.md`)
 - `Button` / `ButtonModel` — emits `ButtonPressCmd`
 - `ScrollView` / `ScrollViewModel` — scrolls composed content (`docs/scroll-view.md`)
+- `Combobox` / `ComboboxModel` — text field with a filterable popup list, in-memory or remote (`docs/combobox.md`)
 - `ModalModel` + `modalDialog(...)` — `modalDialog` frames any content as a bordered, tagged dialog; `ModalModel` exists only for the static confirm/cancel shape. The app owns whether a modal is open.
 - `FocusRouter`, `FocusSlot`, `focusOnPress`, `routeToTarget`, `offerOutward` — focus and pointer-dispatch glue (`docs/focus-router.md`)
 
@@ -43,6 +44,7 @@ Read the page covering what you touch (paths from the repo root):
 | `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome scopes              |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                             |
 | `docs/scroll-view.md`      | ScrollView: scrolling composed content                       |
+| `docs/combobox.md`         | Combobox: field, popup, placement, remote options             |
 | `docs/theming.md`          | the theming model, the recipe, per-widget anatomy            |
 | `docs/building-widgets.md` | widget-authoring tutorial, worked end to end                 |
 | `docs/widget-testing.md`   | testing widgets and apps under `dart test`                   |

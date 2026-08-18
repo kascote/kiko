@@ -96,6 +96,9 @@ A term of art added to a page gets its entry here in the same change.
   (`docs/async-loading.md`).
 - **load key** — the typed name of the thing being loaded (a page number, a
   tree path); never a direction or an intent.
+- **query key** — a combobox's load key, naming a query by the field's text
+  when it was asked (`QueryKey`). Only the newest query's answer installs
+  (`docs/async-loading.md`).
 - **demand** — a windowed widget's pass that computes which pages the viewport
   needs and requests the missing ones.
 - **slice status** — the shared answer for what a view is about to paint

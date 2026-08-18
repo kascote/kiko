@@ -1,12 +1,13 @@
 # Async loading: keyed load slots, paging, and demand
 
-The full reference for how ListView, TableView and TreeView load data: the
-primitives, the per-widget map, and the worked handler. These rules extend
-"Widget→app addressing" in `docs/components.md` — a load is an id-addressed
-request whose result must come home — so read that section first.
+The full reference for how ListView, TableView, TreeView and Combobox load
+data: the primitives, the per-widget map, and the worked handler. These rules
+extend "Widget→app addressing" in `docs/components.md` — a load is an
+id-addressed request whose result must come home — so read that section
+first.
 
-All three widgets (and future externally-loaded widgets like a combobox) share
-one keyed load-slot state machine in `packages/kiko_widgets/lib/src/load/`.
+All four widgets share one keyed load-slot state machine in
+`packages/kiko_widgets/lib/src/load/`.
 
 ## A load is a keyed request the widget owns
 
@@ -208,6 +209,16 @@ one storage type.
     always describes the real viewport.
   - A range selection swept over items still being fetched completes itself
     when their page installs.
+- **Combobox** — `QueryKey(query)`, one slot per query text asked. More than
+  one query can be in flight at once if the field changes again before an
+  earlier answer lands. Only the query the combobox asked most recently
+  installs its answer into the popup's options; an older query's answer is
+  dropped once its own slot resolves, whether it succeeds, fails, or is
+  refused. A refusal (`declineLoad`) leaves the standing options untouched.
+  Opening the popup on an empty field asks with `QueryKey('')`, the same
+  request shape as a typed query. A combobox is not a windowed widget: it
+  keeps no page window, and every answer replaces its options wholesale
+  (`docs/combobox.md`).
 
 ## Total count is exempt — a deliberate one-shot
 

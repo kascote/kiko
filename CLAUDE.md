@@ -75,6 +75,7 @@ Read the page covering what you touch:
 | `docs/focus-router.md`     | FocusRouter: traversal, dispatch, chrome scopes                       |
 | `docs/async-loading.md`    | keyed load slots, paging, demand                                      |
 | `docs/scroll-view.md`      | ScrollView: scrolling composed content                                |
+| `docs/combobox.md`         | Combobox: field, popup, placement, remote options                     |
 | `docs/theming.md`          | the theming model, the recipe, per-widget anatomy                     |
 | `docs/building-widgets.md` | widget-authoring tutorial, worked end to end                          |
 | `docs/widget-testing.md`   | testing widgets and apps under `dart test`                            |

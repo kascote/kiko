@@ -400,6 +400,10 @@ when adding a slot or theming a new widget:
 - **TextInput / TextArea** — region styles (`TextInputStyle` /
   `TextAreaStyle`: placeholder, fill, obscured; selection, lineNumber) via
   `fromTheme`; base text and focus through the resolver.
+- **Combobox** — `ComboboxStyle {toggle, popupBackground, loadingRow,
+  errorRow}` (`docs/combobox.md`). The field's own look stays
+  `TextInputModel`'s business, and the popup's match rows style through the
+  embedded `ListViewStyle`, not through `ComboboxStyle`.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
 expose `cursor` (not `focused`): the current-item flag.

@@ -204,6 +204,55 @@ void main() {
     });
   });
 
+  group('Combobox.renderPopup (popupBorder)', () {
+    test('the border frames the popup without costing any match rows', () {
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme, popupBorder: BorderType.rounded);
+      final frame = _frame(10, 8);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      // maxVisibleRows is 3; the box asks for 3 + 2 rows and shows all 3.
+      expect(combo.placement!.height, 5);
+      expect(_cellAt(frame.buffer, 0, 1), '╭');
+      expect(_cellAt(frame.buffer, 9, 1), '╮');
+      expect(_rowText(frame.buffer, 2, 1, 5), 'Apple');
+      expect(_rowText(frame.buffer, 3, 1, 6), 'Banana');
+      expect(_rowText(frame.buffer, 4, 1, 6), 'Cherry');
+      expect(_cellAt(frame.buffer, 0, 5), '╰');
+    });
+
+    test('border cells resolve to the bare scope path, rows to the list', () {
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme, popupBorder: BorderType.rounded);
+      final frame = _frame(10, 8);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      expect(frame.hits.hitId(0, 1), 'combo', reason: 'the border is popup chrome, never a list row');
+      expect(frame.hits.hitId(1, 2), 'combo/${combo.internalList.id}');
+    });
+
+    test('a given popupBorderStyle paints the border verbatim', () {
+      const borderStyle = Style(fg: Color.indexed(13));
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        popupBorder: BorderType.rounded,
+        popupBorderStyle: borderStyle,
+      );
+      final frame = _frame(10, 8);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      expect(frame.buffer[(x: 0, y: 1)].fg, borderStyle.fg);
+    });
+  });
+
   group('Combobox.renderPopup (status rows)', () {
     test('a new query clears the matches and shows the loading row alone', () {
       final combo = _remoteBox()

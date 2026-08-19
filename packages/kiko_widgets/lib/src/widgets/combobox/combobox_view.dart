@@ -30,6 +30,8 @@ final class Combobox<T> implements View {
     this.loadingLabel,
     this.errorLabel,
     this.stalledLabel,
+    this.popupBorder = BorderType.none,
+    this.popupBorderStyle,
     this.styleOverrides,
   });
 
@@ -74,6 +76,17 @@ final class Combobox<T> implements View {
   /// Null shows 'Not loaded'; styling as for [loadingLabel], based on
   /// [ComboboxStyle.stalledRow].
   final Line? stalledLabel;
+
+  /// The border drawn around the popup, or [BorderType.none] for none.
+  ///
+  /// The popup box grows by the border's two rows, so the visible match
+  /// rows stay [ComboboxModel.maxVisibleRows].
+  final BorderType popupBorder;
+
+  /// The colour and modifiers of the popup's border glyphs.
+  ///
+  /// Null derives the border ink from the theme.
+  final Style? popupBorderStyle;
 
   /// Per-state style overrides applied on top of the theme's derived styles.
   final Map<WidgetState, Style>? styleOverrides;
@@ -132,12 +145,15 @@ final class Combobox<T> implements View {
     model.placement = renderAnchoredPopup(
       frame,
       anchorPath: model.anchorPath,
-      requestedHeight: model.maxVisibleRows,
+      requestedHeight: model.maxVisibleRows + _chromeRows,
       width: width,
       decision: model.placement,
       popupBuilder: (height) => _popup(list: list, fill: fill, rowBuilder: rowBuilder, height: height),
     );
   }
+
+  /// The rows [popupBorder] adds to the popup box: its top and bottom edges.
+  int get _chromeRows => popupBorder == BorderType.none ? 0 : 2;
 
   /// Builds one open popup's node at [height]: the combobox's scope hugging
   /// exactly the rows the list (or its status row) occupies, painted over a
@@ -150,20 +166,25 @@ final class Combobox<T> implements View {
   /// path, never to the list. A status row ([_statusLine]) owns the popup
   /// outright — every ask clears the list, so matches and status rows never
   /// coexist — and it is chrome this method paints itself, never a row of
-  /// the embedded list, so it can never hold the list's cursor.
+  /// the embedded list, so it can never hold the list's cursor. A
+  /// [popupBorder] frames the box; its cells resolve to the bare scope path
+  /// too.
   Node _popup({
     required ListViewModel<T, T> list,
     required Style fill,
     required List<Line> Function(T item, int index, ItemState state) rowBuilder,
     required int height,
   }) {
+    // The rows left for content once the border, when there is one, takes
+    // its two. A placement squeezed below the chrome rows leaves zero.
+    final innerHeight = (height - _chromeRows).clamp(0, height);
     final status = _statusLine();
     final int contentHeight;
     if (status != null) {
       contentHeight = 0; // the list is empty while a status row shows
     } else {
       final rows = list.itemLimit == 0 ? 1 : list.itemLimit;
-      contentHeight = rows.clamp(0, height);
+      contentHeight = rows.clamp(0, innerHeight);
     }
     list.setVisibleCount(contentHeight);
 
@@ -171,6 +192,8 @@ final class Combobox<T> implements View {
       model.id,
       Container(
         background: fill,
+        border: popupBorder,
+        borderStyle: popupBorderStyle ?? StyleResolver(theme).border(const {}),
         child: Column(
           children: [
             ConstrainedBox(
@@ -182,7 +205,7 @@ final class Combobox<T> implements View {
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
               ),
             ),
-            if (status != null && height > 0) status,
+            if (status != null && innerHeight > 0) status,
           ],
         ),
       ),

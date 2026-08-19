@@ -100,6 +100,14 @@ The decision is made once per open session and held on
 changes, so the popup does not flip sides as the user scrolls its matches.
 `close()` clears the held decision.
 
+`popupBorder` frames the popup with a border. The popup box grows by the
+border's two rows, so the visible match rows stay
+`ComboboxModel.maxVisibleRows`. `popupBorderStyle` sets the border's ink; a
+null one derives from the theme. The field carries no such option — an app
+frames the field row itself, with a bordered `Container` around the
+combobox, as any other field is framed. The popup needs the option because
+the widget builds it privately, out of the app's reach.
+
 ## The two-pass render
 
 `build()` returns the field-and-toggle row; render it wherever the combobox

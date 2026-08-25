@@ -144,29 +144,30 @@ class StyleResolver {
   ///
   /// Resolves over the resting border tone as [PaintClass.ink], so a state can
   /// tint the border foreground but never flood a background onto its glyphs.
-  Style border(Set<WidgetState> states) => resolve(_ink(tones.border), states, cls: PaintClass.ink);
+  Style border(Set<WidgetState> states) => resolve(ink(tones.border), states, cls: PaintClass.ink);
 
   /// Projects a tone as foreground-only ink, or drops the color under
   /// [RenderPolicy.noColor] (modifiers added by the caller still ride on top).
   ///
-  /// Under [RenderPolicy.ansi16] this is unchanged: [tone] already comes from
-  /// [tones], the resolver's active (named-ANSI) tone set, so the projection
-  /// itself has nothing extra to do.
-  Style _ink(Tone tone) => policy == RenderPolicy.noColor ? const Style() : tone.ink;
+  /// Read [tone] from [tones], not from the theme: the projection itself does
+  /// nothing extra under [RenderPolicy.ansi16], so only a tone from the
+  /// active set paints as its named-ANSI value. The raw `tone.ink` bypasses
+  /// the policy entirely — use these projections for content that must
+  /// degrade with the rest of the screen.
+  Style ink(Tone tone) => policy == RenderPolicy.noColor ? const Style() : tone.ink;
 
   /// Projects a tone as a filled surface, or degrades it to [Modifier.reversed]
   /// under [RenderPolicy.noColor] so the surface stays distinguishable once its
   /// color is stripped.
   ///
-  /// Under [RenderPolicy.ansi16] this is unchanged, for the same reason as
-  /// [_ink]: [tone] is already the named-ANSI value.
-  Style _fill(Tone tone) => policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
+  /// Read [tone] from [tones] — see [ink].
+  Style fill(Tone tone) => policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
 
   /// Projects a tone as a background wash, or drops it entirely under
   /// [RenderPolicy.noColor] or [RenderPolicy.ansi16] — a wash cannot exist
   /// without color, and the 16-name vocabulary has no subtle tint to spend on
   /// one either.
-  Style _wash(Tone tone) => policy == RenderPolicy.noColor || policy == RenderPolicy.ansi16 ? const Style() : tone.wash;
+  Style wash(Tone tone) => policy == RenderPolicy.noColor || policy == RenderPolicy.ansi16 ? const Style() : tone.wash;
 
   /// The built-in state × class matrix.
   ///
@@ -177,54 +178,54 @@ class StyleResolver {
     switch (state) {
       case WidgetState.hover:
         // hover has no ANSI-16 slot (Ansi16Tones carries no hover entry) —
-        // harmless, because it only ever reaches _wash, and _wash drops the
+        // harmless, because it only ever reaches wash, and wash drops the
         // tone before touching it under ansi16 (same as noColor).
-        return cls == PaintClass.wash ? _wash(theme.hover) : null;
+        return cls == PaintClass.wash ? wash(theme.hover) : null;
 
       case WidgetState.selected:
         return switch (cls) {
-          PaintClass.ink => _ink(tones.selection),
-          PaintClass.fill => _fill(tones.selection),
-          PaintClass.wash => _wash(tones.selection),
+          PaintClass.ink => ink(tones.selection),
+          PaintClass.fill => fill(tones.selection),
+          PaintClass.wash => wash(tones.selection),
         };
 
       case WidgetState.cursor:
         return switch (cls) {
           PaintClass.ink => null,
-          PaintClass.fill => _fill(tones.cursor).incModifier(Modifier.bold),
-          PaintClass.wash => _wash(tones.cursor),
+          PaintClass.fill => fill(tones.cursor).incModifier(Modifier.bold),
+          PaintClass.wash => wash(tones.cursor),
         };
 
       case WidgetState.focused:
         return switch (cls) {
-          PaintClass.ink => _ink(tones.focus).incModifier(Modifier.bold),
-          PaintClass.fill => _fill(tones.focus).incModifier(Modifier.bold),
+          PaintClass.ink => ink(tones.focus).incModifier(Modifier.bold),
+          PaintClass.fill => fill(tones.focus).incModifier(Modifier.bold),
           PaintClass.wash => null,
         };
 
       case WidgetState.unfocused:
         return switch (cls) {
-          PaintClass.ink => _ink(tones.muted),
-          PaintClass.fill => _ink(tones.muted).patch(_wash(tones.surface)),
+          PaintClass.ink => ink(tones.muted),
+          PaintClass.fill => ink(tones.muted).patch(wash(tones.surface)),
           PaintClass.wash => null,
         };
 
       case WidgetState.loading:
         return switch (cls) {
-          PaintClass.ink || PaintClass.fill => _ink(tones.warning).incModifier(Modifier.slowBlink),
+          PaintClass.ink || PaintClass.fill => ink(tones.warning).incModifier(Modifier.slowBlink),
           PaintClass.wash => null,
         };
 
       case WidgetState.error:
         return switch (cls) {
-          PaintClass.ink => _ink(tones.error),
-          PaintClass.fill => _fill(tones.error),
-          PaintClass.wash => _wash(tones.error),
+          PaintClass.ink => ink(tones.error),
+          PaintClass.fill => fill(tones.error),
+          PaintClass.wash => wash(tones.error),
         };
 
       case WidgetState.disabled:
         return switch (cls) {
-          PaintClass.ink || PaintClass.fill => _ink(tones.disabled).incModifier(Modifier.dim),
+          PaintClass.ink || PaintClass.fill => ink(tones.disabled).incModifier(Modifier.dim),
           PaintClass.wash => null,
         };
     }

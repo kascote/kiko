@@ -165,6 +165,12 @@ class Theme implements ToneSet {
     return Tone(color: base.lift(0.08));
   }
 
+  /// Whether [cursor] is derived from [background] rather than set explicitly.
+  bool get derivesCursor => _cursor == null;
+
+  /// Whether [hover] is derived from [background] rather than set explicitly.
+  bool get derivesHover => _hover == null;
+
   /// Kiko Dark theme - deep slate base with muted warm accents.
   static const Theme dark = Theme(
     primary: Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
@@ -338,6 +344,53 @@ class Theme implements ToneSet {
       muted: Tone(color: Color.darkGray),
       disabled: Tone(color: Color.darkGray),
       focus: Tone(color: Color.brightCyan, on: Color.black),
+      selection: Tone(color: Color.yellow, on: Color.black),
+      cursor: Tone(color: Color.darkGray, on: Color.white),
+    ),
+  );
+
+  /// Lantern theme - monochrome amber on a dark warm-brown base, like text
+  /// lit by lamplight.
+  ///
+  /// The signature is that *default* text is amber rather than gray-white:
+  /// everything on screen sits on one warm hue, with brightness carrying the
+  /// hierarchy — muted text is a darker amber, focus is a brighter one, and
+  /// the only departures from the hue are the intent tones (error, success).
+  static const Theme lantern = Theme(
+    primary: Tone(color: Color.rgb(0x008080), on: Color.rgb(0x221a10)), // 0xc8933f
+    secondary: Tone(color: Color.rgb(0xb3854d), on: Color.rgb(0x221a10)),
+    accent: Tone(color: Color.rgb(0xf5d9a0), on: Color.rgb(0x221a10)),
+    error: Tone(color: Color.rgb(0xd06048), on: Color.rgb(0x221a10)),
+    warning: Tone(color: Color.rgb(0xe0b040), on: Color.rgb(0x221a10)),
+    success: Tone(color: Color.rgb(0x9aa548), on: Color.rgb(0x221a10)),
+    background: Tone(color: Color.rgb(0x14100B), on: Color.rgb(0xcaa356)),
+    surface: Tone(color: Color.rgb(0x2a2113), on: Color.rgb(0xcaa356)),
+    border: Tone(color: Color.rgb(0x3a2e1e)),
+    muted: Tone(color: Color.rgb(0x4A3F30)),
+    disabled: Tone(color: Color.rgb(0x57492a)),
+    focus: Tone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)),
+    selection: Tone(color: Color.rgb(0x4a3a1e), on: Color.rgb(0xf2d9a5)),
+    // cursor, hover: derived washes over background.
+    //
+    // Nearly every tone lives in the yellow family, so this table leans on
+    // the accepted collapses: primary, warning and selection share plain
+    // yellow, accent and focus share brightYellow (focus also picks up bold
+    // from the resolver's state matrix). Secondary drops to red alongside
+    // error — the quieter warm hue — and the grays follow the dark-theme
+    // ordering.
+    tones16: Ansi16Tones(
+      primary: Tone(color: Color.yellow, on: Color.black),
+      secondary: Tone(color: Color.red, on: Color.white),
+      accent: Tone(color: Color.brightYellow, on: Color.black),
+      error: Tone(color: Color.red, on: Color.white),
+      warning: Tone(color: Color.yellow, on: Color.black),
+      success: Tone(color: Color.green, on: Color.black),
+      background: Tone(color: Color.black, on: Color.white),
+      surface: Tone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: Tone(color: Color.brightYellow, on: Color.black),
       selection: Tone(color: Color.yellow, on: Color.black),
       cursor: Tone(color: Color.darkGray, on: Color.white),
     ),

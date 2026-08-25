@@ -191,12 +191,27 @@ class StyleResolver {
 
   /// Border style for a set of states.
   Style border(Set<WidgetState> states);
+
+  /// Tone projections under the active policy. Read the tone from [tones].
+  Style ink(Tone tone);
+  Style fill(Tone tone);
+  Style wash(Tone tone);
+
+  /// The active tone set: the theme itself, or its ANSI-16 table under
+  /// RenderPolicy.ansi16.
+  final ToneSet tones;
 }
 ```
 
 `border` resolves the resting border tone as ink.
 `resolver.border({if (m.focused) WidgetState.focused})` replaces the
 hand-written `m.focused ? theme.focus : theme.border` at every call site.
+
+A raw projection (`theme.success.fill`) bypasses the render policy: it
+paints RGB on every terminal. App content that paints tones directly — a
+title in `primary`, a status badge in `success` — should read the tone
+from `resolver.tones` and project it with `resolver.ink` / `fill` / `wash`
+instead, so it degrades with the rest of the screen.
 
 ### The state × class matrix
 
@@ -222,6 +237,37 @@ Reading examples:
 - A focused button is `focused` × `fill`: `focus.fill` plus bold.
 - An error input's border is `error` × `ink`; its text keeps the base
   style. The matrix only patches what a state owns.
+
+### Where each tone lands
+
+The matrix reads state → tone. This table reads the other way: for each
+tone, where the shipped widgets paint it. Use it to predict what a tone
+change touches. App code can project any tone anywhere; this lists only
+what the library itself does.
+
+| Tone         | The library paints it on…                             |
+| ------------ | ----------------------------------------------------- |
+| `primary`    | a button's resting face (`primary.fill`) — nowhere else |
+| `secondary`  | nothing — app content only                            |
+| `accent`     | nothing — app content only                            |
+| `error`      | error-state chrome and text; failed-load rows         |
+| `warning`    | loading-state chrome, blinking                        |
+| `success`    | nothing — app content only                            |
+| `background` | the app base; `background.on` is the default text     |
+| `surface`    | popups and dialogs; the unfocused wash                |
+| `border`     | every resting border                                  |
+| `muted`      | placeholders, secondary text, unfocused text          |
+| `disabled`   | disabled items and chrome, dim                        |
+| `focus`      | focused borders and faces, bold                       |
+| `selection`  | selected items as fill; a selected border as ink      |
+| `cursor`     | the current row/column bar                            |
+| `hover`      | the wash under the mouse                              |
+
+The sparse intent rows are the rule, not a gap. The intent tones are the
+app's vocabulary: titles, badges, links, status messages. The library
+paints an intent tone only where a state itself carries intent (`error`,
+`loading` → `warning`), or where the widget is one — a button is a primary
+action, so its resting face is `primary.fill`.
 
 ## Theming a widget
 
@@ -380,30 +426,60 @@ framework is themed correctly by construction.
 ## Shipped widget anatomies
 
 The slot map for every widget that ships one — the reference to copy from
-when adding a slot or theming a new widget:
+when adding a slot or theming a new widget. A `null` slot derives from the
+theme by the rule below; a non-null slot is the caller's exact style and
+wins verbatim. Each anatomy class carries its own rows of this table in its
+doc comment; that copy is the widget's contract.
 
-- **TableView** — `TableViewStyle {header, row, separator, selectedRow,
-  cursorRow, cursorColumn, cursorCell, loadingRow, placeholder}`. The
-  crosshair is enabled by `showCrosshair` on the model, not by slot
-  presence: a slot styles a part, it does not create the behavior. A cell
-  paints base → hover → selectedRow → cursorRow/cursorColumn → cursorCell,
-  each patched over the last. The exemplar — copy its shape.
-- **ListView** — `ListViewStyle {item, selectedItem, cursorItem,
-  placeholder}`.
-- **TreeView** — `TreeViewStyle {item, cursorItem, placeholder}`. The
-  expand glyph stays on `indicatorStyle`; placeholder text stays on the
-  `loadingIndicator`/`errorIndicator` `Line`s. A tree has no selection set,
-  so no `selectedItem`.
+| Widget    | Slot              | Derived default                     | Matrix source    |
+| --------- | ----------------- | ----------------------------------- | ---------------- |
+| TableView | `header`          | `Style(fg: background.on)` + bold   | anatomy-specific |
+|           | `row`             | none (inherits the pane's own fill) | —                |
+|           | `separator`       | `theme.border.ink`                  | resting chrome   |
+|           | `selectedRow`     | `theme.selection.fill`              | selected × fill  |
+|           | `cursorRow`       | `theme.cursor.wash`                 | cursor × wash    |
+|           | `cursorColumn`    | `theme.cursor.wash`                 | cursor × wash    |
+|           | `cursorCell`      | `theme.cursor.fill` + bold          | cursor × fill    |
+|           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
+|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+| ListView  | `item`            | none (inherits the pane's own fill) | —                |
+|           | `selectedItem`    | `theme.selection.fill`              | selected × fill  |
+|           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
+|           | `loadingItem`     | `theme.muted.ink`                   | anatomy-specific |
+|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+| TreeView  | `item`            | none (inherits the pane's own fill) | —                |
+|           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
+|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+| Combobox  | `toggle`          | default text ink (`background.on`)  | focused × ink    |
+|           | `popupBackground` | `theme.surface.fill`                | anatomy-specific |
+|           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
+|           | `errorRow`        | `theme.muted.ink`                   | anatomy-specific |
+|           | `stalledRow`      | `theme.muted.ink`                   | anatomy-specific |
+| TextInput | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+|           | `fill`            | `theme.muted.ink`                   | anatomy-specific |
+|           | `obscured`        | none (inherits the base text style) | —                |
+| TextArea  | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+|           | `selection`       | `theme.selection.fill`              | anatomy-specific |
+|           | `lineNumber`      | `theme.muted.ink`                   | anatomy-specific |
+
+Notes the table cannot carry:
+
+- **TableView** — the crosshair (`cursorColumn`) is enabled by
+  `showCrosshair` on the model, not by slot presence: a slot styles a part,
+  it does not create the behavior. A cell paints base → hover → selectedRow
+  → cursorRow/cursorColumn → cursorCell, each patched over the last. The
+  exemplar — copy its shape.
+- **TreeView** — the expand glyph stays on `indicatorStyle`; placeholder
+  text stays on the `loadingIndicator`/`errorIndicator` `Line`s. A tree has
+  no selection set, so no `selectedItem`.
 - **Button** — no anatomy class. The resting face is `theme.primary.fill`;
   states ride the matrix (focused → `focus.fill` + bold, loading → warning
   + blink, disabled → dim).
-- **TextInput / TextArea** — region styles (`TextInputStyle` /
-  `TextAreaStyle`: placeholder, fill, obscured; selection, lineNumber) via
-  `fromTheme`; base text and focus through the resolver.
-- **Combobox** — `ComboboxStyle {toggle, popupBackground, loadingRow,
-  errorRow}` (`docs/combobox.md`). The field's own look stays
-  `TextInputModel`'s business, and the popup's match rows style through the
-  embedded `ListViewStyle`, not through `ComboboxStyle`.
+- **TextInput / TextArea** — region styles via `fromTheme`; base text and
+  focus resolve through the resolver, not through slots.
+- **Combobox** — the field's own look stays `TextInputModel`'s business,
+  and the popup's match rows style through the embedded `ListViewStyle`,
+  not through `ComboboxStyle` (`docs/combobox.md`).
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
 expose `cursor` (not `focused`): the current-item flag.

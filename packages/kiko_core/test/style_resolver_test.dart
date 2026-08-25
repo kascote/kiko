@@ -195,4 +195,33 @@ void main() {
       expect(result.bg, isNull);
     });
   });
+
+  group('StyleResolver / tone projections', () {
+    const tone = Tone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
+
+    test('color policy projects the raw tone', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.color);
+      expect(r.ink(tone).fg, tone.color);
+      expect(r.fill(tone).fg, tone.on);
+      expect(r.fill(tone).bg, tone.color);
+      expect(r.wash(tone).bg, tone.color);
+    });
+
+    test('noColor drops ink and wash, re-expresses fill as reversed', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.noColor);
+      expect(r.ink(tone).fg, isNull);
+      expect(r.fill(tone).fg, isNull);
+      expect(r.fill(tone).bg, isNull);
+      expect(r.fill(tone).addModifier.has(Modifier.reversed), isTrue);
+      expect(r.wash(tone).bg, isNull);
+    });
+
+    test('ansi16 keeps ink and fill but drops the wash', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.ansi16);
+      expect(r.ink(tone).fg, tone.color);
+      expect(r.fill(tone).fg, tone.on);
+      expect(r.fill(tone).bg, tone.color);
+      expect(r.wash(tone).bg, isNull);
+    });
+  });
 }

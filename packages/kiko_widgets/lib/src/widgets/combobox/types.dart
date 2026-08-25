@@ -16,13 +16,14 @@ import 'package:meta/meta.dart';
 /// | `popupBackground`| `theme.surface.fill`             | anatomy-specific  |
 /// | `loadingRow`     | `theme.muted.ink`                | anatomy-specific  |
 /// | `errorRow`       | `theme.muted.ink`                | anatomy-specific  |
+/// | `stalledRow`     | `theme.muted.ink`                | anatomy-specific  |
 ///
 /// The field's own look stays `TextInputModel`'s business — a combobox styles
 /// only the parts it owns on top of the embedded field. The popup's match
 /// rows are styled by the embedded list's own anatomy, not by this class.
-/// `loadingRow` and `errorRow` style the popup's own status row instead — the
-/// one line the view paints itself, after the standing matches, while a
-/// remote query is in flight or has failed.
+/// `loadingRow`, `errorRow` and `stalledRow` style the popup's own status row
+/// instead — the one line the view paints itself, after the standing matches,
+/// while a remote query is in flight, has failed, or was refused.
 class ComboboxStyle {
   /// The toggle glyph's style.
   final Style? toggle;

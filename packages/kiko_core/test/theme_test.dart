@@ -184,5 +184,22 @@ void main() {
         expect(Theme.dark.border.ink.bg, isNull);
       });
     });
+
+    group('derived cursor and hover', () {
+      test('a preset that omits cursor and hover reports both derived', () {
+        expect(Theme.dark.derivesCursor, isTrue);
+        expect(Theme.dark.derivesHover, isTrue);
+      });
+
+      test('an explicit tone flips only its own flag', () {
+        final custom = Theme.dark.copyWith(cursor: const Tone(color: Color.rgb(0x123456)));
+        expect(custom.derivesCursor, isFalse);
+        expect(custom.derivesHover, isTrue);
+      });
+
+      test('a copy without an override stays derived', () {
+        expect(Theme.dark.copyWith(primary: const Tone(color: Color.red)).derivesCursor, isTrue);
+      });
+    });
   });
 }

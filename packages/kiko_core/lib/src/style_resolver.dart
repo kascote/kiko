@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'ansi16_tones.dart';
+import 'cell.dart';
 import 'style.dart';
 import 'theme.dart';
 import 'tone.dart';
@@ -168,6 +169,24 @@ class StyleResolver {
   /// without color, and the 16-name vocabulary has no subtle tint to spend on
   /// one either.
   Style wash(Tone tone) => policy == RenderPolicy.noColor || policy == RenderPolicy.ansi16 ? const Style() : tone.wash;
+
+  /// Projects a tone as the ground of an area — the style its cells hold
+  /// before content paints on them.
+  ///
+  /// Set this once per area, then paint content on top with a half-null
+  /// [Style]; the unset half inherits the ground already in the cell, because
+  /// [Cell.setCell] and [Cell.setStyle] patch a cell rather than replace it.
+  /// Read [tone] from [tones] — see [ink].
+  ///
+  /// In full RGB this is the same style as [fill]. The two projections part
+  /// ways only in how they degrade: under [RenderPolicy.ansi16] a ground
+  /// keeps only its foreground, leaving the terminal's own background to show
+  /// through; under [RenderPolicy.noColor] it carries no color at all.
+  Style ground(Tone tone) => switch (policy) {
+    RenderPolicy.color => Style(fg: tone.on, bg: tone.color),
+    RenderPolicy.ansi16 => Style(fg: tone.on),
+    RenderPolicy.noColor => const Style(),
+  };
 
   /// The built-in state × class matrix.
   ///

@@ -373,6 +373,37 @@ Buffer {
     expect(buf.index(const Position(2, 1)), buf.buf[5]);
   });
 
+  group('ground / paint inheritance', () {
+    test('setCell with a null-half style inherits the ground already in the cell', () {
+      final area = Rect.create(x: 0, y: 0, width: 3, height: 1);
+      final buf = Buffer.empty(area)..setStyle(area, const Style(fg: Color.red, bg: Color.blue));
+
+      // Paint content with a style that only sets bg: the fg half is null, so
+      // it should inherit the ground's fg rather than clearing it.
+      buf[(x: 0, y: 0)] = buf[(x: 0, y: 0)].setCell(
+        char: 'x',
+        style: const Style(bg: Color.green),
+      );
+
+      final cell = buf[(x: 0, y: 0)];
+      expect(cell.symbol, 'x');
+      expect(cell.fg, Color.red, reason: 'a null fg in the painted style keeps the ground fg');
+      expect(cell.bg, Color.green, reason: 'a set bg in the painted style replaces the ground bg');
+    });
+
+    test('a raw Cell assigned through operator []= replaces the whole cell, inheriting nothing', () {
+      final area = Rect.create(x: 0, y: 0, width: 3, height: 1);
+      final buf = Buffer.empty(area)..setStyle(area, const Style(fg: Color.red, bg: Color.blue));
+
+      buf[(x: 0, y: 0)] = const Cell(char: 'x');
+
+      final cell = buf[(x: 0, y: 0)];
+      expect(cell.symbol, 'x');
+      expect(cell.fg, Color.reset, reason: 'operator []= replaces the cell outright — no ground survives');
+      expect(cell.bg, Color.reset);
+    });
+  });
+
   group('wide char overwrite regression', () {
     // These tests verify fix for bug where wide char overflow cells (skip=true)
     // weren't properly cleared when overwritten, causing ghost artifacts.

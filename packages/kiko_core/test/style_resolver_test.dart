@@ -224,4 +224,52 @@ void main() {
       expect(r.wash(tone).bg, isNull);
     });
   });
+
+  group('StyleResolver / ground', () {
+    const tone = Tone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
+
+    test('color policy projects fg and bg, same as fill', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.color);
+      final ground = r.ground(tone);
+      expect(ground.fg, tone.on);
+      expect(ground.bg, tone.color);
+      expect(ground, r.fill(tone));
+    });
+
+    test('ansi16 keeps only the foreground', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.ansi16);
+      final ground = r.ground(tone);
+      expect(ground.fg, tone.on);
+      expect(ground.bg, isNull);
+    });
+
+    test('noColor drops all color', () {
+      final r = StyleResolver(theme, policy: RenderPolicy.noColor);
+      expect(r.ground(tone), const Style());
+    });
+
+    test('a transparent theme (background.color == null) grounds fg-only', () {
+      const transparent = Theme(
+        primary: Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
+        secondary: Tone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
+        accent: Tone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
+        error: Tone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
+        warning: Tone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
+        success: Tone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
+        background: Tone(on: Color.rgb(0xc9d1d9)),
+        surface: Tone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
+        border: Tone(color: Color.rgb(0x30363d)),
+        muted: Tone(color: Color.rgb(0x6e7681)),
+        disabled: Tone(color: Color.rgb(0x484f58)),
+        focus: Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
+        selection: Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
+        cursor: Tone(on: Color.rgb(0xc9d1d9)),
+        hover: Tone(),
+      );
+      final r = StyleResolver(transparent, policy: RenderPolicy.color);
+      final ground = r.ground(transparent.background);
+      expect(ground.fg, transparent.background.on);
+      expect(ground.bg, isNull);
+    });
+  });
 }

@@ -111,11 +111,11 @@ View _flexDemo(int a, int b) => Row(
 View _swatch(Color color, {int width = 3, int height = 1}) => Container(
   width: width,
   height: height,
-  background: Style(bg: color),
+  ground: Style(bg: color),
   child: const SizedBox(),
 );
 
 View _fill(Color color) => Container(
-  background: Style(bg: color),
+  ground: Style(bg: color),
   child: const SizedBox(),
 );

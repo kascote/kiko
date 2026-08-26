@@ -139,7 +139,8 @@ final class Combobox<T> implements View {
     final width = toggleRect == null ? fieldRect.width : fieldRect.union(toggleRect).width;
 
     final list = model.internalList;
-    final fill = model.styles.popupBackground ?? theme.surface.fill;
+    final resolver = StyleResolver(theme);
+    final fill = model.styles.popupGround ?? resolver.ground(resolver.tones.surface);
     final rowBuilder = itemBuilder ?? _defaultItemBuilder;
 
     model.placement = renderAnchoredPopup(
@@ -191,7 +192,7 @@ final class Combobox<T> implements View {
     return Tagged.scope(
       model.id,
       Container(
-        background: fill,
+        ground: fill,
         border: popupBorder,
         borderStyle: popupBorderStyle ?? StyleResolver(theme).border(const {}),
         child: Column(

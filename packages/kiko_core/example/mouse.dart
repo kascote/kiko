@@ -195,7 +195,7 @@ View _swatch(MouseModel model, int i) {
       ? '◌'
       : '';
   final swatch = Container(
-    background: Style(bg: _palette[i]),
+    ground: Style(bg: _palette[i]),
     border: hovered || selected ? BorderType.plain : BorderType.none,
     borderStyle: Style(fg: selected ? Color.white : Color.gray),
     child: Center(

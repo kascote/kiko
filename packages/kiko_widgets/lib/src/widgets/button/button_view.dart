@@ -54,7 +54,7 @@ final class Button implements View {
     );
 
     return Container(
-      background: style,
+      ground: style,
       padding: EdgeInsets.symmetric(horizontal: model.padding),
       child: content,
     ).build()..tag = IdTag(model.id);

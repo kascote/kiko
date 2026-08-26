@@ -117,7 +117,7 @@ void view(HudModel model, Frame frame) {
 }
 
 View _sprite(HudModel model) => Container(
-  background: Style(bg: model.paused ? Color.darkGray : Color.magenta),
+  ground: Style(bg: model.paused ? Color.darkGray : Color.magenta),
   child: const SizedBox(),
 );
 
@@ -132,7 +132,7 @@ View _hud(HudModel model, Frame frame) {
     border: BorderType.double,
     borderStyle: const Style(fg: Color.cyan),
     topTitles: [Line('engine', style: const Style(fg: Color.cyan))],
-    background: const Style(bg: Color.black),
+    ground: const Style(bg: Color.black),
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

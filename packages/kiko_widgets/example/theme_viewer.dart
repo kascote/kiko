@@ -599,7 +599,7 @@ View _anatomyBand(StyleResolver resolver) {
       'Combobox',
       [
         ('toggle', text),
-        ('popupBackground', resolver.fill(t.surface)),
+        ('popupGround', resolver.ground(t.surface)),
         ('loadingRow', mutedInk),
         ('errorRow', mutedInk),
         ('stalledRow', mutedInk),
@@ -869,7 +869,7 @@ View _col(int width, View child) => ConstrainedBox(
 View _swatch(int width, Style style) => ConstrainedBox(
   additionalConstraints: BoxConstraints(minW: width, maxW: width),
   child: Container(
-    background: style,
+    ground: style,
     child: Line(' Ab ', style: style),
   ),
 );

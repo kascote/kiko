@@ -2,8 +2,9 @@ import 'package:kiko/kiko.dart';
 
 import 'modal_model.dart';
 
-/// Frames [content] as a dialog: a bordered, backgrounded box tagged with
-/// [id] so a click inside it resolves back through [HitMap.hitId].
+/// Frames [content] as a dialog: a bordered box with a painted ground,
+/// tagged with [id] so a click inside it resolves back through
+/// [HitMap.hitId].
 ///
 /// This is the plume-native replacement for the old `Modal`'s chrome — it
 /// carries no behaviour of its own. Pass [ModalModel]'s id for the static
@@ -15,13 +16,14 @@ Node modalDialog({
   required Theme theme,
   BorderType border = BorderType.rounded,
   Style? borderStyle,
-  Style? background,
+  Style? ground,
   List<Line> topTitles = const <Line>[],
 }) {
+  final resolver = StyleResolver(theme);
   return Container(
     border: border,
-    borderStyle: borderStyle ?? StyleResolver(theme).border(const {}),
-    background: background ?? theme.surface.fill,
+    borderStyle: borderStyle ?? resolver.border(const {}),
+    ground: ground ?? resolver.ground(resolver.tones.surface),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
     child: NodeView(content),

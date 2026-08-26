@@ -159,7 +159,7 @@ void main() {
       final node = const Container(
         width: 6,
         height: 3,
-        background: Style(bg: Color.blue),
+        ground: Style(bg: Color.blue),
         border: BorderType.plain,
         borderStyle: Style(fg: Color.red),
         child: Text('x'),

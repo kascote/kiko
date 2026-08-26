@@ -279,11 +279,11 @@ final class ConstrainedBox implements View {
   );
 }
 
-/// A single-child box that can size itself, pad its child, paint a background
+/// A single-child box that can size itself, pad its child, paint a ground
 /// and border, and carry titles on its top and bottom edges.
 ///
 /// Decoration is described in kiko's own vocabulary: a [border] type and
-/// [borderStyle] for the frame, a [background] style for the fill. [build] turns
+/// [borderStyle] for the frame, a [ground] style behind the child. [build] turns
 /// each into the paint token plume carries — no caller assembles one.
 /// [topTitles] and [bottomTitles] are the one TUI-specific extension over the
 /// Flutter shape — each title line becomes a label riding its edge, packed from
@@ -297,7 +297,7 @@ final class Container implements View {
     this.padding = plume.EdgeInsets.zero,
     this.width,
     this.height,
-    this.background = const Style(),
+    this.ground = const Style(),
     this.border = BorderType.none,
     this.borderStyle = const Style(),
     this.topTitles = const <Line>[],
@@ -317,8 +317,8 @@ final class Container implements View {
   /// A fixed height in cells, or `null` to size to the child.
   final int? height;
 
-  /// The fill painted behind the child, or an empty style for no fill.
-  final Style background;
+  /// The ground painted behind the child, or an empty style for none.
+  final Style ground;
 
   /// The border glyph set drawn around the box, or [BorderType.none] for no
   /// border.
@@ -342,7 +342,7 @@ final class Container implements View {
       padding: padding,
       width: width,
       height: height,
-      background: background == const Style() ? null : PaintToken(background),
+      background: ground == const Style() ? null : PaintToken(ground),
       border: border == BorderType.none ? null : PaintToken(borderStyle, border: border.symbols),
       child: child.build(),
       labels: <plume.EdgeLabel<PaintToken>>[

@@ -87,7 +87,7 @@ View _modal() => Center(
     width: 40,
     height: 7,
     // A solid fill makes the modal opaque over the dimmed backdrop.
-    background: const Style(bg: Color.black),
+    ground: const Style(bg: Color.black),
     border: BorderType.double,
     borderStyle: const Style(fg: Color.yellow),
     topTitles: [

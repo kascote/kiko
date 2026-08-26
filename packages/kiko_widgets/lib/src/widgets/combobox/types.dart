@@ -13,7 +13,7 @@ import 'package:meta/meta.dart';
 /// | slot             | derived default                 | matrix source    |
 /// | ---------------- | -------------------------------- | ---------------- |
 /// | `toggle`         | `focused` × `ink`, else base ink | focused × ink     |
-/// | `popupBackground`| `theme.surface.fill`             | anatomy-specific  |
+/// | `popupGround`    | `resolver.ground(surface)`       | anatomy-specific  |
 /// | `loadingRow`     | `theme.muted.ink`                | anatomy-specific  |
 /// | `errorRow`       | `theme.muted.ink`                | anatomy-specific  |
 /// | `stalledRow`     | `theme.muted.ink`                | anatomy-specific  |
@@ -28,9 +28,9 @@ class ComboboxStyle {
   /// The toggle glyph's style.
   final Style? toggle;
 
-  /// The popup's background fill, painted behind every row and under the
-  /// blank tail past the last match.
-  final Style? popupBackground;
+  /// The popup's ground, painted behind every row and under the blank tail
+  /// past the last match.
+  final Style? popupGround;
 
   /// The popup's status row while the newest query is in flight.
   final Style? loadingRow;
@@ -42,7 +42,7 @@ class ComboboxStyle {
   final Style? stalledRow;
 
   /// Creates a ComboboxStyle.
-  const ComboboxStyle({this.toggle, this.popupBackground, this.loadingRow, this.errorRow, this.stalledRow});
+  const ComboboxStyle({this.toggle, this.popupGround, this.loadingRow, this.errorRow, this.stalledRow});
 }
 
 // ═══════════════════════════════════════════════════════════

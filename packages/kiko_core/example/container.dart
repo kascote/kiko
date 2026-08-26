@@ -79,7 +79,7 @@ View _borderType(BorderType type, String name) =>
 
 View _styledBlock() => Container(
   border: BorderType.plain,
-  background: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
+  ground: Style(fg: Color.blue, bg: Color.white, addModifier: Modifier.bold | Modifier.italic),
   topTitles: [Line('Styled block')],
   child: _placeHolder,
 );

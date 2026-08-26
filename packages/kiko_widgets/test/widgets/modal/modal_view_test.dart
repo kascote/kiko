@@ -55,7 +55,7 @@ void main() {
 
     test('dims the backdrop then paints the dialog on top', () {
       final base = const Container(
-        background: Style(bg: Color.rgb(0xC8C8C8)),
+        ground: Style(bg: Color.rgb(0xC8C8C8)),
         child: SizedBox(width: 10, height: 3),
       ).build();
       final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);

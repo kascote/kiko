@@ -12,7 +12,7 @@ Every styled cell on screen answers four questions:
 ```
 1. WHICH color family?        → Tone        (the theme owns these)
 2. WHICH tone right now?      → WidgetState (interaction picks the tone)
-3. HOW does it land as paint? → Projection  (the part's paint class: ink / fill / wash)
+3. HOW does it land as paint? → Projection  (ink / fill / wash / ground)
 4. WHO can override it?       → Anatomy     (per-widget style slots, per instance)
 ```
 
@@ -20,9 +20,9 @@ Every styled cell on screen answers four questions:
   a `Style` only through a projection. The compiler rejects a raw tone
   where a `Style` is expected, so a fill's background can never land on
   border glyphs by accident.
-- A **projection** turns a tone into a `Style` for one paint class: `ink`
-  (foreground only), `fill` (`fg: on, bg: color`), or `wash` (background
-  only).
+- A **projection** turns a tone into a `Style`: `ink` (foreground only),
+  `fill` (`fg: on, bg: color`), `wash` (background only), or `ground` (the
+  pair an area's cells hold before content paints on them).
 - **States pick tones; parts pick projections.** A selected pane border and
   a selected row use the same tone (`selection`) through different
   projections (`ink` vs `fill`).
@@ -106,23 +106,60 @@ static const dark = Theme(
 );
 ```
 
-**Transparent-background themes.** `background.color = null` keeps the
-terminal's own background; fills over it set `bg: null`. Such a theme
-should set `cursor` and `hover` explicitly. A wash cannot be derived from
-an unknown background, so the derived tones come out empty.
+**Transparent-background themes.** `background.color == null` keeps the
+terminal's own background: fills over it set `bg: null`, and the frame's
+ground carries only its foreground, `background.on`. Such a theme should
+set `cursor` and `hover` explicitly. A wash cannot be derived from an
+unknown background, so the derived tones come out empty.
 
 ## Projections
 
-| Projection | Produces            | Use for                                              |
-| ---------- | ------------------- | ---------------------------------------------------- |
-| `ink`      | `fg` only           | line glyphs, separators, scrollbars, accent text     |
-| `fill`     | `fg: on, bg: color` | filled surfaces: selected rows, button faces, badges |
-| `wash`     | `bg` only           | tints under existing content: a crosshair row/column |
+| Projection | Produces            | Use for                                                       |
+| ---------- | ------------------- | -------------------------------------------------------------- |
+| `ink`      | `fg` only           | line glyphs, separators, scrollbars, accent text              |
+| `fill`     | `fg: on, bg: color` | filled surfaces: selected rows, button faces, badges          |
+| `wash`     | `bg` only           | tints under existing content: a crosshair row/column          |
+| `ground`   | `fg: on, bg: color` | the style an area's cells hold before content paints on them  |
 
 `wash` is the one to remember. It changes the background only, so a cell
 keeps whatever foreground it already had. A custom `render` that colored a
 number red stays red under the wash. `Style.patch` makes this work: a
 bg-only style patched over content changes the background and nothing else.
+
+### Grounding an area
+
+A **ground** is the style an area's cells hold before content paints on
+them. Set it once per area. Paint content on top with a half-null `Style`;
+the unset half inherits the ground already in the cell.
+
+`Cell.setCell` and `Cell.setStyle` patch a cell instead of replacing it, so
+a null half falls through to the ground underneath. `Buffer.operator []=`
+replaces the whole cell instead, so a raw `Cell` written that way inherits
+nothing.
+
+A ground is a full pair: whoever establishes a background also establishes
+the text color that reads on it. The app grounds the frame with one line
+at the top of `view`:
+
+```dart
+frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+```
+
+A pane that changes surface re-grounds locally. A dialog or a popup paints
+the `surface` ground behind its own content, the same way.
+
+`null` in a style means inherit the ground already in the cell. `Color.reset`
+or `Style.reset` means the terminal's own default color — not the theme's
+ground, and not "no color".
+
+In full RGB, a ground is the same pair as a fill. The two part ways in how
+they degrade: under `RenderPolicy.ansi16` a ground keeps only its
+foreground, `fg: tone.on`, so the terminal's own background shows through;
+under `RenderPolicy.noColor` a ground carries no color at all. A **fill**
+replaces the ground for emphasis and reverses under `RenderPolicy.noColor`
+to stay visible. A **ground** never reverses the screen, at any tier — it
+is the base the rest of the frame paints on, not something meant to stand
+out.
 
 ### Why a tone is not paintable
 
@@ -196,6 +233,7 @@ class StyleResolver {
   Style ink(Tone tone);
   Style fill(Tone tone);
   Style wash(Tone tone);
+  Style ground(Tone tone);
 
   /// The active tone set: the theme itself, or its ANSI-16 table under
   /// RenderPolicy.ansi16.
@@ -273,7 +311,7 @@ action, so its resting face is `primary.fill`.
 
 The recipe, step by step.
 
-### 1. Classify each part as ink, fill, or wash
+### 1. Classify each part as ink, fill, wash, or ground
 
 List every part of your widget and write down its projection, using the
 projection table above. That list is the spec for the next two steps.
@@ -378,11 +416,13 @@ projection call, so a widget never branches on the terminal it runs in:
   customization still reads correctly. A theme may hand-author this table.
   One that does not gets a table derived from its RGB tones
   (`Ansi16Tones.derive`). A wash has no subtle tint to spend at this tier,
-  so it drops entirely.
+  so it drops entirely. A ground keeps only its foreground, so the
+  terminal's own background shows through.
 - **`RenderPolicy.noColor`** — color is off (NO_COLOR). Meaning
   re-expresses through modifiers: `fill` becomes `Modifier.reversed`, `ink`
   keeps its modifiers with the color dropped, and `wash` becomes nothing —
-  a crosshair collapses to its cursor cell.
+  a crosshair collapses to its cursor cell. A ground carries no color at
+  all here, and — unlike `fill` — never reverses.
 
 The staircase reads the same from richest to plainest: a fill is tint plus
 fill in RGB, a real `(fg, bg)` pair from sixteen names at ANSI-16, and
@@ -434,7 +474,7 @@ doc comment; that copy is the widget's contract.
 | Widget    | Slot              | Derived default                     | Matrix source    |
 | --------- | ----------------- | ----------------------------------- | ---------------- |
 | TableView | `header`          | `Style(fg: background.on)` + bold   | anatomy-specific |
-|           | `row`             | none (inherits the pane's own fill) | —                |
+|           | `row`             | none (inherits the pane's ground)   | —                |
 |           | `separator`       | `theme.border.ink`                  | resting chrome   |
 |           | `selectedRow`     | `theme.selection.fill`              | selected × fill  |
 |           | `cursorRow`       | `theme.cursor.wash`                 | cursor × wash    |
@@ -442,16 +482,16 @@ doc comment; that copy is the widget's contract.
 |           | `cursorCell`      | `theme.cursor.fill` + bold          | cursor × fill    |
 |           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
 |           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
-| ListView  | `item`            | none (inherits the pane's own fill) | —                |
+| ListView  | `item`            | none (inherits the pane's ground)   | —                |
 |           | `selectedItem`    | `theme.selection.fill`              | selected × fill  |
 |           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
 |           | `loadingItem`     | `theme.muted.ink`                   | anatomy-specific |
 |           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
-| TreeView  | `item`            | none (inherits the pane's own fill) | —                |
+| TreeView  | `item`            | none (inherits the pane's ground)   | —                |
 |           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
 |           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
 | Combobox  | `toggle`          | default text ink (`background.on`)  | focused × ink    |
-|           | `popupBackground` | `theme.surface.fill`                | anatomy-specific |
+|           | `popupGround`     | `resolver.ground(surface)`          | anatomy-specific |
 |           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
 |           | `errorRow`        | `theme.muted.ink`                   | anatomy-specific |
 |           | `stalledRow`      | `theme.muted.ink`                   | anatomy-specific |
@@ -475,8 +515,9 @@ Notes the table cannot carry:
 - **Button** — no anatomy class. The resting face is `theme.primary.fill`;
   states ride the matrix (focused → `focus.fill` + bold, loading → warning
   + blink, disabled → dim).
-- **TextInput / TextArea** — region styles via `fromTheme`; base text and
-  focus resolve through the resolver, not through slots.
+- **TextInput / TextArea** — region styles via `fromTheme`. Base text has
+  no color of its own; it inherits the ground it is painted on. Focus
+  resolves through the resolver, not through slots.
 - **Combobox** — the field's own look stays `TextInputModel`'s business,
   and the popup's match rows style through the embedded `ListViewStyle`,
   not through `ComboboxStyle` (`docs/combobox.md`).

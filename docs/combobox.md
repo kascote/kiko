@@ -168,7 +168,7 @@ it the way it forwards one from `update`.
 | slot              | derived default                  | matrix source    |
 | ----------------- | --------------------------------- | ----------------- |
 | `toggle`          | `focused` × `ink`, else base ink | focused × ink     |
-| `popupBackground` | `theme.surface.fill`             | anatomy-specific  |
+| `popupGround`     | `resolver.ground(surface)`       | anatomy-specific  |
 | `loadingRow`      | `theme.muted.ink`                | anatomy-specific  |
 | `errorRow`        | `theme.muted.ink`                | anatomy-specific  |
 | `stalledRow`      | `theme.muted.ink`                | anatomy-specific  |

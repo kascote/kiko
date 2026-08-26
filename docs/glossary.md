@@ -121,7 +121,10 @@ A term of art added to a page gets its entry here in the same change.
 - **tone** — a color pair `(color, on)`; not paintable until projected
   (`docs/theming.md`).
 - **projection** — turning a tone into a paintable style: `.ink` (fg only),
-  `.fill` (fg + bg), `.wash` (bg only).
+  `.fill` (fg + bg), `.wash` (bg only), `.ground` (fg + bg, the base under
+  content).
+- **ground** — the style an area's cells hold before content paints on it;
+  a full `(fg, bg)` pair, set once per area (`docs/theming.md`).
 - **anatomy** — the named parts of a widget that can be styled (`XStyle`
   classes of nullable slots).
 - **matrix** — the built-in state × class table: the style each

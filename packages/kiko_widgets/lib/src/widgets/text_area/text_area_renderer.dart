@@ -37,17 +37,18 @@ class TextAreaRenderer {
 
   /// Resolves the base text style from theme + model state.
   ///
-  /// Text is glyphs, so states are projected as [PaintClass.ink] — a focused
-  /// editor tints its text foreground, it does not flood every line with a
-  /// background fill (which would hide the characters and the terminal cursor).
-  /// Focus as a surface belongs on the editor's border, resolved by the caller.
+  /// The text has no base color of its own; it inherits the ground it is
+  /// painted on. A focused editor tints its text foreground on top of that,
+  /// it does not flood every line with a background fill (which would hide
+  /// the characters and the terminal cursor). Focus as a surface belongs on
+  /// the editor's border, resolved by the caller.
   Style _resolveStyle() {
     final resolver = StyleResolver(theme);
     final states = <WidgetState>{
       if (model.focused) WidgetState.focused,
     };
     return resolver.resolve(
-      Style(fg: theme.background.on),
+      null,
       states,
       cls: PaintClass.ink,
       overrides: {...?styleOverrides},

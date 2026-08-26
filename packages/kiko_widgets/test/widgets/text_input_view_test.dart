@@ -251,13 +251,14 @@ void main() {
       expect(frame.buffer[(x: 2, y: 0)].bg, equals(Color.blue));
     });
 
-    test('applies theme fg to input text', () {
+    test('paints input text with no foreground of its own', () {
       final model = TextInputModel(initial: 'hello');
       final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('h'));
-      // Text gets theme.background.on.
-      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Theme.dark.background.on));
+      // Text has no base color — it inherits whatever ground it is painted on.
+      // Nothing paints a ground here, so the cell keeps its reset default.
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(Color.reset));
       expect(frame.buffer[(x: 4, y: 0)].symbol, equals('o'));
     });
 

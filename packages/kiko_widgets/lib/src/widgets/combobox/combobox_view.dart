@@ -91,6 +91,9 @@ final class Combobox<T> implements View {
   /// Per-state style overrides applied on top of the theme's derived styles.
   final Map<WidgetState, Style>? styleOverrides;
 
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  StyleResolver get _resolver => StyleResolver(theme);
+
   @override
   Node build() => Tagged.scope(
     model.id,
@@ -107,12 +110,11 @@ final class Combobox<T> implements View {
   /// Builds the one-cell toggle, tagged with [ComboboxModel.toggleId] under
   /// the combobox's own scope.
   View _toggle() {
-    final resolver = StyleResolver(theme);
     final glyph = model.isOpen ? openGlyph : closedGlyph;
     final style =
         model.styles.toggle ??
-        resolver.resolve(
-          Style(fg: theme.background.on),
+        _resolver.resolve(
+          null,
           {if (model.focused) WidgetState.focused},
           cls: PaintClass.ink,
           overrides: styleOverrides,
@@ -139,7 +141,7 @@ final class Combobox<T> implements View {
     final width = toggleRect == null ? fieldRect.width : fieldRect.union(toggleRect).width;
 
     final list = model.internalList;
-    final resolver = StyleResolver(theme);
+    final resolver = _resolver;
     final fill = model.styles.popupGround ?? resolver.ground(resolver.tones.surface);
     final rowBuilder = itemBuilder ?? _defaultItemBuilder;
 
@@ -194,7 +196,7 @@ final class Combobox<T> implements View {
       Container(
         ground: fill,
         border: popupBorder,
-        borderStyle: popupBorderStyle ?? StyleResolver(theme).border(const {}),
+        borderStyle: popupBorderStyle ?? _resolver.border(const {}),
         child: Column(
           children: [
             ConstrainedBox(
@@ -227,7 +229,7 @@ final class Combobox<T> implements View {
   /// Materializes one status row: [label] with its own styling patched over
   /// the themed base, or [fallback] in the base style alone.
   Line _statusRow(Line? label, String fallback, Style? slot) {
-    final base = slot ?? theme.muted.ink;
+    final base = slot ?? _resolver.ink(_resolver.tones.muted);
     if (label == null) return Line(fallback, style: base);
     return Line.fromTexts(label.texts.toList(), style: base.patch(label.style));
   }

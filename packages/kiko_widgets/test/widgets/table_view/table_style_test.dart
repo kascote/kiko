@@ -188,12 +188,12 @@ void main() {
     });
 
     group('header and separator derivation', () {
-      test('header derives fg from background.on and turns on bold', () {
+      test('header has no fg of its own and turns on bold', () {
         final model = _model();
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         final header = buffer[(x: 0, y: 0)];
-        expect(header.fg, equals(Theme.dark.background.on));
+        expect(header.fg, equals(Color.reset), reason: 'the header inherits the ground; only bold is its own');
         expect(header.modifier.has(Modifier.bold), isTrue);
       });
 

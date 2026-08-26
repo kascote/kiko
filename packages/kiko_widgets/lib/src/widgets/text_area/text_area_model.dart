@@ -10,10 +10,19 @@ import 'textarea.dart';
 // STYLE
 // ═══════════════════════════════════════════════════════════
 
-/// Region-based styles for TextArea widget.
+/// Region-based styles for TextArea widget: one nullable style slot per
+/// region.
 ///
-/// These are NOT state-based (focused, disabled) — those are handled by
-/// [StyleResolver] in the widget. These style specific visual regions.
+/// A `null` slot is derived from the theme's tones by the widget, through a
+/// [StyleResolver]; a non-null slot is the caller's exact style and wins
+/// verbatim. State-based styling (focused, disabled) is handled by
+/// [StyleResolver] separately, in the widget.
+///
+/// | slot          | derived default            | matrix source      |
+/// | ------------- | --------------------------- | ------------------ |
+/// | `placeholder` | `resolver.ink(muted)`       | anatomy-specific   |
+/// | `selection`   | `resolver.fill(selection)`  | anatomy-specific   |
+/// | `lineNumber`  | `resolver.ink(muted)`       | anatomy-specific   |
 @immutable
 class TextAreaStyle {
   /// Style for placeholder text.
@@ -31,13 +40,6 @@ class TextAreaStyle {
     this.selection,
     this.lineNumber,
   });
-
-  /// Creates region styles derived from a [Theme].
-  factory TextAreaStyle.fromTheme(Theme theme) => TextAreaStyle(
-    placeholder: theme.muted.ink,
-    selection: theme.selection.fill,
-    lineNumber: theme.muted.ink,
-  );
 
   /// Merges [other] on top of this, non-null values override.
   TextAreaStyle merge(TextAreaStyle? other) {

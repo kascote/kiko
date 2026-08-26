@@ -12,11 +12,11 @@ import 'package:meta/meta.dart';
 ///
 /// | slot             | derived default                 | matrix source    |
 /// | ---------------- | -------------------------------- | ---------------- |
-/// | `toggle`         | `focused` × `ink`, else base ink | focused × ink     |
+/// | `toggle`         | inherit, focused × ink            | focused × ink     |
 /// | `popupGround`    | `resolver.ground(surface)`       | anatomy-specific  |
-/// | `loadingRow`     | `theme.muted.ink`                | anatomy-specific  |
-/// | `errorRow`       | `theme.muted.ink`                | anatomy-specific  |
-/// | `stalledRow`     | `theme.muted.ink`                | anatomy-specific  |
+/// | `loadingRow`     | `resolver.ink(muted)`            | anatomy-specific  |
+/// | `errorRow`       | `resolver.ink(muted)`            | anatomy-specific  |
+/// | `stalledRow`     | `resolver.ink(muted)`            | anatomy-specific  |
 ///
 /// The field's own look stays `TextInputModel`'s business — a combobox styles
 /// only the parts it owns on top of the embedded field. The popup's match

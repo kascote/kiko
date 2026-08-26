@@ -252,8 +252,8 @@ class _ListViewport<T, K> extends Node {
   Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
 
   /// The built-in dim run for items whose page isn't held.
-  Style _loadingItemStyle() => model.styles.loadingItem ?? theme.muted.ink;
+  Style _loadingItemStyle() => model.styles.loadingItem ?? _resolver.ink(_resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
+  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
 }

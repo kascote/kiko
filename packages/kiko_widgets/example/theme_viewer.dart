@@ -598,7 +598,7 @@ View _anatomyBand(StyleResolver resolver) {
     (
       'Combobox',
       [
-        ('toggle', text),
+        ('[toggle]', text),
         ('popupGround', resolver.ground(t.surface)),
         ('loadingRow', mutedInk),
         ('errorRow', mutedInk),
@@ -626,7 +626,7 @@ View _anatomyBand(StyleResolver resolver) {
     (
       'TableView',
       [
-        ('header', text.copyWith(addModifier: Modifier.bold)),
+        ('[header]', text.copyWith(addModifier: Modifier.bold)),
         ('[row]', text),
         ('separator', resolver.ink(t.border)),
         ('selectedRow', selectedFill),

@@ -13,10 +13,11 @@ import 'text_input_model.dart';
 /// scrolling needs the actual on-screen width, known only at paint time), then
 /// [TextInputModel.fillChar] repeated across whatever width is left. Styles
 /// come from the [theme] and the model's focus state, with region styles
-/// (placeholder, fill, obscured) from [TextInputStyle.fromTheme] merged with
-/// the model's own. The built node is stamped with the model id so a click
-/// routes back through [HitMap.hitId]; the terminal cursor is reported through
-/// the surface, the same way the `TextArea` viewport does.
+/// (placeholder, fill, obscured) derived through a [StyleResolver] and merged
+/// with the model's own, per [TextInputStyle]. The built node is stamped with
+/// the model id so a click routes back through [HitMap.hitId]; the terminal
+/// cursor is reported through the surface, the same way the `TextArea`
+/// viewport does.
 final class TextInput implements View {
   /// Creates a text input over [model], styled by [theme].
   const TextInput({required this.model, required this.theme, this.styleOverrides});
@@ -37,13 +38,21 @@ final class TextInput implements View {
 /// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
-  _TextInputViewport({required this.model, required this.theme, this.styleOverrides})
-    : _regionStyle = TextInputStyle.fromTheme(theme).merge(model.style);
+  _TextInputViewport({required this.model, required this.theme, this.styleOverrides});
 
   final TextInputModel model;
   final Theme theme;
   final Map<WidgetState, Style>? styleOverrides;
-  final TextInputStyle _regionStyle;
+
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  late final _resolver = StyleResolver(theme);
+
+  /// Region styles: the theme's derived defaults, with [model]'s own
+  /// non-null slots patched on top.
+  late final TextInputStyle _regionStyle = TextInputStyle(
+    placeholder: _resolver.ink(_resolver.tones.muted),
+    fill: _resolver.ink(_resolver.tones.muted),
+  ).merge(model.style);
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the field content, not just the box chrome.
@@ -153,9 +162,8 @@ class _TextInputViewport extends Node {
   /// characters and the terminal cursor). Focus as a surface belongs on the
   /// field's border, resolved by the caller.
   Style _resolveStyle() {
-    final resolver = StyleResolver(theme);
     final states = <WidgetState>{if (model.focused) WidgetState.focused};
-    return resolver.resolve(
+    return _resolver.resolve(
       null,
       states,
       cls: PaintClass.ink,

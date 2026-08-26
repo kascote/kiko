@@ -169,15 +169,15 @@ class TableScrollState {
 ///
 /// | slot           | derived default                          | matrix source     |
 /// | -------------- | ----------------------------------------- | ----------------- |
-/// | `header`       | `Style(fg: theme.background.on)` + bold   | anatomy-specific  |
-/// | `row`          | none (inherits the pane's own fill)       | —                 |
-/// | `separator`    | `theme.border.ink`                        | resting chrome    |
-/// | `selectedRow`  | `theme.selection.fill`                    | selected × fill   |
-/// | `cursorRow`    | `theme.cursor.wash`                       | cursor × wash     |
-/// | `cursorColumn` | `theme.cursor.wash`                       | cursor × wash     |
-/// | `cursorCell`   | `theme.cursor.fill` + bold                | cursor × fill     |
-/// | `loadingRow`   | `theme.muted.ink`                         | anatomy-specific  |
-/// | `placeholder`  | `theme.muted.ink`                         | anatomy-specific  |
+/// | `header`       | inherit + bold                            | anatomy-specific  |
+/// | `row`          | none (inherits the pane's ground)       | —                 |
+/// | `separator`    | `resolver.ink(border)`                    | resting chrome    |
+/// | `selectedRow`  | `resolver.fill(selection)`                | selected × fill   |
+/// | `cursorRow`    | `resolver.wash(cursor)`                   | cursor × wash     |
+/// | `cursorColumn` | `resolver.wash(cursor)`                   | cursor × wash     |
+/// | `cursorCell`   | `resolver.fill(cursor)` + bold            | cursor × fill     |
+/// | `loadingRow`   | `resolver.ink(muted)`                     | anatomy-specific  |
+/// | `placeholder`  | `resolver.ink(muted)`                     | anatomy-specific  |
 ///
 /// Per-cell paint order is: row base, then `selectedRow` (a fill), then
 /// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each

@@ -303,17 +303,17 @@ class TableRenderer {
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
 
-  /// Sticky header text style.
-  Style _headerStyle() => model.styles.header ?? Style(fg: theme.background.on, addModifier: Modifier.bold);
+  /// Sticky header text style: bold, over whatever ground the pane painted.
+  Style _headerStyle() => model.styles.header ?? const Style(addModifier: Modifier.bold);
 
   /// Column separator glyph style.
-  Style _separatorStyle() => model.styles.separator ?? theme.border.ink;
+  Style _separatorStyle() => model.styles.separator ?? _resolver.ink(_resolver.tones.border);
 
   /// Placeholder rows for data windowed out of the cache.
-  Style _loadingRowStyle() => model.styles.loadingRow ?? theme.muted.ink;
+  Style _loadingRowStyle() => model.styles.loadingRow ?? _resolver.ink(_resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
+  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
 
   /// The hovered row — `hover` × `wash`. A bg-only wash (hover resolves for no
   /// other paint class), so it tints the row without clobbering its foreground.

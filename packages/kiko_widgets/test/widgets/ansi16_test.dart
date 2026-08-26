@@ -52,11 +52,9 @@ void main() {
         ),
       );
       final cell = buffer[(x: 0, y: 0)]; // left padding, part of the button face
-      // The resting face is an explicit theme.primary.fill the caller
-      // supplies directly (not a resolver projection), so it keeps its raw
-      // RGB regardless of policy — same as the NO_COLOR suite's note. The
-      // focused STATE contribution, though, comes from the resolver's state
-      // matrix, so it paints through the named tones16.focus pair.
+      // Both the resting face and the focused state contribution come from
+      // the resolver, so the focused fill fully replaces the resting one and
+      // paints through the named tones16.focus pair.
       expect(cell.fg, equals(tones.focus.on));
       expect(cell.bg, equals(tones.focus.color));
       expect(cell.modifier.has(Modifier.bold), isTrue);

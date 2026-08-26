@@ -330,12 +330,12 @@ doc comment and is the widget's styling contract:
 /// A `null` slot is derived from the theme's tones by the rule below; a
 /// non-null slot is the caller's exact style and wins verbatim.
 ///
-/// | slot          | derived default            | matrix source     |
-/// | ------------- | -------------------------- | ----------------- |
-/// | `item`        | none (inherits)            | —                 |
-/// | `selectedItem`| `theme.selection.fill`     | selected × fill   |
-/// | `cursorItem`  | `theme.cursor.fill` + bold | cursor × fill     |
-/// | `placeholder` | `theme.muted.ink`          | anatomy-specific  |
+/// | slot          | derived default             | matrix source     |
+/// | ------------- | ---------------------------- | ----------------- |
+/// | `item`        | none (inherits)              | —                 |
+/// | `selectedItem`| `resolver.fill(selection)`   | selected × fill   |
+/// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill   |
+/// | `placeholder` | `resolver.ink(muted)`        | anatomy-specific  |
 class FooViewStyle {
   final Style? item;
   final Style? selectedItem;
@@ -473,34 +473,34 @@ doc comment; that copy is the widget's contract.
 
 | Widget    | Slot              | Derived default                     | Matrix source    |
 | --------- | ----------------- | ----------------------------------- | ---------------- |
-| TableView | `header`          | `Style(fg: background.on)` + bold   | anatomy-specific |
+| TableView | `header`          | inherit + bold                      | anatomy-specific |
 |           | `row`             | none (inherits the pane's ground)   | —                |
-|           | `separator`       | `theme.border.ink`                  | resting chrome   |
-|           | `selectedRow`     | `theme.selection.fill`              | selected × fill  |
-|           | `cursorRow`       | `theme.cursor.wash`                 | cursor × wash    |
-|           | `cursorColumn`    | `theme.cursor.wash`                 | cursor × wash    |
-|           | `cursorCell`      | `theme.cursor.fill` + bold          | cursor × fill    |
-|           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
-|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+|           | `separator`       | `resolver.ink(border)`              | resting chrome   |
+|           | `selectedRow`     | `resolver.fill(selection)`          | selected × fill  |
+|           | `cursorRow`       | `resolver.wash(cursor)`             | cursor × wash    |
+|           | `cursorColumn`    | `resolver.wash(cursor)`             | cursor × wash    |
+|           | `cursorCell`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
+|           | `loadingRow`      | `resolver.ink(muted)`               | anatomy-specific |
+|           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | ListView  | `item`            | none (inherits the pane's ground)   | —                |
-|           | `selectedItem`    | `theme.selection.fill`              | selected × fill  |
-|           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
-|           | `loadingItem`     | `theme.muted.ink`                   | anatomy-specific |
-|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
+|           | `selectedItem`    | `resolver.fill(selection)`          | selected × fill  |
+|           | `cursorItem`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
+|           | `loadingItem`     | `resolver.ink(muted)`               | anatomy-specific |
+|           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | TreeView  | `item`            | none (inherits the pane's ground)   | —                |
-|           | `cursorItem`      | `theme.cursor.fill` + bold          | cursor × fill    |
-|           | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
-| Combobox  | `toggle`          | default text ink (`background.on`)  | focused × ink    |
+|           | `cursorItem`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
+|           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
+| Combobox  | `toggle`          | inherit                             | focused × ink    |
 |           | `popupGround`     | `resolver.ground(surface)`          | anatomy-specific |
-|           | `loadingRow`      | `theme.muted.ink`                   | anatomy-specific |
-|           | `errorRow`        | `theme.muted.ink`                   | anatomy-specific |
-|           | `stalledRow`      | `theme.muted.ink`                   | anatomy-specific |
-| TextInput | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
-|           | `fill`            | `theme.muted.ink`                   | anatomy-specific |
+|           | `loadingRow`      | `resolver.ink(muted)`               | anatomy-specific |
+|           | `errorRow`        | `resolver.ink(muted)`               | anatomy-specific |
+|           | `stalledRow`      | `resolver.ink(muted)`               | anatomy-specific |
+| TextInput | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
+|           | `fill`            | `resolver.ink(muted)`               | anatomy-specific |
 |           | `obscured`        | none (inherits the base text style) | —                |
-| TextArea  | `placeholder`     | `theme.muted.ink`                   | anatomy-specific |
-|           | `selection`       | `theme.selection.fill`              | anatomy-specific |
-|           | `lineNumber`      | `theme.muted.ink`                   | anatomy-specific |
+| TextArea  | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
+|           | `selection`       | `resolver.fill(selection)`          | anatomy-specific |
+|           | `lineNumber`      | `resolver.ink(muted)`               | anatomy-specific |
 
 Notes the table cannot carry:
 
@@ -512,12 +512,15 @@ Notes the table cannot carry:
 - **TreeView** — the expand glyph stays on `indicatorStyle`; placeholder
   text stays on the `loadingIndicator`/`errorIndicator` `Line`s. A tree has
   no selection set, so no `selectedItem`.
-- **Button** — no anatomy class. The resting face is `theme.primary.fill`;
-  states ride the matrix (focused → `focus.fill` + bold, loading → warning
-  + blink, disabled → dim).
-- **TextInput / TextArea** — region styles via `fromTheme`. Base text has
-  no color of its own; it inherits the ground it is painted on. Focus
-  resolves through the resolver, not through slots.
+- **Button** — no anatomy class. The resting face is `resolver.fill(primary)`;
+  states ride the matrix (focused → `resolver.fill(focus)` + bold, loading →
+  warning + blink, disabled → dim).
+- **TextInput / TextArea** — region styles are nullable slots on
+  `model.style`. A null region derives from the theme through the resolver:
+  placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)
+  are muted ink; TextArea's selection is a selection fill. Base text has no
+  color of its own; it inherits the ground it is painted on. Focus resolves
+  through the resolver, not through slots.
 - **Combobox** — the field's own look stays `TextInputModel`'s business,
   and the popup's match rows style through the embedded `ListViewStyle`,
   not through `ComboboxStyle` (`docs/combobox.md`).

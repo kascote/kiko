@@ -222,5 +222,5 @@ class _TreeViewport<T> extends Node {
   Style _loadingStyle() => _resolver.resolve(null, const {WidgetState.loading}, overrides: styleOverrides);
 
   /// The empty-state line shown until the roots load.
-  Style _placeholderStyle() => model.styles.placeholder ?? theme.muted.ink;
+  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
 }

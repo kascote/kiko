@@ -48,11 +48,11 @@ void main() {
         ),
       );
       final cell = buffer[(x: 0, y: 0)]; // left padding, part of the button face
-      // The focus state degrades to reversed. The button's resting base is an
-      // explicit theme.primary.fill the caller supplies, not a resolver
-      // projection, so its color stays in the buffer here — termkit drops it at
-      // output. Reversed is what keeps the focused face distinguishable.
+      // Both the resting face and the focused state route through the
+      // resolver, so neither carries a raw color under NO_COLOR — reversed is
+      // what keeps the focused face distinguishable.
       expect(cell.modifier.has(Modifier.reversed), isTrue);
+      expect(cell.bg, equals(Color.reset), reason: 'no color under NO_COLOR');
     });
 
     test('TableView cursor cell', () {

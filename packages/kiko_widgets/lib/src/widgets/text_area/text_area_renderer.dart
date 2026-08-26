@@ -17,8 +17,7 @@ class TextAreaRenderer {
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes content like it draws it.
-  TextAreaRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()})
-    : _regionStyle = TextAreaStyle.fromTheme(theme).merge(model.style);
+  TextAreaRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()});
 
   /// The model containing state and config.
   final TextAreaModel model;
@@ -32,8 +31,16 @@ class TextAreaRenderer {
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
 
-  /// Region styles resolved at construction.
-  final TextAreaStyle _regionStyle;
+  /// Resolves the anatomy slots that derive from theme tones + state.
+  late final _resolver = StyleResolver(theme);
+
+  /// Region styles: the theme's derived defaults, with [model]'s own
+  /// non-null slots patched on top.
+  late final TextAreaStyle _regionStyle = TextAreaStyle(
+    placeholder: _resolver.ink(_resolver.tones.muted),
+    selection: _resolver.fill(_resolver.tones.selection),
+    lineNumber: _resolver.ink(_resolver.tones.muted),
+  ).merge(model.style);
 
   /// Resolves the base text style from theme + model state.
   ///
@@ -43,11 +50,10 @@ class TextAreaRenderer {
   /// the characters and the terminal cursor). Focus as a surface belongs on
   /// the editor's border, resolved by the caller.
   Style _resolveStyle() {
-    final resolver = StyleResolver(theme);
     final states = <WidgetState>{
       if (model.focused) WidgetState.focused,
     };
-    return resolver.resolve(
+    return _resolver.resolve(
       null,
       states,
       cls: PaintClass.ink,

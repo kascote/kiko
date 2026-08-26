@@ -293,7 +293,7 @@ palette's own subtree, so the app's border does not shift the palette's
           // Focus lives on the chrome: the border lights up when the palette
           // owns the keyboard; the rows inside only ever show cursor + hover.
           borderStyle: resolver.border({if (model.palette.focused) WidgetState.focused}),
-          topTitles: [Line(' pick a color ', style: _theme.muted.ink)],
+          topTitles: [Line(' pick a color ', style: resolver.ink(resolver.tones.muted))],
           child: Palette(model: model.palette, theme: _theme),
         ),
 ```

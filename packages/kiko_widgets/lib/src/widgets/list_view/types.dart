@@ -107,11 +107,11 @@ typedef ItemState = ({bool checked, bool cursor, bool disabled});
 ///
 /// | slot           | derived default              | matrix source     |
 /// | -------------- | ---------------------------- | ----------------- |
-/// | `item`         | none (inherits the pane fill)| —                 |
-/// | `selectedItem` | `theme.selection.fill`       | selected × fill   |
-/// | `cursorItem`   | `theme.cursor.fill` + bold   | cursor × fill     |
-/// | `loadingItem`  | `theme.muted.ink`            | anatomy-specific  |
-/// | `placeholder`  | `theme.muted.ink`            | anatomy-specific  |
+/// | `item`         | none (inherits the pane's ground)| —                 |
+/// | `selectedItem` | `resolver.fill(selection)`   | selected × fill   |
+/// | `cursorItem`   | `resolver.fill(cursor)` + bold | cursor × fill   |
+/// | `loadingItem`  | `resolver.ink(muted)`        | anatomy-specific  |
+/// | `placeholder`  | `resolver.ink(muted)`        | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
 /// row is in the selection set, then `cursorItem` (a fill) if the keyboard

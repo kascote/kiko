@@ -6,11 +6,19 @@ import 'package:meta/meta.dart';
 // STYLE
 // ═══════════════════════════════════════════════════════════
 
-/// Region-based styles for the text input's plume view.
+/// Region-based styles for the text input's plume view: one nullable style
+/// slot per region.
 ///
-/// These control specific regions of the input (placeholder, fill, obscured
-/// text). State-based styling (focused, disabled) is handled by
-/// [StyleResolver] in the view.
+/// A `null` slot is derived from the theme's tones by the view, through a
+/// [StyleResolver]; a non-null slot is the caller's exact style and wins
+/// verbatim. State-based styling (focused, disabled) is handled by
+/// [StyleResolver] separately, in the view.
+///
+/// | slot          | derived default            | matrix source      |
+/// | ------------- | --------------------------- | ------------------ |
+/// | `placeholder` | `resolver.ink(muted)`       | anatomy-specific   |
+/// | `fill`        | `resolver.ink(muted)`       | anatomy-specific   |
+/// | `obscured`    | none (inherits the base text style) | —          |
 @immutable
 class TextInputStyle {
   /// Style for placeholder text.
@@ -24,12 +32,6 @@ class TextInputStyle {
 
   /// Creates a TextInputStyle.
   const TextInputStyle({this.placeholder, this.fill, this.obscured});
-
-  /// Creates region styles derived from [theme].
-  factory TextInputStyle.fromTheme(Theme theme) => TextInputStyle(
-    placeholder: theme.muted.ink,
-    fill: theme.muted.ink,
-  );
 
   /// Merges [other] on top of this, non-null values override.
   TextInputStyle merge(TextInputStyle? other) {

@@ -167,11 +167,11 @@ it the way it forwards one from `update`.
 
 | slot              | derived default                  | matrix source    |
 | ----------------- | --------------------------------- | ----------------- |
-| `toggle`          | `focused` × `ink`, else base ink | focused × ink     |
+| `toggle`          | inherit, focused × ink            | focused × ink     |
 | `popupGround`     | `resolver.ground(surface)`       | anatomy-specific  |
-| `loadingRow`      | `theme.muted.ink`                | anatomy-specific  |
-| `errorRow`        | `theme.muted.ink`                | anatomy-specific  |
-| `stalledRow`      | `theme.muted.ink`                | anatomy-specific  |
+| `loadingRow`      | `resolver.ink(muted)`            | anatomy-specific  |
+| `errorRow`        | `resolver.ink(muted)`            | anatomy-specific  |
+| `stalledRow`      | `resolver.ink(muted)`            | anatomy-specific  |
 
 A `null` slot derives from the theme by the rule above; a non-null slot is
 the caller's exact style and wins verbatim (`docs/theming.md`). The field's

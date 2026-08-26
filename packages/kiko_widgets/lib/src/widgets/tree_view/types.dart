@@ -134,9 +134,9 @@ typedef NodeState = ({
 ///
 /// | slot          | derived default            | matrix source     |
 /// | ------------- | -------------------------- | ----------------- |
-/// | `item`        | none (inherits the pane fill)| —               |
-/// | `cursorItem`  | `theme.cursor.fill` + bold | cursor × fill     |
-/// | `placeholder` | `theme.muted.ink`          | anatomy-specific  |
+/// | `item`        | none (inherits the pane's ground)| —               |
+/// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill |
+/// | `placeholder` | `resolver.ink(muted)`      | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
 /// keyboard cursor is on the node, then — for a node whose children are being

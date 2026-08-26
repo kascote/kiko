@@ -216,7 +216,7 @@ const Theme _theme = Theme.dark;
 
 void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
-  frame.buffer.setStyle(frame.area, Style(bg: _theme.background.color));
+  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final fieldColumn = Column(
     crossAxis: CrossAxisAlignment.stretch,

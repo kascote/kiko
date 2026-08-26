@@ -424,10 +424,10 @@ void view(Model model, Frame frame) {
   final resolver = StyleResolver(theme, policy: model.policy);
   final t = resolver.tones;
 
-  // Fill the background with the base tone's wash. Under ANSI-16 and
-  // NO_COLOR the wash drops, leaving the terminal's own background — what a
-  // real terminal at that tier shows.
-  frame.buffer.setStyle(frame.area, resolver.wash(t.background));
+  // Grounds the frame in the base tone. Under ANSI-16 this carries only a
+  // foreground; under NO_COLOR it carries no color, leaving the terminal's
+  // own background — what a real terminal at that tier shows.
+  frame.buffer.setStyle(frame.area, resolver.ground(t.background));
 
   final comboView = Combobox<String>(model: model.combo, theme: theme, popupBorder: BorderType.rounded);
 
@@ -541,7 +541,7 @@ View _intentStrip(StyleResolver resolver) {
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.symmetric(horizontal: 1),
-    topTitles: [Line(' Intent in use — the app’s vocabulary ', style: resolver.ink(t.muted))],
+    topTitles: [Line(' Intent in use — the app’s vocabulary ', style: resolver.ink(t.secondary))],
     child: Row(
       children: [
         Line('Deploy report', style: resolver.ink(t.primary).copyWith(addModifier: Modifier.bold)),
@@ -644,7 +644,7 @@ View _anatomyBand(StyleResolver resolver) {
     borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [
-      Line(' Anatomy — widget style slots; a null slot derives from a theme tone ', style: resolver.ink(t.muted)),
+      Line(' Anatomy — widget style slots; a null slot derives from a theme tone ', style: resolver.ink(t.secondary)),
     ],
     child: Column(
       children: [
@@ -813,7 +813,7 @@ View _toneSection(StyleResolver resolver, String title, List<(String, Tone)> ton
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.symmetric(horizontal: 1),
-    topTitles: [Line(title, style: resolver.ink(resolver.tones.focus))],
+    topTitles: [Line(title, style: resolver.ink(resolver.tones.secondary))],
     child: Column(children: rows),
   );
 }

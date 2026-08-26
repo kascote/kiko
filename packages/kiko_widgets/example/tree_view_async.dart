@@ -297,7 +297,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
+  final resolver = StyleResolver(theme);
+  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final loadingStatus = model.tree.isLoading(const RootsKey())
       ? 'Loading roots...'

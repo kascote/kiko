@@ -68,7 +68,7 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
+  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final e = model.editor;
 

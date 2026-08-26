@@ -205,9 +205,10 @@ const _styledOverrides = <String, Map<WidgetState, Style>>{
 
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
+  final resolver = StyleResolver(theme);
 
-  // Fill background
-  frame.buffer.setStyle(frame.area, Style(bg: theme.background.color));
+  // Ground the frame
+  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,

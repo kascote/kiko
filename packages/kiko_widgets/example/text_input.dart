@@ -87,7 +87,7 @@ void appView(AppModel model, Frame frame) {
                 'Password: "${model.password.value}" (${model.password.length} chars)',
                 'Focused: ${model.focus.index == 0 ? "username" : "password"}',
               ])
-                Line(line, style: Style(fg: theme.background.on)),
+                Line(line),
             ],
           ),
         ),

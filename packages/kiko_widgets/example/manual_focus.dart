@@ -127,7 +127,7 @@ void appView(AppModel model, Frame frame) {
                 'Email: "${model.email.value}"',
                 'Phone: "${model.phone.value}"',
               ])
-                Line(line, style: Style(fg: theme.background.on)),
+                Line(line),
             ],
           ),
         ),

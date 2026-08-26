@@ -301,7 +301,7 @@ void view(AppModel model, Frame frame) {
       Center(
         child: model.chosen == null
             ? Line('nothing chosen yet', style: _theme.muted.ink)
-            : Line('chosen: ${model.chosen}', style: Style(fg: _theme.background.on)),
+            : Line('chosen: ${model.chosen}'),
       ),
     ],
   );

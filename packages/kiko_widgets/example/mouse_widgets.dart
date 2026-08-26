@@ -187,7 +187,7 @@ View _log(AppModel model) => Container(
       if (model.log.isEmpty)
         Line(' click a row, or press enter on one', style: _theme.muted.ink)
       else
-        for (final line in model.log) Line(' $line', style: Style(fg: _theme.background.on)),
+        for (final line in model.log) Line(' $line'),
     ],
   ),
 );

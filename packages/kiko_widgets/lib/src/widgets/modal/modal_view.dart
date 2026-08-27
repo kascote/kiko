@@ -30,36 +30,26 @@ Node modalDialog({
   ).build()..tag = IdTag(id);
 }
 
-/// Centres [dialog] at a fixed [width]/[height] within [area], as a floating
-/// layer with nothing else composited under it.
+/// The centred [width]x[height] rect within [area], in frame-absolute
+/// coordinates.
 ///
 /// [area] is the full viewport — pass [Frame.area]. Sizing is fixed rather
 /// than constraint-based because a dialog's whole point is a stable size
-/// regardless of what's behind it.
-Node centeredOverlay({
-  required Node dialog,
-  required Rect area,
-  required int width,
-  required int height,
-}) {
+/// regardless of what's behind it. Pass the result to [Frame.renderLayer].
+Rect centeredRect({required Rect area, required int width, required int height}) {
   final left = ((area.width - width) / 2).round().clamp(0, area.width);
   final top = ((area.height - height) / 2).round().clamp(0, area.height);
-  return Stack(
-    fit: StackFit.expand,
-    children: <View>[
-      Positioned(left: left, top: top, width: width, height: height, child: NodeView(dialog)),
-    ],
-  ).build();
+  return Rect.create(x: area.x + left, y: area.y + top, width: width, height: height);
 }
 
 /// Renders [base], then — when [dialog] is non-null — dims the painted
 /// backdrop and layers [dialog] centred over it at [width]x[height].
 ///
-/// This is the two-pass render the old `Modal.render()` did procedurally
-/// (`dimBackdrop` then paint on top): [Frame.dimBackdrop] operates on the
-/// already-painted buffer, so it must run *between* two [Frame.render] calls
-/// rather than inside one composed tree. Pass `dim: false` to skip the
-/// backdrop dim entirely.
+/// [dialog] renders through [Frame.renderLayer]: a clean slate composited
+/// opaquely at the centred rect, so nothing painted underneath shows through
+/// it. [Frame.dimBackdrop] runs on the buffer between the base render and the
+/// layer, so it dims only what came before — never the dialog itself. Pass
+/// `dim: false` to skip the backdrop dim entirely.
 void renderModalOverlay(
   Frame frame, {
   required Node base,
@@ -72,5 +62,5 @@ void renderModalOverlay(
   frame.render(NodeView(base));
   if (dialog == null) return;
   if (dim) frame.dimBackdrop(factor: dimFactor);
-  frame.render(NodeView(centeredOverlay(dialog: dialog, area: frame.area, width: width, height: height)));
+  frame.renderLayer(NodeView(dialog), centeredRect(area: frame.area, width: width, height: height));
 }

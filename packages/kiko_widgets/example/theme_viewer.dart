@@ -488,13 +488,13 @@ void view(Model model, Frame frame) {
     final modal? => modalDialog(
       id: modal.id,
       theme: theme,
-      topTitles: [Line(' Dialog ', style: theme.focus.ink)],
+      topTitles: [Line(' Dialog ', style: resolver.ink(t.focus))],
       content: Column(
         mainAxis: MainAxisAlignment.center,
         children: [
           Center(child: Line('This dialog sits on the surface tone.')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] confirm   [Esc]/outside cancel', style: theme.muted.ink)),
+          Center(child: Line('[Enter] confirm   [Esc]/outside cancel', style: resolver.ink(t.muted))),
         ],
       ).build(),
     ),

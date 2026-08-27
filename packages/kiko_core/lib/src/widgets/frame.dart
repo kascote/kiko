@@ -96,19 +96,59 @@ class Frame {
   /// [render] instead of building plume nodes and calling this directly.
   @internal
   void renderNode(plume.RenderNode<PaintToken> node) {
-    final surface = BufferSurface(buffer);
-    plume.renderFrame(
-      node,
-      plume.Rect(area.x, area.y, area.width, area.height),
-      surface,
-      measurer: buffer.measurer,
-    );
+    final surface = _paint(node, buffer, area);
     _nodeRoots.add(node);
     _hits = null;
     // A focused text field painted through the surface reports where the cursor
     // belongs; carry it up to this frame.
     final cursor = surface.cursor;
     if (cursor != null) cursorPosition = cursor;
+  }
+
+  /// Renders [view] into its own scratch buffer, then composites it opaquely
+  /// onto this frame over [rect].
+  ///
+  /// Use it for a popup, a modal, or anything else that must sit cleanly on top
+  /// of what is already painted rather than blending with it: a plain
+  /// [renderNode] paints through the base pass's cells directly, so a spot the
+  /// view leaves unpainted still shows whatever the base drew there. A layer
+  /// paints into a fresh, empty buffer first, so an unpainted spot inside
+  /// [rect] comes out empty — the base is fully replaced, not shown through.
+  ///
+  /// [view] is laid out tight to [rect], not this frame's [area]; a rect that
+  /// runs outside the frame is clipped where it composites. A standing
+  /// [cursorPosition] inside [rect] is dropped before compositing, since the
+  /// layer just replaced that cell — it is restored only if the layer's own
+  /// content claims the cursor there.
+  void renderLayer(View view, Rect rect) {
+    final node = view.build();
+    final scratch = Buffer.empty(rect, measurer: buffer.measurer);
+    final surface = _paint(node, scratch, rect);
+    buffer.blitFrom(scratch, rect);
+
+    final standing = cursorPosition;
+    if (standing != null && rect.contains(standing)) cursorPosition = null;
+    final cursor = surface.cursor;
+    if (cursor != null) cursorPosition = cursor;
+
+    _nodeRoots.add(node);
+    _hits = null;
+  }
+
+  /// Lays [node] out tight to [rect] and paints it into [target].
+  ///
+  /// The shared walk behind [renderNode] and [renderLayer]: both drive the same
+  /// plume layout-and-paint pass, differing only in which buffer receives the
+  /// cells and which rect the tree is laid out against.
+  BufferSurface _paint(plume.RenderNode<PaintToken> node, Buffer target, Rect rect) {
+    final surface = BufferSurface(target);
+    plume.renderFrame(
+      node,
+      plume.Rect(rect.x, rect.y, rect.width, rect.height),
+      surface,
+      measurer: target.measurer,
+    );
+    return surface;
   }
 
   /// Dims all cell colors in the buffer toward black.

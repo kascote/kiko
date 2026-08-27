@@ -14,6 +14,12 @@ the event queue, and text measurement. Layout is the `plume` package's job;
 6. `Buffer.diff()` computes the minimal change set between the two buffers.
 7. The `Backend` performs the terminal I/O (`docs/backend.md`).
 
+An overlay — a popup, a modal — renders through `frame.renderLayer(view,
+rect)` after the base render. The view paints into its own rect-sized
+buffer, a clean slate, and composites opaquely onto the frame over the
+rect. Cells the view never paints come out empty, so the base never shows
+through an overlay (`docs/theming.md`, "Grounding an area").
+
 **Key types:**
 
 - `Buffer` — a grid of `Cell`s. A cell holds a grapheme, foreground and

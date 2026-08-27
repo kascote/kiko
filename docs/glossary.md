@@ -15,8 +15,12 @@ A term of art added to a page gets its entry here in the same change.
   (`docs/backend.md`).
 - **buffer** — the grid of cells a frame is painted into. Two buffers are
   diffed to find the minimal terminal update.
-- **frame** — one rendered pass: the `Frame` object `Terminal.draw` hands the
-  view callback.
+- **frame** — the `Frame` object `Terminal.draw` hands the view callback: one
+  drawn screen, built from a base render pass and any layers composited over
+  it.
+- **layer** — a render pass with its own buffer and its own clean slate.
+  Compositing a layer (`Frame.renderLayer`) replaces the frame's cells under
+  its rect; layers composite in call order.
 - **view** — a stateless description of UI (`View`); its `build()` produces a
   fresh plume node tree each frame.
 - **measurer** — the single `TextMeasurer` that decides every glyph's display

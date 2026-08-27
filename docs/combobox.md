@@ -14,9 +14,9 @@ either from an in-memory list or from the app, one query at a time.
 private `ListViewModel<T, T>` for the popup. `Combobox.build()` wraps both in
 `Tagged.scope(model.id, ...)`: the field and its one-cell toggle self-tag as
 `fieldId` and `toggleId`, so a press on either resolves to a path under the
-combobox's own `id` (`docs/mouse.md`, "Scopes"). The popup, painted in a
-second pass, uses the same scope, so a press on a match row resolves there
-too.
+combobox's own `id` (`docs/mouse.md`, "Scopes"). The popup, painted as a
+layer after the base tree, uses the same scope, so a press on a match row
+resolves there too.
 
 `anchorPath` and `togglePath` are the field's and the toggle's full hit
 paths — `HitTag.join(id, fieldId)` and `HitTag.join(id, toggleId)` — and
@@ -85,10 +85,11 @@ row: `queryStatus` stays `ready` and `queryError` null.
 
 ## The popup and placement
 
-`Combobox.renderPopup(frame)` is a second render pass. Call it after the
-base tree carrying the combobox has painted, the same shape
-`renderModalOverlay` uses to layer a dialog over an already-painted frame.
-It is a no-op while `ComboboxModel.isOpen` is false.
+`Combobox.renderPopup(frame)` paints the popup as a layer: it renders into
+its own clean slate and composites opaquely onto the frame
+(`docs/glossary.md`). Call it after the base tree carrying the combobox has
+painted, the same shape `renderModalOverlay` uses for a dialog. It is a
+no-op while `ComboboxModel.isOpen` is false.
 
 Placement comes from `renderAnchoredPopup`
 (`packages/kiko_widgets/lib/src/widgets/popup/`), a helper any anchored
@@ -108,7 +109,7 @@ frames the field row itself, with a bordered `Container` around the
 combobox, as any other field is framed. The popup needs the option because
 the widget builds it privately, out of the app's reach.
 
-## The two-pass render
+## The base render and the popup layer
 
 `build()` returns the field-and-toggle row; render it wherever the combobox
 belongs in the layout, then call `renderPopup(frame)` once the base tree has

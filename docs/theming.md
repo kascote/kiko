@@ -148,6 +148,14 @@ frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 A pane that changes surface re-grounds locally. A dialog or a popup paints
 the `surface` ground behind its own content, the same way.
 
+The clean slate these rules assume is per **layer** — a render pass with
+its own buffer (`docs/glossary.md`). The base pass is simply the first
+layer: `Terminal.swapBuffers` resets its buffer before every frame. An
+overlay rendered through `Frame.renderLayer` paints into its own empty
+buffer and composites opaquely onto the frame over its rect. A cell a
+layer never paints composites as `Cell.empty()` — the terminal's default
+ground — under every render policy.
+
 `null` in a style means inherit the ground already in the cell. `Color.reset`
 or `Style.reset` means the terminal's own default color — not the theme's
 ground, and not "no color".

@@ -220,6 +220,55 @@ class Buffer implements Equality<Buffer> {
     assert(_widthsInSync(), 'sidecar out of sync after reset');
   }
 
+  /// Copies [source] onto this buffer over [rect], replacing cells outright.
+  ///
+  /// Use it to composite a rect-sized scratch buffer onto a frame buffer in
+  /// one opaque blit. Both buffers share the same coordinate space, so no
+  /// translation happens: the copy clips to the intersection of [rect],
+  /// `source.area`, and this buffer's `area`.
+  ///
+  /// A destination wide glyph whose head sits outside the clipped region but
+  /// whose trailing cell sits inside it is healed to a styled blank before
+  /// its row is copied. A source wide glyph whose trailing cell would fall
+  /// outside the region is written as a styled blank instead, so its skip
+  /// mark never spills past the blit.
+  void blitFrom(Buffer source, Rect rect) {
+    final region = rect.intersection(source.area).intersection(area);
+    if (region.isEmpty) return;
+
+    for (var y = region.top; y < region.bottom; y++) {
+      _healOrphanedHead(region, y);
+
+      for (var x = region.left; x < region.right; x++) {
+        final srcIdx = source.indexOf(x, y);
+        final srcCell = source.buf[srcIdx];
+        final srcWidth = source._widths[srcIdx];
+
+        this[(x: x, y: y)] = (srcWidth > 1 && x + srcWidth > region.right)
+            ? srcCell.copyWith(char: ' ', skip: false)
+            : srcCell;
+      }
+    }
+
+    assert(_widthsInSync(), 'sidecar out of sync after blitFrom');
+  }
+
+  // Heals a destination wide glyph whose head sits to the left of the blit
+  // region but whose trailing cell sits inside it. Runs before the row is
+  // copied, so the heal's own trailing-skip clearing never touches cells the
+  // blit is about to write.
+  void _healOrphanedHead(Rect region, int y) {
+    if (!this[(x: region.left, y: y)].skip) return;
+
+    var headX = region.left - 1;
+    while (headX >= area.left && this[(x: headX, y: y)].skip) {
+      headX--;
+    }
+    if (headX < area.left) return;
+
+    this[(x: headX, y: y)] = this[(x: headX, y: y)].copyWith(char: ' ', skip: false);
+  }
+
   /// Builds a minimal sequence of coordinates and Cells necessary to update
   /// the UI from self to other.
   ///

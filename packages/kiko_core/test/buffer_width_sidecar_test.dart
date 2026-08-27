@@ -187,6 +187,193 @@ void main() {
     expect(buf.debugWidths.every((w) => w == 1), isTrue);
   });
 
+  group('Buffer width sidecar - blitFrom', () {
+    test('plain blit replaces styled destination cells over rect, leaves cells outside it untouched', () {
+      final dest = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 6, height: 3),
+        const Cell(char: 'd', fg: Color.red, bg: Color.blue),
+      );
+      final source = Buffer.filled(
+        Rect.create(x: 1, y: 1, width: 3, height: 2),
+        const Cell(char: 's', fg: Color.green, bg: Color.yellow, modifier: Modifier.bold),
+      );
+      final sourceBefore = List<Cell>.from(source.buf);
+
+      dest.blitFrom(source, source.area);
+
+      for (var y = 0; y < 3; y++) {
+        for (var x = 0; x < 6; x++) {
+          final cell = dest[(x: x, y: y)];
+          if (source.area.contains(Position(x, y))) {
+            expect(cell.symbol, 's');
+            expect(cell.fg, Color.green);
+            expect(cell.bg, Color.yellow);
+            expect(cell.modifier, Modifier.bold);
+          } else {
+            expect(cell.symbol, 'd');
+            expect(cell.fg, Color.red);
+            expect(cell.bg, Color.blue);
+          }
+        }
+      }
+      expect(source.buf, sourceBefore, reason: 'blitFrom never mutates the source buffer');
+      expectWidthsInSync(dest);
+      expectWidthsInSync(source);
+    });
+
+    test('a destination wide glyph straddling the region left edge is healed to a styled blank', () {
+      final dest = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+      dest[(x: 1, y: 0)] = const Cell(char: '你', fg: Color.magenta);
+      expect(dest[(x: 2, y: 0)].skip, isTrue, reason: 'sanity: the trailing cell really lands at x=2');
+
+      final source = Buffer.filled(
+        Rect.create(x: 2, y: 0, width: 3, height: 1),
+        const Cell(char: 's', fg: Color.cyan),
+      );
+
+      dest.blitFrom(source, source.area);
+
+      // Orphaned head, healed to a styled blank keeping its own style.
+      expect(dest[(x: 1, y: 0)].symbol, ' ');
+      expect(dest[(x: 1, y: 0)].skip, isFalse);
+      expect(dest[(x: 1, y: 0)].fg, Color.magenta);
+
+      // The blitted region itself.
+      for (var x = 2; x < 5; x++) {
+        expect(dest[(x: x, y: 0)].symbol, 's');
+        expect(dest[(x: x, y: 0)].fg, Color.cyan);
+      }
+
+      // Untouched beyond the region.
+      expect(dest[(x: 0, y: 0)].symbol, ' ');
+      expect(dest[(x: 5, y: 0)].symbol, ' ');
+
+      expectWidthsInSync(dest);
+      expectWidthsInSync(source);
+    });
+
+    test(
+      'a destination wide glyph straddling the region right edge is healed automatically by the underlying []= write',
+      () {
+        final dest = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+        dest[(x: 3, y: 0)] = const Cell(char: 'z', fg: Color.red);
+        dest[(x: 2, y: 0)] = const Cell(char: '你', fg: Color.magenta);
+        expect(dest[(x: 3, y: 0)].skip, isTrue, reason: 'sanity: the wide write marked its trailing cell skip');
+        expect(dest[(x: 3, y: 0)].fg, Color.red, reason: 'sanity: the trailing cell keeps the style it already had');
+
+        final source = Buffer.filled(
+          Rect.create(x: 0, y: 0, width: 3, height: 1),
+          const Cell(char: 's', fg: Color.cyan),
+        );
+
+        dest.blitFrom(source, source.area);
+
+        for (var x = 0; x < 3; x++) {
+          expect(dest[(x: x, y: 0)].symbol, 's');
+          expect(dest[(x: x, y: 0)].fg, Color.cyan);
+        }
+
+        // The old head's trailing cell, orphaned just outside the rect, is left
+        // a non-skip styled blank: overwriting the head at x=2 clears the
+        // stale skip on x=3, and the cell keeps the style it already had.
+        expect(dest[(x: 3, y: 0)].symbol, ' ');
+        expect(dest[(x: 3, y: 0)].skip, isFalse);
+        expect(dest[(x: 3, y: 0)].fg, Color.red);
+
+        expectWidthsInSync(dest);
+        expectWidthsInSync(source);
+      },
+    );
+
+    test('source wide glyphs fully inside the blit region arrive intact with correct skip marking', () {
+      final source = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1))
+        ..setCellAtPos(x: 0, y: 0, char: 'a')
+        ..setCellAtPos(x: 1, y: 0, char: '你')
+        ..setCellAtPos(x: 3, y: 0, char: '好')
+        ..setCellAtPos(x: 5, y: 0, char: 'c');
+      expectWidthsInSync(source);
+
+      final dest = Buffer.filled(Rect.create(x: 0, y: 0, width: 6, height: 1), const Cell(char: 'x', fg: Color.red))
+        ..blitFrom(source, source.area);
+
+      expect(dest[(x: 0, y: 0)].symbol, 'a');
+      expect(dest[(x: 1, y: 0)].symbol, '你');
+      expect(dest[(x: 1, y: 0)].skip, isFalse);
+      expect(dest[(x: 2, y: 0)].skip, isTrue);
+      expect(dest[(x: 3, y: 0)].symbol, '好');
+      expect(dest[(x: 3, y: 0)].skip, isFalse);
+      expect(dest[(x: 4, y: 0)].skip, isTrue);
+      expect(dest[(x: 5, y: 0)].symbol, 'c');
+      expect(dest.debugWidths[dest.indexOf(1, 0)], 2);
+      expect(dest.debugWidths[dest.indexOf(3, 0)], 2);
+
+      expectWidthsInSync(dest);
+      expectWidthsInSync(source);
+    });
+
+    test('a rect extending past this.area is clipped, no RangeError', () {
+      final dest = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 1));
+      final source = Buffer.filled(
+        Rect.create(x: 0, y: 0, width: 10, height: 1),
+        const Cell(char: 's', fg: Color.green),
+      );
+
+      expect(() => dest.blitFrom(source, source.area), returnsNormally);
+
+      for (var x = 0; x < 4; x++) {
+        expect(dest[(x: x, y: 0)].symbol, 's');
+        expect(dest[(x: x, y: 0)].fg, Color.green);
+      }
+      expect(dest.area, Rect.create(x: 0, y: 0, width: 4, height: 1));
+      expect(dest.buf.length, 4);
+
+      expectWidthsInSync(dest);
+      expectWidthsInSync(source);
+    });
+
+    test('a source wide head at the clipped region right edge is written as a blank, no skip spill', () {
+      final source = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+      source[(x: 4, y: 0)] = const Cell(char: '你', fg: Color.magenta);
+      expect(source[(x: 5, y: 0)].skip, isTrue, reason: "sanity: the source's own wide write marked x=5 skip");
+
+      final dest = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 1));
+      // Narrower than source.area, so the region's right edge falls right on
+      // the wide head — clipping is due to rect, not to either buffer's area.
+      final rect = Rect.create(x: 0, y: 0, width: 5, height: 1);
+
+      dest.blitFrom(source, rect);
+
+      expect(dest[(x: 4, y: 0)].symbol, ' ');
+      expect(dest[(x: 4, y: 0)].skip, isFalse);
+      expect(dest[(x: 4, y: 0)].fg, Color.magenta);
+      expect(dest.debugWidths[dest.indexOf(4, 0)], 1);
+
+      // Outside the region: untouched, and definitely not skip-marked from a
+      // spilled glyph.
+      expect(dest[(x: 5, y: 0)].symbol, ' ');
+      expect(dest[(x: 5, y: 0)].skip, isFalse);
+
+      expectWidthsInSync(dest);
+      expectWidthsInSync(source);
+    });
+
+    test('an empty intersection is a no-op', () {
+      final dest = Buffer.filled(Rect.create(x: 0, y: 0, width: 4, height: 4), const Cell(char: 'd', fg: Color.red));
+      final source = Buffer.filled(
+        Rect.create(x: 10, y: 10, width: 3, height: 3),
+        const Cell(char: 's', fg: Color.green),
+      );
+      final before = List<Cell>.from(dest.buf);
+      final widthsBefore = List<int>.from(dest.debugWidths);
+
+      dest.blitFrom(source, source.area);
+
+      expect(dest.buf, before);
+      expect(dest.debugWidths, widthsBefore);
+      expectWidthsInSync(dest);
+    });
+  });
+
   test('a seeded randomized mutation sequence keeps the sidecar in sync at every step', () {
     final rng = Random(42);
     const pool = [' ', 'a', 'Z', '你', '好', '😀', '⌚', '☂'];

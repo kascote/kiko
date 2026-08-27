@@ -13,11 +13,10 @@ import 'types.dart';
 ///
 /// [build] returns the base row: the embedded [TextInput] field, expanded to
 /// fill the space, plus a one-cell toggle at its right edge showing
-/// [closedGlyph] or [openGlyph]. Call [renderPopup] as a second render pass,
-/// after the base tree has painted, whenever [ComboboxModel.isOpen] — the
-/// same two-pass shape `renderModalOverlay` uses to layer a dialog over an
-/// already-painted frame. Like a bare [TextInput], the row fills whatever
-/// height its caller gives it; bound it to one row.
+/// [closedGlyph] or [openGlyph]. Call [renderPopup] after the base tree has
+/// painted, whenever [ComboboxModel.isOpen] — it paints the popup as a layer
+/// on top of the frame, in its own clean slate. Like a bare [TextInput], the
+/// row fills whatever height its caller gives it; bound it to one row.
 final class Combobox<T> implements View {
   /// Creates a combobox view over [model], styled by [theme].
   const Combobox({
@@ -122,8 +121,8 @@ final class Combobox<T> implements View {
     return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: style)));
   }
 
-  /// Paints the popup as a second render pass over the already-painted
-  /// [frame], while [ComboboxModel.isOpen].
+  /// Paints the popup as a layer on top of the already-painted [frame],
+  /// while [ComboboxModel.isOpen].
   ///
   /// Call this after the base tree carrying this combobox has rendered. It
   /// anchors on [ComboboxModel.anchorPath] and sizes to the union of the

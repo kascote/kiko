@@ -2,10 +2,13 @@ import 'package:kiko/kiko.dart';
 
 import 'popup_placement.dart';
 
-/// Paints an anchored popup as a second pass over an already-rendered
+/// Paints an anchored popup as a layer on top of an already-rendered
 /// [frame].
 ///
-/// Call it after rendering the base tree that carries the anchor at
+/// The popup renders into its own clean slate and composites opaquely over
+/// [frame]; a spot inside its rect that the popup never paints comes out
+/// blank, never the base content underneath. Call it after rendering the
+/// base tree that carries the anchor at
 /// [anchorPath] — its full hit path, such as `'comboId/fieldId'`. Pass the
 /// [requestedHeight] in rows, a [width], and [popupBuilder] to build the
 /// popup's node, tags included; this helper adds no chrome of its own. Pass
@@ -43,21 +46,9 @@ PopupPlacement? renderAnchoredPopup(
   if (left < area.left) left = area.left;
   final top = placement.side == PopupSide.below ? anchor.bottom : anchor.top - placement.height;
 
-  frame.render(
-    NodeView(
-      Stack(
-        fit: StackFit.expand,
-        children: <View>[
-          Positioned(
-            left: left,
-            top: top,
-            width: width,
-            height: placement.height,
-            child: NodeView(popupBuilder(placement.height)),
-          ),
-        ],
-      ).build(),
-    ),
+  frame.renderLayer(
+    NodeView(popupBuilder(placement.height)),
+    Rect.create(x: left, y: top, width: width, height: placement.height),
   );
 
   return placement;

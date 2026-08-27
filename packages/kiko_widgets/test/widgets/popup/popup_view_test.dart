@@ -163,4 +163,82 @@ void main() {
       expect(frame.hits.rectOf('popup'), Rect.create(x: 10, y: 3, width: 10, height: 3));
     });
   });
+
+  group('renderAnchoredPopup / degraded policies', () {
+    test('under noColor, a cell the popup never paints stays blank inside its rect', () {
+      final frame = _frame(20, 10)..render(NodeView(_anchor(left: 2, top: 2, width: 6, height: 1)));
+      final resolver = StyleResolver(Theme.dark, policy: RenderPolicy.noColor);
+
+      // A reversed selection fill covers the whole frame, including where the
+      // popup will land — under noColor a selection fill degrades to
+      // Modifier.reversed rather than a background color.
+      final baseStyle = resolver.fill(resolver.tones.selection);
+      frame.render(Container(width: 20, height: 10, ground: baseStyle, child: Line('base row, base row')));
+
+      renderAnchoredPopup(
+        frame,
+        anchorPath: 'combo/field',
+        requestedHeight: 3,
+        width: 6,
+        popupBuilder: (height) => Tagged(
+          'popup',
+          Container(
+            ground: resolver.ground(resolver.tones.surface),
+            child: Line('Q', style: resolver.ink(resolver.tones.error)),
+          ),
+        ).build(),
+      );
+
+      final rect = frame.hits.rectOf('popup')!;
+      expect(rect, Rect.create(x: 2, y: 3, width: 6, height: 3));
+
+      expect(
+        frame.buffer[(x: rect.left + 4, y: rect.bottom - 1)],
+        Cell.empty(),
+        reason: 'a cell the popup never painted stays blank, not the base text or its reversed selection',
+      );
+      for (var y = rect.top; y < rect.bottom; y++) {
+        for (var x = rect.left; x < rect.right; x++) {
+          expect(
+            frame.buffer[(x: x, y: y)].modifier,
+            Modifier.empty,
+            reason: 'no reversed modifier from the base selection survives inside the popup rect',
+          );
+        }
+      }
+    });
+
+    test('under ansi16, base backgrounds and modifiers do not survive inside the popup rect', () {
+      final frame = _frame(20, 10)..render(NodeView(_anchor(left: 2, top: 2, width: 6, height: 1)));
+      final resolver = StyleResolver(Theme.dark, policy: RenderPolicy.ansi16);
+
+      // A selection fill covers the whole frame with a real background plus
+      // a bold modifier, as an active selection would under ansi16.
+      final baseStyle = resolver.fill(resolver.tones.selection).incModifier(Modifier.bold);
+      frame.render(Container(width: 20, height: 10, ground: baseStyle, child: Line('base row, base row')));
+
+      final groundStyle = resolver.ground(resolver.tones.surface);
+      renderAnchoredPopup(
+        frame,
+        anchorPath: 'combo/field',
+        requestedHeight: 3,
+        width: 6,
+        popupBuilder: (height) => Tagged('popup', Container(ground: groundStyle, child: Line(''))).build(),
+      );
+
+      final rect = frame.hits.rectOf('popup')!;
+      expect(rect, Rect.create(x: 2, y: 3, width: 6, height: 3));
+
+      final expected = Cell.empty().setCell(char: ' ', style: groundStyle);
+      for (var y = rect.top; y < rect.bottom; y++) {
+        for (var x = rect.left; x < rect.right; x++) {
+          expect(
+            frame.buffer[(x: x, y: y)],
+            expected,
+            reason: 'no ghost band: the base bg and bold modifier do not survive under the fg-only ground',
+          );
+        }
+      }
+    });
+  });
 }

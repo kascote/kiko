@@ -258,6 +258,7 @@ View _comboRow(View combo, {int? width}) => ConstrainedBox(
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final roleView = Combobox<String>(model: model.roleCombo, theme: theme);
@@ -281,14 +282,14 @@ void appView(AppModel model, Frame frame) {
             'F3 pause search · esc/click outside close · F1/F2 theme · ctrl+q quit';
 
   final ui = Container(
-    topTitles: [Line('Combobox Demo', style: theme.muted.ink)],
+    topTitles: [Line('Combobox Demo', style: resolver.ink(t.muted))],
     padding: const EdgeInsets.all(1),
     child: Column(
       children: [
-        Line('Role — in-memory options', style: theme.muted.ink),
+        Line('Role — in-memory options', style: resolver.ink(t.muted)),
         _comboRow(roleView, width: _comboWidth),
         const SizedBox(height: 1),
-        Line('User — remote search (try "err" for a failure)', style: theme.muted.ink),
+        Line('User — remote search (try "err" for a failure)', style: resolver.ink(t.muted)),
         _comboRow(userView, width: _comboWidth),
         const SizedBox(height: 1),
         // The country field's chrome is the app's: a bordered Container
@@ -300,13 +301,16 @@ void appView(AppModel model, Frame frame) {
           borderStyle: resolver.border({if (model.countryCombo.focused) WidgetState.focused}),
           padding: const EdgeInsets.symmetric(horizontal: 1),
           topTitles: [
-            Line(' Country — custom rows ', style: model.countryCombo.focused ? theme.focus.ink : theme.muted.ink),
+            Line(
+              ' Country — custom rows ',
+              style: model.countryCombo.focused ? resolver.ink(t.focus) : resolver.ink(t.muted),
+            ),
           ],
           child: _comboRow(countryView),
         ),
         const Expanded(child: SizedBox()),
-        Line(model.status.isEmpty ? 'Nothing selected yet' : model.status, style: Style(fg: theme.accent.color)),
-        Line(helpLine, style: theme.muted.ink),
+        Line(model.status.isEmpty ? 'Nothing selected yet' : model.status, style: resolver.ink(t.accent)),
+        Line(helpLine, style: resolver.ink(t.muted)),
       ],
     ),
   );

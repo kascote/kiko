@@ -298,6 +298,7 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final loadingStatus = model.tree.isLoading(const RootsKey())
@@ -311,14 +312,14 @@ void appView(AppModel model, Frame frame) {
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [
       Line.fromTexts([
-        Text('Categories ', style: theme.focus.ink),
-        Text('($loadingStatus)', style: theme.muted.ink),
+        Text('Categories ', style: resolver.ink(t.focus)),
+        Text('($loadingStatus)', style: resolver.ink(t.muted)),
       ]),
     ],
     child: TreeView(
       model: model.tree,
       theme: theme,
-      emptyPlaceholder: Line('Loading categories...', style: theme.muted.ink),
+      emptyPlaceholder: Line('Loading categories...', style: resolver.ink(t.muted)),
     ),
   );
 
@@ -326,7 +327,7 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 4, maxH: 4),
     child: Container(
       border: BorderType.plain,
-      borderStyle: model.selectedPath != null ? theme.success.ink : theme.border.ink,
+      borderStyle: model.selectedPath != null ? resolver.ink(t.success) : resolver.ink(t.border),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selected')],
       child: Column(
@@ -335,10 +336,10 @@ void appView(AppModel model, Frame frame) {
           Expanded(
             child: Line(
               model.selectedPath ?? 'Press Enter to select a category',
-              style: model.selectedPath != null ? Style(fg: theme.success.color) : theme.muted.ink,
+              style: model.selectedPath != null ? resolver.ink(t.success) : resolver.ink(t.muted),
             ),
           ),
-          Line('Expansions: ${model.expandCount}', style: theme.muted.ink),
+          Line('Expansions: ${model.expandCount}', style: resolver.ink(t.muted)),
         ],
       ),
     ),
@@ -349,18 +350,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓/jk nav | →/l or click indicator expand | ←/h collapse | Enter/click select | wheel scroll | Esc quit',
-          style: theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
       ),
     ],
   );
 
   final ui = Container(
-    topTitles: [Line('Async TreeView Demo', style: theme.muted.ink)],
+    topTitles: [Line('Async TreeView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

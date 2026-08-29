@@ -142,12 +142,13 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final treeWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
-    topTitles: [Line('File Browser', style: theme.focus.ink)],
+    topTitles: [Line('File Browser', style: resolver.ink(t.focus))],
     child: TreeView(
       model: model.tree,
       theme: theme,
@@ -158,12 +159,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Container(
       border: BorderType.plain,
-      borderStyle: model.selectedPath != null ? theme.success.ink : theme.border.ink,
+      borderStyle: model.selectedPath != null ? resolver.ink(t.success) : resolver.ink(t.border),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selected')],
       child: Line(
         model.selectedPath ?? 'Press Enter to select',
-        style: model.selectedPath != null ? Style(fg: theme.success.color) : theme.muted.ink,
+        style: model.selectedPath != null ? resolver.ink(t.success) : resolver.ink(t.muted),
       ),
     ),
   );
@@ -173,18 +174,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓/jk nav | →/l or click indicator expand | ←/h collapse | Enter/click select | wheel scroll | Esc quit',
-          style: theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
       ),
     ],
   );
 
   final ui = Container(
-    topTitles: [Line('TreeView Demo', style: theme.muted.ink)],
+    topTitles: [Line('TreeView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

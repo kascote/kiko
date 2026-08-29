@@ -76,17 +76,18 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final base = Container(
     border: BorderType.rounded,
     borderStyle: resolver.border(const {}),
     padding: const EdgeInsets.all(1),
-    topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: theme.muted.ink)],
+    topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        Line('Count: ${model.count}', style: Style(fg: theme.accent.color)),
+        Line('Count: ${model.count}', style: resolver.ink(t.accent)),
         const SizedBox(height: 1),
         Line('Some colourful background content:'),
         Line('  Red', style: const Style(fg: Color.red)),
@@ -97,7 +98,7 @@ void appView(AppModel model, Frame frame) {
           model.lastAction.isEmpty
               ? '[m] open dialog   click outside or [Esc] to cancel   [q] quit'
               : 'Last: ${model.lastAction}   [m] again   [q] quit',
-          style: theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ],
     ),
@@ -107,13 +108,13 @@ void appView(AppModel model, Frame frame) {
     final modal? => modalDialog(
       id: modal.id,
       theme: theme,
-      topTitles: [Line(' Confirm ', style: Style(fg: theme.warning.color))],
+      topTitles: [Line(' Confirm ', style: resolver.ink(t.warning))],
       content: Column(
         mainAxis: MainAxisAlignment.center,
         children: [
           Center(child: Line('Add 10 to the counter?')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] OK   [Esc]/click outside Cancel', style: theme.muted.ink)),
+          Center(child: Line('[Enter] OK   [Esc]/click outside Cancel', style: resolver.ink(t.muted))),
         ],
       ).build(),
     ),

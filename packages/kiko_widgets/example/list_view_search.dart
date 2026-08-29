@@ -233,12 +233,13 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final items = model.filteredItems;
 
   final ui = Container(
-    topTitles: [Line('Searchable List Demo', style: theme.muted.ink)],
+    topTitles: [Line('Searchable List Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -266,10 +267,10 @@ void appView(AppModel model, Frame frame) {
               model: model.list,
               theme: theme,
               itemBuilder: (item, index, _) {
-                final style = model.selected == item ? Style(fg: theme.success.color) : const Style();
+                final style = model.selected == item ? resolver.ink(t.success) : const Style();
                 return [Line(' $item', style: style)];
               },
-              emptyPlaceholder: Line('No matches', style: theme.muted.ink),
+              emptyPlaceholder: Line('No matches', style: resolver.ink(t.muted)),
             ),
           ),
         ),
@@ -278,12 +279,12 @@ void appView(AppModel model, Frame frame) {
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: Container(
             border: BorderType.plain,
-            borderStyle: model.selected != null ? theme.success.ink : theme.border.ink,
+            borderStyle: model.selected != null ? resolver.ink(t.success) : resolver.ink(t.border),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
             child: Line(
               model.selected ?? 'Press Enter to select',
-              style: model.selected != null ? Style(fg: theme.success.color) : theme.muted.ink,
+              style: model.selected != null ? resolver.ink(t.success) : resolver.ink(t.muted),
             ),
           ),
         ),
@@ -293,12 +294,12 @@ void appView(AppModel model, Frame frame) {
             Expanded(
               child: Line(
                 'Tab/click switch | ↑↓/jk nav | Enter/click select | wheel scroll | / search | Esc quit',
-                style: theme.muted.ink,
+                style: resolver.ink(t.muted),
               ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
             ),
           ],
         ),

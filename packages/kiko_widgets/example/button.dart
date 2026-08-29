@@ -206,6 +206,7 @@ const _styledOverrides = <String, Map<WidgetState, Style>>{
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
 
   // Ground the frame
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
@@ -221,7 +222,7 @@ void appView(AppModel model, Frame frame) {
             // Pane 1: Basic buttons (theme-derived styles)
             Expanded(
               child: _buildPane(
-                theme,
+                resolver,
                 '1. Basic (themed)',
                 model.focusedPane == 0,
                 _buildHorizontalButtons(model.basicGroup, gap: 2, theme: theme),
@@ -230,7 +231,7 @@ void appView(AppModel model, Frame frame) {
             // Pane 2: Styled buttons (overrides demo)
             Expanded(
               child: _buildPane(
-                theme,
+                resolver,
                 '2. Styled',
                 model.focusedPane == 1,
                 _buildStyledButtons(model.styledGroup, theme: theme),
@@ -247,7 +248,7 @@ void appView(AppModel model, Frame frame) {
             // Pane 3: Vertical layout (theme-derived)
             Expanded(
               child: _buildPane(
-                theme,
+                resolver,
                 '3. Vertical (wrap)',
                 model.focusedPane == 2,
                 _buildVerticalButtons(model.verticalGroup, theme: theme),
@@ -256,7 +257,7 @@ void appView(AppModel model, Frame frame) {
             // Pane 4: States (theme-derived)
             Expanded(
               child: _buildPane(
-                theme,
+                resolver,
                 '4. States',
                 model.focusedPane == 3,
                 _buildHorizontalButtons(model.statesGroup, gap: 2, theme: theme),
@@ -271,18 +272,18 @@ void appView(AppModel model, Frame frame) {
           Expanded(
             child: Line(
               model.lastPress.isEmpty ? 'Press Enter to activate' : model.lastPress,
-              style: Style(fg: theme.accent.color),
+              style: resolver.ink(t.accent),
             ),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-            child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+            child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
           ),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minW: 30, maxW: 30),
             child: Align(
               alignment: Alignment.centerRight,
-              child: Line('Tab: pane | click/hover buttons | Esc: quit', style: theme.muted.ink),
+              child: Line('Tab: pane | click/hover buttons | Esc: quit', style: resolver.ink(t.muted)),
             ),
           ),
         ],
@@ -294,13 +295,14 @@ void appView(AppModel model, Frame frame) {
 }
 
 View _buildPane(
-  Theme theme,
+  StyleResolver resolver,
   String title,
   bool focused,
   View buttons,
 ) {
-  final borderStyle = StyleResolver(theme).border({if (focused) WidgetState.focused});
-  final titleStyle = focused ? theme.focus.ink : theme.muted.ink;
+  final t = resolver.tones;
+  final borderStyle = resolver.border({if (focused) WidgetState.focused});
+  final titleStyle = resolver.ink(focused ? t.focus : t.muted);
   return Container(
     border: BorderType.plain,
     borderStyle: borderStyle,

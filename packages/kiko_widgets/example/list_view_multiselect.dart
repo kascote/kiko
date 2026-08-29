@@ -97,6 +97,7 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final selectedKeys = model.list.getSelectedKeys();
@@ -104,7 +105,7 @@ void appView(AppModel model, Frame frame) {
   final summary = selectedKeys.isEmpty ? 'No contacts checked' : 'Checked: ${selectedNames.join(', ')}';
 
   final ui = Container(
-    topTitles: [Line('Multi-Select Demo', style: theme.muted.ink)],
+    topTitles: [Line('Multi-Select Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -112,7 +113,7 @@ void appView(AppModel model, Frame frame) {
           child: Container(
             border: BorderType.plain,
             borderStyle: resolver.border(const {WidgetState.focused}),
-            topTitles: [Line('Contacts', style: theme.focus.ink)],
+            topTitles: [Line('Contacts', style: resolver.ink(t.focus))],
             child: ListView(
               model: model.list,
               theme: theme,
@@ -124,10 +125,10 @@ void appView(AppModel model, Frame frame) {
                     ' $checkbox ${contact.name}$archivedTag',
                     style: const Style(addModifier: Modifier.bold),
                   ),
-                  Line('      ${contact.email}', style: theme.muted.ink),
+                  Line('      ${contact.email}', style: resolver.ink(t.muted)),
                 ];
               },
-              separatorBuilder: () => Line.fromTexts([Text('─' * 40, style: theme.border.ink)]),
+              separatorBuilder: () => Line.fromTexts([Text('─' * 40, style: resolver.ink(t.border))]),
             ),
           ),
         ),
@@ -135,10 +136,10 @@ void appView(AppModel model, Frame frame) {
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: Container(
             border: BorderType.plain,
-            borderStyle: selectedKeys.isNotEmpty ? theme.success.ink : theme.border.ink,
+            borderStyle: selectedKeys.isNotEmpty ? resolver.ink(t.success) : resolver.ink(t.border),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Checked (${selectedKeys.length})')],
-            child: Line(summary, style: selectedKeys.isNotEmpty ? Style(fg: theme.success.color) : theme.muted.ink),
+            child: Line(summary, style: selectedKeys.isNotEmpty ? resolver.ink(t.success) : resolver.ink(t.muted)),
           ),
         ),
         Row(
@@ -146,12 +147,12 @@ void appView(AppModel model, Frame frame) {
             Expanded(
               child: Line(
                 '↑↓/jk nav | Space toggle | Shift+↑↓ range | click activate | wheel scroll | Esc quit',
-                style: theme.muted.ink,
+                style: resolver.ink(t.muted),
               ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
             ),
           ],
         ),

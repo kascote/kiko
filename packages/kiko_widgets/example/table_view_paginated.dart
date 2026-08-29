@@ -303,6 +303,7 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final table = model.table;
@@ -334,26 +335,21 @@ void appView(AppModel model, Frame frame) {
       ? 'Loading...'
       : model.error ?? 'Ready';
 
+  final statusTone = model.error != null
+      ? t.error
+      : loading
+      ? t.warning
+      : t.success;
   final statusBox = ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Container(
       border: BorderType.plain,
-      borderStyle: model.error != null
-          ? theme.error.ink
-          : loading
-          ? theme.warning.ink
-          : theme.success.ink,
+      borderStyle: resolver.ink(statusTone),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Status')],
       child: Line(
         status,
-        style: Style(
-          fg: model.error != null
-              ? theme.error.color
-              : loading
-              ? theme.warning.color
-              : theme.success.color,
-        ),
+        style: resolver.ink(statusTone),
       ),
     ),
   );
@@ -371,18 +367,18 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓←→/hjkl/click nav | PgUp/PgDn/wheel page | p pause loads | $scrollInfo | $cursorInfo | Esc quit',
-          style: theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
       ),
     ],
   );
 
   final ui = Container(
-    topTitles: [Line('Paginated TableView Demo', style: theme.muted.ink)],
+    topTitles: [Line('Paginated TableView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

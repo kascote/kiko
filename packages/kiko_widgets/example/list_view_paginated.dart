@@ -171,6 +171,7 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final loading = model.list.isLoading();
@@ -186,21 +187,21 @@ void appView(AppModel model, Frame frame) {
       : '';
 
   final statusBorder = resolver.resolve(
-    theme.success.ink,
+    resolver.ink(t.success),
     {
       if (loading) WidgetState.loading,
       if (model.error != null) WidgetState.error,
     },
     cls: PaintClass.ink,
   );
-  final statusFg = model.error != null
-      ? theme.error.color
+  final statusTone = model.error != null
+      ? t.error
       : loading
-      ? theme.warning.color
-      : theme.success.color;
+      ? t.warning
+      : t.success;
 
   final ui = Container(
-    topTitles: [Line('Paginated ListView Demo', style: theme.muted.ink)],
+    topTitles: [Line('Paginated ListView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -208,27 +209,27 @@ void appView(AppModel model, Frame frame) {
           child: Container(
             border: BorderType.plain,
             borderStyle: resolver.border(const {WidgetState.focused}),
-            topTitles: [Line('Users', style: theme.focus.ink)],
+            topTitles: [Line('Users', style: resolver.ink(t.focus))],
             child: ListView(
               model: model.list,
               theme: theme,
               itemBuilder: (user, index, state) {
                 final roleStyle = switch (user.role) {
-                  'Admin' => Style(fg: theme.error.color, addModifier: Modifier.italic),
-                  'Manager' => Style(fg: theme.warning.color),
-                  'Member' => Style(fg: theme.accent.color),
-                  _ => theme.muted.ink,
+                  'Admin' => resolver.ink(t.error).incModifier(Modifier.italic),
+                  'Manager' => resolver.ink(t.warning),
+                  'Member' => resolver.ink(t.accent),
+                  _ => resolver.ink(t.muted),
                 };
                 return [
                   Line(' ${user.name}', style: const Style(addModifier: Modifier.bold)),
                   Line('  ${user.role} (${user.id})', style: roleStyle),
                 ];
               },
-              separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: theme.border.ink)]),
+              separatorBuilder: () => Line.fromTexts([Text('─' * 30, style: resolver.ink(t.border))]),
               // Shows only when the data itself is empty. A page on its way
               // makes its rows addressable, so a loading list paints skeleton
               // rows instead of ever reaching this line.
-              emptyPlaceholder: Line('No users', style: theme.muted.ink),
+              emptyPlaceholder: Line('No users', style: resolver.ink(t.muted)),
             ),
           ),
         ),
@@ -239,17 +240,20 @@ void appView(AppModel model, Frame frame) {
             borderStyle: statusBorder,
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Status')],
-            child: Line(status, style: Style(fg: statusFg)),
+            child: Line(status, style: resolver.ink(statusTone)),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk/click nav | PgUp/PgDn/wheel page | $scrollInfo | Esc quit', style: theme.muted.ink),
+              child: Line(
+                '↑↓/jk/click nav | PgUp/PgDn/wheel page | $scrollInfo | Esc quit',
+                style: resolver.ink(t.muted),
+              ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
             ),
           ],
         ),

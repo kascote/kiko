@@ -120,10 +120,11 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Container(
-    topTitles: [Line('ListView Demo', style: theme.muted.ink)],
+    topTitles: [Line('ListView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -131,7 +132,7 @@ void appView(AppModel model, Frame frame) {
           child: Container(
             border: BorderType.plain,
             borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
-            topTitles: [Line('Fruits (${fruits.length})', style: theme.focus.ink)],
+            topTitles: [Line('Fruits (${fruits.length})', style: resolver.ink(t.focus))],
             child: ListView(
               model: model.list,
               theme: theme,
@@ -143,23 +144,26 @@ void appView(AppModel model, Frame frame) {
           additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
           child: Container(
             border: BorderType.plain,
-            borderStyle: model.selected != null ? theme.success.ink : theme.border.ink,
+            borderStyle: model.selected != null ? resolver.ink(t.success) : resolver.ink(t.border),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Selected')],
             child: Line(
               model.selected ?? 'Press Enter to select',
-              style: model.selected != null ? Style(fg: theme.success.color) : theme.muted.ink,
+              style: model.selected != null ? resolver.ink(t.success) : resolver.ink(t.muted),
             ),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: Line('↑↓/jk navigate | Enter/click select | wheel scroll | Esc quit', style: theme.muted.ink),
+              child: Line(
+                '↑↓/jk navigate | Enter/click select | wheel scroll | Esc quit',
+                style: resolver.ink(t.muted),
+              ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-              child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+              child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
             ),
           ],
         ),

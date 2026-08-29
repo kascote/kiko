@@ -216,6 +216,7 @@ const Theme _theme = Theme.dark;
 
 void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final fieldColumn = Column(
@@ -235,7 +236,9 @@ void view(AppModel model, Frame frame) {
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
-      Center(child: Line('Scrollable form — wheel over a field scrolls the form behind it', style: _theme.muted.ink)),
+      Center(
+        child: Line('Scrollable form — wheel over a field scrolls the form behind it', style: resolver.ink(t.muted)),
+      ),
       const SizedBox(height: 1),
       // The frame's own plain id (see the header comment) — the one
       // exception to scoping in this example. `update` forwards its pointer
@@ -247,15 +250,15 @@ void view(AppModel model, Frame frame) {
           Container(
             border: BorderType.plain,
             borderStyle: resolver.border(const {}),
-            topTitles: [Line(' Profile ', style: _theme.muted.ink)],
+            topTitles: [Line(' Profile ', style: resolver.ink(t.muted))],
             bottomTitles: [
-              Line(' field ${model.focus.index + 1} of ${model.fieldList.length} ', style: _theme.muted.ink),
+              Line(' field ${model.focus.index + 1} of ${model.fieldList.length} ', style: resolver.ink(t.muted)),
             ],
             child: ScrollView(model: model.scroll, child: fieldColumn),
           ),
         ),
       ),
-      Line(statusLine, style: model.errorId == null ? _theme.muted.ink : _theme.error.ink),
+      Line(statusLine, style: model.errorId == null ? resolver.ink(t.muted) : resolver.ink(t.error)),
     ],
   );
 
@@ -275,7 +278,9 @@ View _field(TextInputModel input, int index, AppModel model, StyleResolver resol
       if (input.id == model.errorId) WidgetState.error,
     }),
     padding: const EdgeInsets.symmetric(horizontal: 1),
-    topTitles: [Line(' ${_labels[index]} ', style: input.focused ? _theme.focus.ink : _theme.muted.ink)],
+    topTitles: [
+      Line(' ${_labels[index]} ', style: resolver.ink(input.focused ? resolver.tones.focus : resolver.tones.muted)),
+    ],
     // The TextInput tags its own content with its model id — no `Tagged`
     // wrapper needed. That self-tag nests inside the scope above, so a
     // click on the input reports the path `field-N/field-N`.

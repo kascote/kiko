@@ -68,6 +68,7 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final e = model.editor;
@@ -75,7 +76,7 @@ void appView(AppModel model, Frame frame) {
   final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
-    topTitles: [Line('TextArea Demo', style: theme.muted.ink)],
+    topTitles: [Line('TextArea Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -100,14 +101,14 @@ void appView(AppModel model, Frame frame) {
                 '${e.lineCount} lines | '
                 '${e.length} chars | '
                 'Focus: ${_focusName(model.focus.index)}',
-                style: theme.muted.ink,
+                style: resolver.ink(t.muted),
               ),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
               ),
             ),
           ],
@@ -116,7 +117,7 @@ void appView(AppModel model, Frame frame) {
         Center(
           child: Line(
             'Tab/Shift+Tab/click to switch | Esc quit',
-            style: theme.muted.ink,
+            style: resolver.ink(t.muted),
           ),
         ),
       ],

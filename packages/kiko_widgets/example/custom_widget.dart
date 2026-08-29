@@ -278,12 +278,15 @@ const Theme _theme = Theme.dark;
 
 void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
-      Center(child: Line('A widget from scratch — ↑/↓ · wheel · enter or click · q quits', style: _theme.muted.ink)),
+      Center(
+        child: Line('A widget from scratch — ↑/↓ · wheel · enter or click · q quits', style: resolver.ink(t.muted)),
+      ),
       const SizedBox(height: 1),
       Center(
         // The border belongs to the app, not the palette: the tag is on the
@@ -293,14 +296,14 @@ void view(AppModel model, Frame frame) {
           // Focus lives on the chrome: the border lights up when the palette
           // owns the keyboard; the rows inside only ever show cursor + hover.
           borderStyle: resolver.border({if (model.palette.focused) WidgetState.focused}),
-          topTitles: [Line(' pick a color ', style: _theme.muted.ink)],
+          topTitles: [Line(' pick a color ', style: resolver.ink(t.muted))],
           child: Palette(model: model.palette, theme: _theme),
         ),
       ),
       const SizedBox(height: 1),
       Center(
         child: model.chosen == null
-            ? Line('nothing chosen yet', style: _theme.muted.ink)
+            ? Line('nothing chosen yet', style: resolver.ink(t.muted))
             : Line('chosen: ${model.chosen}'),
       ),
     ],

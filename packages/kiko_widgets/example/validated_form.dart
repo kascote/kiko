@@ -168,30 +168,31 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
-    topTitles: [Line('Validated Form Demo', style: theme.muted.ink)],
+    topTitles: [Line('Validated Form Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _fieldWithValidation(model.username, 'Username', model.usernameValid, theme),
-        _fieldWithValidation(model.email, 'Email', model.emailValid, theme),
-        _fieldWithValidation(model.password, 'Password', model.passwordValid, theme),
+        _fieldWithValidation(model.username, 'Username', model.usernameValid, resolver),
+        _fieldWithValidation(model.email, 'Email', model.emailValid, resolver),
+        _fieldWithValidation(model.password, 'Password', model.passwordValid, resolver),
         // Submit status
         Padding(
           insets: const EdgeInsets.only(top: 1),
           child: Center(
             child: Line(
               model.submitMessage ?? (model.isFormValid ? 'Press Enter to submit' : 'Fill all fields correctly'),
-              style: Style(
-                fg: model.submitted
-                    ? theme.success.color
+              style: resolver.ink(
+                model.submitted
+                    ? t.success
                     : model.submitMessage != null
-                    ? theme.error.color
-                    : theme.muted.color,
+                    ? t.error
+                    : t.muted,
               ),
             ),
           ),
@@ -202,13 +203,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab/click to cycle | Enter submit | Esc quit', style: theme.muted.ink),
+              child: Line('Tab/click to cycle | Enter submit | Esc quit', style: resolver.ink(t.muted)),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
               ),
             ),
           ],
@@ -226,16 +227,20 @@ View _fieldWithValidation(
   TextInputModel input,
   String label,
   ValidationResult validation,
-  Theme theme,
+  StyleResolver resolver,
 ) {
-  final (borderStyle, statusText, statusColor) = switch (validation) {
-    Valid() => (theme.success.ink, '✓', theme.success.color),
-    Invalid(:final message) => (theme.error.ink, message, theme.error.color),
-    Empty() => (theme.border.ink, 'Required', theme.muted.color),
+  final t = resolver.tones;
+  final (borderTone, statusText, statusTone) = switch (validation) {
+    Valid() => (t.success, '✓', t.success),
+    Invalid(:final message) => (t.error, message, t.error),
+    Empty() => (t.border, 'Required', t.muted),
   };
 
-  final resolver = StyleResolver(theme);
-  final effectiveBorder = resolver.resolve(borderStyle, {if (input.focused) WidgetState.focused}, cls: PaintClass.ink);
+  final effectiveBorder = resolver.resolve(
+    resolver.ink(borderTone),
+    {if (input.focused) WidgetState.focused},
+    cls: PaintClass.ink,
+  );
 
   return Row(
     children: [
@@ -247,7 +252,7 @@ View _fieldWithValidation(
           topTitles: [Line(label)],
           child: ConstrainedBox(
             additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-            child: TextInput(model: input, theme: theme),
+            child: TextInput(model: input, theme: resolver.theme),
           ),
         ),
       ),
@@ -255,7 +260,7 @@ View _fieldWithValidation(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
         child: Padding(
           insets: const EdgeInsets.only(left: 1, top: 1),
-          child: Line(statusText, style: Style(fg: statusColor)),
+          child: Line(statusText, style: resolver.ink(statusTone)),
         ),
       ),
     ],

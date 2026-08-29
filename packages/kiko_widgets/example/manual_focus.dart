@@ -102,12 +102,13 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
-    topTitles: [Line('Manual Focus Demo', style: theme.muted.ink)],
+    topTitles: [Line('Manual Focus Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -135,13 +136,13 @@ void appView(AppModel model, Frame frame) {
         Row(
           children: [
             Expanded(
-              child: Line('Tab/Shift+Tab/click to cycle | Esc quit', style: theme.muted.ink),
+              child: Line('Tab/Shift+Tab/click to cycle | Esc quit', style: resolver.ink(t.muted)),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
               ),
             ),
           ],

@@ -190,12 +190,13 @@ String _formatNumber(int n) {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final tableWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
-    topTitles: [Line('Employees (${employees.length})', style: theme.focus.ink)],
+    topTitles: [Line('Employees (${employees.length})', style: resolver.ink(t.focus))],
     child: TableView(
       model: model.table,
       theme: theme,
@@ -213,12 +214,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Container(
       border: BorderType.plain,
-      borderStyle: selectedCount > 0 ? theme.success.ink : theme.border.ink,
+      borderStyle: selectedCount > 0 ? resolver.ink(t.success) : resolver.ink(t.border),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Selection')],
       child: Line(
         selectedInfo,
-        style: selectedCount > 0 ? Style(fg: theme.success.color) : theme.muted.ink,
+        style: selectedCount > 0 ? resolver.ink(t.success) : resolver.ink(t.muted),
       ),
     ),
   );
@@ -228,12 +229,12 @@ void appView(AppModel model, Frame frame) {
     additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
     child: Container(
       border: BorderType.plain,
-      borderStyle: model.confirmedCell != null ? theme.accent.ink : theme.border.ink,
+      borderStyle: model.confirmedCell != null ? resolver.ink(t.accent) : resolver.ink(t.border),
       padding: const EdgeInsets.symmetric(horizontal: 1),
       topTitles: [Line('Confirmed')],
       child: Line(
         model.confirmedCell ?? 'Press Enter to confirm cell',
-        style: model.confirmedCell != null ? Style(fg: theme.accent.color) : theme.muted.ink,
+        style: model.confirmedCell != null ? resolver.ink(t.accent) : resolver.ink(t.muted),
       ),
     ),
   );
@@ -245,18 +246,18 @@ void appView(AppModel model, Frame frame) {
           '↑↓←→/hjkl/click nav | Space select | Enter confirm | wheel scroll | c crosshair'
           '${model.table.showCrosshair ? " (on)" : ""} | y style'
           '${model.customStyleOn ? " (on)" : ""} | Esc quit',
-          style: theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+        child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
       ),
     ],
   );
 
   final ui = Container(
-    topTitles: [Line('TableView Demo', style: theme.muted.ink)],
+    topTitles: [Line('TableView Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [

@@ -161,12 +161,13 @@ class AppModel with ThemeSwitcher {
 void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Container(
     border: BorderType.plain,
     borderStyle: resolver.border(const {}),
-    topTitles: [Line('Custom Keybindings Demo', style: theme.muted.ink)],
+    topTitles: [Line('Custom Keybindings Demo', style: resolver.ink(t.muted))],
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
@@ -186,21 +187,21 @@ void appView(AppModel model, Frame frame) {
         ),
         Line(
           model.message.isNotEmpty ? model.message : 'Type in the fields, or press ? while the list is focused',
-          style: model.message.isNotEmpty ? Style(fg: theme.success.color) : theme.muted.ink,
+          style: model.message.isNotEmpty ? resolver.ink(t.success) : resolver.ink(t.muted),
         ),
-        Line('Emacs field adds: Alt+B/F (word left/right), Alt+D (delete word)', style: theme.muted.ink),
-        Line('List adds: g (first), Ctrl+U (page up) | stock: j/k, G, Ctrl+D', style: theme.muted.ink),
-        Line('Focus: Tab, Ctrl+N/P | App: Ctrl+L (clear), Enter (submit), ? (help)', style: theme.muted.ink),
+        Line('Emacs field adds: Alt+B/F (word left/right), Alt+D (delete word)', style: resolver.ink(t.muted)),
+        Line('List adds: g (first), Ctrl+U (page up) | stock: j/k, G, Ctrl+D', style: resolver.ink(t.muted)),
+        Line('Focus: Tab, Ctrl+N/P | App: Ctrl+L (clear), Enter (submit), ? (help)', style: resolver.ink(t.muted)),
         Row(
           children: [
             Expanded(
-              child: Line('Tab/click to switch | Ctrl+Q/Esc quit', style: theme.muted.ink),
+              child: Line('Tab/click to switch | Ctrl+Q/Esc quit', style: resolver.ink(t.muted)),
             ),
             ConstrainedBox(
               additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Line('Theme: ${model.themeName} (F1/F2)', style: theme.muted.ink),
+                child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
               ),
             ),
           ],

@@ -128,6 +128,7 @@ const Theme _theme = Theme.dark;
 
 void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
+  final t = resolver.tones;
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final ui = Column(
@@ -136,7 +137,7 @@ void view(AppModel model, Frame frame) {
       Center(
         child: Line(
           'Mouse-driven widgets — tab · ↑/↓ · wheel · enter · click · q quits',
-          style: _theme.muted.ink,
+          style: resolver.ink(t.muted),
         ),
       ),
       const SizedBox(height: 1),
@@ -164,33 +165,39 @@ void view(AppModel model, Frame frame) {
           ],
         ),
       ),
-      _log(model),
+      _log(model, resolver),
     ],
   );
 
   frame.render(ui);
 }
 
-View _pane(String title, bool focused, StyleResolver resolver, View child) => Container(
-  border: BorderType.plain,
-  borderStyle: resolver.border({if (focused) WidgetState.focused}),
-  topTitles: [Line(' $title ', style: focused ? _theme.focus.ink : _theme.muted.ink)],
-  child: child,
-);
+View _pane(String title, bool focused, StyleResolver resolver, View child) {
+  final t = resolver.tones;
+  return Container(
+    border: BorderType.plain,
+    borderStyle: resolver.border({if (focused) WidgetState.focused}),
+    topTitles: [Line(' $title ', style: resolver.ink(focused ? t.focus : t.muted))],
+    child: child,
+  );
+}
 
-View _log(AppModel model) => Container(
-  border: BorderType.plain,
-  topTitles: [Line(' activations ', style: _theme.muted.ink)],
-  child: Column(
-    crossAxis: CrossAxisAlignment.stretch,
-    children: [
-      if (model.log.isEmpty)
-        Line(' click a row, or press enter on one', style: _theme.muted.ink)
-      else
-        for (final line in model.log) Line(' $line'),
-    ],
-  ),
-);
+View _log(AppModel model, StyleResolver resolver) {
+  final t = resolver.tones;
+  return Container(
+    border: BorderType.plain,
+    topTitles: [Line(' activations ', style: resolver.ink(t.muted))],
+    child: Column(
+      crossAxis: CrossAxisAlignment.stretch,
+      children: [
+        if (model.log.isEmpty)
+          Line(' click a row, or press enter on one', style: resolver.ink(t.muted))
+        else
+          for (final line in model.log) Line(' $line'),
+      ],
+    ),
+  );
+}
 
 // ═══════════════════════════════════════════════════════════
 // MAIN

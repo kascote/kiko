@@ -1,20 +1,14 @@
 import 'msg.dart';
 
-/// Commands are side effects returned from update.
+/// A side effect the runtime performs, returned from `update`.
 ///
-/// Commands tell the MVU runtime what side effects to perform.
-/// Extend this class to create custom commands for widgets.
-abstract class Cmd {
+/// The set is closed: [Quit], [Emit], [Tick], [Task], and [Batch]. The
+/// runtime switches over it exhaustively, so nothing else can reach it. What
+/// a widget hands up to the app is a `WidgetEvent`, carried in
+/// `Handled.events`, not a command.
+sealed class Cmd {
   /// Creates a command.
   const Cmd();
-}
-
-/// A command that can be executed asynchronously.
-// ignore: one_member_abstracts
-abstract interface class AsyncCmd {
-  /// Executes the command and returns the resulting message, or null when the
-  /// outcome has no message. A null result queues nothing.
-  Future<Msg?> execute();
 }
 
 /// Quit the application with an exit code.
@@ -111,7 +105,7 @@ class Tick extends Cmd {
 ///
 /// Both `onSuccess` and `onError` are optional. An outcome with no handler
 /// queues nothing.
-class Task<T> extends Cmd implements AsyncCmd {
+class Task<T> extends Cmd {
   /// The async operation to run.
   final Future<T> Function() _run;
 
@@ -129,7 +123,8 @@ class Task<T> extends Cmd implements AsyncCmd {
   }) : _onSuccess = onSuccess,
        _onError = onError;
 
-  @override
+  /// Runs the operation and returns the resulting message, or null when the
+  /// outcome has no message. A null result queues nothing.
   Future<Msg?> execute() async {
     try {
       final result = await _run();

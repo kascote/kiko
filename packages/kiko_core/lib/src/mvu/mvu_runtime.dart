@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 
 import '../widgets/hit_map.dart';
@@ -291,7 +290,7 @@ class MvuRuntime {
       case Emit(:final msg):
         queueMsg(msg);
         return false;
-      case final AsyncCmd task:
+      case final Task<Object?> task:
         final token = _token; // Capture current token
         unawaited(
           task.execute().then((msg) {
@@ -303,19 +302,6 @@ class MvuRuntime {
         for (final c in cmds) {
           if (processCmd(c)) return true;
         }
-        return false;
-      default:
-        // Widget→app commands (events) must be consumed in update() before
-        // they reach the runtime — everything legitimate is matched above, so
-        // anything landing here is a forgotten event handler (or a Cmd nobody
-        // handles).
-        assert(() {
-          Log.warn(
-            'Cmd ${cmd.runtimeType} reached the runtime unhandled and was '
-            'dropped — did you forget to consume it in update()?',
-          );
-          return true;
-        }(), 'logs unhandled commands in debug');
         return false;
     }
   }

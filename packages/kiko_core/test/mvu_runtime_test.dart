@@ -4,7 +4,6 @@ import 'package:kiko/kiko.dart';
 // The un-routed form of a mouse event never leaves the runtime, so it is not
 // part of the public library. The queue is what these tests are about.
 import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
-import 'package:kiko_log/kiko_log.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -30,23 +29,6 @@ class TestEventStream {
 class TestMsg extends Msg {
   final String value;
   const TestMsg(this.value);
-}
-
-/// A widget→app event command — the kind that must be consumed in update()
-/// and, if forgotten, falls through to the runtime's default guard.
-class _WidgetEventCmd extends Cmd {
-  const _WidgetEventCmd();
-}
-
-/// In-memory log output for asserting on captured records.
-class _CapturingOutput implements LogOutput {
-  final List<LogRecord> records = [];
-
-  @override
-  void write(LogRecord record) => records.add(record);
-
-  @override
-  Future<void> close() async {}
 }
 
 void main() {
@@ -263,35 +245,22 @@ void main() {
         expect((msg1 as TestMsg).value, equals('first'));
         expect((msg2 as TestMsg).value, equals('second'));
       });
-    });
 
-    group('unhandled command guard', () {
-      test('logs a warning when a custom Cmd reaches the runtime', () {
-        // The guard is debug-only (assert idiom); tests run with asserts on.
-        final output = _CapturingOutput();
-        bool? exit;
-        Log(output: output, level: LogLevel.debug).runZoned(() {
-          exit = runtime.processCmd(const _WidgetEventCmd());
-        });
+      test('Batch drops nulls', () async {
+        final batch = Batch([null, const Emit(TestMsg('a')), null]);
+        expect(batch.cmds, hasLength(1));
 
-        // Still dropped (returns false), but now observable.
-        expect(exit, isFalse);
-        expect(output.records, hasLength(1));
-        expect(output.records.single.level, equals(LogLevel.warn));
-        expect(output.records.single.message, contains('_WidgetEventCmd'));
-        expect(output.records.single.message, contains('update()'));
+        runtime.processCmd(batch);
+
+        final msg = (await runtime.nextMsg())!;
+        expect((msg as TestMsg).value, equals('a'));
       });
 
-      test('legitimate commands never trip the guard', () {
-        final output = _CapturingOutput();
-        Log(output: output, level: LogLevel.debug).runZoned(() {
-          runtime
-            ..processCmd(null)
-            ..processCmd(const Emit(TestMsg('x')))
-            ..processCmd(const Tick(Duration(seconds: 1), id: 'clock'));
-        });
+      test('an empty Batch runs nothing', () {
+        final result = runtime.processCmd(Batch(const []));
 
-        expect(output.records, isEmpty);
+        expect(result, isFalse);
+        expect(runtime.hasPending, isFalse);
       });
     });
 

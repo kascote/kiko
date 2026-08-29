@@ -140,7 +140,7 @@ void main() {
       // the key home — which fetchInto does structurally, from the request.
       final task = fetchInto(request, srcA);
 
-      final msg = (await (task as AsyncCmd).execute())! as LoadResult<Object?>;
+      final msg = (await (task as Task<Object?>).execute())! as LoadResult<Object?>;
       expect(msg.id, equals('A'));
 
       // On receipt, resolve home by id and deliver to update — only A is touched.

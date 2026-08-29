@@ -162,7 +162,7 @@ void main() {
   group('fetchInto', () {
     LoadRequest request(int page) => LoadRequest('products', key: PageKey(page));
 
-    Future<Msg?> run(Cmd cmd) => (cmd as AsyncCmd).execute();
+    Future<Msg?> run(Cmd cmd) => (cmd as Task<Object?>).execute();
 
     test('threads the request id and key into the result', () async {
       final source = PageSource.offset<String>(

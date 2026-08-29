@@ -30,6 +30,10 @@ A term of art added to a page gets its entry here in the same change.
 - **intake** — the point where a terminal event becomes a kiko message
   (`eventToMsg`, `pointerFieldsFrom`). No terminal type travels past it
   (`docs/backend.md`).
+- **report** (`FrameReport`) — a layout fact paint hands back to the widget
+  that owns it, as an addressed message the runtime queues after the frame
+  commits. Paint reports; it never writes into a model
+  (`docs/architecture.md`).
 
 ## MVU
 
@@ -47,9 +51,9 @@ A term of art added to a page gets its entry here in the same change.
 - **id / addressing** — a component's stable string identity. Widget→app
   commands and async results carry it as their address.
 - **addressed message** — a message implementing `Addressed`: it names the
-  widget it is for by id, and the router delivers it there (`LoadResult`;
-  `docs/components.md`). Distinct from pointer traffic, whose target the hit
-  map resolves.
+  widget it is for by id, and the router delivers it there (`LoadResult`,
+  `FrameReport`; `docs/components.md`). Distinct from pointer traffic, whose
+  target the hit map resolves.
 - **focus gate** — the `if (!focused) return const Declined();` line that
   keeps a widget's keyboard handling inactive while unfocused.
 

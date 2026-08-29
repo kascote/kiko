@@ -6,6 +6,7 @@ import 'package:plume/plume.dart' as plume;
 import '../buffer.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
+import '../mvu/frame_report.dart';
 import '../plume/buffer_surface.dart';
 import '../plume/paint_token.dart';
 import '../plume/view.dart';
@@ -54,8 +55,19 @@ class Frame {
 
   HitMap? _hits;
 
+  /// The reports of every render so far, the last per widget id and type.
+  final Map<(String, Type), FrameReport> _reports = <(String, Type), FrameReport>{};
+
   /// Creates a new frame with the given area and buffer.
   Frame(this.area, this.buffer, this.count, {this.lastDiffCount = 0});
+
+  /// The reports paint has appended to this frame so far, in paint order.
+  ///
+  /// A report is a layout fact a node hands back to its model through
+  /// [BufferSurface.report]. Within one frame only the last report per widget
+  /// id and report type survives, so a node painted twice reports once. The
+  /// runtime reads them from [CompletedFrame.reports] after the commit.
+  List<FrameReport> get reports => List.unmodifiable(_reports.values);
 
   /// The tagged geometry of this frame, as far as it has been painted.
   ///
@@ -103,6 +115,7 @@ class Frame {
     // belongs; carry it up to this frame.
     final cursor = surface.cursor;
     if (cursor != null) cursorPosition = cursor;
+    _collectReports(surface);
   }
 
   /// Renders [view] into its own scratch buffer, then composites it opaquely
@@ -130,9 +143,21 @@ class Frame {
     if (standing != null && rect.contains(standing)) cursorPosition = null;
     final cursor = surface.cursor;
     if (cursor != null) cursorPosition = cursor;
+    _collectReports(surface);
 
     _nodeRoots.add(node);
     _hits = null;
+  }
+
+  /// Folds the reports [surface] collected during its pass into this frame.
+  void _collectReports(BufferSurface surface) {
+    for (final report in surface.reports) {
+      final key = (report.id, report.runtimeType);
+      // Re-insert, so the surviving report sits where it was painted last.
+      _reports
+        ..remove(key)
+        ..[key] = report;
+    }
   }
 
   /// Lays [node] out tight to [rect] and paints it into [target].
@@ -193,6 +218,13 @@ class CompletedFrame {
   /// that; an application rarely reads it here.
   final HitMap hits;
 
+  /// The reports paint appended to the frame, in paint order.
+  ///
+  /// Each is a layout fact addressed to the widget that reported it. The
+  /// runtime queues them as messages right after the commit, so the owner's
+  /// `update` reads the fact one message after the frame that produced it.
+  final List<FrameReport> reports;
+
   /// Creates a new completed frame with the given area and buffer.
-  const CompletedFrame(this.buffer, this.area, this.count, {required this.hits});
+  const CompletedFrame(this.buffer, this.area, this.count, {required this.hits, required this.reports});
 }

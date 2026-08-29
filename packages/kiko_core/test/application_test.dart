@@ -31,6 +31,32 @@ FrameCallback quitAfterFirstFrame(TestBackend backend) => (frame) {
 void tagWholeArea(int _, Frame frame) =>
     frame.render(Tagged('ok', Container(border: BorderType.plain, child: Line(''))));
 
+/// A report carrying one number: the shape a widget's own kind takes.
+class _Rows extends FrameReport {
+  const _Rows(super.id, this.rows);
+
+  final int rows;
+}
+
+/// A leaf that fills its box and appends [reports] when painted.
+class _Reporter extends Node implements View {
+  _Reporter(this.reports);
+
+  /// What this leaf reports each time it paints.
+  final List<FrameReport> reports;
+
+  @override
+  Node build() => this;
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) => constraints.biggest;
+
+  @override
+  void paintSelf(Surface surface) {
+    if (surface is BufferSurface) reports.forEach(surface.report);
+  }
+}
+
 void main() {
   late TestBackend backend;
 
@@ -575,6 +601,128 @@ void main() {
       expect(click.targetRect, boxWhenClicked, reason: 'stamped against the frame the callback described');
       expect(click.local, const Position(3, 1));
       expect(rectInContext, boxWhenClicked, reason: 'ctx.hits is that same map');
+    });
+  });
+
+  group('frame reports', () {
+    test('a report appended during paint reaches update on the loop iteration after the draw, '
+        'carrying its id', () async {
+      final seen = <_Rows>[];
+      int? drawsWhenSeen;
+      var views = 0;
+
+      final rc = await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          if (msg is! _Rows) return (model, null);
+          seen.add(msg);
+          drawsWhenSeen = backend.drawCount;
+          return (model, const Quit());
+        },
+        view: (_, frame) {
+          views++;
+          frame.render(_Reporter([_Rows('list', views)]));
+        },
+      );
+
+      expect(rc, 0);
+      expect(seen.map((r) => r.id), ['list']);
+      expect(seen.single.rows, 1, reason: 'the first render reported');
+      expect(drawsWhenSeen, 1, reason: "the first frame's report is processed before any second draw");
+      expect(views, 1);
+    });
+
+    test('two reports with the same id and type in one frame deliver only the last', () async {
+      final seen = <int>[];
+
+      await runApp(
+        Application(backend: backend, onFrame: quitAfterFirstFrame(backend)),
+        update: (model, msg, _) {
+          switch (msg) {
+            case _Rows(:final rows):
+              seen.add(rows);
+              return (model, null);
+            case KeyMsg(key: quitKey):
+              return (model, const Quit());
+            default:
+              return (model, null);
+          }
+        },
+        view: (_, frame) => frame.render(
+          Column(
+            children: [
+              _Reporter(const [_Rows('list', 3)]),
+              _Reporter(const [_Rows('list', 5)]),
+            ],
+          ),
+        ),
+      );
+
+      expect(seen, [5], reason: "the quit key is queued behind the frame's reports, so all of them were seen");
+    });
+
+    test('a report handler reads the hit map of the frame that produced it', () async {
+      // The box grows one cell per render, so each frame's geometry differs
+      // from the last, and a report processed against the wrong map shows.
+      final seen = <(int, int?)>[];
+      var views = 0;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, ctx) {
+          if (msg is! _Rows) return (model, null);
+          seen.add((msg.rows, ctx.hits.rectOf('box')?.width));
+          return (model, seen.length == 2 ? const Quit() : null);
+        },
+        view: (_, frame) {
+          views++;
+          frame.render(
+            Row(
+              children: [
+                Tagged('box', Container(width: 2 + views, child: NodeView(_Reporter([_Rows('box', views)])))),
+                Expanded(child: Line('')),
+              ],
+            ),
+          );
+        },
+      );
+
+      expect(seen, [(1, 3), (2, 4)], reason: 'each report sees the width the frame that reported it painted');
+    });
+
+    test("a terminal event emitted during a draw is queued behind that draw's reports, "
+        'and the report still arrives', () async {
+      // The awaiting run loop resumes, and queues the reports, before the
+      // backend's event stream delivers the emitted key to the runtime.
+      final order = <String>[];
+      var views = 0;
+
+      final rc = await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          switch (msg) {
+            case KeyMsg(:final key):
+              order.add('key $key');
+              return (model, const Quit());
+            case _Rows(:final rows):
+              order.add('report $rows');
+              return (model, null);
+            default:
+              return (model, null);
+          }
+        },
+        view: (_, frame) {
+          views++;
+          // The first frame commits inside the startup hold, where an event
+          // waits until the hold lifts. Emit from the second draw, where
+          // delivery is live and the ordering is the loop's own.
+          if (views == 2) backend.emitKey('n');
+          frame.render(_Reporter([_Rows('list', views)]));
+        },
+      );
+
+      expect(rc, 0);
+      expect(order, ['report 1', 'report 2', 'key n']);
     });
   });
 

@@ -5,6 +5,7 @@ import 'package:plume/plume.dart' as plume;
 
 import '../buffer.dart';
 import '../layout/position.dart';
+import '../mvu/frame_report.dart';
 import '../style.dart';
 import 'paint_token.dart';
 
@@ -65,6 +66,23 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
     if (clip != null && !clip.contains(plume.Offset(position.x, position.y))) return;
     _cursor = position;
   }
+
+  final List<FrameReport> _reports = <FrameReport>[];
+
+  /// The reports painted nodes appended in this pass, in paint order.
+  ///
+  /// The frame driving the paint reads them once the pass ends and keeps the
+  /// last per widget id and report type; see [report].
+  List<FrameReport> get reports => List.unmodifiable(_reports);
+
+  /// Hands a layout fact back to the model that owns it.
+  ///
+  /// A node that learns something during paint that its model needs — how
+  /// many rows it showed — calls this instead of writing into the model. The
+  /// report leaves the draw with the completed frame and reaches the owner's
+  /// `update` as a message once the frame commits. Call it behind
+  /// `if (surface is BufferSurface)`, as with [placeCursor].
+  void report(FrameReport report) => _reports.add(report);
 
   @override
   void rawDrawText(int x, int y, String run, PaintToken token, plume.Rect? clip) {

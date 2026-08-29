@@ -119,7 +119,8 @@ class Application {
   /// It fires synchronously in the run loop, right after a draw commits and
   /// the frame's hit map has become the one incoming terminal events resolve
   /// against. A terminal event emitted from the callback is therefore stamped
-  /// against the frame the callback describes, never the one before it. Use
+  /// against the frame the callback describes, never the one before it, and
+  /// is processed after that frame's reports, which are already queued. Use
   /// it for a recording, a screenshot, a first-paint hook, or a frame-cost
   /// readout; an end-to-end test schedules its scripted terminal events from
   /// it.
@@ -292,10 +293,13 @@ class Application {
 
     // The map a mouse event resolves against is the one that painted the cells
     // it was aimed at, so every draw hands its geometry back to the runtime
-    // before anyone outside hears about the frame.
+    // before anyone outside hears about the frame. Paint's reports enter the
+    // queue right behind that geometry: a report's update reads the frame
+    // that produced it.
     Future<void> draw(M model) async {
       final completed = await terminal.draw((frame) => view(model, frame));
       runtime.lastHitMap = completed.hits;
+      completed.reports.forEach(runtime.queueMsg);
       onFrame?.call(completed);
     }
 

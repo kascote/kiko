@@ -334,6 +334,7 @@ class Terminal {
       _viewportArea,
       _frameCount,
       hits: frame.hits,
+      reports: frame.reports,
     );
 
     _frameCount = _frameCount.wrappingAddU32(1);

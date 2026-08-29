@@ -20,6 +20,17 @@ buffer, a clean slate, and composites opaquely onto the frame over the
 rect. Cells the view never paints come out empty, so the base never shows
 through an overlay (`docs/theming.md`, "Grounding an area").
 
+A view that learns a layout fact during paint — how many rows a windowed
+widget showed — hands it back as a frame report. It does not write into its
+model. Paint code calls `BufferSurface.report(FrameReport)`; the frame keeps
+the last report per widget id and report type; `CompletedFrame.reports`
+carries them out of the draw. `Application` queues each report as a message
+right after the frame commits, behind the frame's hit map. A report implements
+`Addressed`, so a focus router delivers it to its owner by id
+(`docs/components.md`); an app without a router matches on it in `update`.
+The owner therefore reads the fact one message after the frame that produced
+it, with `ctx.hits` describing that same frame.
+
 **Key types:**
 
 - `Buffer` — a grid of `Cell`s. A cell holds a grapheme, foreground and

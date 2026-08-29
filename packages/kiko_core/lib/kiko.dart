@@ -18,6 +18,7 @@ export 'src/mvu/addressed.dart';
 export 'src/mvu/auto_id.dart';
 export 'src/mvu/cmd.dart';
 export 'src/mvu/focus.dart';
+export 'src/mvu/frame_report.dart';
 // RawPointerMsg is the un-routed form a mouse event takes in the queue. The
 // router replaces it with a PointerMsg before update runs, so nothing outside
 // the runtime can hold one.

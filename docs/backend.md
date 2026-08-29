@@ -72,9 +72,14 @@ immediately. That report is startup noise, not a real resize:
 `MvuRuntime.flushStartupEvents` drops any resize held before the first frame
 commits. A resize after that reaches `update` normally.
 
-Rendering never depends on resize events. `Terminal.draw` runs `autoResize`
-before building each frame, which reads the backend's size and resizes the
-buffers when it changed — so rendering stays correct on a terminal that
-reports no resize events at all. `ResizeMsg` is informational: the app uses
-it to react (recompute a scroll clamp, reflow content), never to make
-resizing work. Worked example: `packages/kiko_core/example/resize.dart`.
+The resize contract has two halves. Size correctness never depends on
+`ResizeMsg`: `Terminal.draw` runs `autoResize` before building each frame,
+which reads the backend's size and resizes the buffers when it changed, so
+a frame is always laid out against the terminal's real size. Whether a frame
+runs after a resize does depend on `ResizeMsg`: a frame follows every
+processed message and nothing else (`docs/architecture.md`), so the resize
+message is what causes the redraw. Delivery is unconditional, with a signal
+fallback, so that frame always comes. The app uses `ResizeMsg` to react
+(recompute a scroll clamp, reflow content); it never reads the size from it
+to make resizing work. Worked example:
+`packages/kiko_core/example/resize.dart`.

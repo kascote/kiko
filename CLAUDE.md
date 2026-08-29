@@ -33,7 +33,7 @@ make cover                          # coverage report
 
 ## Architecture in brief
 
-`Terminal` renders through two `Buffer`s and sends only the diff to the `Backend`. UI is composed from `View`s: `View.build()` inflates a fresh plume `Node` each frame, and `frame.render(view)` lays it out and paints it. Layout is `plume`'s job (constraints flow down, sizes flow up; see `packages/plume/README.md`). The runtime is MVU in the **Bubble Tea** style: models are mutable; `update(model, msg, ctx)` returns `(model, cmd)` and normally mutates the model in place. All event sources share one FIFO queue; rendering happens on `FrameTickMsg`.
+`Terminal` renders through two `Buffer`s and sends only the diff to the `Backend`. UI is composed from `View`s: `View.build()` inflates a fresh plume `Node` each frame, and `frame.render(view)` lays it out and paints it. Layout is `plume`'s job (constraints flow down, sizes flow up; see `packages/plume/README.md`). The runtime is MVU in the **Bubble Tea** style: models are mutable; `update(model, msg, ctx)` returns `(model, cmd)` and normally mutates the model in place. All event sources share one FIFO queue; a frame follows every processed message.
 
 ```dart
 exit(
@@ -41,7 +41,7 @@ exit(
     init: MyModel(),
     update: (model, msg, ctx) => switch (msg) {
       KeyMsg(key: 'q') => (model, const Quit()),
-      TickMsg(:final elapsed) => (model.tick(elapsed), null),
+      TickMsg(:final elapsed) => (model.tick(elapsed), const Tick(step, id: 'clock')),
       _ => (model, null),
     },
     view: (model, frame) => frame.render(myWidget(model)),

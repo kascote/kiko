@@ -17,7 +17,12 @@ A term of art added to a page gets its entry here in the same change.
   diffed to find the minimal terminal update.
 - **frame** — the `Frame` object `Terminal.draw` hands the view callback: one
   drawn screen, built from a base render pass and any layers composited over
-  it.
+  it. A frame follows every processed message, at most `fps` a second; no
+  frame is drawn while the queue is idle (`docs/architecture.md`).
+- **tick** (`Tick`, `TickMsg`) — a one-shot timer `update` arms. Its one
+  `TickMsg` is addressed to the owner by id and carries the owner's
+  generation `key` and the time since arming. An animation re-arms from its
+  `TickMsg` case and drops a stale key (`docs/architecture.md`).
 - **layer** — a render pass with its own buffer and its own clean slate.
   Compositing a layer (`Frame.renderLayer`) replaces the frame's cells under
   its rect; layers composite in call order.
@@ -32,8 +37,9 @@ A term of art added to a page gets its entry here in the same change.
   (`docs/backend.md`).
 - **report** (`FrameReport`) — a layout fact paint hands back to the widget
   that owns it, as an addressed message the runtime queues after the frame
-  commits. Paint reports; it never writes into a model
-  (`docs/architecture.md`).
+  commits. Paint reports; it never writes into a model. A report kind is a
+  value, and the runtime delivers a report only when it differs from the
+  previous frame's (`docs/architecture.md`).
 
 ## MVU
 
@@ -52,7 +58,7 @@ A term of art added to a page gets its entry here in the same change.
   commands and async results carry it as their address.
 - **addressed message** — a message implementing `Addressed`: it names the
   widget it is for by id, and the router delivers it there (`LoadResult`,
-  `FrameReport`; `docs/components.md`). Distinct from pointer traffic, whose
+  `FrameReport`, `TickMsg`; `docs/components.md`). Distinct from pointer traffic, whose
   target the hit map resolves.
 - **focus gate** — the `if (!focused) return const Declined();` line that
   keeps a widget's keyboard handling inactive while unfocused.

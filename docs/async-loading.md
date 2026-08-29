@@ -242,9 +242,9 @@ Total row count gets **no load slot**. The `LoadTracker` exists to recover
 from failures that leave rows stuck — a page or child fetch that would
 otherwise spin forever. A missing count leaves nothing stuck; it only leaves
 the scrollbar indeterminate. So count stays an app-fired one-shot
-(`Task(fetchCount, onSuccess: (n) => CountLoadedMsg(id, n))`,
-`onError → NoneMsg`), or the source reports it as `PageResult.totalCount`
-when it knows it. Count has no loading, error, or retry machinery by design.
+(`Task(fetchCount, onSuccess: (n) => CountLoadedMsg(id, n))`, with no
+`onError`: a failed count queues nothing), or the source reports it as
+`PageResult.totalCount` when it knows it. Count has no loading, error, or retry machinery by design.
 A widget that has the count knows which pages exist and can jump straight to
 the end; one without it learns where the data stops from the first short
 page.

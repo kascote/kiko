@@ -279,18 +279,26 @@ test('a key event reaches update and quits the app', () async {
 });
 ```
 
-One scheduling fact shapes these tests: the model updates on every message,
-but **rendering happens only on frame ticks**. A test that quits the moment
-its last keystroke is handled exits before any frame paints the result. To
-assert on the painted screen, let one tick render and quit on the next:
+One scheduling fact shapes these tests: a frame follows every processed
+message, and **a `Quit` returns before the frame its message would have
+caused**. A test that quits the moment its last keystroke is handled exits
+before any frame paints the result. To assert on the painted screen, quit
+from `Application.onFrame`, which fires with every committed frame: the keys
+emitted during `InitMsg` are held until the first frame commits, land as one
+burst, and the frame that paints them is the second.
 
 ```dart
 test('a widget model wired into the loop sees the keystrokes and paints them', () async {
   final backend = TestBackend(size: const TermSize(20, 1));
   final input = TextInputModel(id: 'name', focused: true);
-  var ticks = 0;
 
-  await Application(backend: backend).run<TextInputModel>(
+  await Application(
+    backend: backend,
+    onFrame: (frame) {
+      // Frame 0 is the init draw; frame 1 is the one the keys caused.
+      if (frame.count == 1) backend.emitKey('ctrl+q');
+    },
+  ).run<TextInputModel>(
     init: input,
     update: (model, msg, _) {
       switch (msg) {
@@ -299,11 +307,8 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
             ..emitKey('h')
             ..emitKey('i');
           return (model, null);
-        case FrameTickMsg():
-          // The keys are processed before the first tick, so that tick's
-          // render paints them; the second tick quits.
-          ticks++;
-          return (model, ticks == 2 ? const Quit() : null);
+        case KeyMsg(key: 'ctrl+q'):
+          return (model, const Quit());
         default:
           return switch (model.update(msg)) {
             Handled(:final cmd) => (model, cmd),
@@ -318,6 +323,11 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
   expect(screenText(backend.screen), 'hi\n');
 });
 ```
+
+The same shape scales to a scripted end-to-end test: `onFrame` emits one
+terminal event per committed frame, `update` clears a `pending` flag when
+the event's message lands, and the callback ends by emitting a quit key
+after its last step (`packages/kiko_widgets/test/widgets/combobox/combobox_e2e_test.dart`).
 
 The runtime turns whatever a helper emits into the same `KeyMsg`, `PointerMsg`,
 `PasteMsg` and `FocusMsg` a real session delivers. A model test constructs

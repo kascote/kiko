@@ -30,6 +30,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - A `LoadResult` is handled in the model's `update`, never in the app: the router delivers it by id (`docs/async-loading.md`).
 - Widgets never perform async I/O; every `LoadRequest` resolves its slot — with data, an error, or `declineLoad` (`docs/async-loading.md`).
 - Paint reports a layout fact through `surface.report(...)`; it never writes into a model (`docs/architecture.md`, `docs/async-loading.md`).
+- A report kind is `@immutable` with `==` over its fields; an unchanged report is not re-delivered, so a widget that needs a frame changes a fact (`docs/architecture.md`).
 - Wheel: decline a notch that would move nothing in its direction; consume any notch that moves at all (`docs/mouse.md`, `docs/scroll-view.md`).
 - Never paint a `Tone` directly — project it with `.ink`/`.fill`/`.wash`; route every style through `StyleResolver`; never handle NO_COLOR or ANSI-16 yourself (`docs/theming.md`).
 - The keyboard-current item is `WidgetState.cursor` — never borrow `focused` or `hover` for it (`docs/theming.md`).

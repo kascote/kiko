@@ -105,7 +105,8 @@ Rules a contributor will otherwise miss:
 `Addressed` (kiko_core, `src/mvu/addressed.dart`) is the interface for a
 message that names the widget it is for: `String get id`. It is the inbound
 half of id addressing. Widget→app commands carry an id up; an `Addressed`
-message carries one down. `LoadResult` and `FrameReport` implement it.
+message carries one down. `LoadResult`, `FrameReport` and `TickMsg`
+implement it.
 `FocusRouter` delivers an `Addressed` message to the component registered
 under its id, or under the longest registered prefix of it, without moving
 focus (`docs/focus-router.md`); an id nothing registers comes back `Declined`,

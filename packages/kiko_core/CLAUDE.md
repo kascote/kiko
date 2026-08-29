@@ -19,7 +19,10 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Captor liveness asks `HitMap.isLive`, never `rectOf` — a scope has no single rect (`docs/mouse.md`).
 - Deliver a hit path as-is to the longest registered prefix (`HitTag.resolve`); never rebuild the message against the resolved target (`docs/components.md`).
 - Never scroll something into view by reading `ctx.hits.rectOf(id)` — a viewport clips hit presence, so a scrolled-off id answers null exactly when it matters (`docs/mouse.md`).
-- Rendering never depends on `ResizeMsg`; `Terminal.draw` polls the backend size before every frame (`docs/backend.md`).
+- Size correctness never depends on `ResizeMsg` — `Terminal.draw` polls the backend size before every frame; the frame after a resize does, because a frame follows a message (`docs/backend.md`).
+- A frame follows every processed message and `fps` is only a ceiling; nothing in the runtime polls or runs a permanent timer (`docs/architecture.md`).
+- `Tick` is one-shot and addressed: arm it with the owner's `id` and generation `key`, re-arm from the `TickMsg` case, drop a stale key (`docs/architecture.md`).
+- A `FrameReport` kind is a value (`==` over its fields); the runtime delivers a report only when it changed since the previous frame (`docs/architecture.md`).
 - `Theme`, `Tone`, `StyleResolver`, `WidgetState` and `KeyBinding` live here, but the styling doctrine lives in `docs/theming.md`; touch `style_resolver.dart`, `theme.dart` or `tone.dart` only with it open.
 
 ## Documentation map

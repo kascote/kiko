@@ -32,8 +32,10 @@ only four:
    by `id`, and the id resolves the same way — members and `extras`, exact
    or by the longest registered prefix. It is delivered to the owner without
    moving focus. A `LoadResult` is the example: the widget that asked for a
-   page receives the page. An id nothing registers declines; an async result
-   is never re-aimed at the focused member either.
+   page receives the page. A `TickMsg` and a `FrameReport` travel the same
+   way, to the widget that armed the tick or painted the report. An id
+   nothing registers declines; an async result is never re-aimed at the
+   focused member either.
 4. Everything else goes to the focused member, and its verdict returns as-is:
    paste, a future input class, a message the router has never heard of. The
    router never decides for a widget which messages it can handle. That is

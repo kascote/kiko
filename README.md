@@ -121,9 +121,11 @@ package directory.
 ## Events
 
 All input reaches `update` as messages on a single FIFO queue: `KeyMsg`,
-`PointerMsg` (already resolved to the widget it hit), `ResizeMsg`, `TickMsg` /
-`FrameTickMsg` (timers), and your own custom messages. Side effects are returned as
-commands (`Quit`, `Tick`, `AsyncCmd`, `Batch`, `Emit`).
+`PointerMsg` (already resolved to the widget it hit), `ResizeMsg`, `TickMsg`
+(a one-shot timer's message), frame reports, and your own custom messages. A
+frame follows every processed message; nothing runs while the queue is idle.
+Side effects are returned as commands (`Quit`, `Tick`, `AsyncCmd`, `Batch`,
+`Emit`).
 
 ## Documentation
 

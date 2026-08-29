@@ -297,16 +297,16 @@ class Application {
     // it was aimed at, so every draw hands its geometry back to the runtime
     // before anyone outside hears about the frame. Paint's reports enter the
     // queue right behind that geometry: a report's update reads the frame
-    // that produced it.
+    // that produced it. Every report is queued; paint only reports a fact
+    // the model does not hold yet, so a frame caused by a report settles.
     Future<void> draw(M model) async {
       throttle?.cancel();
       throttle = null;
       dirty = false;
       final completed = await terminal.draw((frame) => view(model, frame));
       sinceDraw.reset();
-      runtime
-        ..lastHitMap = completed.hits
-        ..queueReports(completed.reports);
+      runtime.lastHitMap = completed.hits;
+      completed.reports.forEach(runtime.queueMsg);
       onFrame?.call(completed);
     }
 

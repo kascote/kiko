@@ -136,7 +136,11 @@ class _ListViewport<T, K> extends Node {
     // The last item needs no trailing separator, so one more can fit.
     final visibleCount = hasSeparator ? (area.height + 1) ~/ effectiveRowHeight : area.height ~/ effectiveRowHeight;
     if (visibleCount <= 0) return;
-    if (surface is BufferSurface) surface.report(ViewportChanged(reportId, rows: visibleCount));
+    // Report the count only while the model does not hold it, so the frame
+    // the report causes has nothing more to say.
+    if (surface is BufferSurface && visibleCount != m.visibleCount) {
+      surface.report(ViewportChanged(reportId, rows: visibleCount));
+    }
 
     // Empty state — the data itself is empty, not merely unloaded. A list that
     // knows its size (or has a page on its way) has items to draw, even before

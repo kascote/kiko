@@ -129,10 +129,10 @@ final class Combobox<T> implements View {
   /// anchors on [ComboboxModel.anchorPath] and sizes to the union of the
   /// field's and the toggle's painted rects, read from [Frame.hits], so the
   /// popup never ends narrower than the toggle it sits under — the one place
-  /// that union is computed. The placement the popup was painted with is
-  /// reported to [frame] as a [PopupPlaced] addressed to the model, which
-  /// stores it for the next paint. A frame where the field has not painted
-  /// paints nothing and reports the standing placement unchanged, exactly as
+  /// that union is computed. A placement the popup was painted with that the
+  /// model does not hold yet reaches [frame] as a [PopupPlaced] addressed to
+  /// the model, which stores it for the next paint. A frame where the field
+  /// has not painted paints nothing and reports nothing, exactly as
   /// `renderAnchoredPopup` does for a missing anchor.
   void renderPopup(Frame frame) {
     if (!model.isOpen) return;
@@ -147,15 +147,15 @@ final class Combobox<T> implements View {
     final fill = model.styles.popupGround ?? resolver.ground(resolver.tones.surface);
     final rowBuilder = itemBuilder ?? _defaultItemBuilder;
 
-    final placement = renderAnchoredPopup(
+    renderAnchoredPopup(
       frame,
+      id: model.id,
       anchorPath: model.anchorPath,
       requestedHeight: model.maxVisibleRows + _chromeRows,
       width: width,
       decision: model.placement,
       popupBuilder: (height) => _popup(list: list, fill: fill, rowBuilder: rowBuilder, height: height),
     );
-    if (placement != null) frame.report(PopupPlaced(model.id, placement));
   }
 
   /// The rows [popupBorder] adds to the popup box: its top and bottom edges.

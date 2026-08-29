@@ -7,9 +7,9 @@ import 'types.dart';
 /// many its content spans, and where every tagged descendant sits.
 ///
 /// The view reports one from paint through `BufferSurface.report`, addressed
-/// to the scroll view's id. The owner's `update` stores all three facts and
-/// clamps its offset to the new extent; `ensureVisible` reads [tagRanges]
-/// from the last report.
+/// to the scroll view's id, when any of the three differs from what the model
+/// holds. The owner's `update` stores all three facts and clamps its offset
+/// to the new extent; `ensureVisible` reads [tagRanges] from the last report.
 @immutable
 class ScrollMetrics extends FrameReport {
   /// Creates a report that the scroll view registered under [id] showed
@@ -34,7 +34,7 @@ class ScrollMetrics extends FrameReport {
           other.id == id &&
           other.viewportRows == viewportRows &&
           other.contentRows == contentRows &&
-          _sameRanges(other.tagRanges, tagRanges);
+          sameTagRanges(other.tagRanges, tagRanges);
 
   @override
   int get hashCode => Object.hash(id, viewportRows, contentRows, tagRanges.length);
@@ -42,12 +42,4 @@ class ScrollMetrics extends FrameReport {
   @override
   String toString() =>
       'ScrollMetrics($id, viewportRows: $viewportRows, contentRows: $contentRows, tagRanges: $tagRanges)';
-
-  static bool _sameRanges(Map<String, ScrollViewTagRange> a, Map<String, ScrollViewTagRange> b) {
-    if (a.length != b.length) return false;
-    for (final entry in a.entries) {
-      if (b[entry.key] != entry.value) return false;
-    }
-    return true;
-  }
 }

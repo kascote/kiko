@@ -59,7 +59,9 @@ class TableRenderer {
     final dataHeight = area.height - headerHeight;
     if (dataHeight <= 0) return;
 
-    if (surface is BufferSurface) {
+    // Report the viewport only while the model does not hold it.
+    final viewportChanged = dataHeight != model.visibleRows || visibleCols.length != model.visibleCols;
+    if (surface is BufferSurface && viewportChanged) {
       surface.report(ViewportChanged(model.id, rows: dataHeight, cols: visibleCols.length));
     }
 

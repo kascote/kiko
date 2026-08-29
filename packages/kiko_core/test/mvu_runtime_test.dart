@@ -5,7 +5,6 @@ import 'package:kiko/kiko.dart';
 // part of the public library. The queue is what these tests are about.
 import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
 import 'package:kiko_log/kiko_log.dart';
-import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -31,35 +30,6 @@ class TestEventStream {
 class TestMsg extends Msg {
   final String value;
   const TestMsg(this.value);
-}
-
-/// A report carrying one number, with value equality: the shape a widget's
-/// own kind takes.
-@immutable
-class _Rows extends FrameReport {
-  const _Rows(super.id, this.rows);
-
-  final int rows;
-
-  @override
-  bool operator ==(Object other) => other is _Rows && other.id == id && other.rows == rows;
-
-  @override
-  int get hashCode => Object.hash(id, rows);
-}
-
-/// A second report kind under the same ids as [_Rows].
-@immutable
-class _Cols extends FrameReport {
-  const _Cols(super.id, this.cols);
-
-  final int cols;
-
-  @override
-  bool operator ==(Object other) => other is _Cols && other.id == id && other.cols == cols;
-
-  @override
-  int get hashCode => Object.hash(id, cols);
 }
 
 /// A widget→app event command — the kind that must be consumed in update()
@@ -521,53 +491,6 @@ void main() {
           ..queueMsg(const TestMsg('after reset'));
 
         expect(((await runtime.nextMsg())! as TestMsg).value, 'after reset');
-      });
-    });
-
-    group('queueReports', () {
-      test('a report absent from the previous frame is queued', () async {
-        runtime.queueReports([const _Rows('list', 5)]);
-
-        expect(await runtime.nextMsg(), const _Rows('list', 5));
-      });
-
-      test("a report equal to the previous frame's is not queued", () async {
-        runtime
-          ..queueReports([const _Rows('list', 5)])
-          ..queueReports([const _Rows('list', 5)]);
-
-        expect(await runtime.nextMsg(), const _Rows('list', 5));
-        expect(runtime.hasPending, isFalse, reason: 'the fact did not change');
-      });
-
-      test('a report that changed is queued again', () async {
-        runtime
-          ..queueReports([const _Rows('list', 5)])
-          ..queueReports([const _Rows('list', 6)]);
-
-        expect(await runtime.nextMsg(), const _Rows('list', 5));
-        expect(await runtime.nextMsg(), const _Rows('list', 6));
-      });
-
-      test('a report that skipped a frame is queued when it returns, even unchanged', () async {
-        runtime
-          ..queueReports([const _Rows('popup', 3)])
-          ..queueReports(const [])
-          ..queueReports([const _Rows('popup', 3)]);
-
-        expect(await runtime.nextMsg(), const _Rows('popup', 3));
-        expect(await runtime.nextMsg(), const _Rows('popup', 3), reason: 'its owner may have forgotten it');
-      });
-
-      test('reports are compared per id and type', () async {
-        runtime
-          ..queueReports([const _Rows('a', 1), const _Rows('b', 1), const _Cols('a', 1)])
-          ..queueReports([const _Rows('a', 1), const _Rows('b', 2), const _Cols('a', 1)]);
-
-        final first = [await runtime.nextMsg(), await runtime.nextMsg(), await runtime.nextMsg()];
-        expect(first, [const _Rows('a', 1), const _Rows('b', 1), const _Cols('a', 1)]);
-        expect(await runtime.nextMsg(), const _Rows('b', 2));
-        expect(runtime.hasPending, isFalse);
       });
     });
 

@@ -37,6 +37,7 @@ void main() {
 
       final decision = renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -45,6 +46,9 @@ void main() {
 
       expect(decision, PopupPlacement(side: PopupSide.below, height: 3, decidedAgainst: frame.area));
       expect(frame.hits.rectOf('popup'), Rect.create(x: 2, y: 3, width: 6, height: 3));
+      final report = frame.reports.single as PopupPlaced;
+      expect(report.id, 'combo', reason: 'a fresh decision is reported to the owner');
+      expect(report.placement, decision);
     });
 
     test('below blocked, fits above', () {
@@ -52,6 +56,7 @@ void main() {
 
       final decision = renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -68,6 +73,7 @@ void main() {
       // room below = 10 - 5 = 5, room above = 4 - 0 = 4: below has more room.
       final decision = renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 8,
         width: 6,
@@ -82,6 +88,7 @@ void main() {
       final first = _frame(20, 10)..render(NodeView(_anchor(left: 2, top: 2, width: 6, height: 1)));
       final decision = renderAnchoredPopup(
         first,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -95,6 +102,7 @@ void main() {
       final second = _frame(20, 10)..render(NodeView(_anchor(left: 2, top: 8, width: 6, height: 1)));
       final held = renderAnchoredPopup(
         second,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -104,12 +112,14 @@ void main() {
 
       expect(held, decision);
       expect(second.hits.rectOf('popup'), Rect.create(x: 2, y: 9, width: 6, height: 3));
+      expect(second.reports, isEmpty, reason: 'the standing decision was painted; the owner holds it already');
     });
 
     test('a viewport-area change re-decides', () {
       final first = _frame(20, 10)..render(NodeView(_anchor(left: 2, top: 2, width: 6, height: 1)));
       final decision = renderAnchoredPopup(
         first,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -122,6 +132,7 @@ void main() {
       final second = _frame(20, 4)..render(NodeView(_anchor(left: 2, top: 2, width: 6, height: 1)));
       final redecided = renderAnchoredPopup(
         second,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -131,6 +142,7 @@ void main() {
 
       expect(redecided, PopupPlacement(side: PopupSide.above, height: 2, decidedAgainst: second.area));
       expect(second.hits.rectOf('popup'), Rect.create(x: 2, y: 0, width: 6, height: 2));
+      expect((second.reports.single as PopupPlaced).placement, redecided, reason: 'a new decision is news');
     });
 
     test('a missing anchor path renders no overlay', () {
@@ -138,6 +150,7 @@ void main() {
 
       final decision = renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/missing',
         requestedHeight: 3,
         width: 6,
@@ -146,6 +159,7 @@ void main() {
 
       expect(decision, isNull);
       expect(frame.hits.rectOf('popup'), isNull);
+      expect(frame.reports, isEmpty, reason: 'nothing was placed, so nothing is reported');
     });
 
     test('a width wider than the room right of the anchor clamps into the viewport', () {
@@ -154,6 +168,7 @@ void main() {
       // anchor.left (12) + width (10) = 22 overhangs area.right (20).
       renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 10,
@@ -177,6 +192,7 @@ void main() {
 
       renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,
@@ -220,6 +236,7 @@ void main() {
       final groundStyle = resolver.ground(resolver.tones.surface);
       renderAnchoredPopup(
         frame,
+        id: 'combo',
         anchorPath: 'combo/field',
         requestedHeight: 3,
         width: 6,

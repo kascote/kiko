@@ -5,12 +5,12 @@ import 'package:meta/meta.dart';
 /// table, how many columns.
 ///
 /// The view reports one from paint through `BufferSurface.report`, addressed
-/// to the widget's id. A part painted under a composite's scope reports the
-/// scoped path — `combo/list` — so the router delivers it to the composite,
-/// which forwards it by leaf. The owner's `update` compares the report to the
-/// count it holds: an unchanged report is `Handled` with no command; a changed
-/// one stores the count and returns the demand pass for the pages the viewport
-/// now needs.
+/// to the widget's id, only when the count differs from the one the model
+/// holds. A part painted under a composite's scope reports the scoped path —
+/// `combo/list` — so the router delivers it to the composite, which forwards
+/// it by leaf. The owner's `update` stores the count and returns the demand
+/// pass for the pages the viewport now needs; it keeps a compare against the
+/// count it holds as a guard, answering `Handled` with no command.
 @immutable
 class ViewportChanged extends FrameReport {
   /// Creates a report that the widget registered under [id] painted [rows]

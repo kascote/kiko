@@ -90,6 +90,25 @@ r2   Name 2    20''',
         );
       });
 
+      test('a paint whose viewport the model already holds reports nothing', () {
+        final model = TableViewModel(
+          rows: sampleRows(),
+          keyField: 'id',
+          columns: sampleColumns(),
+          columnSeparator: const Text(''),
+        );
+        final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 23, height: 4));
+        final first = BufferSurface(buffer);
+        TableRenderer(model, Theme.dark, null).paint(buffer.area, first);
+        first.reports.forEach(model.update);
+        expect(model.visibleRows, equals(3));
+
+        final second = BufferSurface(buffer);
+        TableRenderer(model, Theme.dark, null).paint(buffer.area, second);
+
+        expect(second.reports, isEmpty, reason: 'the model holds the viewport, so the frame a report causes settles');
+      });
+
       test('reports the visible dimensions', () async {
         final model = TableViewModel(
           rows: sampleRows(),

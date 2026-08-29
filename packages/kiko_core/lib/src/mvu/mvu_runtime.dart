@@ -6,7 +6,6 @@ import 'package:termparser/termparser_events.dart';
 
 import '../widgets/hit_map.dart';
 import 'cmd.dart';
-import 'frame_report.dart';
 import 'mouse_router.dart';
 import 'msg.dart';
 import 'pointer_msg.dart';
@@ -62,11 +61,6 @@ class MvuRuntime {
   /// Whether [close] has been called: [nextMsg] answers null from then on.
   bool _closed = false;
 
-  /// The last report the previous frame produced, per widget id and type.
-  ///
-  /// A frame's report equal to this one is not news and is not queued.
-  Map<(String, Type), FrameReport> _lastReports = const {};
-
   /// Exit code set by Quit command.
   int exitCode = 0;
 
@@ -94,7 +88,6 @@ class MvuRuntime {
     _msgQueue.clear();
     _wakeUp = Completer<void>();
     _closed = false;
-    _lastReports = const {};
     _cancelTicks();
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = null;
@@ -179,25 +172,6 @@ class MvuRuntime {
   void queueMsg(Msg msg) {
     _msgQueue.add(msg);
     _signalWakeUp();
-  }
-
-  /// Queues the reports of a committed frame that carry news.
-  ///
-  /// A report equal to the one the previous frame produced under the same id
-  /// and type is not queued: the fact has not changed, so its owner has
-  /// nothing to learn. That is what lets a frame caused by a report settle
-  /// instead of reporting its way into the next frame forever. A report
-  /// whose id and type were absent from the previous frame is always queued.
-  ///
-  /// Reports are compared with `==`, so a report kind is a value.
-  void queueReports(Iterable<FrameReport> reports) {
-    final next = <(String, Type), FrameReport>{};
-    for (final report in reports) {
-      final key = (report.id, report.runtimeType);
-      next[key] = report;
-      if (_lastReports[key] != report) queueMsg(report);
-    }
-    _lastReports = next;
   }
 
   /// Whether a message is waiting in the queue.

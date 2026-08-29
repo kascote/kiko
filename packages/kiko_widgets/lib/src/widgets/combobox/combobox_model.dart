@@ -115,9 +115,10 @@ class ComboboxModel<T> implements Component {
 
   /// The popup's held placement decision, or null while closed.
   ///
-  /// The view reports every open paint's decision as a [PopupPlaced] and
-  /// [update] stores it here, so the popup keeps one side and height for the
-  /// whole open session; [close] clears it.
+  /// The popup's paint reports a [PopupPlaced] whenever it decides a
+  /// placement this model does not hold, and [update] stores it here, so the
+  /// popup keeps one side and height for the whole open session; [close]
+  /// clears it.
   PopupPlacement? placement;
 
   /// The embedded text field.

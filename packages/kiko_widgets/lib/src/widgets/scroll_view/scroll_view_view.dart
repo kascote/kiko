@@ -11,10 +11,11 @@ import 'types.dart';
 /// [ScrollViewModel.scrollOffset], and tags the viewport node itself with
 /// [ScrollViewModel.id] — the content area IS the hit region, so a wheel over
 /// a gap between composed children still resolves to the model, not the
-/// background. Installs the measurement callback that reports this frame's
-/// viewport/content extents as a [ScrollMetrics] addressed to the model's
-/// id, the way every windowed widget reports its viewport; the model reads
-/// it one frame behind the paint.
+/// background. Installs the measurement callback that reports the
+/// viewport/content extents it painted as a [ScrollMetrics] addressed to the
+/// model's id when they differ from what the model holds, the way every
+/// windowed widget reports its viewport; the model reads them one frame
+/// behind the paint.
 ///
 /// Every tagged descendant's content-relative row range is keyed by its hit
 /// path, folded from its ancestor tag chain. A [ScopeTag] extends the path;
@@ -52,6 +53,13 @@ final class ScrollView implements View {
       final range = (top: entry.top, height: entry.height);
       final existing = tagRanges[path];
       tagRanges[path] = existing == null ? range : _union(existing, range);
+    }
+    // Report only while the model does not hold this geometry, so the frame
+    // the report causes has nothing more to say.
+    if (metrics.viewportRows == model.viewportRows &&
+        metrics.contentRows == model.contentRows &&
+        sameTagRanges(tagRanges, model.tagRanges)) {
+      return;
     }
     surface.report(
       ScrollMetrics(

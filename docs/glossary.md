@@ -37,9 +37,9 @@ A term of art added to a page gets its entry here in the same change.
   (`docs/backend.md`).
 - **report** (`FrameReport`) — a layout fact paint hands back to the widget
   that owns it, as an addressed message the runtime queues after the frame
-  commits. Paint reports; it never writes into a model. A report kind is a
-  value, and the runtime delivers a report only when it differs from the
-  previous frame's (`docs/architecture.md`).
+  commits. Paint reports; it never writes into a model. Paint reports a fact
+  only when it differs from the fact the model holds, so a frame caused by a
+  report settles (`docs/architecture.md`).
 
 ## MVU
 

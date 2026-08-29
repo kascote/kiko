@@ -86,6 +86,19 @@ void main() {
       expect(frame.hits.hitId(0, 0), 'combo/${model.id}', reason: 'the same path the hit map records');
     });
 
+    test('a paint whose count the model already holds reports nothing', () {
+      final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
+      final view = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      _commit(5, 3, view, model);
+      expect(model.visibleCount, 3);
+
+      final second = _frame(5, 3)..render(view);
+      expect(second.reports, isEmpty, reason: 'the model holds the count, so the frame a report causes settles');
+
+      final resized = _frame(5, 4)..render(view);
+      expect((resized.reports.single as ViewportChanged).rows, 4, reason: 'a new count is news again');
+    });
+
     test('windows the rows to the scroll offset', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
       final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);

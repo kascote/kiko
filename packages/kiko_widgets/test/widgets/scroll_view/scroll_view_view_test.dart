@@ -74,6 +74,24 @@ void main() {
       expect(model.contentRows, equals(9));
     });
 
+    test('a paint whose geometry the model already holds reports nothing', () {
+      final model = ScrollViewModel();
+      final view = ScrollView(model: model, child: _taggedRows(6));
+      _frame(6, 4)
+        ..render(view)
+        ..deliverReports(model);
+
+      final second = _frame(6, 4)..render(view);
+      expect(second.reports, isEmpty, reason: 'the model holds the geometry, so the frame a report causes settles');
+
+      model.scrollBy(3);
+      final scrolled = _frame(6, 4)..render(view);
+      expect(scrolled.reports, isEmpty, reason: 'ranges are content-relative, so scrolling changes nothing');
+
+      final resized = _frame(6, 5)..render(view);
+      expect((resized.reports.single as ScrollMetrics).viewportRows, equals(5), reason: 'a new extent is news again');
+    });
+
     test('ensureVisible works against the ranges the view reported', () {
       final model = ScrollViewModel();
       final view = ScrollView(model: model, child: _taggedRows(6));

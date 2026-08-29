@@ -149,6 +149,17 @@ void main() {
       expect(report.rows, 4);
       expect(model.visibleCount, 0, reason: 'paint reports; it never writes into the model');
     });
+
+    test('a paint whose count the model already holds reports nothing', () {
+      final model = TreeViewModel<String>(id: 'nav')
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
+      final view = TreeView<String>(model: model, theme: Theme.dark);
+      (_frame(8, 4)..render(view)).reports.forEach(model.update);
+      expect(model.visibleCount, 4);
+
+      final second = _frame(8, 4)..render(view);
+      expect(second.reports, isEmpty, reason: 'the model holds the count, so the frame a report causes settles');
+    });
   });
 
   group('tree view click routing', () {

@@ -31,11 +31,12 @@ right after the frame commits, behind the frame's hit map. A report implements
 The owner therefore reads the fact one message after the frame that produced
 it, with `ctx.hits` describing that same frame.
 
-A report kind is a value: it implements `==` over its fields. The runtime
-queues a report only when it differs from the report the previous frame
-produced under the same id and type. An unchanged fact is delivered once,
-not once per frame, so a frame caused by a report settles instead of causing
-the next one ("The event loop").
+Paint reports a fact only when it differs from the fact the model already
+holds. The view has both — the value it just measured and the model it
+paints from — so that compare lives in paint. The runtime queues every
+report a frame carries and keeps no memory between frames. A frame caused by
+a report therefore settles: once the report lands, the model holds the fact,
+and the next paint reports nothing ("The event loop").
 
 **Key types:**
 
@@ -154,9 +155,9 @@ commit the loop hands the frame's hit map to the runtime, queues the frame's
 reports, and calls `Application.onFrame` with the `CompletedFrame`. A
 terminal event emitted from `onFrame` resolves against that frame.
 
-A report is queued only when it differs from the report the previous frame
-produced under the same id and type ("Core rendering flow"). A frame caused
-by a report reports the same fact, queues nothing, and the loop idles.
+Paint reports a fact only when the model does not hold it yet ("Core
+rendering flow"). A frame caused by a report paints from a model that now
+holds the fact, reports nothing, and the loop idles.
 
 ### Ticks
 
@@ -224,8 +225,6 @@ Application(
 - `MvuRuntime.nextMsg()` — waits for the next message; answers null once
   the queue is closed.
 - `MvuRuntime.close()` — closes the queue and wakes a waiting `nextMsg`.
-- `MvuRuntime.queueReports(reports)` — queues a frame's reports that
-  differ from the previous frame's.
 - `MvuRuntime.subscribeToEvents(stream)` — subscribes the queue to terminal
   events.
 - `Terminal.events` — the broadcast stream of parsed events.

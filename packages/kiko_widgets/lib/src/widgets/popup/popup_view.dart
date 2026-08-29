@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import 'popup_placed.dart';
 import 'popup_placement.dart';
 
 /// Paints an anchored popup as a layer on top of an already-rendered
@@ -13,8 +14,10 @@ import 'popup_placement.dart';
 /// [requestedHeight] in rows, a [width], and [popupBuilder] to build the
 /// popup's node, tags included; this helper adds no chrome of its own. Pass
 /// the standing [decision] back on every paint of an open popup — `null`
-/// while closed — and report the return value to the frame as a
-/// `PopupPlaced` addressed to the model that owns the popup.
+/// while closed. When the placement painted differs from [decision], the
+/// helper reports it to [frame] as a [PopupPlaced] addressed to [id], the
+/// model that owns the popup; that model stores it and passes it back as the
+/// next [decision].
 ///
 /// The anchor's rect comes from `frame.hits.rectOf(anchorPath)`, so it must
 /// already be definite: a bare scope path has no rect and answers `null`
@@ -28,6 +31,7 @@ import 'popup_placement.dart';
 /// clamped so [width] never overhangs the viewport.
 PopupPlacement? renderAnchoredPopup(
   Frame frame, {
+  required String id,
   required String anchorPath,
   required int requestedHeight,
   required int width,
@@ -52,6 +56,7 @@ PopupPlacement? renderAnchoredPopup(
     Rect.create(x: left, y: top, width: width, height: placement.height),
   );
 
+  if (placement != decision) frame.report(PopupPlaced(id, placement));
   return placement;
 }
 

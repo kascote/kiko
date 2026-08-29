@@ -1,5 +1,3 @@
-import 'package:meta/meta.dart';
-
 import 'addressed.dart';
 import 'msg.dart';
 
@@ -10,18 +8,18 @@ import 'msg.dart';
 /// writing into the model. The frame keeps the last report per [id] and type,
 /// `CompletedFrame.reports` carries them out of the draw, and the runtime
 /// queues each one as a message once the frame commits. The owner's `update`
-/// compares the report to what it holds and returns a command only when the
-/// fact changed.
+/// stores the fact and returns the command it calls for.
+///
+/// Paint reports a fact only when it differs from the fact the model already
+/// holds. The view has both — the value it just measured and the model it
+/// paints from — so that compare lives in paint. Once the report lands the
+/// model holds the fact and the next paint has nothing to say, so a frame
+/// caused by a report settles. The runtime queues every report a frame
+/// carries and keeps no memory between frames.
 ///
 /// Extend it beside the model that consumes it; core carries reports and never
 /// reads them. A report is [Addressed], so a focus router delivers it to its
 /// owner by [id]. An app without a router matches on it in its own `update`.
-///
-/// A report is a value: override `==` and `hashCode` over every field. The
-/// runtime queues a frame's report only when it differs from the one the
-/// previous frame produced under the same id and type, so an unchanged fact
-/// is delivered once, not once per frame.
-@immutable
 abstract class FrameReport extends Msg implements Addressed {
   /// Creates a report for the widget registered under [id].
   const FrameReport(this.id);

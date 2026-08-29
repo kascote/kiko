@@ -31,9 +31,18 @@ enum ScrollViewAction {
 ///
 /// Both fields are content-relative — measured from the top of the content,
 /// not the viewport — so a range stays the same as the viewport scrolls.
-/// Reported by the view's paint each frame in a `ScrollMetrics`, so the
+/// Reported by the view's paint in a `ScrollMetrics` when it changes, so the
 /// model reads it one frame behind.
 typedef ScrollViewTagRange = ({int top, int height});
+
+/// Whether [a] and [b] hold the same ranges under the same paths.
+bool sameTagRanges(Map<String, ScrollViewTagRange> a, Map<String, ScrollViewTagRange> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (b[entry.key] != entry.value) return false;
+  }
+  return true;
+}
 
 // ═══════════════════════════════════════════════════════════
 // SCROLL STATE

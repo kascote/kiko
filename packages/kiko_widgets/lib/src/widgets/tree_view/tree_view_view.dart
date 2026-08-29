@@ -118,7 +118,10 @@ class _TreeViewport<T> extends Node {
 
     final visibleCount = area.height;
     if (visibleCount <= 0) return;
-    if (surface is BufferSurface) surface.report(ViewportChanged(m.id, rows: visibleCount));
+    // Report the count only while the model does not hold it.
+    if (surface is BufferSurface && visibleCount != m.visibleCount) {
+      surface.report(ViewportChanged(m.id, rows: visibleCount));
+    }
 
     final startIndex = m.scrollOffset;
     final endIndex = (startIndex + visibleCount).clamp(0, nodes.length);

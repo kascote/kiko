@@ -858,24 +858,61 @@ void main() {
       expect(views, 1);
     });
 
-    test('a report that repeats unchanged frame after frame is delivered once, and the app settles', () async {
+    test('a fact the model already holds is not reported again, and the app settles', () async {
       var deliveries = 0;
 
       await runApp(
         Application(backend: backend),
-        update: (model, msg, _) => switch (msg) {
-          InitMsg() => (model, const Tick(Duration(milliseconds: 60), id: 'probe')),
-          _Rows() => (model, (++deliveries, null).$2),
-          TickMsg(id: 'probe') => (model, const Quit()),
-          _ => (model, null),
+        update: (held, msg, _) => switch (msg) {
+          InitMsg() => (held, const Tick(Duration(milliseconds: 60), id: 'probe')),
+          _Rows(:final rows) => (rows, (++deliveries, null).$2),
+          TickMsg(id: 'probe') => (held, const Quit()),
+          _ => (held, null),
         },
-        // The same fact every frame: a windowed widget's viewport on a
-        // static screen.
-        view: (_, frame) => frame.render(_Reporter([const _Rows('list', 4)])),
+        // A windowed widget on a static screen: paint measures the same four
+        // rows every frame and reports them only while the model has not
+        // learned them.
+        view: (held, frame) => frame.render(_Reporter([if (held != 4) const _Rows('list', 4)])),
       );
 
-      expect(deliveries, 1, reason: 'the fact did not change after the first frame');
+      expect(deliveries, 1, reason: 'reported once; the model held the fact after that');
       expect(backend.drawCount, 2, reason: 'the init draw, the frame its report caused, then nothing');
+    });
+
+    test('a model replaced under a standing id learns its viewport again on the next frame', () async {
+      final learned = <int>[];
+      int? heldAtQuit;
+
+      await runApp(
+        Application(
+          backend: backend,
+          onFrame: (frame) {
+            // Once the fact has landed, the app swaps in a fresh model under
+            // the same id: a new screen, a new data source. The screen stays
+            // static, so paint measures the same four rows.
+            if (frame.count == 1) backend.emitKey('r');
+          },
+        ),
+        update: (held, msg, _) {
+          switch (msg) {
+            case _Rows(:final rows):
+              learned.add(rows);
+              return (rows, null);
+            case KeyMsg(key: 'r'):
+              return (0, const Tick(Duration(milliseconds: 60), id: 'probe'));
+            case TickMsg(id: 'probe'):
+              heldAtQuit = held;
+              return (held, const Quit());
+            default:
+              return (held, null);
+          }
+        },
+        view: (held, frame) => frame.render(_Reporter([if (held != 4) const _Rows('list', 4)])),
+      );
+
+      expect(learned, [4, 4], reason: 'the fresh model does not hold the fact, so paint reports it again');
+      expect(heldAtQuit, 4);
+      expect(backend.drawCount, 4, reason: 'init, its report, the swap, its report; then nothing');
     });
 
     test('two reports with the same id and type in one frame deliver only the last', () async {

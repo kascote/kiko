@@ -234,13 +234,44 @@ void main() {
       final second = _frame(10, 6);
       _renderRow(second, view);
       view.renderPopup(second);
-      final reported = second.reports.whereType<PopupPlaced>().single;
-      expect(reported.placement, decided, reason: 'the standing decision is passed back and reported unchanged');
+      expect(
+        second.reports.whereType<PopupPlaced>(),
+        isEmpty,
+        reason: 'the standing decision is passed back and painted; the model holds it, so it is not news',
+      );
       second.deliverReports(combo);
       expect(combo.placement, decided, reason: 'the same open session keeps its decided placement');
 
       combo.close();
       expect(combo.placement, isNull);
+    });
+
+    test('closing and reopening before a frame reports the placement again', () {
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      final first = _frame(10, 6);
+      _renderRow(first, view);
+      view.renderPopup(first);
+      first.deliverReports(combo);
+      final decided = combo.placement;
+      expect(decided, isNotNull);
+
+      // Both inside one frame interval: the model forgets the decision, and
+      // the next paint decides the same one afresh.
+      combo
+        ..close()
+        ..update(_pressOn('combo/toggle'));
+      expect(combo.isOpen, isTrue);
+      expect(combo.placement, isNull);
+
+      final second = _frame(10, 6);
+      _renderRow(second, view);
+      view.renderPopup(second);
+
+      final reported = second.reports.whereType<PopupPlaced>().single;
+      expect(reported.placement, decided, reason: 'the model does not hold it, so the same decision is news');
+      second.deliverReports(combo);
+      expect(combo.placement, decided);
     });
 
     test('the delivered placement is the one the next paint uses', () {
@@ -270,11 +301,14 @@ void main() {
 
       final second = paintWithFieldAt(4);
       expect(
-        second.reports.whereType<PopupPlaced>().single.placement.side,
-        PopupSide.below,
-        reason: 'the delivered decision is sticky for the open session',
+        second.reports.whereType<PopupPlaced>(),
+        isEmpty,
+        reason: 'the delivered decision is sticky for the open session, and the model holds it',
       );
-      expect(first.hits.hitId(0, 3), 'combo/${combo.internalList.id}');
+      final listPath = 'combo/${combo.internalList.id}';
+      expect(first.hits.hitId(0, 3), listPath);
+      expect(second.hits.hitId(0, 5), listPath, reason: 'still below the field, though below no longer fits in full');
+      expect(second.hits.hitId(0, 3), isNull, reason: 'nothing painted above the field');
     });
   });
 

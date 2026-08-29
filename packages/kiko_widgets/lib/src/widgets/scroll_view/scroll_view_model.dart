@@ -17,10 +17,11 @@ import 'types.dart';
 ///
 /// The model owns no content and does no layout itself: `ScrollView` wraps a
 /// plume viewport around whatever content the caller composes, and its paint
-/// reports each frame's geometry as a [ScrollMetrics] addressed to [id]. The
-/// router delivers it here and [update] stores it, one frame behind the
-/// paint. Unlike ListView, TableView and TreeView, this model never loads:
-/// it scrolls composed UI already fully in memory, not paginated data (see
+/// reports the geometry it painted as a [ScrollMetrics] addressed to [id]
+/// when it differs from what this model holds. The router delivers it here
+/// and [update] stores it, one frame behind the paint. Unlike ListView,
+/// TableView and TreeView, this model never loads: it scrolls composed UI
+/// already fully in memory, not paginated data (see
 /// `docs/async-loading.md` for the data-scale widgets).
 ///
 /// ```dart
@@ -81,6 +82,10 @@ class ScrollViewModel with ScrollableModel implements Component {
 
   /// How many rows the content spans, as last reported by the view.
   int get contentRows => _contentRows;
+
+  /// Every tagged descendant's content-relative row range, keyed by its hit
+  /// path, as last reported by the view.
+  Map<String, ScrollViewTagRange> get tagRanges => _tagRanges;
 
   int get _maxOffset {
     final over = _contentRows - _viewportRows;

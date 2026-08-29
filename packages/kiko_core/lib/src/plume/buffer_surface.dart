@@ -81,7 +81,8 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// many rows it showed — calls this instead of writing into the model. The
   /// report leaves the draw with the completed frame and reaches the owner's
   /// `update` as a message once the frame commits. Call it behind
-  /// `if (surface is BufferSurface)`, as with [placeCursor].
+  /// `if (surface is BufferSurface)`, as with [placeCursor], and only for a
+  /// fact the model does not hold yet; see [FrameReport].
   void report(FrameReport report) => _reports.add(report);
 
   @override

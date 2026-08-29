@@ -22,7 +22,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Size correctness never depends on `ResizeMsg` — `Terminal.draw` polls the backend size before every frame; the frame after a resize does, because a frame follows a message (`docs/backend.md`).
 - A frame follows every processed message and `fps` is only a ceiling; nothing in the runtime polls or runs a permanent timer (`docs/architecture.md`).
 - `Tick` is one-shot and addressed: arm it with the owner's `id` and generation `key`, re-arm from the `TickMsg` case, drop a stale key (`docs/architecture.md`).
-- A `FrameReport` kind is a value (`==` over its fields); the runtime delivers a report only when it changed since the previous frame (`docs/architecture.md`).
+- Paint reports a fact only when it differs from the fact the model holds; the runtime queues every report and remembers nothing between frames (`docs/architecture.md`).
 - `Theme`, `Tone`, `StyleResolver`, `WidgetState` and `KeyBinding` live here, but the styling doctrine lives in `docs/theming.md`; touch `style_resolver.dart`, `theme.dart` or `tone.dart` only with it open.
 
 ## Documentation map

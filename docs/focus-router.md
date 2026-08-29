@@ -52,12 +52,12 @@ this for every model — keep new widgets in that suite.
 
 The order of cases in the app's `update`:
 
-1. Domain messages first: the app's own message classes, and a command the
-   app must act on before anything else. Async results are not in this
-   group: the router delivers them.
+1. Domain messages first: the app's own message classes, handled before
+   anything else. Async results are not in this group: the router delivers
+   them.
 2. App-level pre-route intercepts — a message the app wants before a widget
-   sees it. These are rare; prefer switching on the `Handled(cmd)` the router
-   returns.
+   sees it. These are rare; prefer switching on the `Handled(events)` the
+   router returns.
 3. The one delegate line: `switch (model.router.route(msg, ctx))`.
 4. Fallback keys, on `Declined` only. They run for input every widget
    declined, so a quit key can never fire while someone is typing into a

@@ -57,7 +57,7 @@ One line each; the linked page explains the rule.
 
 - Bind on `KeyMsg.key`, insert `KeyMsg.text` — never derive one from the other (`docs/keyboard.md`).
 - The framework never calls `exit()`; `run()` completes with the exit code and the app calls `exit(await ...run(...))` (`docs/architecture.md`).
-- Widget→app commands and async results address their target by stable `id`, carried by value — and async results must thread that id home (`docs/components.md`).
+- Widget events and async results address their target by stable `id`, carried by value — and async results must thread that id home (`docs/components.md`).
 
 Package-specific rules live in `packages/kiko_core/CLAUDE.md` and `packages/kiko_widgets/CLAUDE.md`.
 

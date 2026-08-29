@@ -19,10 +19,10 @@ Guidance for Claude Code in `kiko_widgets` — higher-level widgets over
 
 One line each; the linked page (paths from the repo root) explains the rule.
 
-- Widget models are mutable `Component`s: `update(msg)` returns `Handled` (with optional `Cmd`) or `Declined` — consume only what you understand, decline everything else, and keep every model in `test/widgets/decline_unknown_test.dart` (`docs/components.md`).
+- Widget models are mutable `Component`s: `update(msg)` returns `Handled` (events and an optional `Cmd`) or `Declined` — consume only what you understand, decline everything else, and keep every model in `test/widgets/decline_unknown_test.dart` (`docs/components.md`).
 - Widgets self-tag (`..tag = IdTag(model.id)` in `build`); never wrap a self-tagging widget in `Tagged` (`docs/mouse.md`).
 - The pointer cases sit above the focus gate; the keyboard sits behind it (`docs/mouse.md`, `docs/keyboard.md`).
-- A click emits the same id-addressed command Enter does; a widget never emits a focus command (`docs/mouse.md`).
+- A click emits the same id-addressed event Enter does; a widget never moves focus itself (`docs/mouse.md`).
 - A widget places its caret only from a press that carries a rect (`docs/mouse.md`).
 - Editors insert `msg.text`, never `msg.key`; decline `KeyReleaseMsg` and `ModifierKeyMsg` (`docs/keyboard.md`).
 - Address by stable `id` carried by value; thread both `id` and `key` into every async result (`docs/components.md`).

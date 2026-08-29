@@ -47,15 +47,20 @@ A term of art added to a page gets its entry here in the same change.
 - **message** (`Msg`) — an event delivered to `update`: a keystroke, a pointer
   event, a tick, a custom app event.
 - **command** (`Cmd`) — a value returned from `update` describing an effect
-  the runtime (or the app) should perform.
+  the runtime should perform.
+- **widget event** (`WidgetEvent`) — a value a widget hands up to the app for
+  the app to interpret, carrying the widget's `id` as its address. Carried in
+  `Handled.events`; distinct from a command, which the runtime performs
+  directly.
 - **component** — a widget model implementing `Component`: it has a stable
   `id` and an `update` that returns a verdict (`docs/components.md`).
-- **verdict** — a widget update's return: `Handled` (consumed, with an
-  optional command) or `Declined` (not consumed, still in flight).
+- **verdict** — a widget update's return: `Handled`, naming the `events` it
+  produced for the app and the `cmd` it produced for the runtime, or
+  `Declined` (not consumed, still in flight).
 - **decline** — returning `Declined`: the widget did not consume the message,
   so the caller may offer it elsewhere.
-- **id / addressing** — a component's stable string identity. Widget→app
-  commands and async results carry it as their address.
+- **id / addressing** — a component's stable string identity. A widget event
+  and an async result carry it as their address.
 - **addressed message** — a message implementing `Addressed`: it names the
   widget it is for by id, and the router delivers it there (`LoadResult`,
   `FrameReport`, `TickMsg`; `docs/components.md`). Distinct from pointer traffic, whose

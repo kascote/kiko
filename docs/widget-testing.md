@@ -27,8 +27,8 @@ scaffolding, not production API, so it lives outside `package:kiko/kiko.dart`.
 
 A widget model's `update(Msg)` is an ordinary method on an ordinary object.
 Construct the model, hand it a message, and assert on two things: the verdict —
-`Handled`, optionally carrying a `Cmd`, or `Declined` — and the state the model
-mutated.
+`Handled`, carrying the `events` it produced and an optional `Cmd`, or
+`Declined` — and the state the model mutated.
 
 Messages are plain values. A keystroke is `const KeyMsg('enter')`:
 
@@ -38,7 +38,7 @@ test('enter presses a focused button', () {
 
   final result = button.update(const KeyMsg('enter'));
 
-  expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()));
+  expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ButtonPressEvent>()]));
 });
 
 test('an unfocused button declines the same key', () {
@@ -89,7 +89,7 @@ test('down then up inside the button activates it', () {
   expect(button.pressed, isTrue);
 
   final up = button.update(pointerAt(PointerAction.up, x: 2));
-  expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()));
+  expect(up, isA<Handled>().having((h) => h.events, 'events', [isA<ButtonPressEvent>()]));
 });
 ```
 

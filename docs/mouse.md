@@ -297,7 +297,8 @@ final targets = <String, Component>{'table-1': m.table, 'list-1': m.list};
 case PointerMsg(targetId: 'table-1') p => handleTableSpecially(model, p);  // domain case
 case Routed(:final targetId?) when targets.containsKey(targetId):          // generic
   return switch (targets[targetId]!.update(msg)) {                         // same update(Msg) keyboard uses
-    Handled(:final cmd) => (model, cmd),                                   // consumed → run its effect
+    Handled(:final events, :final cmd) =>                                  // consumed → forward events + effect
+      (model, Batch([cmd, for (final e in events) onEvent(model, e)])),
     Declined() => (model, null),                                           // not consumed → could try the next id out
   };
 case PointerMsg p => handleBackground(model, p);   // targetId == null → background
@@ -309,8 +310,7 @@ them fall through. Keyboard forwards to the **focused** component: one
 target, one `focus.focused`. Mouse forwards to the **targeted** component: N
 targets, so a map. Both use the same `update(Msg)` entry point; the data
 structure differs exactly as the target count does. A click that activates a
-row therefore emits the same widget→app command a keyboard Enter would,
-addressed by the same id.
+row therefore emits the same id-addressed event a keyboard Enter would.
 
 **Propagation is app-side.** Events deliver to the innermost target only; the
 framework never bubbles. Build propagation from `ctx.hits.hitPath(x, y)` plus
@@ -362,10 +362,10 @@ to end. The rules:
   bubbling. A wheel a `TextInput` cannot use must come back `Declined()`, or
   it never reaches the scrollable around it. Decline every pointer you do not
   consume.
-- **A click emits the keyboard's command.** The widget moves its cursor to
-  the clicked row and returns the same id-addressed command Enter returns;
-  the app cannot tell which device fired it. A widget never emits a focus
-  command. Moving focus on a press belongs to whoever owns the `FocusGroup`;
+- **A click emits the same id-addressed event Enter does.** The widget moves
+  its cursor to the clicked row and returns the same event Enter returns; the
+  app cannot tell which device fired it. A widget never moves focus itself.
+  Moving focus on a press belongs to whoever owns the `FocusGroup`;
   `FocusRouter` (or `focusOnPress`) does it in one line.
 - **Read discrete parts from hit regions, not coordinates.** A view marks
   each row, header, or indicator as a `Region` while it paints

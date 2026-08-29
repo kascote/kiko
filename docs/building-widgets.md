@@ -19,7 +19,8 @@ The **model** is mutable state plus an `update(Msg)` that consumes messages.
 It implements `Component`: a stable `String id`, an `UpdateResult update(Msg)`,
 and a `focused` setter (via `Focusable`). Models mutate in place — Bubble Tea
 style, not Elm. `update` returns no new model, only a verdict: `Handled`
-(consumed, optionally carrying a `Cmd`) or `Declined` (not consumed).
+(consumed, carrying the `events` it produced and an optional `Cmd`) or
+`Declined` (not consumed).
 
 The **view** is a stateless class implementing `View`. It reads the model and
 builds UI. The app's `view` function constructs it fresh every frame, and its
@@ -51,22 +52,23 @@ its own `performLayout`/`paintSelf`. The palette below marks each of its rows,
 so it takes this shape. The windowed widgets use the same shape to build only
 the rows in view (`packages/kiko_widgets/lib/src/widgets/list_view/`).
 
-## The command
+## The event
 
-A widget talks to the app by returning commands from `update`. A command
-addresses its owner by **id, carried by value** — never by object reference.
-The app matches the id to find the owner, so one app can hold several palettes
-without ambiguity.
+A widget talks to the app by returning a `WidgetEvent` from `update`. A
+`WidgetEvent` addresses its owner by **id, carried by value** — never by
+object reference. The app matches the id to find the owner, so one app can
+hold several palettes without ambiguity.
 
 ```dart
 /// Emitted when an option is chosen — by Enter or by a click alike. It
 /// addresses its owner by [id], so an app holding several palettes can route
 /// it home.
-class PaletteChooseEvent extends Cmd {
-  /// Creates the command carrying the owner's [id] and the chosen [value].
+class PaletteChooseEvent extends WidgetEvent {
+  /// Creates the event carrying the owner's [id] and the chosen [value].
   const PaletteChooseEvent(this.id, this.value);
 
   /// The id of the palette that emitted this.
+  @override
   final String id;
 
   /// The option that was chosen.
@@ -130,7 +132,7 @@ only reads keys while it owns the keyboard:
         _snapToCursor();
         return const Handled();
       case KeyMsg(key: 'enter'):
-        return Handled(PaletteChooseEvent(id, options[cursor]));
+        return Handled.event(PaletteChooseEvent(id, options[cursor]));
     }
 
     // Everything else was never ours — decline it, never swallow it.
@@ -247,7 +249,7 @@ of a wash overwrites the row's own foreground. The full reasoning is
 
 ## Wiring it into an app
 
-The app owns the model, routes messages to it, and intercepts its commands.
+The app owns the model, routes messages to it, and translates its events.
 `FocusRouter` packages the routing — focus traversal, click-to-focus, pointer
 dispatch by id — behind one call:
 
@@ -263,14 +265,18 @@ class AppModel {
   String? chosen;
 }
 
+/// Reads the palette's choice out of a widget event; nothing else the palette
+/// emits reaches here.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case PaletteChooseEvent(:final value)) model.chosen = value;
+  return null;
+}
+
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // Widget→app commands first: intercept the palette's choice by id.
+  // Widget→app events first: intercept the palette's choice by id.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: PaletteChooseEvent(:final value)):
-      model.chosen = value;
-      return (model, null);
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // nothing consumed it — fall through to the app's own keys
   }
@@ -328,7 +334,7 @@ is `docs/mouse.md`. The widget half is this one branch at the **top** of
       // paints, so update never turns a coordinate into a row. `handleRowPointer`
       // (from ScrollableModel) is the row handler every scrollable shares: on a
       // press it moves the cursor there, snaps the scroll, and returns the same
-      // command Enter emits; on any other pointer it refreshes the hover.
+      // event Enter emits; on any other pointer it refreshes the hover.
       if (pointer.region case final RowScoped row) {
         return handleRowPointer(
           pointer,
@@ -367,14 +373,15 @@ Walk it rule by rule:
   pointer and hands it back on `pointer.region`. `handleRowPointer` (from
   `ScrollableModel`) is the row handler every scrollable's rows share. On a
   press it moves the cursor to the row, snaps the scroll, and returns the
-  widget's activate command; on any other pointer it refreshes the hover. A
+  widget's activate event; on any other pointer it refreshes the hover. A
   `null` region means the pointer is on nothing marked (the blank tail): a
   press bubbles, a move clears the hover.
-- **A click emits the keyboard's command.** The row handler returns the *same*
-  id-addressed `PaletteChooseEvent` that Enter returns. The app cannot tell
-  which device fired it, so it never grows a second, mouse-only path. A widget
-  never emits a focus command from a click either — moving focus is the app's
-  decision, and `FocusRouter` already does it on the press (`clickToFocus`).
+- **A click emits the same id-addressed event Enter does.** The row handler
+  returns the *same* `PaletteChooseEvent` that Enter returns. The app cannot
+  tell which device fired it, so it never grows a second, mouse-only path. A
+  widget never moves focus itself from a click either — moving focus is the
+  app's decision, and `FocusRouter` already does it on the press
+  (`clickToFocus`).
 - **Hover is a plain field.** `int? hoverRow`, set by the row handler, folded
   into the row styling in `build`, cleared by `PointerLeaveMsg`. There is no
   hover interface and no enter message — the first `PointerMsg` addressed to

@@ -1,19 +1,20 @@
 # Components: identity, the update contract, and addressing
 
 A widget model is a `Component`: it has a stable id, and its `update` reports
-whether it consumed a message. Every command a widget sends up to the app
-carries that id as its address. Every async result the app sends back down
-carries it too, and the router delivers it by that id. This page is the
+whether it consumed a message. Every `WidgetEvent` a widget hands up to the
+app carries that id as its address. Every async result the app sends back
+down carries it too, and the router delivers it by that id. This page is the
 contract; the authoring tutorial is `docs/building-widgets.md`.
 
 ## The Component contract
 
 `Component` (kiko_core, `src/mvu/focus.dart`) is the widget-model contract:
 `UpdateResult update(Msg)` plus `String get id`. `update` reports whether the
-model consumed the message: `Handled`, carrying an optional effect `Cmd`, or
-`Declined`. It never returns a bare `Cmd?`. The `id` is the model's stable
-identity, and widget→app commands carry it as their address. A focus-only
-model still has an `id`; addressing is just one use of identity.
+model consumed the message: `Handled`, carrying the `events` it produced for
+the app and an optional `cmd` for the runtime, or `Declined`. It never
+returns a bare `Cmd?`. The `id` is the model's stable identity, and a
+`WidgetEvent` carries it as its address. A focus-only model still has an
+`id`; addressing is just one use of identity.
 
 `autoId(String prefix)` (kiko_core, `src/mvu/auto_id.dart`) generates
 human-readable ids (`'tableview-1'`) from one shared monotonic counter.
@@ -34,16 +35,16 @@ Two update shapes coexist, and the asymmetry is deliberate:
   lets a small value-like app model stay immutable.
 - **Widget update** — `UpdateResult update(Msg)`. A widget model is always
   mutable, so it returns no model. It returns only a verdict: `Handled`,
-  carrying an optional effect `Cmd`, or `Declined`. The parent switches on
-  the verdict. A `Declined` message is still in flight; the parent may offer
-  it to the next candidate.
+  carrying the `events` it produced and an optional `cmd`, or `Declined`. The
+  parent switches on the verdict. A `Declined` message is still in flight;
+  the parent may offer it to the next candidate.
 
 Widgets follow MVU (Model-View-Update):
 
 ```dart
 // Model holds state + config
 class TextInputModel {
-  UpdateResult update(Msg msg) { ... }  // reports Handled (with optional Cmd) or Declined
+  UpdateResult update(Msg msg) { ... }  // reports Handled (events and an optional Cmd) or Declined
 }
 
 // Widget is a stateless View, built from the model
@@ -69,20 +70,19 @@ view: (model, frame) {
 
 ## Widget→app addressing
 
-Some widget commands are events the app must intercept, not runtime effects:
-`TableActivateEvent`, `ListActivateEvent`, `TreeExpandEvent`, `TreeCollapseEvent`,
-`TreeActivateEvent`, `ButtonPressEvent`, and the shared `LoadRequest` for data
-fetches (`docs/async-loading.md`). They travel up the call stack to the
-app's `update`. Each one addresses its owner by a stable `String id`,
-carried by value.
+A widget hands the app a `WidgetEvent` for something the app must interpret,
+not a runtime effect: a press, a row activation, an expand, a load request
+(`docs/async-loading.md`). A model returns one in a `Handled` result's
+`events`, and the app reads `events` in its own `update`. Each event
+addresses its owner by a stable `String id`, carried by value.
 
 Rules a contributor will otherwise miss:
 
-- **Address by `id`, never by reference or by command type.** The app
-  resolves a command to its owner by matching the id
+- **Address by `id`, never by reference or by event type.** The app
+  resolves an event to its owner by matching the id
   (`id == model.table.id`), or through a `Map<String, …>` registry for N
   instances. Never disambiguate with `identical(...)`. Never assume one
-  instance per command type.
+  instance per event type.
 - **Async results must carry the id home.** When the app fires a `Task` in
   response to a `LoadRequest(id, key)`, thread both the `id` and the `key`
   into the result message
@@ -96,7 +96,7 @@ Rules a contributor will otherwise miss:
   routes the result home by id. Do not `await dataSource.getChildren(...)`
   inside a widget. That loses the runtime's cancellation token and races the
   message loop.
-- **Log and drop a command whose id resolves to no owner; never ignore it
+- **Log and drop an event whose id resolves to no owner; never ignore it
   silently.** The failure stays observable — the advantage id addressing has
   over reference addressing.
 
@@ -104,7 +104,7 @@ Rules a contributor will otherwise miss:
 
 `Addressed` (kiko_core, `src/mvu/addressed.dart`) is the interface for a
 message that names the widget it is for: `String get id`. It is the inbound
-half of id addressing. Widget→app commands carry an id up; an `Addressed`
+half of id addressing. A `WidgetEvent` carries an id up; an `Addressed`
 message carries one down. `LoadResult`, `FrameReport` and `TickMsg`
 implement it.
 `FocusRouter` delivers an `Addressed` message to the component registered

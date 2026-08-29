@@ -103,7 +103,8 @@ app-sized.
 - `Msg` — an event: `KeyMsg`, `KeyReleaseMsg`, `ModifierKeyMsg`,
   `PointerMsg`, `TickMsg`, `InitMsg`, `ResizeMsg`, a `FrameReport`, or a
   custom app class.
-- `Cmd` — a requested effect: `Quit`, `Tick`, `AsyncCmd`, `Batch`, `Emit`.
+- `Cmd` — a requested effect the runtime performs, sealed to five cases (see
+  "Commands the runtime executes" below).
 - `MvuRuntime` — owns the message queue, the pending one-shot ticks, and
   async task handling.
 
@@ -122,7 +123,7 @@ processed message.
 │                        │                                    │
 │  One-shot Tick timers ─┼──► Unified Queue ──► MAIN LOOP     │
 │                        │                       │            │
-│  AsyncCmd results ─────┤                       ▼            │
+│  Task results ─────────┤                       ▼            │
 │                        │             ┌──────────────────┐   │
 │  Frame reports ────────┘             │ 1. Coalesce      │   │
 │                                      │ 2. Update model  │   │
@@ -137,7 +138,7 @@ processed message.
 | --------------- | ---------------------------------------- | ------------------------------- |
 | Terminal events | Keys, pointer, focus, paste, resize      | Pointer moves/drags and resizes |
 | Tick            | A one-shot timer an `update` armed       | No                              |
-| AsyncCmd        | Async task completions                   | No                              |
+| Task            | Async task completions                   | No                              |
 | Frame reports   | Layout facts paint handed back           | No                              |
 
 ### Processing flow
@@ -217,8 +218,9 @@ shutdown that starts outside the loop never races a draw.
 - `key` — the generation the owner armed it with.
 - `elapsed` — time since the `Tick` was armed.
 
-**Commands the runtime executes:** `Quit`, `Tick`, `Emit`, `AsyncCmd`
-(`Task`), `Batch`. A `Task` outcome with no handler queues nothing.
+**Commands the runtime executes:** `Cmd` is sealed to five cases — `Quit`,
+`Emit`, `Tick`, `Task`, `Batch`. A `Task` outcome with no handler queues
+nothing.
 
 ### Configuration
 

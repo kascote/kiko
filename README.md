@@ -124,8 +124,10 @@ All input reaches `update` as messages on a single FIFO queue: `KeyMsg`,
 `PointerMsg` (already resolved to the widget it hit), `ResizeMsg`, `TickMsg`
 (a one-shot timer's message), frame reports, and your own custom messages. A
 frame follows every processed message; nothing runs while the queue is idle.
-Side effects are returned as commands (`Quit`, `Tick`, `AsyncCmd`, `Batch`,
-`Emit`).
+Side effects are returned as commands: `Cmd` is sealed to `Quit`, `Emit`,
+`Tick`, `Task`, `Batch`. What a widget hands the app instead — a press, a row
+activation — is a `WidgetEvent`, carried in the `Handled` verdict its
+`update` returns.
 
 ## Documentation
 

@@ -3,7 +3,7 @@
 // `PaletteModel`/`Palette` is a small option picker written the way the shipped
 // widgets are: a mutable model implementing `Component`, a stateless view that
 // self-tags its subtree, pointer handling above the focus gate, a click that
-// emits the same id-addressed command as Enter, and a wheel that scrolls the
+// emits the same id-addressed event as Enter, and a wheel that scrolls the
 // viewport through `ScrollableModel`. The doc walks through this file section
 // by section; keep the two in sync.
 //
@@ -111,7 +111,7 @@ class PaletteModel with ScrollableModel implements Component {
       // paints, so update never turns a coordinate into a row. `handleRowPointer`
       // (from ScrollableModel) is the row handler every scrollable shares: on a
       // press it moves the cursor there, snaps the scroll, and returns the same
-      // command Enter emits; on any other pointer it refreshes the hover.
+      // event Enter emits; on any other pointer it refreshes the hover.
       if (pointer.region case final RowScoped row) {
         return handleRowPointer(
           pointer,

@@ -61,7 +61,7 @@ a placeholder no one will fill.
 re-triggers demand — a standing refusal would otherwise become a request
 storm. When the app is ready to load again, it runs the widget's demand pass
 from the message that lifted its gate and fetches what comes back:
-`return (model, fetchAll(model, model.table.demand()))`.
+`Batch([for (final r in model.table.demand()) fetchFor(model, r)])`.
 
 ## Shared primitives (`packages/kiko_widgets/lib/src/load/`)
 
@@ -69,9 +69,9 @@ from the message that lifted its gate and fetches what comes back:
   `begin`/`complete`/`fail`/`clear`/`stateFor`/`errorFor`, plus
   `isLoading([key])` (bare = any slot in flight) and `loading` (the keys in
   flight). Each model **embeds one**.
-- `LoadRequest(id, {key})` — a `Cmd`: a pure "I need data for (id, key)" with
-  no payload. The load half of a tree expand is also a `LoadRequest` (see
-  TreeView below).
+- `LoadRequest(id, {key})` — a `WidgetEvent`, the one event every app must
+  answer: a pure "I need data for (id, key)" with no payload. The load half
+  of a tree expand is also a `LoadRequest` (see TreeView below).
 - `LoadResult<D>(id, {key, data, error})` — a `Msg` carrying the outcome
   home; it implements `Addressed`, so the router delivers it by `id`. `D` is
   the payload type at the construction site (type-safe `onSuccess`); the
@@ -301,8 +301,9 @@ results but is never focused or clicked goes in the router's `extras`.
 
 ## The payoff — one generic handler shape
 
-The only per-widget code is the request→fetch mapping the app owns. From
-`packages/kiko_widgets/example/tree_view_async.dart`:
+The only per-widget code is the request→fetch mapping the app owns, and the
+`onEvent` translation that hands a `LoadRequest` to it. Picking the fetch by
+`(id, key)`:
 
 ```dart
 // Request → Task — the ONE domain-specific bit: pick the fetch by (id, key):
@@ -317,8 +318,16 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     onSuccess: (data) => LoadResult(req.id, key: req.key, data: data),
     onError:  (e)    => LoadResult(req.id, key: req.key, error: e));
 }
+
+// Translates one widget event: a LoadRequest becomes a fetch; every other
+// event this app cares about is handled here too.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case final LoadRequest req when req.id == model.tree.id) {
+    return fetchFor(model, req);
+  }
+  return null;
+}
 // kick off on init: fetchFor(model, model.tree.loadRoots());
-// honor a request:  if (cmd case LoadRequest r when r.id == model.tree.id) fetchFor(model, r);
 // the result:       routed to model.tree.update by id — no app code
 ```
 
@@ -328,30 +337,42 @@ From `packages/kiko_widgets/example/table_view_paginated.dart`:
 
 ```dart
 // One request → one fetch. Explicit cases, read top to bottom.
-Cmd fetchFor(AppModel m, LoadRequest r) {
-  if (r.id == m.products.id) return fetchInto(r, m.productsSource);
-  if (r.id == m.orders.id) {
-    if (m.syncing) return declineLoad(r);   // policy, where you would look for it
-    return fetchInto(r, m.ordersSource);
+Cmd fetchFor(AppModel model, LoadRequest req) {
+  if (req.id == model.table.id) {
+    if (model.paused) return declineLoad(req);   // policy, where a reader would look for it
+    return fetchInto(req, model.source);
   }
-  return declineLoad(r, error: 'no source wired for ${r.id}');
+  return declineLoad(req, error: 'no source wired for ${req.id}');
 }
 
-// A demand pass can ask for several pages at once, so flatten what comes back.
-Cmd? fetchAll(AppModel m, Cmd? cmd) {
-  final requests = switch (cmd) {
-    final LoadRequest r => [r],
-    Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
-    _ => const <LoadRequest>[],
-  };
-  if (requests.isEmpty) return cmd;
-  return Batch([for (final r in requests) fetchFor(m, r)]);
+// Translates one widget event: a LoadRequest becomes a fetch.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case final LoadRequest req) return fetchFor(model, req);
+  return null;
 }
 ```
 
+Every app routes messages through the same switch: `model.router.route(msg,
+ctx)` answers a `Handled(:final events, :final cmd)`, and the app runs `cmd`
+and folds each event through `onEvent`:
+
+```dart
+switch (model.router.route(msg, ctx)) {
+  case Handled(:final events, :final cmd):
+    return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
+  case Declined():
+    break;
+}
+```
+
+A demand pass that asks for several pages at once returns several
+`LoadRequest`s in one `List`, so the app maps each one with `fetchFor`
+directly: `Batch([for (final r in model.table.demand()) fetchFor(model, r)])`.
+
 The status box just reads getters (`model.tree.isLoading` / `errorFor(...)`,
 `table.viewportStatus`, `table.isLoadingAbove`). No flag-flipping, no
-per-message guards, no per-widget command types.
+per-message guards, no per-widget load type — one `LoadRequest` serves every
+widget.
 
 ## The boundary rule: per-request helpers, never per-app loops
 

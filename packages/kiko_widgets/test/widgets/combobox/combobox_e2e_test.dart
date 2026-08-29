@@ -65,63 +65,26 @@ void _view(_App model, Frame frame) {
   comboView.renderPopup(frame);
 }
 
-/// The key the harness quits on, intercepted before the router sees it.
-const _quitKey = 'ctrl+q';
-
-/// Runs [model] through a real application over [backend] until [readyId] has
-/// painted (its rect, or its live scope, is in the committed hit map), then
-/// feeds the events [act] builds from that map, one per committed frame, and
-/// quits from the frame that follows the last one.
-///
-/// A step goes out from the first frame committed after the previous step was
-/// applied, so the last frame shows the last step's effect. Returns that
-/// frame's [HitMap]; the model is mutated in place so later calls can pick
-/// straight up from it.
+/// Runs [model] through a real application over [backend]: once [readyId] is
+/// live in the committed hit map, feeds the steps [act] builds from that map,
+/// one per committed frame, then quits. Returns the last frame's [HitMap];
+/// the model is mutated in place, so later calls pick straight up from it.
 Future<HitMap> _drive(
   TestBackend backend,
   _App model,
   String readyId,
-  List<void Function(TestBackend)> Function(HitMap hits) act,
+  List<ScriptStep> Function(HitMap hits) act,
 ) async {
-  List<void Function(TestBackend)>? queue;
-  var i = 0;
-  var pending = false;
-  var quitSent = false;
-  HitMap? lastHits;
+  final script = FrameScript(backend, readyId: readyId, steps: act);
 
   await Application(
     backend: backend,
     fps: 120,
-    onFrame: (frame) {
-      lastHits = frame.hits;
-      if (pending) return;
-      if (queue == null) {
-        if (frame.hits.rectOf(readyId) == null && !frame.hits.isLive(readyId)) return;
-        queue = act(frame.hits);
-      }
-      if (i < queue!.length) {
-        pending = true;
-        queue![i++](backend);
-        return;
-      }
-      if (!quitSent) {
-        quitSent = true;
-        backend.emitKey(_quitKey);
-      }
-    },
-  ).run<_App>(
-    init: model,
-    update: (m, msg, ctx) {
-      if (msg case KeyMsg(key: _quitKey)) return (m, const Quit());
-      // Anything after the init message is a step landing.
-      if (msg is! InitMsg) pending = false;
-      return _update(m, msg, ctx);
-    },
-    view: _view,
-  );
+    onFrame: script.onFrame,
+  ).run<_App>(init: model, update: script.wrap(_update), view: _view);
 
-  expect(i, queue!.length, reason: 'every scripted step ran');
-  return lastHits!;
+  expect(script.completed, isTrue, reason: 'every scripted step ran');
+  return script.lastFrame!.hits;
 }
 
 void main() {

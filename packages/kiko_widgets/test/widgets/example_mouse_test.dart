@@ -20,31 +20,20 @@ import '../../example/scrollable_form.dart' as form;
 /// captured mid-run instead, before any of that runs.
 typedef _DriveResult = ({HitMap hits, bool cursorVisible});
 
-/// The key the harness quits on, intercepted before the example's update.
-const _quitKey = 'ctrl+q';
-
-/// Runs [model] through a real application, and once [readyId] has been painted
-/// (its rect is in the committed hit map) feeds the events [events] builds from
-/// that map, one per committed frame, then quits from the frame that follows
-/// the last one. Returns the [HitMap] from that frame and the cursor
-/// visibility it left (see [_DriveResult]); [model] is mutated in place, so
-/// the caller can also inspect it directly.
-///
-/// A step goes out from the first frame committed after the previous step was
-/// applied, so the last frame shows the last step's effect.
+/// Runs [model] through a real application: once [readyId] is live in the
+/// committed hit map, feeds the steps [events] builds from that map, one per
+/// committed frame, then quits. Returns the last frame's [HitMap] and the
+/// cursor visibility it left (see [_DriveResult]); [model] is mutated in
+/// place, so the caller can also inspect it directly.
 Future<_DriveResult> _driveWhenReady<M>({
   required TestBackend backend,
   required M model,
-  required (M, Cmd?) Function(M, Msg, UpdateContext) update,
-  required void Function(M, Frame) view,
+  required Update<M> update,
+  required Render<M> view,
   required String readyId,
-  required List<void Function(TestBackend)> Function(HitMap hits) events,
+  required List<ScriptStep> Function(HitMap hits) events,
 }) async {
-  List<void Function(TestBackend)>? queue;
-  var i = 0;
-  var pending = false;
-  var quitSent = false;
-  HitMap? lastPaintedHits;
+  final script = FrameScript(backend, readyId: readyId, steps: events);
   var lastCursorVisible = backend.cursorVisible;
 
   await Application(
@@ -54,35 +43,12 @@ Future<_DriveResult> _driveWhenReady<M>({
       // Read right after the draw committed, so the LAST value recorded is
       // the settled state of the final frame — never the post-shutdown state.
       lastCursorVisible = backend.cursorVisible;
-      lastPaintedHits = frame.hits;
-      if (pending) return;
-      if (queue == null) {
-        if (frame.hits.rectOf(readyId) == null) return;
-        queue = events(frame.hits);
-      }
-      if (i < queue!.length) {
-        pending = true;
-        queue![i++](backend);
-        return;
-      }
-      if (!quitSent) {
-        quitSent = true;
-        backend.emitKey(_quitKey);
-      }
+      script.onFrame(frame);
     },
-  ).run<M>(
-    init: model,
-    update: (m, msg, ctx) {
-      if (msg case KeyMsg(key: _quitKey)) return (m, const Quit());
-      // Anything after the init message is a step landing.
-      if (msg is! InitMsg) pending = false;
-      return update(m, msg, ctx);
-    },
-    view: view,
-  );
+  ).run<M>(init: model, update: script.wrap(update), view: view);
 
-  expect(i, queue!.length, reason: 'every scripted step ran');
-  return (hits: lastPaintedHits!, cursorVisible: lastCursorVisible);
+  expect(script.completed, isTrue, reason: 'every scripted step ran');
+  return (hits: script.lastFrame!.hits, cursorVisible: lastCursorVisible);
 }
 
 void main() {

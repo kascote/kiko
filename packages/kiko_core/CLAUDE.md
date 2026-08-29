@@ -37,7 +37,7 @@ Read the page covering what you touch (paths from the repo root):
 | `docs/mouse.md` | pointer routing, hit map, hit regions, scopes, capture |
 | `docs/components.md` | Component contract, ids, widget→app addressing |
 | `docs/theming.md` | the theming model, the recipe, per-widget anatomy |
-| `docs/widget-testing.md` | testing with TestBackend under `dart test` |
+| `docs/widget-testing.md` | testing with TestBackend and FrameScript under `dart test` |
 
 ## Code Style
 

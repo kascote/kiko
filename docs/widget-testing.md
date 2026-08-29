@@ -324,10 +324,55 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
 });
 ```
 
-The same shape scales to a scripted end-to-end test: `onFrame` emits one
-terminal event per committed frame, `update` clears a `pending` flag when
-the event's message lands, and the callback ends by emitting a quit key
-after its last step (`packages/kiko_widgets/test/widgets/combobox/combobox_e2e_test.dart`).
+`FrameScript`, from `package:kiko/testing.dart`, drives a scripted
+end-to-end test: several events, each aimed at what the previous one painted.
+It sends one step per committed frame. A step goes out from the first frame
+committed after the previous step landed, so the hit map a step reads shows
+the previous step's effect. A step has landed when the message its event
+became reaches `update`. A report, a tick, or a message the app emits itself
+never releases the next step. `script.onFrame` wires into
+`Application.onFrame`. `script.wrap(update)` answers the script's quit key
+with `Quit` before the app's update sees it. With a `readyId`, the steps are
+built from the first frame in which that hit path is live:
+
+```dart
+test('a click places the caret where the field is painted, and a key inserts there', () async {
+  final backend = TestBackend(size: const TermSize(20, 1));
+  final input = TextInputModel(id: 'name', initial: 'hi', focused: true);
+  final script = FrameScript(
+    backend,
+    readyId: 'name',
+    steps: (hits) {
+      final field = hits.rectOf('name')!;
+      return [
+        (b) => b.emitClick(field.x + 1, field.y),
+        (b) => b.emitKey('x'),
+      ];
+    },
+  );
+
+  await Application(backend: backend, onFrame: script.onFrame).run<TextInputModel>(
+    init: input,
+    update: script.wrap(
+      (model, msg, _) => switch (model.update(msg)) {
+        Handled(:final cmd) => (model, cmd),
+        Declined() => (model, null),
+      },
+    ),
+    view: (model, frame) => frame.render(TextInput(model: model, theme: Theme.dark)),
+  );
+
+  expect(script.completed, isTrue);
+  expect(input.value, 'hxi');
+  expect(screenText(backend.screen), 'hxi\n');
+});
+```
+
+After `run` returns, `script.completed` says every step went out and the
+quit key followed, and `script.lastFrame` is the frame that shows the last
+step's effect. The suites under `packages/kiko_widgets/test/widgets/`
+(`combobox/combobox_e2e_test.dart`, `example_mouse_test.dart`) drive whole
+examples this way.
 
 The runtime turns whatever a helper emits into the same `KeyMsg`, `PointerMsg`,
 `PasteMsg` and `FocusMsg` a real session delivers. A model test constructs

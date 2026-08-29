@@ -36,51 +36,21 @@ class _Advance extends Msg {
 }
 
 /// Runs a real application over [backend], feeding it [events] one per
-/// committed frame, and returns every message `update` saw — the render clock
-/// and the idle beats filtered out.
-///
-/// A step goes out from the first frame committed after the previous step was
-/// applied, so the frame that follows the last step shows its effect before
-/// the quit key goes out.
+/// committed frame, and returns every message `update` saw after the init.
 Future<List<Msg>> _drive(TestBackend backend, List<Event> events, Render<int> view) async {
   final seen = <Msg>[];
-  var step = 0;
-  var pending = false;
-  var quitSent = false;
+  final script = FrameScript(backend, steps: (_) => [for (final e in events) (b) => b.emit(e)]);
 
-  await Application(
-    backend: backend,
-    fps: 120,
-    onFrame: (_) {
-      if (pending) return;
-      if (step < events.length) {
-        pending = true;
-        backend.emit(events[step++]);
-        return;
-      }
-      if (!quitSent) {
-        quitSent = true;
-        backend.emitKey(_quitKey);
-      }
-    },
-  ).run<int>(
+  await Application(backend: backend, fps: 120, onFrame: script.onFrame).run<int>(
     init: 0,
-    update: (model, msg, _) {
-      switch (msg) {
-        case KeyMsg(key: _quitKey):
-          return (model, const Quit());
-        case InitMsg():
-          return (model, null);
-        default:
-          pending = false;
-          seen.add(msg);
-          return (model, null);
-      }
-    },
+    update: script.wrap((model, msg, _) {
+      if (msg is! InitMsg) seen.add(msg);
+      return (model, null);
+    }),
     view: view,
   );
 
-  expect(step, events.length, reason: 'every scripted event went out');
+  expect(script.completed, isTrue, reason: 'every scripted event went out');
   return seen;
 }
 

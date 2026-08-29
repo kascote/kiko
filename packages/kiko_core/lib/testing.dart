@@ -1,7 +1,9 @@
 /// Test doubles for driving Kiko without a terminal.
 ///
 /// Import this from a test to run the render loop and the MVU loop under
-/// `dart test`:
+/// `dart test`. `TestBackend` renders to memory and emits terminal events;
+/// `FrameScript` feeds a running application scripted events, one per
+/// committed frame.
 ///
 /// ```dart
 /// import 'package:kiko/testing.dart';
@@ -17,3 +19,4 @@
 library;
 
 export 'src/backend/test_backend.dart';
+export 'src/testing/frame_script.dart';

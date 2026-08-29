@@ -194,6 +194,65 @@ void main() {
       await t.draw((frame) => paint(frame, 0, 0, 'a'));
       expect(backend.cursorVisible, isFalse);
     });
+
+    test('sends the cursor commands once across empty frames that keep it', () async {
+      final t = await terminal();
+      void keepCursor(Frame frame) => frame.cursorPosition = const Position(3, 1);
+
+      await t.draw(keepCursor);
+      await t.draw(keepCursor);
+      await t.draw(keepCursor);
+
+      expect(backend.drawCount, 3, reason: 'every frame still reaches the backend');
+      expect(backend.showCursorCount, 1);
+      expect(backend.setCursorPositionCount, 1);
+      expect(backend.cursor, const Position(3, 1));
+    });
+
+    test('places the cursor again after a frame that wrote cells', () async {
+      final t = await terminal();
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+
+      await t.draw((frame) {
+        paint(frame, 0, 0, 'a');
+        frame.cursorPosition = const Position(3, 1);
+      });
+
+      expect(backend.setCursorPositionCount, 2, reason: 'writing cells moved the terminal cursor');
+      expect(backend.cursor, const Position(3, 1));
+    });
+
+    test('places the cursor again when an empty frame moves it', () async {
+      final t = await terminal();
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+
+      await t.draw((frame) => frame.cursorPosition = const Position(4, 1));
+
+      expect(backend.setCursorPositionCount, 2);
+      expect(backend.cursor, const Position(4, 1));
+    });
+
+    test('shows the cursor again after the app hid it', () async {
+      final t = await terminal();
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+      t.hideCursor();
+
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+
+      expect(backend.cursorVisible, isTrue);
+      expect(backend.showCursorCount, 2);
+      expect(backend.setCursorPositionCount, 2);
+    });
+
+    test('places the cursor again after a resize cleared the screen', () async {
+      final t = await terminal();
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+      backend.resizeTo(const TermSize(12, 4));
+
+      await t.draw((frame) => frame.cursorPosition = const Position(3, 1));
+
+      expect(backend.setCursorPositionCount, 2);
+    });
   });
 
   group('Terminal.autoResize', () {

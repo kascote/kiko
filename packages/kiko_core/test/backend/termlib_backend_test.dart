@@ -1,3 +1,4 @@
+import 'package:kiko/kiko.dart' show Cell;
 import 'package:kiko/src/backend/termlib_backend.dart';
 import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
@@ -70,6 +71,32 @@ void main() {
       const event = tle.WindowResizeEvent(24, 80);
 
       expect(toBufferCoords(event), same(event));
+    });
+  });
+
+  group('TermlibBackend.draw', () {
+    late tl.BufferTermSink stdout;
+    late TermlibBackend backend;
+
+    setUp(() {
+      stdout = tl.BufferTermSink();
+      backend = TermlibBackend(transport: tl.TermBackend.fake(stdout: stdout));
+    });
+
+    tearDown(() => backend.dispose());
+
+    test('an empty diff writes nothing', () {
+      backend.draw(const []);
+
+      expect(stdout.output, isEmpty);
+    });
+
+    test('a non-empty diff writes the cells inside one synchronized update', () {
+      backend.draw([(x: 0, y: 0, cell: Cell.empty().setCell(char: 'a'))]);
+
+      expect(stdout.output, startsWith('\x1b[?2026h'));
+      expect(stdout.output, contains('a'));
+      expect(stdout.output, endsWith('\x1b[0m\x1b[?2026l'));
     });
   });
 

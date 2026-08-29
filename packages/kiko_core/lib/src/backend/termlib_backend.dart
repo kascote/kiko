@@ -42,10 +42,14 @@ class TermlibBackend implements Backend {
   /// Requires an interactive terminal (stdin connected to a TTY): the render
   /// loop relies on raw mode, parsed events and cursor queries, which only
   /// exist on [tl.InteractiveTerm].
-  TermlibBackend() : _term = _openInteractive();
+  ///
+  /// [transport] is termlib's transport seam, real stdin and stdout by
+  /// default. A test passes a [tl.TermBackend.fake] to capture what this
+  /// backend writes without a terminal.
+  TermlibBackend({tl.TermBackend? transport}) : _term = _openInteractive(transport);
 
-  static tl.InteractiveTerm _openInteractive() {
-    final term = tl.Term.open();
+  static tl.InteractiveTerm _openInteractive(tl.TermBackend? transport) {
+    final term = tl.Term.open(backend: transport);
     if (term is tl.InteractiveTerm) return term;
     throw StateError('TermlibBackend requires an interactive terminal (stdin must be a TTY).');
   }
@@ -73,6 +77,9 @@ class TermlibBackend implements Backend {
 
   /// Draws the given [cellPos] iterable to the terminal.
   ///
+  /// An empty [cellPos] writes nothing: no synchronized-update bracket and no
+  /// style reset.
+  ///
   /// Consecutive, screen-adjacent cells that share the same style are batched
   /// into one styled run. Each run is rendered through an immutable [tl.Style],
   /// which self-closes with an SGR reset, so a cell whose colors are
@@ -81,6 +88,8 @@ class TermlibBackend implements Backend {
   /// keep styling from leaking past the frame.
   @override
   void draw(Iterable<CellPos> cellPos) {
+    if (cellPos.isEmpty) return;
+
     final run = StringBuffer();
     tl.Style? runStyle;
     Position? lastPos;

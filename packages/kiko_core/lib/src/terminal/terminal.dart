@@ -110,6 +110,11 @@ class Terminal {
   /// without touching a cursor an app manages itself.
   bool _frameCursorShown = false;
 
+  /// Where the last [draw] placed that cursor, while nothing has moved it
+  /// since. `null` once the cursor is hidden or a clear moved it, so the next
+  /// frame sends the position again.
+  Position? _frameCursorPosition;
+
   /// Terminal's viewport
   late final ViewPort _viewPort;
 
@@ -313,10 +318,17 @@ class Terminal {
     final cursorPosition = frame.cursorPosition;
     flush();
     if (cursorPosition != null) {
-      backend
-        ..showCursor()
-        ..setCursorPosition(cursorPosition);
+      // An empty diff leaves the terminal cursor where the last frame put it,
+      // so an unchanged cursor needs no command. A non-empty diff leaves it
+      // after the last written cell, so the position goes out again.
+      final unchanged = _lastDiffCount == 0 && _frameCursorShown && cursorPosition == _frameCursorPosition;
+      if (!unchanged) {
+        backend
+          ..showCursor()
+          ..setCursorPosition(cursorPosition);
+      }
       _frameCursorShown = true;
+      _frameCursorPosition = cursorPosition;
     } else if (_frameCursorShown) {
       // A previous frame showed a cursor for a focused widget; this one reports
       // none — the widget lost focus or scrolled out of view — so hide it,
@@ -324,6 +336,7 @@ class Terminal {
       // loop showed is hidden; one the app manages itself is left alone.
       backend.hideCursor();
       _frameCursorShown = false;
+      _frameCursorPosition = null;
     }
 
     swapBuffers();
@@ -341,10 +354,15 @@ class Terminal {
     return completedFrame;
   }
 
-  /// Hides the cursor
+  /// Hides the cursor.
+  ///
+  /// Also forgets any cursor the frame loop showed, so the next frame that
+  /// reports a position shows it again.
   void hideCursor() {
     backend.hideCursor();
     _hiddenCursor = true;
+    _frameCursorShown = false;
+    _frameCursorPosition = null;
   }
 
   /// Shows the cursor
@@ -374,6 +392,7 @@ class Terminal {
   void setCursorPosition(Position position) {
     backend.setCursorPosition(position);
     _lastKnowCursorPosition = position;
+    _frameCursorPosition = position;
   }
 
   /// Clears the terminal
@@ -395,6 +414,8 @@ class Terminal {
     }
     // Reset the back buffer to make sure the next update will redraw everything
     _buffers[1 - _currentBufferIndex].reset();
+    // The clear may have moved the cursor; the next frame places it again.
+    _frameCursorPosition = null;
   }
 
   /// Swaps the current and previous buffers

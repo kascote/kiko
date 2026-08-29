@@ -72,8 +72,17 @@ class TestBackend implements Backend {
   /// The cursor position, as last set by [setCursorPosition].
   Position cursor = Position.origin;
 
+  /// How many times [setCursorPosition] has been called.
+  int setCursorPositionCount = 0;
+
   /// Whether the cursor is visible.
   bool cursorVisible = true;
+
+  /// How many times [showCursor] has been called.
+  int showCursorCount = 0;
+
+  /// How many times [hideCursor] has been called.
+  int hideCursorCount = 0;
 
   /// Whether the alternate screen buffer is enabled.
   bool alternateScreen = false;
@@ -188,13 +197,22 @@ class TestBackend implements Backend {
   }
 
   @override
-  void hideCursor() => cursorVisible = false;
+  void hideCursor() {
+    cursorVisible = false;
+    hideCursorCount++;
+  }
 
   @override
-  void showCursor() => cursorVisible = true;
+  void showCursor() {
+    cursorVisible = true;
+    showCursorCount++;
+  }
 
   @override
-  void setCursorPosition(Position pos) => cursor = pos;
+  void setCursorPosition(Position pos) {
+    cursor = pos;
+    setCursorPositionCount++;
+  }
 
   @override
   Future<Position?> getCursorPosition() async => cursor;

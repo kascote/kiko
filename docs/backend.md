@@ -2,8 +2,26 @@
 
 `Backend` (`packages/kiko_core/lib/src/backend/backend.dart`) is the whole
 surface `Terminal` and `Application` use to reach a terminal. It has two
-implementations. `TermlibBackend` is the real one: it needs a TTY and is not
-exported. `TestBackend` is in-memory and ships in `package:kiko/testing.dart`.
+implementations. `TermlibBackend` is the real one: it opens the process's
+terminal and is not exported. `TestBackend` is in-memory and ships in
+`package:kiko/testing.dart`.
+
+## What a frame writes
+
+`Terminal.draw` hands the backend the diff between its two buffers, then the
+cursor commands. A frame follows every processed message, so a frame whose
+diff is empty is common: a pointer moving over static content produces one
+per event.
+
+An empty diff writes nothing on `TermlibBackend`: no synchronized-update
+bracket, no style reset. `TestBackend` still records the empty draw, so
+`drawCount` counts frames, not bytes.
+
+`Terminal` remembers the cursor state it last sent: shown or hidden, and the
+position. A frame whose diff is empty and whose cursor matches that state
+sends no cursor command. A frame that wrote cells sends the position again,
+because writing moves the terminal cursor. A frame that reports no cursor
+after one that did hides it.
 
 ## One coordinate space
 
@@ -41,6 +59,11 @@ every call but `draw` is recorded, not simulated. How to test widgets and
 apps with it: `docs/widget-testing.md`. The render loop and the full drain
 under test: `packages/kiko_core/test/terminal_test.dart` and
 `packages/kiko_core/test/application_test.dart`.
+
+`TermlibBackend({tl.TermBackend? transport})` takes termlib's transport seam.
+A test passes `TermBackend.fake(stdout: BufferTermSink())` and reads the
+bytes the backend wrote from the sink, with no TTY involved
+(`packages/kiko_core/test/backend/termlib_backend_test.dart`).
 
 ## `dispose()` flushes, and never exits
 

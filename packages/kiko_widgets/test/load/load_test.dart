@@ -314,11 +314,11 @@ void main() {
     });
   });
 
-  group('LoadResult erases to LoadResult<Object?> at the registry boundary', () {
-    test('a typed result is assignable to the erased form Loadable consumes', () {
-      // The covariance the registry relies on (A7 #1): LoadResult<List<int>>
-      // *is a* LoadResult<Object?>, so a heterogeneous registry routes it and
-      // applyLoad casts data once.
+  group('LoadResult erases to LoadResult<Object?> at the routing boundary', () {
+    test("a typed result is assignable to the erased form a model's update consumes", () {
+      // The covariance routing relies on: LoadResult<List<int>> *is a*
+      // LoadResult<Object?>, so the router delivers any result as a Msg and
+      // the model's update casts data once.
       final LoadResult<Object?> erased = LoadResult<List<int>>(v('l'), key: page0, data: const [1, 2]);
       expect(erased.id, 'l');
       expect(erased.data, const [1, 2]);

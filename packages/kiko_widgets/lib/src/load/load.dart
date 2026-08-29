@@ -132,8 +132,9 @@ class LoadRequest extends Cmd {
 /// pass. Build one through [declineLoad] rather than by hand.
 ///
 /// [D] is the payload type where the app constructs the result, which keeps that
-/// site type-safe. The widget consumes it through [Loadable], where the type is
-/// erased, so its handler checks that [data] is the shape it installs. A
+/// site type-safe. The result is an [Addressed] message: a router delivers it
+/// to the widget model whose id it carries, and that model's `update` installs
+/// it with the type erased, checking that [data] is the shape it installs. A
 /// successful result carrying any other shape, or a null [data], fails the slot
 /// the way a failed fetch does (see [payloadMismatch]).
 @immutable
@@ -230,25 +231,6 @@ Cmd declineLoad(LoadRequest request, {Object? error}) => Emit(
       ? LoadResult<Object?>.cancelled(request.id, key: request.key)
       : LoadResult<Object?>(request.id, key: request.key, error: error),
 );
-
-/// A widget model that can receive loaded data.
-///
-/// The app keeps these keyed by [id] and routes each [LoadResult] to the
-/// matching one. [applyLoad] installs the data (or records the error) and
-/// updates the widget's load state.
-///
-/// The result arrives with its payload type erased — one registry holds many
-/// kinds of widget — so [applyLoad] checks that [LoadResult.data] is the shape
-/// it installs, through [payloadMismatch], and drops results it no longer wants
-/// (a late reply for a branch that was since collapsed, or a query that has
-/// moved on).
-abstract interface class Loadable {
-  /// Stable identity used to route a [LoadResult] to this model.
-  String get id;
-
-  /// Installs [result] (its data or its error) and updates the load state.
-  void applyLoad(LoadResult<Object?> result);
-}
 
 // ═══════════════════════════════════════════════════════════
 // PAYLOAD SHAPE

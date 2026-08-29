@@ -18,10 +18,9 @@ import 'types.dart';
 /// plume viewport around whatever content the caller composes, and reports
 /// each frame's geometry back through [setViewportMetrics] — the same
 /// view-pushes-state-in back-channel pattern List and Tree use for
-/// `visibleCount`. Unlike ListView, TableView and TreeView, this model is
-/// never `Loadable`: it scrolls composed UI already fully in memory, not
-/// paginated data (see kiko_widgets/CLAUDE.md's Async Loading section for the
-/// data-scale widgets).
+/// `visibleCount`. Unlike ListView, TableView and TreeView, this model never
+/// loads: it scrolls composed UI already fully in memory, not paginated data
+/// (see `docs/async-loading.md` for the data-scale widgets).
 ///
 /// ```dart
 /// final scroll = ScrollViewModel();

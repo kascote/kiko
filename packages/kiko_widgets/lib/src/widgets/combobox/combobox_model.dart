@@ -68,14 +68,14 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 /// [ComboboxSelectCmd] addressed by [id]. The app reads the selection back
 /// from [value]; the command carries nothing else.
 ///
-/// A remote combobox asks for options through [Loadable.applyLoad]: every
-/// text change, and opening without one, asks with a fresh [QueryKey] naming
-/// the query's text. Asking clears the popup, so it only ever shows the
-/// current query's state — [queryStatus] — and only an answer for the newest
-/// query installs; a superseded one's answer is dropped. A refusal
-/// (`declineLoad`) resolves the query without installing, leaving the popup
-/// stalled until the next query.
-class ComboboxModel<T> implements Component, Loadable {
+/// A remote combobox asks for options with a [LoadRequest]: every text
+/// change, and opening without one, asks with a fresh [QueryKey] naming the
+/// query's text. The answer comes back as a [LoadResult] through [update].
+/// Asking clears the popup, so it only ever shows the current query's state —
+/// [queryStatus] — and only an answer for the newest query installs; a
+/// superseded one's answer is dropped. A refusal (`declineLoad`) resolves the
+/// query without installing, leaving the popup stalled until the next query.
+class ComboboxModel<T> implements Component {
   @override
   late final String id;
 
@@ -297,17 +297,24 @@ class ComboboxModel<T> implements Component, Loadable {
   /// toggle, click-to-caret and popup rows all work whether or not the
   /// combobox is focused. A press on the bare scope path — a blank popup row,
   /// or the scope's own untagged cells — is consumed and does nothing: no
-  /// caret move, no commit, no close. Keyboard handling sits behind the
-  /// gate: while closed, a text-editing key or Down opens the popup and
-  /// Enter/Esc are declined for the app; while open, Up/Down/PageUp/PageDown
-  /// move the popup cursor, Enter commits, Esc closes and restores, and every
-  /// other key edits the field.
+  /// caret move, no commit, no close. An [Addressed] message whose id's leaf
+  /// names the popup list is forwarded to the list; a [LoadResult] addressed
+  /// to the combobox itself installs a remote query's answer, or records its
+  /// failure; one addressed to any other id is declined. Keyboard handling
+  /// sits behind the gate: while closed, a text-editing key or Down opens the
+  /// popup and Enter/Esc are declined for the app; while open,
+  /// Up/Down/PageUp/PageDown move the popup cursor, Enter commits, Esc closes
+  /// and restores, and every other key edits the field.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) return _handlePointer(pointer);
     if (msg is PointerLeaveMsg) return _forwardToListIfAddressed(msg, msg.targetId);
     if (msg case PointerCancelMsg(:final targetId?)) return _forwardToListIfAddressed(msg, targetId);
     if (msg is PointerCancelMsg) return const Declined();
+    // A part is forwarded to before the guard below asks whether the message
+    // is the combobox's own.
+    if (msg case Addressed(:final id) when HitTag.leafOf(id) == _list.id) return _list.update(msg);
+    if (msg case final LoadResult<Object?> result) return _applyLoad(result);
 
     if (!focused) return const Declined();
 
@@ -344,11 +351,11 @@ class ComboboxModel<T> implements Component, Loadable {
     return const Declined();
   }
 
-  /// Forwards [msg] to the popup list when [targetId]'s leaf names it —
-  /// clearing its hover on a leave, ending a held gesture on a cancel — and
-  /// declines otherwise.
-  UpdateResult _forwardToListIfAddressed(Msg msg, String targetId) =>
-      HitTag.leafOf(targetId) == _list.id ? _list.update(msg) : const Declined();
+  /// Forwards [msg] to the popup list when [path]'s leaf names it — a
+  /// pointer leaving or cancelling over the list, an [Addressed] message
+  /// naming it — and declines otherwise.
+  UpdateResult _forwardToListIfAddressed(Msg msg, String path) =>
+      HitTag.leafOf(path) == _list.id ? _list.update(msg) : const Declined();
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();
@@ -480,10 +487,10 @@ class ComboboxModel<T> implements Component, Loadable {
 
   /// Asks the app for options matching [query], clearing the popup so it
   /// shows only this query's state, and remembering the key as the newest
-  /// one asked — the one whose answer [applyLoad] is willing to install.
+  /// one asked — the one whose answer [update] is willing to install.
   ///
   /// The superseded key's slot is dropped unless it is still in flight;
-  /// [applyLoad] needs a loading slot to resolve and drop that query's late
+  /// [update] needs a loading slot to resolve and drop that query's late
   /// answer. Without the drop, one failed slot per distinct query text would
   /// pile up for the life of the model.
   LoadRequest _askQuery(String query) {
@@ -516,6 +523,8 @@ class ComboboxModel<T> implements Component, Loadable {
 
   /// Installs a remote query's answer, or records its failure.
   ///
+  /// A result addressed to another id is declined: it is not a message this
+  /// combobox understands. Every result addressed to this one is consumed.
   /// Only an answer for the newest query the model asked — [_newestKey] —
   /// installs, so a superseded query landing after a newer one was asked is
   /// dropped once its own slot resolves; a query no longer in flight (e.g.
@@ -528,16 +537,15 @@ class ComboboxModel<T> implements Component, Loadable {
   /// included, fails the newest key's slot with a [PayloadMismatch] and
   /// installs nothing, so [queryError] reports the wiring error where a fetch
   /// failure would show.
-  @override
-  void applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return;
+  UpdateResult _applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return const Declined();
     final key = result.key;
-    if (key is! QueryKey) return;
-    if (!_loads.isLoading(key)) return;
+    if (key is! QueryKey) return const Handled();
+    if (!_loads.isLoading(key)) return const Handled();
 
     if (result.cancelled) {
       _loads.complete(key);
-      return;
+      return const Handled();
     }
     if (!result.ok) {
       // A superseded key's error would never surface — [queryError] reads
@@ -547,11 +555,11 @@ class ComboboxModel<T> implements Component, Loadable {
       } else {
         _loads.complete(key);
       }
-      return;
+      return const Handled();
     }
     if (key != _newestKey) {
       _loads.complete(key);
-      return;
+      return const Handled();
     }
     final mismatch = payloadMismatch(
       result,
@@ -561,11 +569,12 @@ class ComboboxModel<T> implements Component, Loadable {
     );
     if (mismatch != null) {
       _loads.fail(key, mismatch);
-      return;
+      return const Handled();
     }
     _loads.complete(key);
     _newestInstalled = true;
     _installRemoteOptions(result.data! as List<T>);
+    return const Handled();
   }
 
   /// Rewrites the field's text outright.

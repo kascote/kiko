@@ -376,7 +376,7 @@ void main() {
 
         test('a failed roots load records the error and stays unloaded', () {
           final model = TreeViewModel<String>()..loadRoots();
-          model.applyLoad(LoadResult<List<TreeNode<String>>>(model.id, key: const RootsKey(), error: 'no net'));
+          model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const RootsKey(), error: 'no net'));
 
           expect(model.isLoading(const RootsKey()), isFalse);
           expect(model.errorFor(const RootsKey()), equals('no net'));
@@ -400,7 +400,7 @@ void main() {
         final model = rootedAt('/a')..expand('/a');
         expect(model.isPathLoading('/a'), isTrue);
 
-        model.applyLoad(childError(model, '/a', 'network down'));
+        model.update(childError(model, '/a', 'network down'));
 
         expect(model.isPathLoading('/a'), isFalse); // stopped spinning
         expect(model.errorFor(const PathKey('/a')), equals('network down'));
@@ -412,7 +412,7 @@ void main() {
         final model = rootedAt('/a')..expand('/a');
         expect(model.isPathLoading('/a'), isTrue);
 
-        model.applyLoad(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
+        model.update(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
 
         expect(model.isPathLoading('/a'), isFalse, reason: 'the slot returns to idle');
         expect(model.errorFor(const PathKey('/a')), isNull, reason: 'nothing failed');
@@ -443,7 +443,7 @@ void main() {
         expect(model.branchStatus('/a'), SliceStatus.ready);
 
         model.expand('/b');
-        model.applyLoad(childError(model, '/b', 'boom'));
+        model.update(childError(model, '/b', 'boom'));
         expect(model.branchStatus('/b'), SliceStatus.failed);
 
         model.collapse('/b');
@@ -460,19 +460,31 @@ void main() {
         expect(model.isPathLoading('/a'), isTrue);
       });
 
-      test('a result addressed to another model is ignored', () {
-        final model = rootedAt('/a')
-          ..expand('/a')
-          ..applyLoad(
-            LoadResult<List<TreeNode<String>>>(
-              'someone-else',
-              key: const PathKey('/a'),
-              data: [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)],
-            ),
-          );
+      test('a result addressed to another model is declined and ignored', () {
+        final model = rootedAt('/a')..expand('/a');
+        final verdict = model.update(
+          LoadResult<List<TreeNode<String>>>(
+            'someone-else',
+            key: const PathKey('/a'),
+            data: [TreeNode(path: '/a/x', label: Line('X'), isLeaf: true)],
+          ),
+        );
 
+        expect(verdict, isA<Declined>(), reason: 'a message addressed elsewhere is not one this tree understands');
         expect(model.isPathLoading('/a'), isTrue); // still waiting
         expect(model.flatNodes.any((n) => n.path == '/a/x'), isFalse);
+      });
+
+      test('every result addressed to the tree is consumed, installed or not', () {
+        final model = rootedAt('/a')..expand('/a');
+
+        expect(model.update(childError(model, '/a', 'boom')), isA<Handled>());
+        expect(
+          model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/never'), data: const [])),
+          isA<Handled>(),
+          reason: "a path not in flight is dropped, but the message was the tree's own",
+        );
+        expect(model.update(LoadResult<List<TreeNode<String>>>(model.id, key: 'not a tree key')), isA<Handled>());
       });
 
       test('collapse cancels a pending load; a late result is dropped', () {
@@ -489,7 +501,7 @@ void main() {
 
       test('collapse clears a failed load so re-expand retries', () {
         final model = rootedAt('/a')..expand('/a');
-        model.applyLoad(childError(model, '/a', 'boom'));
+        model.update(childError(model, '/a', 'boom'));
         expect(model.errorFor(const PathKey('/a')), equals('boom'));
 
         model.collapse('/a');
@@ -502,7 +514,7 @@ void main() {
       group('payload mismatch', () {
         test('a wrong-shaped roots payload fails the roots slot and installs nothing', () {
           final model = TreeViewModel<String>()..loadRoots();
-          model.applyLoad(LoadResult<Object?>(model.id, key: const RootsKey(), data: const <int>[1, 2]));
+          model.update(LoadResult<Object?>(model.id, key: const RootsKey(), data: const <int>[1, 2]));
 
           expect(model.isLoading(const RootsKey()), isFalse, reason: 'the slot resolved');
           expect(model.errorFor(const RootsKey()), isA<PayloadMismatch>());
@@ -512,7 +524,7 @@ void main() {
 
         test('a null children payload on a successful result fails the branch', () {
           final model = rootedAt('/a')..expand('/a');
-          model.applyLoad(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a')));
+          model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a')));
 
           expect(model.isPathLoading('/a'), isFalse);
           expect(model.errorFor(const PathKey('/a')), isA<PayloadMismatch>());
@@ -523,7 +535,7 @@ void main() {
 
         test('a wrong-shaped children payload fails the branch, not the app', () {
           final model = rootedAt('/a')..expand('/a');
-          model.applyLoad(LoadResult<Object?>(model.id, key: const PathKey('/a'), data: 'not a list'));
+          model.update(LoadResult<Object?>(model.id, key: const PathKey('/a'), data: 'not a list'));
 
           expect(model.errorFor(const PathKey('/a')), isA<PayloadMismatch>());
           expect('${model.errorFor(const PathKey('/a'))}', contains('expected List<TreeNode<String>>'));

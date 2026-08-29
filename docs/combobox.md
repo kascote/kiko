@@ -53,9 +53,10 @@ Pass `options:` to the constructor for an in-memory list. The popup filters
 it with `matches` (defaulting to a case-insensitive contains on `label`) on
 every keystroke, entirely client-side.
 
-Omit `options:` and the combobox becomes remote: it implements `Loadable`
-and asks the app for options through the same `LoadRequest`/`LoadResult`
-contract every loading widget uses (`docs/async-loading.md`). Every text
+Omit `options:` and the combobox becomes remote: it asks the app for options
+through the same `LoadRequest`/`LoadResult` contract every loading widget
+uses, and the router delivers each answer to its `update`
+(`docs/async-loading.md`). Every text
 change, and opening the popup without typing, asks with a `QueryKey` naming
 the query's text — and every ask clears the popup, so it only ever shows
 the current query's state. Only the newest query's answer installs; an

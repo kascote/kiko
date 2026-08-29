@@ -257,7 +257,7 @@ void main() {
     test('a new query clears the matches and shows the loading row alone', () {
       final combo = _remoteBox()
         ..update(_pressOn('combo/toggle')) // asks QueryKey('')
-        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
         ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'), clearing the matches
 
       final view = Combobox(model: combo, theme: _theme);
@@ -274,7 +274,7 @@ void main() {
       final combo = _remoteBox()
         ..styles = const ComboboxStyle(stalledRow: stalledStyle)
         ..update(_pressOn('combo/toggle')) // asks QueryKey('')
-        ..applyLoad(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
+        ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
@@ -290,9 +290,9 @@ void main() {
       final combo = _remoteBox()
         ..styles = const ComboboxStyle(errorRow: errorStyle)
         ..update(_pressOn('combo/toggle'))
-        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
         ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z'), clearing the matches
-        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(16, 6);
@@ -307,7 +307,7 @@ void main() {
     test("an installed empty answer shows the default 'No matches' placeholder", () {
       final combo = _remoteBox()
         ..update(_pressOn('combo/toggle'))
-        ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
@@ -343,7 +343,7 @@ void main() {
       view.renderPopup(loading);
       expect(_rowText(loading.buffer, 1, 0, 8), 'Loading…', reason: 'no options yet, and the query is in flight');
 
-      combo.applyLoad(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']));
+      combo.update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']));
 
       final installed = _frame(12, 6);
       _renderRow(installed, view);

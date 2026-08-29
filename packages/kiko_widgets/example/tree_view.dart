@@ -88,13 +88,6 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Load results route home by id, then install generically — one line for
-  // roots and children alike.
-  if (msg case final LoadResult<Object?> r) {
-    if (r.id == model.tree.id) model.tree.applyLoad(r);
-    return (model, null);
-  }
-
   // Kick off the root load once.
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
@@ -109,6 +102,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   }
 
   // Widget update may return an expand event, a load request, or both (Batch).
+  // A LoadResult takes the same path: it carries the tree's id, and the tree
+  // installs roots and children alike in this one call.
   final result = model.tree.update(msg);
   final cmd = result is Handled ? result.cmd : null;
   Cmd? effect;

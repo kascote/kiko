@@ -3,8 +3,8 @@
 A widget model is a `Component`: it has a stable id, and its `update` reports
 whether it consumed a message. Every command a widget sends up to the app
 carries that id as its address. Every async result the app sends back down
-carries it too. This page is the contract; the authoring tutorial is
-`docs/building-widgets.md`.
+carries it too, and the router delivers it by that id. This page is the
+contract; the authoring tutorial is `docs/building-widgets.md`.
 
 ## The Component contract
 
@@ -86,9 +86,8 @@ Rules a contributor will otherwise miss:
 - **Async results must carry the id home.** When the app fires a `Task` in
   response to a `LoadRequest(id, key)`, thread both the `id` and the `key`
   into the result message
-  (`onSuccess: (data) => LoadResult(id, key: key, data: data)`), and route
-  the receipt by `r.id`. This is the easiest rule to forget. Omit the id and
-  the app silently supports only one instance.
+  (`onSuccess: (data) => LoadResult(id, key: key, data: data)`). This is the
+  easiest rule to forget. Omit the id and the result reaches nobody.
 - **Derive collection ids from stable domain keys (`user.id`), never from
   the list index.** Indexes shift on insert and delete, so an index-derived
   id routes a result onto the wrong row.
@@ -100,6 +99,33 @@ Rules a contributor will otherwise miss:
 - **Log and drop a command whose id resolves to no owner; never ignore it
   silently.** The failure stays observable — the advantage id addressing has
   over reference addressing.
+
+### Addressed messages — the inbound half
+
+`Addressed` (kiko_core, `src/mvu/addressed.dart`) is the interface for a
+message that names the widget it is for: `String get id`. It is the inbound
+half of id addressing. Widget→app commands carry an id up; an `Addressed`
+message carries one down. `LoadResult` implements it. `FocusRouter` delivers
+an `Addressed` message to the component registered under its id, or under the
+longest registered prefix of it, without moving focus (`docs/focus-router.md`);
+an id nothing registers comes back `Declined`, into the app's fall-through.
+
+`Addressed` is not `Routed`. A `Routed.targetId` is nullable and is resolved
+by the hit map, so null there means the background. An `Addressed` id is
+never null: whoever built the message chose the widget.
+
+Rules for the receiving model:
+
+- **A model declines a message addressed to another id.** It is not a
+  message this model understands, whoever routed it. The router makes a
+  foreign result unreachable in practice; an app that calls `update` without
+  a router relies on the guard. A message addressed to the model's own id is
+  consumed, installed or not.
+- **A composite forwards by leaf first.** Before applying the guard to
+  itself, a composite forwards a message whose id's leaf (`HitTag.leafOf`)
+  names one of its parts to that part, as it forwards pointer traffic.
+- **One entry point.** `update` is the only way a result enters a model.
+  There is no second method for async results.
 
 ## Composite widgets — prefix addressing
 
@@ -126,5 +152,6 @@ Prefix addressing resolves that path to a registered component:
   The one path-aware focus move is click-to-focus: a press on any path under
   a member's id focuses that member.
 
-`FocusRouter` resolves prefixes in all its routing (`docs/focus-router.md`);
-a hand-rolled dispatch calls `HitTag.resolve` itself (`docs/mouse.md`).
+`FocusRouter` resolves prefixes in all its routing, addressed messages
+included (`docs/focus-router.md`); a hand-rolled dispatch calls
+`HitTag.resolve` itself (`docs/mouse.md`).

@@ -492,7 +492,7 @@ void main() {
           expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'row 2 cannot be captured yet');
           expect(model.isLoading(const PageKey(1)), isTrue);
 
-          model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+          model.update(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
 
           expect(
             model.getSelectedKeys(),
@@ -508,7 +508,7 @@ void main() {
             ..update(keyMsg('down')); // clears the anchor
           expect(model.isLoading(const PageKey(1)), isTrue);
 
-          model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+          model.update(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
 
           expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'no active range to complete');
         });
@@ -677,10 +677,10 @@ void main() {
         expect(model.isLoading(const PageKey(0)), isTrue);
       });
 
-      test('applyLoad installs the page and clears the slot', () {
+      test('update(LoadResult) installs the page and clears the slot', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
+        model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
 
         expect(model.getItem(0), equals('a'));
         expect(model.cursorItem, equals('a'));
@@ -691,7 +691,7 @@ void main() {
       test('a short page records where the data ends', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, data: const ['a']));
+        model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a']));
 
         expect(model.knownItemCount, equals(1));
         expect(model.itemLimit, equals(1));
@@ -700,7 +700,7 @@ void main() {
       test('a failed load records the error and is retryable', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>(req.id, key: req.key, error: 'boom'));
+        model.update(LoadResult<List<String>>(req.id, key: req.key, error: 'boom'));
 
         expect(model.isLoading(), isFalse);
         expect(model.errorFor(const PageKey(0)), equals('boom'));
@@ -711,7 +711,7 @@ void main() {
       test('a refused load clears the slot and installs nothing', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.applyLoad(LoadResult<List<String>>.cancelled(req.id, key: req.key));
+        model.update(LoadResult<List<String>>.cancelled(req.id, key: req.key));
 
         expect(model.isLoading(), isFalse, reason: 'the slot returns to idle, so the page can be asked for again');
         expect(model.errorFor(const PageKey(0)), isNull, reason: 'nothing failed');
@@ -722,17 +722,30 @@ void main() {
       test('a result for a page not in flight is dropped (staleness guard)', () {
         final model = paged();
         // No loadFirstPage — the page is not in flight, so this is a stale arrival.
-        model.applyLoad(LoadResult<List<String>>(model.id, key: const PageKey(0), data: const ['x']));
+        model.update(LoadResult<List<String>>(model.id, key: const PageKey(0), data: const ['x']));
         expect(model.cachedItemCount, equals(0), reason: 'a stale result must not install');
       });
 
-      test('a result for another id is ignored', () {
-        final model = paged()
-          ..loadFirstPage()
-          ..applyLoad(const LoadResult<List<String>>('other', key: PageKey(0), data: ['x']));
+      test('a result for another id is declined and ignored', () {
+        final model = paged()..loadFirstPage();
+        final verdict = model.update(const LoadResult<List<String>>('other', key: PageKey(0), data: ['x']));
 
+        expect(verdict, isA<Declined>(), reason: 'a message addressed elsewhere is not one this list understands');
         expect(model.cachedItemCount, equals(0));
         expect(model.isLoading(), isTrue, reason: 'still waiting for its own result');
+      });
+
+      test('every result addressed to the list is consumed, installed or not', () {
+        final model = paged();
+        final req = model.loadFirstPage();
+
+        expect(model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a'])), isA<Handled>());
+        expect(
+          model.update(LoadResult<List<String>>(model.id, key: const PageKey(7), data: const ['x'])),
+          isA<Handled>(),
+          reason: "a stale page is dropped, but the message was the list's own",
+        );
+        expect(model.update(LoadResult<List<String>>(model.id, key: 'not a page', data: const ['x'])), isA<Handled>());
       });
     });
 
@@ -761,7 +774,7 @@ void main() {
       test('a short page pulls the cursor and viewport back to the real end', () {
         final model = ranAhead();
         final short = LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['f']);
-        model.applyLoad(short);
+        model.update(short);
 
         expect(model.knownItemCount, equals(6));
         expect(model.cursor, equals(5), reason: 'the rows past the end stopped existing');

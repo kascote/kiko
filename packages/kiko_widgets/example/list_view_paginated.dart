@@ -2,7 +2,8 @@
 //
 // Shows:
 // - A PageSource over a simulated offset API, fetched with the fetchInto helper
-// - LoadRequest / LoadResult handling, keyed by page number
+// - LoadRequest → fetch, keyed by page number; the LoadResult routes itself
+//   home to the list, which installs it in its own update
 // - A demand pass that may ask for several pages at once (flattened by the app)
 // - The frame-tick demand case that picks up what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
@@ -71,7 +72,6 @@ class AppModel with ThemeSwitcher {
     focused: true,
   );
 
-  String? error;
   bool initialized = false;
 }
 
@@ -111,19 +111,6 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Page results route home by id, then install generically — applyLoad clears
-  // the slot on success or records the error on failure.
-  if (msg case final LoadResult<Object?> r) {
-    if (r.id == model.list.id) {
-      model.list.applyLoad(r);
-      // `ok` is false for a refusal as well as a failure, so check `cancelled`
-      // first: a refused page did not fail, and reporting it as an error would
-      // be a lie the user has to dismiss.
-      if (!r.cancelled) model.error = r.ok ? null : 'Failed to load: ${r.error}';
-    }
-    return (model, null);
-  }
-
   // Kick off the first page once.
   if (msg is InitMsg && !model.initialized) {
     model.initialized = true;
@@ -144,7 +131,9 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     return (model, fetchAll(model, model.list.demandIfDirty()));
   }
 
-  // Navigation runs a demand pass, which may ask for one page or several.
+  // Navigation runs a demand pass, which may ask for one page or several. A
+  // page's LoadResult takes the same path: it carries the list's id, and the
+  // list installs it, or records its failure, in this one call.
   final result = model.list.update(msg);
 
   switch (result) {
@@ -175,10 +164,17 @@ void appView(AppModel model, Frame frame) {
   frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 
   final loading = model.list.isLoading();
+  // The list records each failed page itself; the status line reads the
+  // viewport's verdict rather than remembering results as they pass.
+  final failed = model.list.viewportStatus == SliceStatus.failed;
 
   // Status indicator
   final countStr = model.list.knownItemCount?.toString() ?? '?';
-  final status = loading ? 'Loading...' : model.error ?? 'Loaded pages ${model.list.cachedPages} of $countStr users';
+  final status = loading
+      ? 'Loading...'
+      : failed
+      ? 'Failed to load a page in view'
+      : 'Loaded pages ${model.list.cachedPages} of $countStr users';
 
   // Scroll position
   final scroll = model.list.getScrollState();
@@ -190,11 +186,11 @@ void appView(AppModel model, Frame frame) {
     resolver.ink(t.success),
     {
       if (loading) WidgetState.loading,
-      if (model.error != null) WidgetState.error,
+      if (failed) WidgetState.error,
     },
     cls: PaintClass.ink,
   );
-  final statusTone = model.error != null
+  final statusTone = failed
       ? t.error
       : loading
       ? t.warning

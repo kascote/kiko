@@ -21,8 +21,9 @@ import 'types.dart';
 /// itself, and a page is never asked for twice while it is on its way. The model
 /// performs no I/O — anything that moves the viewport runs a [demand] pass, which
 /// returns a [LoadRequest] (or a [Batch] of them) for the pages the viewport
-/// needs and does not have. The app fetches and hands each page back through
-/// [applyLoad]. Implements [Loadable] for that hand-back.
+/// needs and does not have. The app fetches, and each page comes back as a
+/// [LoadResult] carrying the table's id, which the router delivers to
+/// [update].
 ///
 /// Two obligations sit on the app, and both are one line:
 ///
@@ -53,7 +54,7 @@ import 'types.dart';
 ///
 /// A table that loads passes no rows at all — it asks for its first page and
 /// fills from there.
-class TableViewModel with ScrollableModel implements Component, Loadable {
+class TableViewModel with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the [TableActionCmd] it
   /// emits and the [LoadRequest] it returns when a page is needed.
   ///
@@ -374,8 +375,8 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// Starts the initial page load: marks page 0 loading and returns the
   /// [LoadRequest] for the app to fetch.
   ///
-  /// The app calls this once (e.g. on init), fetches the page named by the
-  /// request's [PageKey], and installs the result via [applyLoad]. Every
+  /// The app calls this once (e.g. on init) and fetches the page named by the
+  /// request's [PageKey]; the [LoadResult] comes back through [update]. Every
   /// page after this one is asked for by [demand].
   LoadRequest loadFirstPage() => _loader.loadFirstPage();
 
@@ -418,19 +419,21 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
 
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
-  /// This is the app's single entry point for delivering a fetched page, keyed by
-  /// page number ([PageKey]). A result for another model (by id), a non-page
-  /// key, or a page that is no longer in flight (e.g. after a [reset]) is dropped
-  /// rather than corrupting the window.
+  /// A result addressed to another id is declined: it is not a message this
+  /// table understands. Every result addressed to this table is consumed,
+  /// keyed by page number ([PageKey]); a non-page key, or a page that is no
+  /// longer in flight (e.g. after a [reset]), is dropped rather than
+  /// corrupting the window.
   ///
   /// On success the rows install as that page — a short page recording where the
   /// data ends — and pages the viewport no longer needs are evicted. A refusal
   /// clears the slot and installs nothing, so the page keeps its placeholders and
   /// is asked for again by the next demand pass. A failure records the error, and
   /// a later demand pass retries the page.
-  @override
-  void applyLoad(LoadResult<Object?> result) {
+  UpdateResult _applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return const Declined();
     if (_loader.apply(result)) _clampToKnownEnd();
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────
@@ -460,8 +463,8 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
   /// This is the seeding path for rows an app already holds — a static table, or
   /// a first page fetched before the model existed. Rows are split at the page
   /// size, and nothing is evicted: a caller handing over data it already has
-  /// means to keep it. Pages that arrive from a [LoadRequest] go through
-  /// [applyLoad] instead, which is what evicts.
+  /// means to keep it. Pages that arrive from a [LoadRequest] land as a
+  /// [LoadResult] in [update] instead, which is what evicts.
   void insertRows(List<Map<String, Object?>> rows, int pageNum) => _loader.seed(rows, firstPage: pageNum);
 
   /// Get row at index from the window, or null if its page isn't held.
@@ -547,6 +550,7 @@ class TableViewModel with ScrollableModel implements Component, Loadable {
       return const Handled();
     }
     if (msg is PointerCancelMsg) return const Declined();
+    if (msg case final LoadResult<Object?> result) return _applyLoad(result);
 
     if (!focused) return const Declined();
 

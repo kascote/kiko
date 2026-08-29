@@ -5,10 +5,12 @@
 // - The in-memory path: options: seeds the popup, typed text filters it
 //   client-side (ComboboxModel.matches).
 // - The remote path: options omitted, so the model asks the app for every
-//   query through a Loadable LoadRequest/LoadResult exchange, keyed by
-//   QueryKey. The app answers with data, an error (typing "err" into the
-//   search), or declineLoad (F3 pauses the search to demonstrate a refusal:
-//   the popup shows the stalled row, here 'Search paused').
+//   query with a LoadRequest keyed by QueryKey. The app answers with data, an
+//   error (typing "err" into the search), or declineLoad (F3 pauses the
+//   search to demonstrate a refusal: the popup shows the stalled row, here
+//   'Search paused'). The answer is a LoadResult carrying the combobox's id;
+//   the router delivers it and the combobox installs it. The app never
+//   routes a result by hand.
 // - Custom popup rows: itemBuilder paints each country's name at the left
 //   edge of the row and its flag at the right.
 // - Chrome: the country field sits in a bordered Container the app owns,
@@ -110,8 +112,9 @@ class AppModel with ThemeSwitcher {
     placeholder: 'Select a role...',
   );
 
-  /// Remote options: `options` is omitted, so every query goes to the app
-  /// through [Loadable.applyLoad] — see [fetchFor].
+  /// Remote options: `options` is omitted, so every query goes to the app as
+  /// a [LoadRequest] — see [fetchFor] — and its answer comes back to the
+  /// combobox through the router.
   final userCombo = ComboboxModel<String>(
     id: 'user-combo',
     label: (name) => name,
@@ -187,13 +190,6 @@ String _selectionStatus(AppModel model, String id) {
 
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) return (model, null);
-
-  // A remote query's answer routes home by id; applyLoad installs it or
-  // records the failure, and the popup's status row reads it back.
-  if (msg case final LoadResult<Object?> r) {
-    if (r.id == model.userCombo.id) model.userCombo.applyLoad(r);
-    return (model, null);
-  }
 
   // A press outside every combobox's own scope closes whichever one is
   // open. The message keeps going: this only closes the popup, it never

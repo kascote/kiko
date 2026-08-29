@@ -327,13 +327,6 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
 (Model, Cmd?) update(Model model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeKeys(msg)) return (model, null);
 
-  // Async results route home by id, then install generically.
-  if (msg case final LoadResult<Object?> result) {
-    if (result.id == model.tree.id) model.tree.applyLoad(result);
-    if (result.id == model.table.id) model.table.applyLoad(result);
-    return (model, null);
-  }
-
   // Kick off the tree roots and the table's first page once. The app owns the
   // table's data, so it asserts the total count directly.
   if (msg is InitMsg && !model.initialized) {
@@ -402,7 +395,8 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
 
   // The one routing line: keys to the focused widget (tab/shift+tab reserved
   // for traversal), a pointer to the widget it is addressed to — moving focus
-  // there on a down-press.
+  // there on a down-press — and a load result to the widget whose id it
+  // carries, which installs it.
   switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
       return (model, handleCmds(model, cmd));

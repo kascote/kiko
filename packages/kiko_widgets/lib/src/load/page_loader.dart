@@ -326,10 +326,10 @@ class PageLoader<T> {
   /// Installs the outcome of a page load and clears (or fails) its slot.
   /// Returns true only when rows were installed.
   ///
-  /// This backs the owner's `applyLoad`, keyed by page number ([PageKey]). A
-  /// result for another widget (by id), a non-page key, or a page that is no
-  /// longer in flight (e.g. after a [reset]) is dropped rather than corrupting
-  /// the window.
+  /// This backs the owner's `LoadResult` case in `update`, keyed by page
+  /// number ([PageKey]). A result for another widget (by id), a non-page key,
+  /// or a page that is no longer in flight (e.g. after a [reset]) is dropped
+  /// rather than corrupting the window.
   ///
   /// On success the rows install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. A

@@ -10,19 +10,21 @@ import 'types.dart';
 ///
 /// Holds expansion state, cursor position, and the load state of each pending
 /// fetch. Implements [Component] (stable [id] + [update]) for addressing and
-/// focus, and [Loadable] so the app can install fetched data with [applyLoad].
+/// focus; a [LoadResult] addressed to the tree installs fetched data through
+/// the same [update].
 ///
 /// The model performs no I/O. The app owns the data source and drives every
 /// fetch: it calls [loadRoots] once to start, and [expand] returns a
 /// [LoadRequest] when a node's children aren't loaded yet. The app turns each
-/// request into a runtime `Task` and hands the outcome back through [applyLoad].
+/// request into a runtime `Task` whose outcome is a [LoadResult] carrying the
+/// tree's id, and the router delivers it to [update].
 ///
 /// ```dart
 /// final tree = TreeViewModel<FileInfo>(focused: true);
 /// // app, on init:   final req = tree.loadRoots();  // → fetch getRoots()
-/// // app, on result: tree.applyLoad(LoadResult(tree.id, key: req.key, data: roots));
+/// // the fetch ends: LoadResult(tree.id, key: req.key, data: roots) → tree.update
 /// ```
-class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
+class TreeViewModel<T> with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the widget→app commands
   /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd], [LoadRequest]).
   ///
@@ -198,9 +200,9 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// Starts the initial root load: marks the roots slot loading and returns the
   /// [LoadRequest] for the app to fetch.
   ///
-  /// The app calls this once (e.g. on init), turns the request into a `getRoots`
-  /// fetch, and installs the result via [applyLoad]/[applyRoots]. Until then,
-  /// `isLoading(const RootsKey())` is true.
+  /// The app calls this once (e.g. on init) and turns the request into a
+  /// `getRoots` fetch whose [LoadResult] comes back through [update]. Until
+  /// then, `isLoading(const RootsKey())` is true.
   LoadRequest loadRoots() {
     _loads.begin(const RootsKey());
     return LoadRequest(id, key: const RootsKey());
@@ -208,9 +210,10 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
 
   /// Installs the outcome of a load and clears (or fails) its slot.
   ///
-  /// This is the app's single entry point for delivering fetched data, keyed by
-  /// [LoadResult.key]: [RootsKey] installs roots, [PathKey] installs one node's
-  /// children. A result for another model (by id) or an unknown key is ignored.
+  /// A result addressed to another id is declined: it is not a message this
+  /// tree understands. Every result addressed to this tree is consumed, keyed
+  /// by [LoadResult.key]: [RootsKey] installs roots, [PathKey] installs one
+  /// node's children, and an unknown key installs nothing.
   ///
   /// Child results are guarded: only a node whose load is still in flight accepts
   /// one, so a late reply for a collapsed or already-loaded node is dropped rather
@@ -220,9 +223,8 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// null included, fails the slot with a [PayloadMismatch] and installs no
   /// nodes, so the branch shows the wiring error where a fetch failure would
   /// show.
-  @override
-  void applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return;
+  UpdateResult _applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return const Declined();
     switch (result.key) {
       case RootsKey():
         _installRoots(result);
@@ -230,22 +232,23 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
         _installChildren(path, result);
       default:
         // Unknown key — nothing to install.
-        return;
+        break;
     }
+    return const Handled();
   }
 
-  /// Installs fetched root [roots]. Typed shorthand for [applyLoad] with a
-  /// [RootsKey].
+  /// Installs fetched root [roots]. Typed shorthand for delivering a
+  /// [LoadResult] with a [RootsKey] through [update].
   void applyRoots(List<TreeNode<T>> roots) =>
-      applyLoad(LoadResult<List<TreeNode<T>>>(id, key: const RootsKey(), data: roots));
+      update(LoadResult<List<TreeNode<T>>>(id, key: const RootsKey(), data: roots));
 
-  /// Installs fetched [children] for [path]. Typed shorthand for [applyLoad] with
-  /// a [PathKey].
+  /// Installs fetched [children] for [path]. Typed shorthand for delivering a
+  /// [LoadResult] with a [PathKey] through [update].
   ///
   /// Subject to the staleness guard: the node's load must be in flight (started
   /// by [expand]); a result for a collapsed or idle path is dropped.
   void applyChildren(String path, List<TreeNode<T>> children) =>
-      applyLoad(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
+      update(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
 
   void _installRoots(LoadResult<Object?> result) {
     // A refusal resolves the slot and installs nothing: the roots stay unloaded
@@ -304,7 +307,7 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// Otherwise emits a [TreeExpandCmd] event on every expansion. When the node's
   /// children aren't loaded yet, it also emits a [LoadRequest] (the two wrapped in
   /// a [Batch]) and shows a loading placeholder; the app drives the fetch and
-  /// installs the result with [applyLoad]. The widget never performs I/O.
+  /// its [LoadResult] comes back through [update]. The widget never performs I/O.
   Cmd? expand(String path) {
     if (_expanded.contains(path)) return null;
 
@@ -363,8 +366,8 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   ///
   /// Best-effort over already-loaded data: an ancestor whose children are not
   /// cached is left untouched, because revealing it needs a fetch and the
-  /// widget performs no I/O. Load the needed subtree first (via [expand] +
-  /// [applyLoad]), then call this.
+  /// widget performs no I/O. Load the needed subtree first (via [expand] and
+  /// the [LoadResult] it leads to), then call this.
   void expandPath(String path) {
     // Build list of ancestors
     final ancestors = <String>[];
@@ -497,6 +500,7 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       return const Handled();
     }
     if (msg is PointerCancelMsg) return const Declined();
+    if (msg case final LoadResult<Object?> result) return _applyLoad(result);
 
     if (!focused) return const Declined();
 

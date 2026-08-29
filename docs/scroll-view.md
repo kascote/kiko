@@ -15,7 +15,7 @@ ScrollView lays out its entire child every frame and clips the paint. The cost
 grows with the content, not the viewport. That is right for a form or a panel
 and wrong at data scale: a 100k-row list belongs on a windowed widget (List,
 Table, Tree), never inside a ScrollView. For the same reason `ScrollViewModel`
-is not `Loadable` — it scrolls composed UI that is already in memory.
+never loads — it scrolls composed UI that is already in memory.
 
 ## The content-area tag, and chrome
 

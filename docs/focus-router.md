@@ -3,9 +3,10 @@
 `FocusRouter` (`packages/kiko_widgets/lib/src/widgets/focus_router.dart`)
 packages the app-side interaction glue behind one `route()` call, made as one
 `case` of the app's `update`: focus traversal, click-to-focus, pointer
-dispatch, and the outward offer for declined pointers. It owns none of the
-widgets it routes to. The `FocusGroup` and `extras` are held by reference and
-re-read on every call, so there is no registration step.
+dispatch, delivery of addressed messages, and the outward offer for declined
+pointers. It owns none of the widgets it routes to. The `FocusGroup` and
+`extras` are held by reference and re-read on every call, so there is no
+registration step.
 
 Simplest wiring: `packages/kiko_widgets/example/text_input.dart`. Everything
 at once: `packages/kiko_widgets/example/scrollable_form.dart`. The hand-rolled
@@ -13,8 +14,8 @@ primitive underneath: `packages/kiko_core/example/mouse_dispatch.dart`.
 
 ## The routing contract
 
-**Route by address, never by message class.** `route()` has three cases, and
-only three:
+**Route by address, never by message class.** `route()` has four cases, and
+only four:
 
 1. A `KeyMsg` resolves against the traversal `bindings` first; an unbound key
    goes to the focused member. The traversal keys are reserved, which is what
@@ -27,7 +28,13 @@ only three:
    delivers to its owner as-is, and a press on it click-focuses the owner. A
    background press or an unresolved target declines. Positional traffic is
    never re-aimed at the focused member.
-3. Everything else goes to the focused member, and its verdict returns as-is:
+3. An addressed message (`Addressed`, `docs/components.md`) names its owner
+   by `id`, and the id resolves the same way — members and `extras`, exact
+   or by the longest registered prefix. It is delivered to the owner without
+   moving focus. A `LoadResult` is the example: the widget that asked for a
+   page receives the page. An id nothing registers declines; an async result
+   is never re-aimed at the focused member either.
+4. Everything else goes to the focused member, and its verdict returns as-is:
    paste, a future input class, a message the router has never heard of. The
    router never decides for a widget which messages it can handle. That is
    the widget's verdict, and `Declined` means nothing consumed the message,
@@ -43,8 +50,9 @@ this for every model — keep new widgets in that suite.
 
 The order of cases in the app's `update`:
 
-1. Domain messages first: widget→app commands and async results the app must
-   intercept.
+1. Domain messages first: the app's own message classes, and a command the
+   app must act on before anything else. Async results are not in this
+   group: the router delivers them.
 2. App-level pre-route intercepts — a message the app wants before a widget
    sees it. These are rare; prefer switching on the `Handled(cmd)` the router
    returns.
@@ -60,8 +68,9 @@ escalation order:
 
 - `bindings:` — extend or replace the traversal keys. `defaultFocusBindings()`
   is Tab/Shift+Tab; add jumps with `..map(['alt+1'], const FocusTo('sidebar'))`.
-- `extras:` — components reachable by pointer but never by focus (a
-  wheel-only scroll surface, a status strip).
+- `extras:` — components reachable by pointer or by an addressed message but
+  never by focus (a wheel-only scroll surface, a status strip, a widget that
+  only ever receives async results).
 - `onFocusChange` — the single funnel for every focus move, keyboard or click
   alike. Scroll-the-focused-field-into-view lives here, and nowhere else.
 - `clickToFocus: false` — presses deliver without moving focus.

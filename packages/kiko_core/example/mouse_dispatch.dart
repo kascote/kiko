@@ -34,8 +34,8 @@ import 'package:kiko/kiko.dart';
 //      whether a mouse or a keyboard produced it.
 //
 //   3. The runtime never sees the map. The router deals in ids alone; the
-//      id→Component hop is the app's, on purpose, and the same bookkeeping the
-//      load doctrine's `Map<String, Loadable>` already carries.
+//      id→Component hop is the app's, on purpose — the same id→component
+//      map `FocusRouter` derives from its members and extras on every call.
 //
 // tab cycles focus · ↑/↓ or the wheel moves the cursor · enter or a click
 // activates · right-click resets a menu · click "clear" to empty the log · q quits

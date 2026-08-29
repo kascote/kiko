@@ -2,7 +2,8 @@
 //
 // Shows:
 // - A PageSource over a simulated offset API, fetched with the fetchInto helper
-// - LoadRequest / LoadResult handling, keyed by page number
+// - LoadRequest → fetch, keyed by page number; the LoadResult routes itself
+//   home to the table, which installs it in its own update
 // - A demand pass that may ask for several pages at once (flattened by the app)
 // - The frame-tick demand case that picks up what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
@@ -164,7 +165,6 @@ class AppModel with ThemeSwitcher {
     emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
   );
 
-  String? error;
   bool initialized = false;
 
   /// A stand-in for an app-owned policy gate — "do not fetch while a sync is
@@ -215,19 +215,6 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // Page results route home by id, then install generically — applyLoad clears
-  // the slot on success or records the error on failure.
-  if (msg case final LoadResult<Object?> r) {
-    if (r.id == model.table.id) {
-      model.table.applyLoad(r);
-      // `ok` is false for a refusal as well as a failure, so check `cancelled`
-      // first: a page this app declined on policy grounds did not fail, and
-      // reporting it as an error would be a lie the user has to dismiss.
-      if (!r.cancelled) model.error = r.ok ? null : 'Failed to load: ${r.error}';
-    }
-    return (model, null);
-  }
-
   // Total count is a benign one-shot, not a tracked load — a missing count just
   // leaves the scrollbar indeterminate.
   if (msg is CountLoadedMsg) {
@@ -267,7 +254,9 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     return (model, fetchAll(model, model.table.demandIfDirty()));
   }
 
-  // Navigation runs a demand pass, which may ask for one page or several.
+  // Navigation runs a demand pass, which may ask for one page or several. A
+  // page's LoadResult takes the same path: it carries the table's id, and the
+  // table installs it, or records its failure, in this one call.
   final result = model.table.update(msg);
 
   switch (result) {
@@ -328,14 +317,18 @@ void appView(AppModel model, Frame frame) {
     ),
   );
 
-  // Status
+  // Status. The table records each failed page itself; the status line reads
+  // the viewport's verdict rather than remembering results as they pass.
+  final failed = model.table.viewportStatus == SliceStatus.failed;
   final status = model.paused
       ? 'Paused — loads refused (p to resume)'
       : loading
       ? 'Loading...'
-      : model.error ?? 'Ready';
+      : failed
+      ? 'Failed to load a page in view'
+      : 'Ready';
 
-  final statusTone = model.error != null
+  final statusTone = failed
       ? t.error
       : loading
       ? t.warning

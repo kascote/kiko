@@ -139,9 +139,10 @@ void main() {
       final msg = await (task as AsyncCmd).execute() as LoadResult<Object?>;
       expect(msg.id, equals('A'));
 
-      // On receipt, resolve home by id and install — only A is touched.
-      final dest = app.resolve(msg.id)!..applyLoad(msg);
+      // On receipt, resolve home by id and deliver to update — only A is touched.
+      final dest = app.resolve(msg.id)!;
       expect(dest, same(a));
+      expect(dest.update(msg), isA<Handled>());
 
       expect(a.cachedRowCount, greaterThan(10));
       expect(a.isLoading(), isFalse);
@@ -158,7 +159,7 @@ void main() {
       // tab closed, list rebuilt) — exactly the orphan case references hid.
       final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: const PageKey(1), data: rows(3));
       final dest = app.resolve(orphan.id);
-      dest?.applyLoad(orphan);
+      dest?.update(orphan);
 
       expect(dest, isNull);
       expect(app.log, contains('dropped: no owner for id "ghost"'));

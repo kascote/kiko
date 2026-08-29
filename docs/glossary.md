@@ -46,6 +46,10 @@ A term of art added to a page gets its entry here in the same change.
   so the caller may offer it elsewhere.
 - **id / addressing** — a component's stable string identity. Widget→app
   commands and async results carry it as their address.
+- **addressed message** — a message implementing `Addressed`: it names the
+  widget it is for by id, and the router delivers it there (`LoadResult`;
+  `docs/components.md`). Distinct from pointer traffic, whose target the hit
+  map resolves.
 - **focus gate** — the `if (!focused) return const Declined();` line that
   keeps a widget's keyboard handling inactive while unfocused.
 

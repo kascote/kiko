@@ -342,7 +342,7 @@ void main() {
         // Jump to the end: the viewport now needs page 11, and asks for it.
         expect(pagesAsked(model.update(keyMsg('end'))), equals([11]));
 
-        model.applyLoad(
+        model.update(
           LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(11), data: sampleRows(10)),
         );
 
@@ -406,7 +406,7 @@ void main() {
             {'id': 'row5', 'name': 'Name 5', 'value': 50},
           ],
         );
-        model.applyLoad(short);
+        model.update(short);
 
         expect(model.knownRowCount, equals(6));
         expect(model.cursorRow, equals(5), reason: 'the rows past the end stopped existing');
@@ -690,7 +690,7 @@ void main() {
               ..update(keyMsg('space')) // select row0
               ..update(keyMsg('end'));
 
-        model.applyLoad(
+        model.update(
           LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(11), data: sampleRows(10)),
         );
 
@@ -940,17 +940,17 @@ void main() {
         expect(req.key, equals(const PageKey(0)));
         expect(model.isLoading(const PageKey(0)), isTrue);
 
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
+        model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
         expect(model.cachedRowCount, equals(10));
         expect(model.cachedPages, equals([0]));
         expect(model.isLoading(const PageKey(0)), isFalse);
       });
 
-      test('applyLoad installs a page at the offset its key names', () {
+      test('update(LoadResult) installs a page at the offset its key names', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
-        model.applyLoad(
+        model.update(
           LoadResult<List<Map<String, Object?>>>(
             model.id,
             key: const PageKey(3),
@@ -963,18 +963,18 @@ void main() {
         final page = (req.key! as PageKey).page;
         expect(model.isLoading(req.key! as PageKey), isTrue);
 
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
+        model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: req.key, data: sampleRows(10)));
 
         expect(model.isLoading(req.key! as PageKey), isFalse);
         expect(model.cachedPages, contains(page));
         expect(model.getRow(page * 10)?['id'], equals('row0'));
       });
 
-      test('applyLoad takes a PageResult, count and end-of-data included', () {
+      test('update(LoadResult) takes a PageResult, count and end-of-data included', () {
         final model = paginated();
         final req = model.loadFirstPage();
 
-        model.applyLoad(
+        model.update(
           LoadResult<PageResult<Map<String, Object?>>>(
             model.id,
             key: req.key,
@@ -987,7 +987,7 @@ void main() {
 
         // The next page says the data stops there, even though it is full.
         expect(pagesIn(model.demand()), equals([1]));
-        model.applyLoad(
+        model.update(
           LoadResult<PageResult<Map<String, Object?>>>(
             model.id,
             key: const PageKey(1),
@@ -997,13 +997,13 @@ void main() {
         expect(model.demand(), isNull, reason: 'nothing exists past the last page');
       });
 
-      test('applyLoad records an error, leaving the page retryable', () {
+      test('update(LoadResult) records an error, leaving the page retryable', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
         final req = requestsOf(model.update(keyMsg('end'))).first;
         final key = req.key! as PageKey;
         final boom = StateError('boom');
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: key, error: boom));
+        model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: key, error: boom));
 
         expect(model.isLoading(key), isFalse);
         expect(model.errorFor(key), same(boom));
@@ -1015,11 +1015,11 @@ void main() {
         expect(model.errorFor(key), isNull, reason: 'retry clears the error');
       });
 
-      test('applyLoad drops a result for a page that is not loading', () {
+      test('update(LoadResult) drops a result for a page that is not loading', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
         // Nothing was requested, so this result is stale.
-        model.applyLoad(
+        model.update(
           LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(1), data: sampleRows(10)),
         );
 
@@ -1027,13 +1027,29 @@ void main() {
         expect(model.isLoading(const PageKey(1)), isFalse);
       });
 
-      test('applyLoad ignores a result for another model', () {
+      test('update(LoadResult) declines a result for another model', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
         final key = requestsOf(model.update(keyMsg('end'))).first.key! as PageKey;
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>('other', key: key, data: sampleRows(10)));
+        final verdict = model.update(LoadResult<List<Map<String, Object?>>>('other', key: key, data: sampleRows(10)));
 
+        expect(verdict, isA<Declined>(), reason: 'a message addressed elsewhere is not one this table understands');
         expect(model.cachedRowCount, equals(10));
         expect(model.isLoading(key), isTrue, reason: 'slot untouched');
+      });
+
+      test('every result addressed to the table is consumed, installed or not', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+
+        expect(
+          model.update(LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, data: sampleRows(10))),
+          isA<Handled>(),
+        );
+        expect(
+          model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(7), data: sampleRows(10))),
+          isA<Handled>(),
+          reason: "a stale page is dropped, but the message was the table's own",
+        );
       });
 
       test('pages above and below the viewport load at once', () {
@@ -1142,7 +1158,7 @@ void main() {
         }
         expect(asked, isNotEmpty);
         final refused = asked.first;
-        model.applyLoad(LoadResult<List<Map<String, Object?>>>.cancelled(model.id, key: PageKey(refused)));
+        model.update(LoadResult<List<Map<String, Object?>>>.cancelled(model.id, key: PageKey(refused)));
 
         expect(model.isLoading(PageKey(refused)), isFalse, reason: 'the slot is idle again');
         expect(model.errorFor(PageKey(refused)), isNull, reason: 'a refusal is not a failure');
@@ -1323,7 +1339,7 @@ class _Ferry {
     final rows = start >= totalRows
         ? const <Map<String, Object?>>[]
         : sampleRows(totalRows).sublist(start, (start + pageSize).clamp(0, totalRows));
-    model.applyLoad(LoadResult<List<Map<String, Object?>>>(model.id, key: PageKey(page), data: rows));
+    model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: PageKey(page), data: rows));
   }
 
   /// Answers everything outstanding, then keeps running demand passes until the

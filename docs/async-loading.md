@@ -24,10 +24,13 @@ The widget owns the **state machine**; the app owns the **I/O**. Concretely:
   twice therefore lives *inside* the widget, not in an app-side `!isLoading`
   guard.
 - The widget flips the slot **to idle or error when the matching `LoadResult`
-  lands** in `applyLoad`.
+  lands** in its `update`.
 - The app performs the I/O, and only the I/O: it sees the `LoadRequest`,
   fires a `Task`, and threads `(id, key)` into the `LoadResult`. **The widget
   never awaits.**
+- The `LoadResult` is an addressed message (`docs/components.md`): the focus
+  router delivers it to the widget whose id it carries. **The app never
+  routes a result by hand.**
 
 ### Every request resolves its slot — three replies, no fourth
 
@@ -69,21 +72,20 @@ frame-tick demand case run it.
   no payload. The load half of a tree expand is also a `LoadRequest` (see
   TreeView below).
 - `LoadResult<D>(id, {key, data, error})` — a `Msg` carrying the outcome
-  home. `D` is the payload type at the construction site (type-safe
-  `onSuccess`); the registry routes the erased `LoadResult<Object?>`, so
-  `applyLoad` checks `data` **once** internally, through `payloadMismatch` —
-  inherent to a heterogeneous registry, not a smell.
+  home; it implements `Addressed`, so the router delivers it by `id`. `D` is
+  the payload type at the construction site (type-safe `onSuccess`); the
+  widget's `update` receives the erased `LoadResult<Object?>`, so it checks
+  `data` **once** internally, through `payloadMismatch` — inherent to
+  routing by id, not a smell.
 - `payloadMismatch(result, widget:, expected:, accepts:)` — the one shape
-  check every `applyLoad` runs on a successful result. A payload that is not
-  the shape the widget installs, null included, is a wiring error: the widget
-  fails the slot with a `PayloadMismatch` (logged once, naming the widget, the
-  key, and both shapes) and installs nothing. The mismatch paints where that
-  widget paints a fetch failure — the page error row, `queryError`, the failed
-  branch. It never records an end-of-data: an empty result is an empty list,
-  never null and never some other type.
-- `Loadable` — `String get id` + `void applyLoad(LoadResult<Object?>)`. The
-  app keeps a `Map<String, Loadable>` and routes every result with one
-  generic line.
+  check every widget's `LoadResult` case runs on a successful result. A
+  payload that is not the shape the widget installs, null included, is a
+  wiring error: the widget fails the slot with a `PayloadMismatch` (logged
+  once, naming the widget, the key, and both shapes) and installs nothing.
+  The mismatch paints where that widget paints a fetch failure — the page
+  error row, `queryError`, the failed branch. It never records an
+  end-of-data: an empty result is an empty list, never null and never some
+  other type.
 - `PageWindow<T>` — the sparse page cache the windowed widgets hold: pages by
   number, which pages are present, which pages a viewport still needs
   (`missing`), page-aligned eviction, and end-of-data as "the last page that
@@ -94,7 +96,7 @@ frame-tick demand case run it.
 - `PageLoader<T>` — the loading half of a windowed widget: the page window, a
   load slot per page, and the demand pass, in one object the widget model
   embeds and delegates to. It performs no I/O. Apps meet it only through the
-  model's own members (`demand`, `demandIfDirty`, `applyLoad`, `reset`, …).
+  model's own members (`demand`, `demandIfDirty`, `update`, `reset`, …).
 - `PageSource<T>` + `PageResult<T>` — the app-side source interface: index
   addressed, owning the page size, `Future<PageResult<T>> read(int page)`.
   `PageSource.offset(...)` wraps an offset/limit query. `PageSource.cursor(...)`
@@ -125,8 +127,10 @@ Each model exposes **domain-named read-only getters** over its tracker
 **no** public mutable `isLoading` setter and **no** `loadError` shorthand:
 read errors uniformly through `errorFor(key)`.
 The id guard and the **staleness guard** ("is this key still expected?") both
-live *inside* `applyLoad` — a late result for a collapsed branch or a
-superseded query is dropped, not applied.
+live *inside* the model's `LoadResult` case. A result addressed to another
+id is declined: it is not a message this widget understands. A late result
+for a collapsed branch or a superseded query is consumed and dropped, not
+applied.
 
 ## Data ownership — two paths, no read interface
 
@@ -261,20 +265,42 @@ The scrollbar reads only `int? total` (null ⇒ indeterminate thumb);
 scroll **composes with** load, it does not merge — `total` going unknown → 10
 → 20 as pages land is expected, not a glitch.
 
+## Result routing
+
+A `LoadResult` carries the id of the widget that asked, and the focus router
+delivers it there (`docs/focus-router.md`): a result addressed to a member or
+an `extras` component reaches that component's `update`, and one addressed to
+a composite's part reaches the composite. The app writes no routing code. An
+app that composes its own dispatch without `FocusRouter` gets the same rule
+from `routeToTarget`, or hands the result to the one widget it drives —
+`model.tree.update(msg)` — the way it hands it every other message.
+
+Each model handles the result as one case of `update`, above its focus gate:
+
+```dart
+// Inside a widget model's update — the only entry point for a result:
+if (msg case final LoadResult<Object?> result) return _applyLoad(result);
+
+UpdateResult _applyLoad(LoadResult<Object?> result) {
+  if (result.id != id) return const Declined(); // not this widget's message
+  // install the data, or record the error, or resolve a refusal …
+  return const Handled();
+}
+```
+
+The id guard stays: a result addressed to another id is declined, so an app
+that calls `update` without a router still gets the same answer. A result
+nothing registers comes back from the router as `Declined`, into the app's
+fall-through, where it logs what nothing consumed. A widget that receives
+results but is never focused or clicked goes in the router's `extras`.
+
 ## The payoff — one generic handler shape
 
-Result routing is **one line, identical for every loadable widget**; the only
-per-widget code is the request→fetch mapping the app owns. From
+The only per-widget code is the request→fetch mapping the app owns. From
 `packages/kiko_widgets/example/tree_view_async.dart`:
 
 ```dart
-// 1. Result routing — generic; installs the data and clears/fails the slot:
-if (msg case final LoadResult<Object?> r) {
-  if (r.id == model.tree.id) model.tree.applyLoad(r);
-  return (model, null);
-}
-
-// 2. Request → Task — the ONE domain-specific bit: pick the fetch by (id, key):
+// Request → Task — the ONE domain-specific bit: pick the fetch by (id, key):
 Cmd fetchFor(AppModel model, LoadRequest req) {
   final fetch = switch (req.key) {
     RootsKey()           => model.treeData.getRoots,
@@ -288,6 +314,7 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 }
 // kick off on init: fetchFor(model, model.tree.loadRoots());
 // honor a request:  if (cmd case LoadRequest r when r.id == model.tree.id) fetchFor(model, r);
+// the result:       routed to model.tree.update by id — no app code
 ```
 
 For a windowed widget over a `PageSource`, the same shape gets shorter,

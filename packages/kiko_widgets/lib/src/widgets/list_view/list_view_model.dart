@@ -14,16 +14,17 @@ import 'types.dart';
 ///
 /// Holds cursor position, selection state, scroll offset, and paged items held
 /// in a sliding window over large data sets. Implements [Component] (stable
-/// [id] + [update]) for addressing and focus, and [Loadable] so the app can
-/// install fetched pages with [applyLoad].
+/// [id] + [update]) for addressing and focus; a [LoadResult] addressed to the
+/// list installs a fetched page through the same [update].
 ///
 /// The page is the unit of loading: each page gets its own load slot named by a
 /// [PageKey], so several pages can be in flight at once, a result places
 /// itself, and a page is never asked for twice while it is on its way. The
 /// model performs no I/O — anything that moves the viewport runs a [demand]
 /// pass, which returns a [LoadRequest] (or a [Batch] of them) for the pages the
-/// viewport needs and does not have. The app fetches and hands each page back
-/// through [applyLoad].
+/// viewport needs and does not have. The app fetches, and each page comes back
+/// as a [LoadResult] carrying the list's id, which the router delivers to
+/// [update].
 ///
 /// Two obligations sit on the app, and both are one line:
 ///
@@ -57,7 +58,7 @@ import 'types.dart';
 ///   focused: true,
 /// );
 /// ```
-class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
+class ListViewModel<T, K> with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the widget→app commands
   /// it emits ([ListActionCmd]) and the [LoadRequest]s it returns when pages
   /// are needed.
@@ -336,9 +337,9 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// Starts the initial page load: marks page 0 loading and returns the
   /// [LoadRequest] for the app to fetch.
   ///
-  /// The app calls this once (e.g. on init), fetches the page named by the
-  /// request's [PageKey], and installs the result via [applyLoad]. Every page
-  /// after this one is asked for by [demand].
+  /// The app calls this once (e.g. on init) and fetches the page named by the
+  /// request's [PageKey]; the [LoadResult] comes back through [update]. Every
+  /// page after this one is asked for by [demand].
   LoadRequest loadFirstPage() => _loader.loadFirstPage();
 
   /// Asks for the pages the viewport needs and does not have.
@@ -372,10 +373,11 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
 
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
-  /// This is the app's single entry point for delivering a fetched page, keyed
-  /// by page number ([PageKey]). A result for another model (by id), a non-page
-  /// key, or a page that is no longer in flight (e.g. after a [reset]) is
-  /// dropped rather than corrupting the window.
+  /// A result addressed to another id is declined: it is not a message this
+  /// list understands. Every result addressed to this list is consumed, keyed
+  /// by page number ([PageKey]); a non-page key, or a page that is no longer
+  /// in flight (e.g. after a [reset]), is dropped rather than corrupting the
+  /// window.
   ///
   /// On success the items install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. While
@@ -385,11 +387,12 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// the slot and installs nothing, so the page keeps its placeholders and is
   /// asked for again by the next demand pass. A failure records the error, and
   /// a later demand pass retries the page.
-  @override
-  void applyLoad(LoadResult<Object?> result) {
-    if (!_loader.apply(result)) return;
+  UpdateResult _applyLoad(LoadResult<Object?> result) {
+    if (result.id != id) return const Declined();
+    if (!_loader.apply(result)) return const Handled();
     _clampToKnownEnd();
     if (result.key case final PageKey key) _completeRangeFor(key.page);
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────
@@ -401,8 +404,8 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
   /// This is the seeding path for items an app already holds — a static list,
   /// or a first page fetched before the model existed. Items are split at the
   /// page size, and nothing is evicted: a caller handing over data it already
-  /// has means to keep it. Pages that arrive from a [LoadRequest] go through
-  /// [applyLoad] instead, which is what evicts.
+  /// has means to keep it. Pages that arrive from a [LoadRequest] land as a
+  /// [LoadResult] in [update] instead, which is what evicts.
   ///
   /// To replace the data wholesale — a search box swapping its results — call
   /// [reset], then this, then set [totalCount] to the new length.
@@ -484,6 +487,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component, Loadable {
       return const Handled();
     }
     if (msg is PointerCancelMsg) return const Declined();
+    if (msg case final LoadResult<Object?> result) return _applyLoad(result);
 
     if (!focused) return const Declined();
 

@@ -14,6 +14,7 @@ export 'src/layout/position.dart';
 export 'src/layout/rect.dart';
 export 'src/layout/size.dart';
 export 'src/layout/spacing.dart';
+export 'src/mvu/addressed.dart';
 export 'src/mvu/auto_id.dart';
 export 'src/mvu/cmd.dart';
 export 'src/mvu/focus.dart';

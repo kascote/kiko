@@ -64,6 +64,18 @@ class _DomainMsg extends Msg {
   const _DomainMsg();
 }
 
+/// A message that is nothing but an address, to prove the router keys on
+/// [Addressed] itself and not on any one message class that implements it.
+class _AddressedMsg extends Msg implements Addressed {
+  const _AddressedMsg(this.id);
+
+  @override
+  final String id;
+}
+
+/// A successful, empty load result addressed to [id].
+LoadResult<Object?> _loadFor(String id) => LoadResult<Object?>(id, key: 'page', data: const <Object>[]);
+
 /// A committed frame with nothing rendered into it, for tests that only
 /// exercise the keyboard path and need no hit-tested geometry.
 UpdateContext _ctx({int width = 3, int height = 3}) {
@@ -283,6 +295,74 @@ void main() {
     });
   });
 
+  group('routeToTarget addressed', () {
+    test('an addressed message delivers to the component under its id, verbatim, verdict as-is', () {
+      const cmd = Quit();
+      final a = _FakeComponent('a', (_) => const Handled(cmd));
+      final b = _FakeComponent('b', (_) => const Handled());
+      final targets = <String, Component>{'a': a, 'b': b};
+      final result = _loadFor('a');
+
+      final verdict = routeToTarget(result, _ctx(), targets);
+
+      expect(verdict, isA<Handled>());
+      expect((verdict as Handled).cmd, same(cmd));
+      expect(a.seen, equals([result]));
+      expect(b.seen, isEmpty);
+    });
+
+    test('an id nothing registers declines and calls no component', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final targets = <String, Component>{'a': a};
+
+      final verdict = routeToTarget(_loadFor('ghost'), _ctx(), targets);
+
+      expect(verdict, isA<Declined>());
+      expect(a.seen, isEmpty);
+    });
+
+    test('an id under a registered prefix climbs to the registration, id riding along untouched', () {
+      final combo = _FakeComponent('combo', (_) => const Handled());
+      final targets = <String, Component>{'combo': combo};
+
+      final verdict = routeToTarget(_loadFor('combo/list'), _ctx(), targets);
+
+      expect(verdict, isA<Handled>());
+      expect(combo.seen, hasLength(1));
+      expect(
+        (combo.seen.single as LoadResult<Object?>).id,
+        'combo/list',
+        reason: 'nothing retargets on a prefix match',
+      );
+    });
+
+    test('a declined addressed message does not bubble outward', () {
+      final frame = _frame(3, 3)..render(_region('outer', _region('inner', const SizedBox(width: 3, height: 3))));
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+      final inner = _FakeComponent('inner', (_) => const Declined());
+      final outer = _FakeComponent('outer', (_) => const Handled());
+      final targets = <String, Component>{'inner': inner, 'outer': outer};
+
+      final verdict = routeToTarget(_loadFor('inner'), ctx, targets);
+
+      expect(verdict, isA<Declined>());
+      expect(inner.seen, hasLength(1));
+      expect(outer.seen, isEmpty, reason: 'an addressed message carries no position to bubble from');
+    });
+
+    test('any message implementing Addressed is routed by its id, whatever its class', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final targets = <String, Component>{'a': a};
+      const msg = _AddressedMsg('a');
+
+      final verdict = routeToTarget(msg, _ctx(), targets);
+
+      expect(verdict, isA<Handled>());
+      expect(a.seen, equals([msg]));
+    });
+  });
+
   group('FocusRouter keyboard', () {
     test('a traversal key never reaches a member that would swallow it', () {
       final trap = _FakeComponent('trap', (_) => const Handled());
@@ -483,6 +563,81 @@ void main() {
 
       expect(result, isA<Handled>());
       expect(editor.value, contains('select 1;'));
+    });
+  });
+
+  group('FocusRouter addressed', () {
+    test('a LoadResult addressed to an unfocused member reaches it, not the focused one, and focus stays', () {
+      const cmd = Quit();
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Handled(cmd));
+      final focus = FocusGroup<Component>([a, b]);
+      var changeCalls = 0;
+      final router = FocusRouter(focus, onFocusChange: (_) => changeCalls++);
+      final result = _loadFor('b');
+
+      final verdict = router.route(result, _ctx());
+
+      expect(verdict, isA<Handled>());
+      expect((verdict as Handled).cmd, same(cmd));
+      expect(b.seen, equals([result]));
+      expect(a.seen, isEmpty, reason: 'the focused member never sees a message addressed elsewhere');
+      expect(focus.index, equals(0), reason: 'an addressed message never moves focus');
+      expect(changeCalls, equals(0));
+    });
+
+    test('a LoadResult addressed to an extra reaches it', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final extra = _FakeComponent('extra', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]), extras: [extra]);
+      final result = _loadFor('extra');
+
+      final verdict = router.route(result, _ctx());
+
+      expect(verdict, isA<Handled>());
+      expect(extra.seen, equals([result]));
+      expect(a.seen, isEmpty);
+    });
+
+    test("a LoadResult addressed to a composite's part reaches the composite by the prefix climb", () {
+      final other = _FakeComponent('other', (_) => const Declined());
+      final combo = _FakeComponent('combo', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([other, combo]));
+      final result = _loadFor('combo/list');
+
+      final verdict = router.route(result, _ctx());
+
+      expect(verdict, isA<Handled>());
+      expect(combo.seen, equals([result]));
+      expect(
+        (combo.seen.single as LoadResult<Object?>).id,
+        'combo/list',
+        reason: 'the composite reads the leaf itself',
+      );
+      expect(other.seen, isEmpty);
+    });
+
+    test('a LoadResult addressed to an id nothing registers declines and reaches no member', () {
+      final a = _FakeComponent('a', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a]));
+
+      final verdict = router.route(_loadFor('ghost'), _ctx());
+
+      expect(verdict, isA<Declined>());
+      expect(a.seen, isEmpty, reason: 'an unresolved address is never re-aimed at the focused member');
+    });
+
+    test('any message implementing Addressed is routed by its id, whatever its class', () {
+      final a = _FakeComponent('a', (_) => const Declined());
+      final b = _FakeComponent('b', (_) => const Handled());
+      final router = FocusRouter(FocusGroup<Component>([a, b]));
+      const msg = _AddressedMsg('b');
+
+      final verdict = router.route(msg, _ctx());
+
+      expect(verdict, isA<Handled>());
+      expect(b.seen, equals([msg]));
+      expect(a.seen, isEmpty);
     });
   });
 

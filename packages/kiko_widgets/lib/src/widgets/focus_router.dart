@@ -30,26 +30,28 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus) {
   return true;
 }
 
-/// Dispatches a routed message to its addressed target, bubbling a declined
-/// press outward.
+/// Dispatches a message that carries an address to the component it names,
+/// bubbling a declined press outward.
 ///
-/// [msg] must be [Routed] (a [PointerMsg], [PointerLeaveMsg] or
-/// [PointerCancelMsg]) with a non-null [Routed.targetId] that resolves —
-/// directly, or via the longest registered prefix — to a component present in
-/// [targets]; anything else — a non-routed message, a background press, or a
-/// path with no registered prefix in [targets] — declines without touching
-/// any component. The absent-target guard is deliberate: forwarding
-/// untargeted pointer traffic to some component would route it by coordinate
-/// coincidence rather than by the router's own resolution. Resolution never
-/// changes what [msg] carries — the full path, rect and region ride along
-/// as-is, and the resolved component reads [HitTag.leafOf] on the path if it
-/// needs to dispatch inward.
+/// Two kinds of message carry an address. Pointer traffic is [Routed] (a
+/// [PointerMsg], [PointerLeaveMsg] or [PointerCancelMsg]) with a non-null
+/// [Routed.targetId]. An [Addressed] message names its owner by
+/// [Addressed.id]. Either address resolves — directly, or via the longest
+/// registered prefix — to a component present in [targets]; anything else — a
+/// message with no address, a background press, or a path with no registered
+/// prefix in [targets] — declines without touching any component. The
+/// absent-target guard is deliberate: forwarding unaddressed traffic to some
+/// component would route it by coincidence rather than by the router's own
+/// resolution. Resolution never changes what [msg] carries — the full path,
+/// rect and region ride along as-is, and the resolved component reads
+/// [HitTag.leafOf] on the path if it needs to dispatch inward.
 ///
 /// The addressed target's [Component.update] result is returned as-is, except
 /// a [Declined] answer to a positional [PointerMsg] is re-offered outward via
 /// [offerOutward], which walks the hit path from [ctx] and tries each
-/// enclosing id present in [targets]. A declined [PointerLeaveMsg] or
-/// [PointerCancelMsg] never bubbles — neither carries a position to walk from.
+/// enclosing id present in [targets]. A declined [PointerLeaveMsg],
+/// [PointerCancelMsg] or [Addressed] message never bubbles — none of them
+/// carries a position to walk from.
 ///
 /// This is pure id dispatch with no focus semantics — it does not move
 /// focus; a caller wanting that composes it with [focusOnPress]. Several ids
@@ -59,15 +61,27 @@ bool focusOnPress(Msg msg, FocusGroup<Component> focus) {
 /// owning its own composition.
 UpdateResult routeToTarget(Msg msg, UpdateContext ctx, Map<String, Component> targets) {
   if (msg case Routed(:final targetId?)) {
-    final resolved = HitTag.resolve(targetId, targets.keys.toSet());
-    final target = resolved == null ? null : targets[resolved];
+    final target = _resolveTarget(targetId, targets);
     if (target == null) return const Declined();
 
     final result = target.update(msg);
     if (result is Declined && msg is PointerMsg) return offerOutward(msg, ctx, targets);
     return result;
   }
+
+  if (msg case Addressed(:final id)) {
+    final target = _resolveTarget(id, targets);
+    return target?.update(msg) ?? const Declined();
+  }
+
   return const Declined();
+}
+
+/// The component in [targets] that answers for [path]: an exact match, or the
+/// longest registered prefix.
+Component? _resolveTarget(String path, Map<String, Component> targets) {
+  final resolved = HitTag.resolve(path, targets.keys.toSet());
+  return resolved == null ? null : targets[resolved];
 }
 
 /// What a focus-traversal key does.
@@ -117,16 +131,18 @@ KeyBinding<FocusAction> defaultFocusBindings() => KeyBinding<FocusAction>()
   ..map(['tab'], const FocusNext())
   ..map(['shift+tab'], const FocusPrevious());
 
-/// Routes keyboard and pointer traffic among a [FocusGroup] and its chrome.
+/// Routes keyboard, pointer and addressed traffic among a [FocusGroup] and
+/// its chrome.
 ///
 /// A router owns none of the widgets it routes to — [focus] and [extras] are
 /// both held by reference and re-read on every [route] call, so swapping a
 /// member or growing the extras list needs no notice to the router. There is
 /// no registration step.
 ///
-/// [extras] are components reachable by pointer but never by focus — a
-/// wheel-only scroll surface, a status strip — routed by id like any member
-/// but skipped by Tab and by click-to-focus.
+/// [extras] are components reachable by pointer or by an [Addressed] message
+/// but never by focus — a wheel-only scroll surface, a status strip, a widget
+/// that only ever receives async results — routed by id like any member but
+/// skipped by Tab and by click-to-focus.
 ///
 /// An app calls [route] as one case of its own `update`, after any message it
 /// wants to intercept first and ahead of its fallback keys — fallback keys
@@ -163,7 +179,8 @@ class FocusRouter {
   /// The group whose members receive keyboard focus.
   final FocusGroup<Component> focus;
 
-  /// Components reachable by pointer but never focused.
+  /// Components reachable by pointer or by an [Addressed] message but never
+  /// focused.
   final List<Component> extras;
 
   /// The key-to-[FocusAction] bindings consulted before a [KeyMsg] reaches
@@ -177,24 +194,32 @@ class FocusRouter {
   final void Function(Component current)? onFocusChange;
 
   /// Routes one message: a traversal key to a focus change, pointer traffic
-  /// to its addressed target, and every other message to the focused member.
+  /// to its addressed target, an [Addressed] message to the widget it names,
+  /// and every other message to the focused member.
   ///
   /// The router routes by address, never by message class — it never decides
-  /// for a widget which messages it can handle. A [KeyMsg] bound to a
-  /// [FocusAction] never reaches the focused member — the traversal channel
-  /// is reserved, which is what keeps a consume-everything widget escapable.
-  /// Everything else that is not pointer traffic — an unbound key, a
-  /// [PasteMsg], a message the router has never heard of — goes to the
-  /// focused member and is handled or declined exactly as that member
-  /// decides. Commands the member produces pass through untouched, and a
-  /// [Declined] verdict means no widget consumed the message, so it is still
-  /// the app's to act on.
+  /// for a widget which messages it can handle. There are four cases:
   ///
-  /// Pointer traffic ([Routed]) is the exception to focus addressing because
-  /// it carries its own address: a target path that resolves — directly, or
-  /// via the longest registered prefix — dispatches to that member; a
-  /// background press or a path with no resolution declines — positional
-  /// traffic is never re-aimed at the focused member.
+  /// 1. A [KeyMsg] resolves against [bindings] first. A key bound to a
+  ///    [FocusAction] never reaches the focused member — the traversal
+  ///    channel is reserved, which is what keeps a consume-everything widget
+  ///    escapable. An unbound key goes to the focused member.
+  /// 2. Pointer traffic ([Routed]) carries its own address: a target path
+  ///    that resolves — directly, or via the longest registered prefix —
+  ///    dispatches to that member; a background press or a path with no
+  ///    resolution declines — positional traffic is never re-aimed at the
+  ///    focused member.
+  /// 3. An [Addressed] message names its owner by id, and the id resolves the
+  ///    same way over members and [extras]. It is delivered to the owner
+  ///    without moving focus, and declines when nothing registers the id — an
+  ///    async result is never re-aimed at the focused member either.
+  /// 4. Everything else — a [PasteMsg], a message the router has never heard
+  ///    of — goes to the focused member and is handled or declined exactly as
+  ///    that member decides.
+  ///
+  /// Commands the member produces pass through untouched, and a [Declined]
+  /// verdict means no widget consumed the message, so it is still the app's
+  /// to act on.
   UpdateResult route(Msg msg, UpdateContext ctx) {
     if (msg is KeyMsg) {
       final action = bindings.resolve(msg);
@@ -219,6 +244,8 @@ class FocusRouter {
     // re-aim it at the focused member: it would deliver a pointer to a widget
     // the cursor was never over.
     if (msg is Routed) return const Declined();
+
+    if (msg is Addressed) return routeToTarget(msg, ctx, _targets());
 
     return focus.focused.update(msg);
   }

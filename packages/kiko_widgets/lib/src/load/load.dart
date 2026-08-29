@@ -137,7 +137,7 @@ class LoadRequest extends Cmd {
 /// successful result carrying any other shape, or a null [data], fails the slot
 /// the way a failed fetch does (see [payloadMismatch]).
 @immutable
-class LoadResult<D> extends Msg {
+class LoadResult<D> extends Msg implements Addressed {
   /// Creates a result for ([id], [key]): pass [data] on success, [error] on
   /// failure.
   const LoadResult(this.id, {this.key, this.data, this.error}) : cancelled = false;
@@ -147,6 +147,7 @@ class LoadResult<D> extends Msg {
   const LoadResult.cancelled(this.id, {this.key}) : data = null, error = null, cancelled = true;
 
   /// Identifies the widget this result is routed to.
+  @override
   final String id;
 
   /// The load this result resolves — the same key its request carried.

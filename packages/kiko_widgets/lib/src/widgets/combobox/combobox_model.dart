@@ -294,20 +294,22 @@ class ComboboxModel<T> implements Component {
 
   /// Handles a message, reporting whether it was consumed and any effect.
   ///
-  /// Pointer traffic is resolved by [HitTag.leafOf] against [toggleId],
-  /// [fieldId] and the popup list's own id above the focus gate, so the
-  /// toggle, click-to-caret and popup rows all work whether or not the
-  /// combobox is focused. A press on the bare scope path — a blank popup row,
-  /// or the scope's own untagged cells — is consumed and does nothing: no
-  /// caret move, no commit, no close. An [Addressed] message whose id's leaf
-  /// names the popup list is forwarded to the list; a [LoadResult] addressed
-  /// to the combobox itself installs a remote query's answer, or records its
-  /// failure; a [PopupPlaced] addressed to it stores the popup's placement;
-  /// one addressed to any other id is declined. Keyboard handling
-  /// sits behind the gate: while closed, a text-editing key or Down opens the
-  /// popup and Enter/Esc are declined for the app; while open,
-  /// Up/Down/PageUp/PageDown move the popup cursor, Enter commits, Esc closes
-  /// and restores, and every other key edits the field.
+  /// Pointer traffic is resolved by [HitTag.partOn] against [toggleId],
+  /// [fieldId] and the popup list's own id above the focus gate. The part is
+  /// the path segment right after the combobox's own id, so the toggle,
+  /// click-to-caret and popup rows all work whether or not the combobox is
+  /// focused. A press on the bare scope path — a blank popup row, or the
+  /// scope's own untagged cells — is consumed and does nothing: no caret
+  /// move, no commit, no close. An [Addressed] message whose id names the
+  /// popup list — the part after the combobox's own id — is forwarded to the
+  /// list; a [LoadResult] addressed to the combobox itself installs a remote
+  /// query's answer, or records its failure; a [PopupPlaced] addressed to it
+  /// stores the popup's placement; one addressed to any other id is
+  /// declined. Keyboard handling sits behind the gate: while closed, a
+  /// text-editing key or Down opens the popup and Enter/Esc are declined for
+  /// the app; while open, Up/Down/PageUp/PageDown move the popup cursor,
+  /// Enter commits, Esc closes and restores, and every other key edits the
+  /// field.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) return _handlePointer(pointer);
@@ -316,7 +318,9 @@ class ComboboxModel<T> implements Component {
     if (msg is PointerCancelMsg) return const Declined();
     // A part is forwarded to before the guard below asks whether the message
     // is the combobox's own.
-    if (msg case Addressed(:final id) when HitTag.leafOf(id) == _list.id) return _list.update(msg);
+    if (msg case Addressed(id: final path) when HitTag.partOn(path, under: id, parts: {_list.id}) == _list.id) {
+      return _list.update(msg);
+    }
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
     if (msg case final PopupPlaced report) return _applyPlacement(report);
 
@@ -337,30 +341,29 @@ class ComboboxModel<T> implements Component {
     // to a click on its own chrome — but there is nothing to do with it.
     if (targetId == id) return const Handled();
 
-    final leaf = HitTag.leafOf(targetId);
-
-    if (leaf == toggleId) {
-      if (!pointer.isDown) return const Declined();
-      if (isOpen) {
-        close();
-        return const Handled();
-      }
-      final request = _open();
-      return request == null ? const Handled() : Handled.event(request);
+    switch (HitTag.partOn(targetId, under: id, parts: {toggleId, fieldId, _list.id})) {
+      case final part when part == toggleId:
+        if (!pointer.isDown) return const Declined();
+        if (isOpen) {
+          close();
+          return const Handled();
+        }
+        final request = _open();
+        return request == null ? const Handled() : Handled.event(request);
+      case final part when part == fieldId:
+        return field.update(pointer);
+      case final part when part == _list.id:
+        return _commitFromList(_list.update(pointer));
+      case _:
+        return const Declined();
     }
-
-    if (leaf == fieldId) return field.update(pointer);
-
-    if (leaf == _list.id) return _commitFromList(_list.update(pointer));
-
-    return const Declined();
   }
 
-  /// Forwards [msg] to the popup list when [path]'s leaf names it — a
-  /// pointer leaving or cancelling over the list, an [Addressed] message
-  /// naming it — and declines otherwise.
+  /// Forwards [msg] to the popup list when [path] names it — a pointer
+  /// leaving or cancelling over the list, an [Addressed] message naming it —
+  /// and declines otherwise.
   UpdateResult _forwardToListIfAddressed(Msg msg, String path) =>
-      HitTag.leafOf(path) == _list.id ? _list.update(msg) : const Declined();
+      HitTag.partOn(path, under: id, parts: {_list.id}) == _list.id ? _list.update(msg) : const Declined();
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();

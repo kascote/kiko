@@ -113,7 +113,7 @@ void main() {
 
       test('a toggle press opens the popup while closed', () {
         final combo = fruitBox();
-        final result = combo.update(pressOn('combo-toggle'));
+        final result = combo.update(pressOn(HitTag.join(combo.id, combo.toggleId)));
 
         expect(result, isA<Handled>());
         expect(combo.isOpen, isTrue);
@@ -121,7 +121,7 @@ void main() {
 
       test('a toggle press works even when the combobox itself is unfocused', () {
         final combo = fruitBox(focused: false);
-        final result = combo.update(pressOn('combo-toggle'));
+        final result = combo.update(pressOn(HitTag.join(combo.id, combo.toggleId)));
 
         expect(result, isA<Handled>());
         expect(combo.isOpen, isTrue);
@@ -158,7 +158,7 @@ void main() {
       test('a toggle press while open closes and restores the committed label', () {
         final combo = fruitBox(value: 'Banana')..update(keyMsg('down'));
 
-        final result = combo.update(pressOn('combo-toggle'));
+        final result = combo.update(pressOn(HitTag.join(combo.id, combo.toggleId)));
 
         expect(result, isA<Handled>());
         expect(combo.isOpen, isFalse);
@@ -386,7 +386,7 @@ void main() {
           global: const Position(2, 0),
           action: PointerAction.down,
           local: const Position(2, 0),
-          targetId: 'combo-field',
+          targetId: HitTag.join(combo.id, combo.fieldId),
           targetRect: Rect.create(x: 0, y: 0, width: 10, height: 1),
         );
 
@@ -496,6 +496,91 @@ void main() {
       });
     });
 
+    group('nested forwarding', () {
+      /// A routed pointer [action] addressed to [targetId], optionally on a
+      /// row region.
+      PointerMsg pointerAt(String targetId, PointerAction action, {int? row}) => PointerMsg(
+        global: Position.origin,
+        action: action,
+        local: Position.origin,
+        targetId: targetId,
+        region: row == null ? null : RowRegion(row),
+      );
+
+      /// The popup list's path as an outer composite — one this combobox is
+      /// embedded in — would forward it: an extra scope segment ahead of the
+      /// combobox's own id.
+      String nestedListPath(ComboboxModel<String> combo) =>
+          HitTag.join('outer', HitTag.join(combo.id, combo.internalList.id));
+
+      test('a click on a popup row reaches the list through an outer scope', () {
+        final combo = fruitBox()..update(keyMsg('down')); // opens unfiltered
+
+        final result = combo.update(pointerAt(nestedListPath(combo), PointerAction.down, row: 1)); // Banana
+
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
+        expect((result as Handled).events.single as ComboboxSelectEvent, ComboboxSelectEvent(combo.id));
+        expect(combo.value, equals('Banana'));
+        expect(combo.field.value, equals('Banana'));
+        expect(combo.isOpen, isFalse);
+      });
+
+      test('a leave through an outer scope reaches the list and clears its hover', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+        combo.update(pointerAt(nestedListPath(combo), PointerAction.move, row: 2));
+        expect(combo.internalList.hoverRow, equals(2));
+
+        final result = combo.update(PointerLeaveMsg(nestedListPath(combo)));
+
+        expect(result, isA<Handled>());
+        expect(combo.internalList.hoverRow, isNull);
+      });
+
+      test('a viewport report through an outer scope reaches the list', () {
+        final combo = fruitBox();
+        final list = combo.internalList;
+
+        final result = combo.update(ViewportChanged(nestedListPath(combo), rows: 2));
+
+        expect(result, isA<Handled>());
+        expect(list.visibleCount, equals(2));
+      });
+
+      test('the bare list id is declined and changes nothing', () {
+        final combo = fruitBox(value: 'Banana')..update(keyMsg('down'));
+        combo.update(pointerAt(nestedListPath(combo), PointerAction.move, row: 2)); // hover set through a valid path
+        expect(combo.internalList.hoverRow, equals(2));
+
+        final pressResult = combo.update(pointerAt(combo.internalList.id, PointerAction.down, row: 1));
+        expect(pressResult, isA<Declined>());
+        expect(combo.isOpen, isTrue);
+        expect(combo.value, equals('Banana'));
+
+        final leaveResult = combo.update(PointerLeaveMsg(combo.internalList.id));
+        expect(leaveResult, isA<Declined>());
+        expect(combo.internalList.hoverRow, equals(2), reason: 'a bare list id names no part, so nothing changes');
+      });
+
+      test('a press on an unregistered part beneath the combobox is declined', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        final result = combo.update(pointerAt(HitTag.join(combo.id, 'ghost'), PointerAction.down));
+
+        expect(result, isA<Declined>());
+      });
+
+      test('the toggle still resolves two levels deep', () {
+        final combo = fruitBox();
+
+        final result = combo.update(
+          pointerAt(HitTag.join('outer', HitTag.join(combo.id, combo.toggleId)), PointerAction.down),
+        );
+
+        expect(result, isA<Handled>());
+        expect(combo.isOpen, isTrue, reason: 'the toggle was found two levels deep and opened the popup');
+      });
+    });
+
     group('remote options', () {
       ComboboxModel<String> remoteBox({String? value, bool focused = true}) => ComboboxModel<String>(
         id: 'combo',
@@ -533,7 +618,7 @@ void main() {
 
       test('a toggle press while closed asks the empty query', () {
         final combo = remoteBox();
-        final result = combo.update(pressOn('combo-toggle'));
+        final result = combo.update(pressOn(HitTag.join(combo.id, combo.toggleId)));
 
         expect(combo.isOpen, isTrue);
         final event = (result as Handled).events.single as LoadRequest;
@@ -766,7 +851,9 @@ void main() {
         final req = list.loadFirstPage();
         expect(req.id, isNot(equals(combo.id)));
 
-        final verdict = combo.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['Apple', 'Avocado']));
+        final verdict = combo.update(
+          LoadResult<List<String>>(HitTag.join(combo.id, req.id), key: req.key, data: const ['Apple', 'Avocado']),
+        );
 
         expect(verdict, isA<Handled>(), reason: 'the list installed the page; the combobox never applied the guard');
         expect(list.cachedItemCount, equals(2));

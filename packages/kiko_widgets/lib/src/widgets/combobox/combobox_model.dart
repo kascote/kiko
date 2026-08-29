@@ -66,7 +66,7 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 ///
 /// Enter commits the popup's highlighted option: the field shows its label,
 /// the popup closes, [value] is set, and the model emits
-/// [ComboboxSelectCmd] addressed by [id]. The app reads the selection back
+/// [ComboboxSelectEvent] addressed by [id]. The app reads the selection back
 /// from [value]; the command carries nothing else.
 ///
 /// A remote combobox asks for options with a [LoadRequest]: every text
@@ -249,7 +249,7 @@ class ComboboxModel<T> implements Component {
   /// The embedded popup list, for the view to render.
   ///
   /// Not part of the combobox's public surface: the list's own item type,
-  /// commands and cursor state stay implementation detail — [ComboboxSelectCmd]
+  /// commands and cursor state stay implementation detail — [ComboboxSelectEvent]
   /// is the only command this widget ever emits. Marked [internal] rather
   /// than left off the model because the view, a separate file in this
   /// package, must build a real list widget over it.
@@ -418,13 +418,13 @@ class ComboboxModel<T> implements Component {
 
   /// Turns the popup list's own verdict into the combobox's: a declined or
   /// bare-Handled result (nothing at the cursor, a wheel scroll, a hover
-  /// move) passes through unchanged, and a [ListActionCmd] — the list's
+  /// move) passes through unchanged, and a [ListActivateEvent] — the list's
   /// Enter and its row press both produce one — commits the cursor item as
   /// the value, closes the popup, and re-addresses the effect as
-  /// [ComboboxSelectCmd] so a click and a keyboard Enter are indistinguishable
+  /// [ComboboxSelectEvent] so a click and a keyboard Enter are indistinguishable
   /// to the app.
   UpdateResult _commitFromList(UpdateResult result) {
-    if (result is! Handled || result.cmd is! ListActionCmd) return result;
+    if (result is! Handled || result.cmd is! ListActivateEvent) return result;
 
     final item = _list.cursorItem;
     if (item == null) return const Handled();
@@ -433,7 +433,7 @@ class ComboboxModel<T> implements Component {
     _isOpen = false;
     placement = null;
     _setFieldText(label(item));
-    return Handled(ComboboxSelectCmd(id));
+    return Handled(ComboboxSelectEvent(id));
   }
 
   /// Whether [msg] would change the field's text — a bound editing action, or

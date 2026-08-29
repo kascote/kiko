@@ -189,12 +189,12 @@ void main() {
           ..viewport(rows: 6, cols: 3)
           ..insertRows(sampleRows(10), 0);
 
-    test('a click on a data row moves the cursor there and emits TableActionCmd', () {
+    test('a click on a data row moves the cursor there and emits TableActivateEvent', () {
       final model = table();
 
       final down = model.update(pointerOnRow(PointerAction.down, 2));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActionCmd('grid', 'primary')));
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActivateEvent('grid', 'primary')));
       expect(model.cursorRow, equals(2));
     });
 
@@ -745,7 +745,7 @@ void main() {
     });
 
     group('commands', () {
-      test('enter returns TableActionCmd with primary action', () async {
+      test('enter returns TableActivateEvent with primary action', () async {
         final model = TableViewModel(
           rows: sampleRows(),
           keyField: 'id',
@@ -756,9 +756,9 @@ void main() {
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TableActionCmd>()),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TableActivateEvent>()),
         );
-        final actionCmd = (result as Handled).cmd! as TableActionCmd;
+        final actionCmd = (result as Handled).cmd! as TableActivateEvent;
         expect(actionCmd.id, equals(model.id));
         expect(actionCmd.action, 'primary');
       });

@@ -7,7 +7,7 @@ import 'types.dart';
 /// Model for a single button.
 ///
 /// Holds both state and config. Use [update] to handle messages.
-/// Returns [ButtonPressCmd] when activated.
+/// Returns [ButtonPressEvent] when activated.
 ///
 /// Has `copyWith` for creating modified copies. Mutable fields are
 /// `focused` (required by [Focusable] interface) and `loading`.
@@ -85,7 +85,7 @@ class ButtonModel implements Component {
   ///
   /// The pointer branch sits above the focus gate, so a click presses and
   /// activates whether or not the button is focused (the app focuses it on the
-  /// down). A `down` begins the press; an `up` fires [ButtonPressCmd] only when it
+  /// down). A `down` begins the press; an `up` fires [ButtonPressEvent] only when it
   /// lands [PointerMsg.inside] — a press slid off and released does nothing — and
   /// a [PointerCancelMsg] ends the gesture without firing. Hover tracks any
   /// pointer over the button and clears on [PointerLeaveMsg]. Capture
@@ -93,7 +93,7 @@ class ButtonModel implements Component {
   /// [PointerMsg.targetRect] answers `inside` against its current cells, so the
   /// model stores no grab state. The keyboard path stays behind the gate.
   ///
-  /// Returns [Handled] with a [ButtonPressCmd] on a release inside; [Handled]
+  /// Returns [Handled] with a [ButtonPressEvent] on a release inside; [Handled]
   /// with no command for a press, a slid-off release, a cancel and hover
   /// traffic; [Declined] for the wheel (nothing to scroll), for keys it does
   /// not handle, for messages it does not know, and when not focused.
@@ -113,7 +113,7 @@ class ButtonModel implements Component {
         pressed = false;
         // Fire only when the release lands inside: capture returns the up here
         // even once the cursor has left, so a press slid off does not activate.
-        return pointer.inside ? Handled(ButtonPressCmd(id)) : const Handled();
+        return pointer.inside ? Handled(ButtonPressEvent(id)) : const Handled();
       }
       // A move or drag over the button only refreshes the hover.
       hovered = true;
@@ -149,7 +149,7 @@ class ButtonModel implements Component {
 
     final action = effectiveKeyBinding.resolve(msg);
     if (action == ButtonAction.activate) {
-      return Handled(ButtonPressCmd(id));
+      return Handled(ButtonPressEvent(id));
     }
 
     return const Declined();

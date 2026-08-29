@@ -116,7 +116,7 @@ class AppModel with ThemeSwitcher {
   // other key goes to the focused widget, a pointer goes to whichever widget
   // it's addressed to, and a down-click moves focus there.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ListActionCmd(:final id)) when id == model.list.id:
+    case Handled(cmd: ListActivateEvent(:final id)) when id == model.list.id:
       // Enter (or a click) on the list confirms the cursor row — a
       // widget→app command the app intercepts. The same Enter falls through
       // to AppAction.submit below while a text field is focused instead.

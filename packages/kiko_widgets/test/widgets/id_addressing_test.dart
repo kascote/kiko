@@ -62,7 +62,7 @@ void main() {
           table(id: 'tableB'),
         );
 
-        final cmd = (app.b.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
+        final cmd = (app.b.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
 
         expect(cmd.id, equals('tableB'));
         expect(app.resolve(cmd.id), same(app.b));
@@ -75,7 +75,7 @@ void main() {
           table(id: 'tableB', focused: false),
         );
 
-        final cmd = (app.a.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
+        final cmd = (app.a.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
 
         expect(cmd.id, equals('tableA'));
         expect(app.resolve(cmd.id), same(app.a));
@@ -87,7 +87,7 @@ void main() {
 
         expect(a.id, isNot(equals(b.id)));
 
-        final cmd = (a.update(keyMsg('enter')) as Handled).cmd! as TableActionCmd;
+        final cmd = (a.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
         expect(cmd.id, equals(a.id));
         expect(cmd.id, isNot(equals(b.id)));
       });

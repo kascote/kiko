@@ -9,7 +9,7 @@ import 'shared/theme_switcher.dart';
 // pane — focus
 // follows the click, since ButtonGroupModel only forwards the keyboard and
 // mouse routing bypasses it (kiko_widgets/CLAUDE.md → Widget mouse
-// handling). The release fires the same ButtonPressCmd Enter does, but only
+// handling). The release fires the same ButtonPressEvent Enter does, but only
 // when it lands back inside; hover tracks whichever button is under the
 // cursor.
 
@@ -144,7 +144,7 @@ class SubmitComplete extends Msg {
   }
 
   // Handle button press
-  if (result case Handled(cmd: ButtonPressCmd(:final id))) {
+  if (result case Handled(cmd: ButtonPressEvent(:final id))) {
     if (id == 'submit' && !model.submitButton.loading) {
       // Simulate async action
       model.submitButton.loading = true;

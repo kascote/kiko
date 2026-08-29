@@ -5,7 +5,7 @@
 // - Cursor navigation (arrows, j/k, pageUp/pageDown)
 // - Item rendering via itemBuilder
 // - Confirm action (Enter)
-// - Click to select (same ListActionCmd as Enter), wheel-scroll, per-row hover
+// - Click to select (same ListActivateEvent as Enter), wheel-scroll, per-row hover
 
 import 'dart:io';
 
@@ -89,7 +89,7 @@ class AppModel with ThemeSwitcher {
   final result = model.list.update(msg);
 
   // Handle confirm
-  if (result case Handled(cmd: ListActionCmd(:final id))) {
+  if (result case Handled(cmd: ListActivateEvent(:final id))) {
     if (id == model.list.id) {
       model.selected = model.list.cursorItem;
     }

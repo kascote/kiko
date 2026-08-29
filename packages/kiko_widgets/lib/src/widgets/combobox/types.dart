@@ -55,19 +55,19 @@ class ComboboxStyle {
 /// internally. The command carries no value; the app reads the selection back
 /// from `ComboboxModel.value`.
 @immutable
-class ComboboxSelectCmd extends Cmd {
+class ComboboxSelectEvent extends Cmd {
   /// Id of the combobox model where the selection was committed.
   final String id;
 
-  /// Creates a ComboboxSelectCmd.
-  const ComboboxSelectCmd(this.id);
+  /// Creates a ComboboxSelectEvent.
+  const ComboboxSelectEvent(this.id);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is ComboboxSelectCmd && other.id == id;
+  bool operator ==(Object other) => identical(this, other) || other is ComboboxSelectEvent && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'ComboboxSelectCmd($id)';
+  String toString() => 'ComboboxSelectEvent($id)';
 }

@@ -3,7 +3,7 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
 /// A stand-in activate command, the shape each widget's own action command
-/// takes ([ListActionCmd] and its siblings).
+/// takes ([ListActivateEvent] and its siblings).
 class _Activate extends Cmd {
   const _Activate();
 }

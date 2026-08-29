@@ -51,8 +51,8 @@ mixin ScrollableModel {
   /// A widget calls this from its own update switch for a row-scoped region,
   /// passing the seams the mixin cannot reach into: [setHover] writes the
   /// model's hover field, [moveCursorTo] sets the cursor and adjusts the scroll,
-  /// and [activate] builds the widget's own action command (`ListActionCmd`,
-  /// `TableActionCmd`, a tree's confirm command, each carrying the model id).
+  /// and [activate] builds the widget's own action command (`ListActivateEvent`,
+  /// `TableActivateEvent`, a tree's confirm command, each carrying the model id).
   /// [activate] is a callback, not a value, so it is built only on a press and
   /// never on a hot hover move, and it may return `null` when the widget's
   /// activation produces no command.

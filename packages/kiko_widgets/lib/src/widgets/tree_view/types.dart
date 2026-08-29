@@ -176,7 +176,7 @@ class TreeViewStyle {
 /// [node] is a carried handle to the node at [path] and is excluded (it is
 /// identity-compared, so folding it into value equality would defeat it).
 @immutable
-class TreeExpandCmd<T> extends Cmd {
+class TreeExpandEvent<T> extends Cmd {
   /// Id of the tree view model.
   final String id;
 
@@ -186,25 +186,25 @@ class TreeExpandCmd<T> extends Cmd {
   /// The expanded node.
   final TreeNode<T> node;
 
-  /// Creates a TreeExpandCmd.
-  const TreeExpandCmd(this.id, this.path, this.node);
+  /// Creates a TreeExpandEvent.
+  const TreeExpandEvent(this.id, this.path, this.node);
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is TreeExpandCmd<T> && other.id == id && other.path == path;
+      identical(this, other) || other is TreeExpandEvent<T> && other.id == id && other.path == path;
 
   @override
   int get hashCode => Object.hash(id, path);
 
   @override
-  String toString() => 'TreeExpandCmd($id, $path)';
+  String toString() => 'TreeExpandEvent($id, $path)';
 }
 
 /// Emitted when a node is collapsed.
 ///
-/// Equality is by [id] + [path]; see [TreeExpandCmd] for why [node] is excluded.
+/// Equality is by [id] + [path]; see [TreeExpandEvent] for why [node] is excluded.
 @immutable
-class TreeCollapseCmd<T> extends Cmd {
+class TreeCollapseEvent<T> extends Cmd {
   /// Id of the tree view model.
   final String id;
 
@@ -214,25 +214,25 @@ class TreeCollapseCmd<T> extends Cmd {
   /// The collapsed node.
   final TreeNode<T> node;
 
-  /// Creates a TreeCollapseCmd.
-  const TreeCollapseCmd(this.id, this.path, this.node);
+  /// Creates a TreeCollapseEvent.
+  const TreeCollapseEvent(this.id, this.path, this.node);
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is TreeCollapseCmd<T> && other.id == id && other.path == path;
+      identical(this, other) || other is TreeCollapseEvent<T> && other.id == id && other.path == path;
 
   @override
   int get hashCode => Object.hash(id, path);
 
   @override
-  String toString() => 'TreeCollapseCmd($id, $path)';
+  String toString() => 'TreeCollapseEvent($id, $path)';
 }
 
 /// Emitted when execute an action in the current item
 ///
-/// Equality is by [id] + [path]; see [TreeExpandCmd] for why [node] is excluded.
+/// Equality is by [id] + [path]; see [TreeExpandEvent] for why [node] is excluded.
 @immutable
-class TreeActionCmd<T> extends Cmd {
+class TreeActivateEvent<T> extends Cmd {
   /// Id of the tree view model.
   final String id;
 
@@ -242,16 +242,16 @@ class TreeActionCmd<T> extends Cmd {
   /// The confirmed node.
   final TreeNode<T> node;
 
-  /// Creates a TreeActionCmd.
-  const TreeActionCmd(this.id, this.path, this.node);
+  /// Creates a TreeActivateEvent.
+  const TreeActivateEvent(this.id, this.path, this.node);
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is TreeActionCmd<T> && other.id == id && other.path == path;
+      identical(this, other) || other is TreeActivateEvent<T> && other.id == id && other.path == path;
 
   @override
   int get hashCode => Object.hash(id, path);
 
   @override
-  String toString() => 'TreeActionCmd($id, $path)';
+  String toString() => 'TreeActivateEvent($id, $path)';
 }

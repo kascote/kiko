@@ -296,18 +296,18 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
     switch (c) {
       case final LoadRequest req:
         fetches.add(fetchFor(model, req));
-      case ButtonPressCmd(:final id) when id == model.dialogButton.id:
+      case ButtonPressEvent(:final id) when id == model.dialogButton.id:
         model.combo.close();
         model.modal = ModalModel(id: 'demo-dialog');
-      case ButtonPressCmd(:final id):
+      case ButtonPressEvent(:final id):
         model.status = 'Button: $id pressed';
-      case ComboboxSelectCmd():
+      case ComboboxSelectEvent():
         model.status = 'Combobox: ${model.combo.value}';
-      case ListActionCmd():
+      case ListActivateEvent():
         model.status = 'List: row activated';
-      case TreeActionCmd(:final path):
+      case TreeActivateEvent(:final path):
         model.status = 'Tree: $path';
-      case TableActionCmd(:final action):
+      case TableActivateEvent(:final action):
         model.status = 'Table: $action on row ${model.table.cursorRow + 1}';
       case _:
         break; // expand/collapse and similar events need no app effect here
@@ -345,13 +345,13 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
   }
 
   // While the dialog is open it captures all input. A down-press outside its
-  // rendered rect dismisses it — the same ModalCancelCmd Escape emits.
+  // rendered rect dismisses it — the same ModalCancelEvent Escape emits.
   if (model.modal case final modal?) {
     if (msg case final PointerMsg pointer when pointer.isDown) {
       final rect = ctx.hits.rectOf(modal.id);
       if (rect == null || !rect.contains(pointer.global)) {
         return switch (modal.dismiss()) {
-          ModalCancelCmd() => (
+          ModalCancelEvent() => (
             model
               ..modal = null
               ..status = 'Dialog: cancelled',
@@ -362,13 +362,13 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
       }
     }
     return switch (modal.update(msg)) {
-      Handled(cmd: ModalConfirmCmd()) => (
+      Handled(cmd: ModalConfirmEvent()) => (
         model
           ..modal = null
           ..status = 'Dialog: confirmed',
         null,
       ),
-      Handled(cmd: ModalCancelCmd()) => (
+      Handled(cmd: ModalCancelEvent()) => (
         model
           ..modal = null
           ..status = 'Dialog: cancelled',

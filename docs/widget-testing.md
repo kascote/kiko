@@ -38,7 +38,7 @@ test('enter presses a focused button', () {
 
   final result = button.update(const KeyMsg('enter'));
 
-  expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()));
+  expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()));
 });
 
 test('an unfocused button declines the same key', () {
@@ -89,7 +89,7 @@ test('down then up inside the button activates it', () {
   expect(button.pressed, isTrue);
 
   final up = button.update(pointerAt(PointerAction.up, x: 2));
-  expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()));
+  expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()));
 });
 ```
 

@@ -156,7 +156,7 @@ String _formatNumber(int n) {
   final result = model.table.update(msg);
 
   // Handle confirm
-  if (result case Handled(cmd: TableActionCmd(:final id, action: 'primary'))) {
+  if (result case Handled(cmd: TableActivateEvent(:final id, action: 'primary'))) {
     if (id == model.table.id) {
       final row = model.table.cursorRowData;
       final field = model.table.cursorColField;

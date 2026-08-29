@@ -87,7 +87,7 @@ void main() {
         )..update(charMsg('1'));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals(1), reason: '1, 21 and 31 all end with "1"; the first match commits');
       });
     });
@@ -173,7 +173,7 @@ void main() {
           ..update(keyMsg('down')); // cursor on row 1 (Banana)
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Banana'));
       });
 
@@ -217,7 +217,7 @@ void main() {
           ..update(charMsg('h'));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Cherry'));
         expect(combo.field.value, equals('Cherry'));
         expect(combo.isOpen, isFalse);
@@ -240,7 +240,7 @@ void main() {
 
         // An unmoved commit lands on whatever row the cursor opened on.
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Cherry'));
       });
 
@@ -267,9 +267,9 @@ void main() {
         final combo = fruitBox()..update(keyMsg('down'));
 
         final result = combo.update(keyMsg('enter')) as Handled;
-        final cmd = result.cmd! as ComboboxSelectCmd;
+        final cmd = result.cmd! as ComboboxSelectEvent;
         expect(cmd.id, equals('combo'));
-        expect(cmd, isNot(isA<ListActionCmd>()));
+        expect(cmd, isNot(isA<ListActivateEvent>()));
       });
     });
 
@@ -374,7 +374,7 @@ void main() {
         expect(combo.field.value, isEmpty);
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals(1), reason: 'the full set returned, cursor on the first row');
       });
     });
@@ -423,8 +423,8 @@ void main() {
 
         final result = combo.update(onList(combo, PointerAction.down, row: 1)); // Banana
 
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
-        expect((result as Handled).cmd! as ComboboxSelectCmd, ComboboxSelectCmd(combo.id));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect((result as Handled).cmd! as ComboboxSelectEvent, ComboboxSelectEvent(combo.id));
         expect(combo.value, equals('Banana'));
         expect(combo.field.value, equals('Banana'));
         expect(combo.isOpen, isFalse);
@@ -559,7 +559,7 @@ void main() {
           reason: 'the loading row disappears once the newest query installs',
         );
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Apple'));
       });
 
@@ -580,7 +580,7 @@ void main() {
         combo.update(LoadResult<List<RemoteOption>>('combo', key: const QueryKey(''), data: fetched));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals(stored), reason: 'the cursor opened on the value, not the first row');
       });
 
@@ -590,7 +590,7 @@ void main() {
           ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Banana']));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Apple'), reason: 'an edited query installs with the cursor on the first match');
       });
 
@@ -611,7 +611,7 @@ void main() {
         // The newest query's own answer lands and installs.
         combo.update(const LoadResult<List<String>>('combo', key: QueryKey('ap'), data: ['Apple']));
         final commit = combo.update(keyMsg('enter'));
-        expect(commit, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectCmd>()));
+        expect(commit, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
         expect(combo.value, equals('Apple'));
       });
 

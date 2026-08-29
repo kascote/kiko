@@ -165,8 +165,8 @@ one storage type.
 
 - **TreeView** — `RootsKey()` + `PathKey(path)`. `loadRoots()` returns the
   roots request. **Expand returns
-  `Batch([TreeExpandCmd, LoadRequest(key: PathKey(path))])` on a cache miss**,
-  and `TreeExpandCmd` alone on a hit. `TreeExpandCmd` is a pure **event on
+  `Batch([TreeExpandEvent, LoadRequest(key: PathKey(path))])` on a cache miss**,
+  and `TreeExpandEvent` alone on a hit. `TreeExpandEvent` is a pure **event on
   every expansion** (the load is the separate `LoadRequest`), so the app
   flattens the `Batch` to count expansions on the event and fetch on the
   request. Collapsing a node cancels its slot, so a late child result drops.

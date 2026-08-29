@@ -21,9 +21,9 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 /// Emitted when an option is chosen — by Enter or by a click alike. It
 /// addresses its owner by [id], so an app holding several palettes can route
 /// it home.
-class PaletteChooseCmd extends Cmd {
+class PaletteChooseEvent extends Cmd {
   /// Creates the command carrying the owner's [id] and the chosen [value].
-  const PaletteChooseCmd(this.id, this.value);
+  const PaletteChooseEvent(this.id, this.value);
 
   /// The id of the palette that emitted this.
   final String id;
@@ -120,7 +120,7 @@ class PaletteModel with ScrollableModel implements Component {
             cursor = r;
             _snapToCursor();
           },
-          activate: () => PaletteChooseCmd(id, options[row.index]),
+          activate: () => PaletteChooseEvent(id, options[row.index]),
         );
       }
       // No option under the pointer — the blank tail below the last row. A press
@@ -150,7 +150,7 @@ class PaletteModel with ScrollableModel implements Component {
         _snapToCursor();
         return const Handled();
       case KeyMsg(key: 'enter'):
-        return Handled(PaletteChooseCmd(id, options[cursor]));
+        return Handled(PaletteChooseEvent(id, options[cursor]));
     }
 
     // Everything else was never ours — decline it, never swallow it.
@@ -263,7 +263,7 @@ class AppModel {
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
   // Widget→app commands first: intercept the palette's choice by id.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: PaletteChooseCmd(:final value)):
+    case Handled(cmd: PaletteChooseEvent(:final value)):
       model.chosen = value;
       return (model, null);
     case Handled(:final cmd):

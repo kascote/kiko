@@ -70,8 +70,8 @@ view: (model, frame) {
 ## Widget→app addressing
 
 Some widget commands are events the app must intercept, not runtime effects:
-`TableActionCmd`, `ListActionCmd`, `TreeExpandCmd`, `TreeCollapseCmd`,
-`TreeActionCmd`, `ButtonPressCmd`, and the shared `LoadRequest` for data
+`TableActivateEvent`, `ListActivateEvent`, `TreeExpandEvent`, `TreeCollapseEvent`,
+`TreeActivateEvent`, `ButtonPressEvent`, and the shared `LoadRequest` for data
 fetches (`docs/async-loading.md`). They travel up the call stack to the
 app's `update`. Each one addresses its owner by a stable `String id`,
 carried by value.

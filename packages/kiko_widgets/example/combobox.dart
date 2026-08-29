@@ -201,7 +201,7 @@ String _selectionStatus(AppModel model, String id) {
   }
 
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ComboboxSelectCmd(:final id)):
+    case Handled(cmd: ComboboxSelectEvent(:final id)):
       model.status = _selectionStatus(model, id);
       return (model, null);
     case Handled(cmd: final LoadRequest req):

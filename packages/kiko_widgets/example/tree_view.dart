@@ -111,7 +111,7 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     switch (c) {
       case final LoadRequest r when r.id == model.tree.id:
         effect = fetchFor(model, r);
-      case TreeActionCmd(:final path):
+      case TreeActivateEvent(:final path):
         model.selectedPath = path;
       case _:
         break; // expand/collapse events need no app effect here

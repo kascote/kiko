@@ -238,23 +238,23 @@ class TableViewStyle {
 ///
 /// Custom actions can be added via keybindings.
 @immutable
-class TableActionCmd extends Cmd {
+class TableActivateEvent extends Cmd {
   /// Id of the table view model.
   final String id;
 
   /// Action name (e.g., 'primary' for Enter, or custom action name).
   final String action;
 
-  /// Creates a TableActionCmd.
-  const TableActionCmd(this.id, this.action);
+  /// Creates a TableActivateEvent.
+  const TableActivateEvent(this.id, this.action);
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is TableActionCmd && other.id == id && other.action == action;
+      identical(this, other) || other is TableActivateEvent && other.id == id && other.action == action;
 
   @override
   int get hashCode => Object.hash(id, action);
 
   @override
-  String toString() => 'TableActionCmd($id, $action)';
+  String toString() => 'TableActivateEvent($id, $action)';
 }

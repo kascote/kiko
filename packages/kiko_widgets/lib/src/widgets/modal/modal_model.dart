@@ -5,7 +5,7 @@ import 'types.dart';
 /// Model for a static-content confirm/cancel dialog.
 ///
 /// Covers the old `Modal.simple` case: no inner MVU of its own, just Enter →
-/// [ModalConfirmCmd] / Escape → [ModalCancelCmd]. A dialog with its own state
+/// [ModalConfirmEvent] / Escape → [ModalCancelEvent]. A dialog with its own state
 /// (a form, a picker) needs no wrapper at all — render that widget's own model
 /// as the `content` passed to `modalDialog` and route messages to it directly;
 /// this model exists only for the plain "are you sure?" shape.
@@ -17,7 +17,7 @@ class ModalModel implements Component {
   @override
   final String id;
 
-  /// Data forwarded to [ModalConfirmCmd] when the modal is confirmed.
+  /// Data forwarded to [ModalConfirmEvent] when the modal is confirmed.
   final Object? confirmPayload;
 
   /// Custom key bindings. Null uses [defaultModalBindings].
@@ -42,16 +42,16 @@ class ModalModel implements Component {
 
   /// The dismiss request the app fires when a click lands outside the modal.
   ///
-  /// Reuses the same [ModalCancelCmd] the Escape key emits — same event, same
+  /// Reuses the same [ModalCancelEvent] the Escape key emits — same event, same
   /// [id] — so a mouse dismiss and a keyboard dismiss are indistinguishable to
   /// the app. Whether a click is "outside" is an app-side `hitPath` decision (a
   /// widget's [update] never sees the hit map), so the app tests the click and
   /// fires this; the modal only supplies the request.
-  Cmd dismiss() => ModalCancelCmd(id);
+  Cmd dismiss() => ModalCancelEvent(id);
 
   /// Updates the model based on the message.
   ///
-  /// Returns [Handled] with a [ModalConfirmCmd] on Enter and a [ModalCancelCmd]
+  /// Returns [Handled] with a [ModalConfirmEvent] on Enter and a [ModalCancelEvent]
   /// on Escape, and [Declined] for any other key. A pointer addressed to the
   /// modal (a click on its own chrome) is absorbed as [Handled] so it never
   /// falls through to the dimmed backdrop; a click *outside* never reaches this
@@ -67,8 +67,8 @@ class ModalModel implements Component {
     if (msg is! KeyMsg) return const Declined();
 
     return switch (effectiveKeyBinding.resolve(msg)) {
-      ModalAction.confirm => Handled(ModalConfirmCmd(id, confirmPayload)),
-      ModalAction.cancel => Handled(ModalCancelCmd(id)),
+      ModalAction.confirm => Handled(ModalConfirmEvent(id, confirmPayload)),
+      ModalAction.cancel => Handled(ModalCancelEvent(id)),
       null => const Declined(),
     };
   }

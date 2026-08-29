@@ -263,9 +263,9 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   Cmd? effect;
   for (final c in flattenCmd(cmd)) {
     switch (c) {
-      case TreeExpandCmd(:final id) when id == model.tree.id:
+      case TreeExpandEvent(:final id) when id == model.tree.id:
         model.expandCount++; // honest: counts every expansion, cached or not
-      case TreeActionCmd(:final path):
+      case TreeActivateEvent(:final path):
         model.selectedPath = path;
       case final LoadRequest r when r.id == model.tree.id:
         effect = fetchFor(model, r);

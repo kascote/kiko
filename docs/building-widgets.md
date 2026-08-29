@@ -62,9 +62,9 @@ without ambiguity.
 /// Emitted when an option is chosen — by Enter or by a click alike. It
 /// addresses its owner by [id], so an app holding several palettes can route
 /// it home.
-class PaletteChooseCmd extends Cmd {
+class PaletteChooseEvent extends Cmd {
   /// Creates the command carrying the owner's [id] and the chosen [value].
-  const PaletteChooseCmd(this.id, this.value);
+  const PaletteChooseEvent(this.id, this.value);
 
   /// The id of the palette that emitted this.
   final String id;
@@ -130,7 +130,7 @@ only reads keys while it owns the keyboard:
         _snapToCursor();
         return const Handled();
       case KeyMsg(key: 'enter'):
-        return Handled(PaletteChooseCmd(id, options[cursor]));
+        return Handled(PaletteChooseEvent(id, options[cursor]));
     }
 
     // Everything else was never ours — decline it, never swallow it.
@@ -266,7 +266,7 @@ class AppModel {
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
   // Widget→app commands first: intercept the palette's choice by id.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: PaletteChooseCmd(:final value)):
+    case Handled(cmd: PaletteChooseEvent(:final value)):
       model.chosen = value;
       return (model, null);
     case Handled(:final cmd):
@@ -338,7 +338,7 @@ is `docs/mouse.md`. The widget half is this one branch at the **top** of
             cursor = r;
             _snapToCursor();
           },
-          activate: () => PaletteChooseCmd(id, options[row.index]),
+          activate: () => PaletteChooseEvent(id, options[row.index]),
         );
       }
       // No option under the pointer — the blank tail below the last row. A press
@@ -371,7 +371,7 @@ Walk it rule by rule:
   `null` region means the pointer is on nothing marked (the blank tail): a
   press bubbles, a move clears the hover.
 - **A click emits the keyboard's command.** The row handler returns the *same*
-  id-addressed `PaletteChooseCmd` that Enter returns. The app cannot tell
+  id-addressed `PaletteChooseEvent` that Enter returns. The app cannot tell
   which device fired it, so it never grows a second, mouse-only path. A widget
   never emits a focus command from a click either — moving focus is the app's
   decision, and `FocusRouter` already does it on the press (`clickToFocus`).

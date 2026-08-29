@@ -152,7 +152,7 @@ class AppModel with ThemeSwitcher {
     final result = model.list.update(msg);
 
     // Handle confirm
-    if (result case Handled(cmd: ListActionCmd(:final id))) {
+    if (result case Handled(cmd: ListActivateEvent(:final id))) {
       if (id == model.list.id) {
         model.selected = model.list.cursorItem;
       }
@@ -216,7 +216,7 @@ class AppModel with ThemeSwitcher {
 /// Shared by the pointer and keyboard paths: installs a confirmed selection,
 /// or otherwise just runs the result's effect.
 (AppModel, Cmd?) _handleListResult(AppModel model, UpdateResult result) {
-  if (result case Handled(cmd: ListActionCmd(:final id)) when id == model.list.id) {
+  if (result case Handled(cmd: ListActivateEvent(:final id)) when id == model.list.id) {
     model.selected = model.list.cursorItem;
     return (model, null);
   }

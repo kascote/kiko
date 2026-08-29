@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 
 /// A minimal app around one [ComboboxModel], wired the way a real app would:
 /// a single-member [FocusGroup] behind a [FocusRouter], and the widget's own
-/// [ComboboxSelectCmd] caught and logged.
+/// [ComboboxSelectEvent] caught and logged.
 class _App {
   _App() {
     focus.setIndex(0);
@@ -40,7 +40,7 @@ class _App {
 
 (_App, Cmd?) _update(_App model, Msg msg, UpdateContext ctx) {
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ComboboxSelectCmd(:final id)):
+    case Handled(cmd: ComboboxSelectEvent(:final id)):
       model.log.add('$id -> ${model.combo.value}');
       return (model, null);
     case Handled(:final cmd):

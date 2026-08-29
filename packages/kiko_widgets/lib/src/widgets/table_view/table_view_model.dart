@@ -54,7 +54,7 @@ import 'types.dart';
 /// A table that loads passes no rows at all — it asks for its first page and
 /// fills from there.
 class TableViewModel with ScrollableModel implements Component {
-  /// Stable address for this model, carried by value in the [TableActionCmd] it
+  /// Stable address for this model, carried by value in the [TableActivateEvent] it
   /// emits and the [LoadRequest] it returns when a page is needed.
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
@@ -509,7 +509,7 @@ class TableViewModel with ScrollableModel implements Component {
           },
           // A row the window does not hold cannot be activated: the cursor
           // still moves, the press stays consumed, and no command is emitted.
-          activate: () => cursorRowData == null ? null : TableActionCmd(id, 'primary'),
+          activate: () => cursorRowData == null ? null : TableActivateEvent(id, 'primary'),
         );
       }
       if (region is TableHeaderRegion) {
@@ -571,7 +571,7 @@ class TableViewModel with ScrollableModel implements Component {
           // consumed — a declined confirm would fire the app's fallback
           // bindings — and no command is emitted.
           if (cursorRowData == null) return const Handled();
-          return Handled(TableActionCmd(id, 'primary'));
+          return Handled(TableActivateEvent(id, 'primary'));
       }
 
       return Handled(demand());

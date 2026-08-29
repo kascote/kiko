@@ -27,7 +27,7 @@ import 'types.dart';
 /// ```
 class TreeViewModel<T> with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the widget→app commands
-  /// it emits ([TreeExpandCmd], [TreeCollapseCmd], [TreeActionCmd], [LoadRequest]).
+  /// it emits ([TreeExpandEvent], [TreeCollapseEvent], [TreeActivateEvent], [LoadRequest]).
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
   /// or to disambiguate multiple instances.
@@ -312,7 +312,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// Expand a node.
   ///
   /// Returns `null` if the node can't expand (leaf, missing, or already open).
-  /// Otherwise emits a [TreeExpandCmd] event on every expansion. When the node's
+  /// Otherwise emits a [TreeExpandEvent] event on every expansion. When the node's
   /// children aren't loaded yet, it also emits a [LoadRequest] (the two wrapped in
   /// a [Batch]) and shows a loading placeholder; the app drives the fetch and
   /// its [LoadResult] comes back through [update]. The widget never performs I/O.
@@ -323,7 +323,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     if (node == null || node.isLeaf) return null;
 
     _expanded.add(path);
-    final event = TreeExpandCmd<T>(id, path, node);
+    final event = TreeExpandEvent<T>(id, path, node);
 
     // Children already cached, or a load already in flight: just the event.
     if (_childrenCache.containsKey(path) || _loads.isLoading(PathKey(path))) {
@@ -356,13 +356,13 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       _cursor = _flatNodes.isEmpty ? 0 : _flatNodes.length - 1;
     }
 
-    return TreeCollapseCmd<T>(id, path, node);
+    return TreeCollapseEvent<T>(id, path, node);
   }
 
   /// Toggle expand/collapse.
   ///
   /// When expanding an uncached node, returns the [Batch] load request from
-  /// [expand]; when collapsing, a [TreeCollapseCmd]; otherwise the expand event.
+  /// [expand]; when collapsing, a [TreeCollapseEvent]; otherwise the expand event.
   Cmd? toggle(String path) {
     if (_expanded.contains(path)) {
       return collapse(path);
@@ -676,7 +676,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   Cmd? _handleConfirm() {
     final node = cursorNode;
     if (node == null) return null;
-    return TreeActionCmd<T>(id, node.path, node);
+    return TreeActivateEvent<T>(id, node.path, node);
   }
 }
 

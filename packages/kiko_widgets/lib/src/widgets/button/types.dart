@@ -18,21 +18,21 @@ enum ButtonGroupAction {
 
 /// Command emitted when a button is pressed.
 @immutable
-class ButtonPressCmd extends Cmd {
+class ButtonPressEvent extends Cmd {
   /// The id of the pressed button.
   final String id;
 
-  /// Creates a ButtonPressCmd.
-  const ButtonPressCmd(this.id);
+  /// Creates a ButtonPressEvent.
+  const ButtonPressEvent(this.id);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is ButtonPressCmd && other.id == id;
+  bool operator ==(Object other) => identical(this, other) || other is ButtonPressEvent && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'ButtonPressCmd($id)';
+  String toString() => 'ButtonPressEvent($id)';
 }
 
 /// Default key bindings for button activation.

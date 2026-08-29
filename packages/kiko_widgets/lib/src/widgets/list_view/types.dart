@@ -152,19 +152,19 @@ class ListViewStyle {
 
 /// Emitted when execute an action in the current item
 @immutable
-class ListActionCmd extends Cmd {
+class ListActivateEvent extends Cmd {
   /// Id of the list view model where confirm was triggered.
   final String id;
 
-  /// Creates a ListActionCmd.
-  const ListActionCmd(this.id);
+  /// Creates a ListActivateEvent.
+  const ListActivateEvent(this.id);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is ListActionCmd && other.id == id;
+  bool operator ==(Object other) => identical(this, other) || other is ListActivateEvent && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'ListActionCmd($id)';
+  String toString() => 'ListActivateEvent($id)';
 }

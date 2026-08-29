@@ -15,44 +15,44 @@ enum ModalAction {
 /// The app resolves this to the dismissed modal by [id] and drops it from
 /// whatever state is holding it open, then acts on [payload].
 @immutable
-class ModalConfirmCmd extends Cmd {
+class ModalConfirmEvent extends Cmd {
   /// The id of the confirmed modal.
   final String id;
 
   /// App-supplied data carried from the modal to its result handler.
   final Object? payload;
 
-  /// Creates a ModalConfirmCmd.
-  const ModalConfirmCmd(this.id, [this.payload]);
+  /// Creates a ModalConfirmEvent.
+  const ModalConfirmEvent(this.id, [this.payload]);
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is ModalConfirmCmd && other.id == id && other.payload == payload;
+      identical(this, other) || other is ModalConfirmEvent && other.id == id && other.payload == payload;
 
   @override
   int get hashCode => Object.hash(id, payload);
 
   @override
-  String toString() => 'ModalConfirmCmd($id, $payload)';
+  String toString() => 'ModalConfirmEvent($id, $payload)';
 }
 
 /// Command emitted when a modal is cancelled.
 @immutable
-class ModalCancelCmd extends Cmd {
+class ModalCancelEvent extends Cmd {
   /// The id of the cancelled modal.
   final String id;
 
-  /// Creates a ModalCancelCmd.
-  const ModalCancelCmd(this.id);
+  /// Creates a ModalCancelEvent.
+  const ModalCancelEvent(this.id);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is ModalCancelCmd && other.id == id;
+  bool operator ==(Object other) => identical(this, other) || other is ModalCancelEvent && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'ModalCancelCmd($id)';
+  String toString() => 'ModalCancelEvent($id)';
 }
 
 /// Default key bindings for a static-content modal: Enter confirms, Escape

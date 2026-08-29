@@ -38,7 +38,7 @@ TreeViewModel<String> modelWith(
   ..applyRoots(roots);
 
 /// Expands [path] and immediately resolves the child load with [children] —
-/// what the app does in response to the [TreeExpandCmd] load request.
+/// what the app does in response to the [TreeExpandEvent] load request.
 void expandLoaded(
   TreeViewModel<String> m,
   String path,
@@ -134,14 +134,18 @@ void main() {
         TreeNode(path: '/c', label: Line('Gamma'), isLeaf: true),
       ]);
 
-    test('a click on a node body moves the cursor there and emits TreeActionCmd', () {
+    test('a click on a node body moves the cursor there and emits TreeActivateEvent', () {
       final model = tree();
 
       final down = model.update(pointerOnRow(PointerAction.down, 1));
 
       expect(
         down,
-        isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActionCmd<String>>().having((c) => c.path, 'path', '/b')),
+        isA<Handled>().having(
+          (h) => h.cmd,
+          'cmd',
+          isA<TreeActivateEvent<String>>().having((c) => c.path, 'path', '/b'),
+        ),
       );
       expect(model.cursor, equals(1));
     });
@@ -163,7 +167,11 @@ void main() {
       expect(model.isExpanded('/A'), isFalse);
       expect(
         again,
-        isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeCollapseCmd<String>>().having((c) => c.path, 'path', '/A')),
+        isA<Handled>().having(
+          (h) => h.cmd,
+          'cmd',
+          isA<TreeCollapseEvent<String>>().having((c) => c.path, 'path', '/A'),
+        ),
       );
     });
 
@@ -277,8 +285,8 @@ void main() {
         expect(cmd, isA<Batch>());
         final cmds = (cmd! as Batch).cmds;
         expect(cmds, hasLength(2));
-        expect(cmds[0], isA<TreeExpandCmd<String>>());
-        expect((cmds[0] as TreeExpandCmd).path, equals('/a'));
+        expect(cmds[0], isA<TreeExpandEvent<String>>());
+        expect((cmds[0] as TreeExpandEvent).path, equals('/a'));
         expect(cmds[1], equals(LoadRequest(model.id, key: const PathKey('/a'))));
 
         expect(model.isExpanded('/a'), isTrue);
@@ -318,7 +326,7 @@ void main() {
         final cmd = model.expand('/a');
 
         // Cache hit → a bare expansion event, never a Batch with a load request.
-        expect(cmd, isA<TreeExpandCmd<String>>());
+        expect(cmd, isA<TreeExpandEvent<String>>());
         expect(cmd, isNot(isA<Batch>()));
         expect(model.isExpanded('/a'), isTrue);
         expect(model.flatNodes.length, equals(4));
@@ -332,7 +340,7 @@ void main() {
 
         expect(model.isExpanded('/a'), isFalse);
         expect(model.flatNodes.length, equals(2));
-        expect(cmd, isA<TreeCollapseCmd<String>>());
+        expect(cmd, isA<TreeCollapseEvent<String>>());
       });
 
       test('expand on leaf returns null', () {
@@ -771,16 +779,16 @@ void main() {
     });
 
     group('commands', () {
-      test('enter returns TreeActionCmd', () {
+      test('enter returns TreeActivateEvent', () {
         final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
 
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActionCmd<String>>()),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActivateEvent<String>>()),
         );
         final cmd = (result as Handled).cmd;
-        expect((cmd! as TreeActionCmd).path, equals('/a'));
+        expect((cmd! as TreeActivateEvent).path, equals('/a'));
       });
 
       test('unhandled key declines', () {

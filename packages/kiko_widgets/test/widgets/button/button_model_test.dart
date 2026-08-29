@@ -53,13 +53,13 @@ void main() {
       expect(button.update(const KeyMsg('enter')), isA<Declined>());
     });
 
-    test('returns ButtonPressCmd on enter when focused', () {
+    test('returns ButtonPressEvent on enter when focused', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
       final result = button.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
       final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressCmd>());
-      expect((cmd! as ButtonPressCmd).id, equals('btn'));
+      expect(cmd, isA<ButtonPressEvent>());
+      expect((cmd! as ButtonPressEvent).id, equals('btn'));
     });
 
     test('declines unhandled keys', () {
@@ -112,7 +112,7 @@ void main() {
       // space should work
       expect(
         button.update(const KeyMsg('space')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressCmd>()),
+        isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()),
       );
 
       // enter should not work with custom bindings
@@ -134,8 +134,8 @@ void main() {
       expect(button.pressed, isFalse);
       expect(up, isA<Handled>());
       final cmd = (up as Handled).cmd;
-      expect(cmd, isA<ButtonPressCmd>());
-      expect((cmd! as ButtonPressCmd).id, equals('btn'));
+      expect(cmd, isA<ButtonPressEvent>());
+      expect((cmd! as ButtonPressEvent).id, equals('btn'));
     });
 
     test('down then up slid off does not activate', () {

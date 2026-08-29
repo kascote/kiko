@@ -138,8 +138,8 @@ void main() {
       final result = group.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
       final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressCmd>());
-      expect((cmd! as ButtonPressCmd).id, equals('a'));
+      expect(cmd, isA<ButtonPressEvent>());
+      expect((cmd! as ButtonPressEvent).id, equals('a'));
     });
 
     test('delegates to second button when focused', () {
@@ -151,8 +151,8 @@ void main() {
       final result = group.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
       final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressCmd>());
-      expect((cmd! as ButtonPressCmd).id, equals('b'));
+      expect(cmd, isA<ButtonPressEvent>());
+      expect((cmd! as ButtonPressEvent).id, equals('b'));
     });
   });
 

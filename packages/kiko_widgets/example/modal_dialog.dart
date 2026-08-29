@@ -27,13 +27,13 @@ class AppModel with ThemeSwitcher {
   // 'm') don't leak through underneath it.
   if (model.modal case final modal?) {
     // A down-click outside the dialog's rendered rect dismisses it — the
-    // same ModalCancelCmd Escape emits — before the capture below would
+    // same ModalCancelEvent Escape emits — before the capture below would
     // otherwise swallow it as a click on the modal's own chrome.
     if (msg case final PointerMsg pointer when pointer.isDown) {
       final rect = ctx.hits.rectOf(modal.id);
       if (rect == null || !rect.contains(pointer.global)) {
         return switch (modal.dismiss()) {
-          ModalCancelCmd() => (
+          ModalCancelEvent() => (
             model
               ..modal = null
               ..lastAction = 'Cancelled',
@@ -45,14 +45,14 @@ class AppModel with ThemeSwitcher {
     }
 
     return switch (modal.update(msg)) {
-      Handled(cmd: ModalConfirmCmd(:final payload)) => (
+      Handled(cmd: ModalConfirmEvent(:final payload)) => (
         model
           ..modal = null
           ..count += payload! as int
           ..lastAction = 'Confirmed! +$payload',
         null,
       ),
-      Handled(cmd: ModalCancelCmd()) => (
+      Handled(cmd: ModalCancelEvent()) => (
         model
           ..modal = null
           ..lastAction = 'Cancelled',

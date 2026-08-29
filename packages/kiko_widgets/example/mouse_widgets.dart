@@ -19,8 +19,8 @@
 //      siblings — and the router is app-side glue doing exactly that), and
 //      reserves the traversal key before any widget sees it.
 //
-// Everything else is already there. A click emits the SAME `TableActionCmd` /
-// `ListActionCmd` an Enter emits, addressed by the same id, and key and pointer
+// Everything else is already there. A click emits the SAME `TableActivateEvent` /
+// `ListActivateEvent` an Enter emits, addressed by the same id, and key and pointer
 // results converge in the router's answer — one switch handles both devices,
 // and the app never grew a second, mouse-only path. The wheel scrolls whichever
 // widget is under the cursor; hovering highlights a row. The router does not
@@ -101,11 +101,11 @@ class AppModel {
   // arrive as the identical id-addressed command, so one case serves both
   // input devices.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: TableActionCmd(:final id, action: 'primary')):
+    case Handled(cmd: TableActivateEvent(:final id, action: 'primary')):
       final row = model.table.cursorRowData;
       model.note('$id · activated "${row?['name'] ?? '?'}"');
       return (model, null);
-    case Handled(cmd: ListActionCmd(:final id)):
+    case Handled(cmd: ListActivateEvent(:final id)):
       model.note('$id · activated "${model.list.cursorItem ?? '?'}"');
       return (model, null);
     case Handled(:final cmd):

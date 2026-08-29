@@ -127,12 +127,12 @@ void main() {
       focused: focused,
     )..viewport(rows: 6);
 
-    test('a click on row N moves the cursor there and emits ListActionCmd', () {
+    test('a click on row N moves the cursor there and emits ListActivateEvent', () {
       final model = menu();
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActionCmd('menu')));
+      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActivateEvent('menu')));
       expect(model.cursor, equals(3));
 
       // The release half only refreshes hover — it does not fire a second time.
@@ -555,7 +555,7 @@ void main() {
     });
 
     group('commands', () {
-      test('enter returns ListActionCmd', () {
+      test('enter returns ListActivateEvent', () {
         final model = ListViewModel<String, String>(
           items: const ['a', 'b'],
           focused: true,
@@ -563,10 +563,10 @@ void main() {
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<ListActionCmd>()),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<ListActivateEvent>()),
         );
         final cmd = (result as Handled).cmd;
-        expect((cmd! as ListActionCmd).id, equals(model.id));
+        expect((cmd! as ListActivateEvent).id, equals(model.id));
       });
 
       test('enter on an item the window does not hold is consumed and emits nothing', () {

@@ -59,7 +59,7 @@ import 'types.dart';
 /// ```
 class ListViewModel<T, K> with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the widget→app commands
-  /// it emits ([ListActionCmd]) and the [LoadRequest]s it returns when pages
+  /// it emits ([ListActivateEvent]) and the [LoadRequest]s it returns when pages
   /// are needed.
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
@@ -460,7 +460,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
           },
           // An item the window does not hold cannot be activated: the cursor
           // still moves, the press stays consumed, and no command is emitted.
-          activate: () => cursorItem == null ? null : ListActionCmd(id),
+          activate: () => cursorItem == null ? null : ListActivateEvent(id),
         );
       }
       // No marked part under the pointer — a separator or the blank tail below
@@ -511,7 +511,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
           // consumed — a declined confirm would fire the app's fallback
           // bindings — and no command is emitted.
           if (cursorItem == null) return const Handled();
-          return Handled(ListActionCmd(id));
+          return Handled(ListActivateEvent(id));
         case ListViewAction.selectUp:
           if (multiSelect) _rangeSelect(-1);
         case ListViewAction.selectDown:

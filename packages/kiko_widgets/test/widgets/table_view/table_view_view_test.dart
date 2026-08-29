@@ -110,14 +110,43 @@ void main() {
         ..place(plume.Offset.zero);
 
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 7, height: 5));
-      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 7, 3));
+      final surface = BufferSurface(buffer)..pushNode(const plume.Rect(0, 2, 7, 3));
       node.paint(surface);
-      surface.popClip();
+      surface.popNode();
 
       // Rows scrolled above the clip are absent, not shown squeezed at the top:
       // screen row 2 shows model row 2 (where layout placed it), not model row
       // 0 pinned to the clip's edge.
       expect(_dump(buffer), '\n\n2  r2\n3  r3\n4  r4\n');
+    });
+  });
+
+  group('table view viewport report', () {
+    test('reports the rows and columns it painted, addressed to the model id', () async {
+      final model = await _seededTable(id: 'grid');
+      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
+
+      final report = frame.reports.single as ViewportChanged;
+      expect(report.id, 'grid');
+      expect(report.rows, 2, reason: 'three rows less the sticky header');
+      expect(report.cols, 2);
+      expect(model.visibleRows, 0, reason: 'paint reports; it never writes into the model');
+    });
+
+    test('under a scope, the report carries the scoped path', () async {
+      final model = await _seededTable(id: 'grid');
+      final frame = _frame(7, 3)
+        ..render(
+          Tagged.scope(
+            'form',
+            Container(
+              child: TableView(model: model, theme: Theme.dark),
+            ),
+          ),
+        );
+
+      expect((frame.reports.single as ViewportChanged).id, 'form/grid');
+      expect(frame.hits.hitId(0, 0), 'form/grid', reason: 'the same path the hit map records');
     });
   });
 

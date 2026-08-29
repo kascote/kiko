@@ -77,7 +77,7 @@ void main() {
           Tagged.scope(
             'combo',
             Container(
-              child: ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row, scope: 'combo'),
+              child: ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row),
             ),
           ),
         );
@@ -263,9 +263,9 @@ void main() {
         ..place(plume.Offset.zero);
 
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 5, height: 5));
-      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 5, 3));
+      final surface = BufferSurface(buffer)..pushNode(const plume.Rect(0, 2, 5, 3));
       node.paint(surface);
-      surface.popClip();
+      surface.popNode();
 
       // Rows scrolled above the clip are absent, not shown squeezed at the top.
       expect(_dump(buffer), '\n\nitem2\nitem3\nitem4\n');

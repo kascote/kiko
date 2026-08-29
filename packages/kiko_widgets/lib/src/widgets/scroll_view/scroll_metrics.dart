@@ -7,9 +7,10 @@ import 'types.dart';
 /// many its content spans, and where every tagged descendant sits.
 ///
 /// The view reports one from paint through `BufferSurface.report`, addressed
-/// to the scroll view's id, when any of the three differs from what the model
-/// holds. The owner's `update` stores all three facts and clamps its offset
-/// to the new extent; `ensureVisible` reads [tagRanges] from the last report.
+/// to the scroll view's hit path, when any of the three differs from what the
+/// model holds. The owner's `update` stores all three facts and clamps its
+/// offset to the new extent; `ensureVisible` reads [tagRanges] from the last
+/// report.
 @immutable
 class ScrollMetrics extends FrameReport {
   /// Creates a report that the scroll view registered under [id] showed
@@ -23,8 +24,9 @@ class ScrollMetrics extends FrameReport {
   /// The rows the content spans, whether or not they were all visible.
   final int contentRows;
 
-  /// Every tagged descendant's content-relative row range, keyed by its hit
-  /// path.
+  /// Every tagged descendant's content-relative row range, keyed by its full
+  /// hit path — every enclosing scope, the scopes above the scroll view
+  /// included.
   final Map<String, ScrollViewTagRange> tagRanges;
 
   @override

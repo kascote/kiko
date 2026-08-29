@@ -62,7 +62,9 @@ class TableRenderer {
     // Report the viewport only while the model does not hold it.
     final viewportChanged = dataHeight != model.visibleRows || visibleCols.length != model.visibleCols;
     if (surface is BufferSurface && viewportChanged) {
-      surface.report(ViewportChanged(model.id, rows: dataHeight, cols: visibleCols.length));
+      surface.report(
+        ViewportChanged(HitTag.join(surface.scopePath, model.id), rows: dataHeight, cols: visibleCols.length),
+      );
     }
 
     // 1. Render header (if sticky)

@@ -207,13 +207,12 @@ class HitMap {
     );
     final visible = clip == null || !clip.intersect(ownRect).isEmpty;
     var childPrefix = prefix;
-    if (tag is ScopeTag && visible) {
-      final path = HitTag.join(prefix, tag.name);
+    if (visible) {
+      childPrefix = HitTag.scopeUnder(prefix, tag);
       // A scope may legally sit on several nodes in one frame (a base tree
       // plus an overlay pass), so — unlike an id path — it never asserts on
       // repetition.
-      scopePaths.add(path);
-      childPrefix = path;
+      if (tag is ScopeTag) scopePaths.add(childPrefix);
     }
     if (tag is IdTag && visible) {
       final path = HitTag.join(prefix, tag.id);
@@ -247,7 +246,7 @@ class HitMap {
   static String? _hitIdIn(plume.RenderNode<PaintToken> node, plume.Offset point, [String prefix = '']) {
     if (!node.rect.contains(point)) return null;
     final tag = node.tag;
-    final childPrefix = tag is ScopeTag ? HitTag.join(prefix, tag.name) : prefix;
+    final childPrefix = HitTag.scopeUnder(prefix, tag);
     for (final child in _childrenOf(node).reversed) {
       final id = _hitIdIn(child, point, childPrefix);
       if (id != null) return id;
@@ -321,10 +320,11 @@ class HitMap {
   static List<Hit> _pathIn(plume.RenderNode<PaintToken> node, plume.Offset point, [String prefix = '']) {
     if (!node.rect.contains(point)) return const <Hit>[];
     final tag = node.tag;
-    final (String? ownPath, String childPrefix) = switch (tag) {
-      ScopeTag(:final name) => (HitTag.join(prefix, name), HitTag.join(prefix, name)),
-      IdTag(:final id) => (HitTag.join(prefix, id), prefix),
-      _ => (null, prefix),
+    final childPrefix = HitTag.scopeUnder(prefix, tag);
+    final ownPath = switch (tag) {
+      ScopeTag() => childPrefix,
+      IdTag(:final id) => HitTag.join(prefix, id),
+      _ => null,
     };
     for (final child in _childrenOf(node).reversed) {
       final sub = _pathIn(child, point, childPrefix);

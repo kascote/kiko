@@ -208,7 +208,6 @@ final class Combobox<T> implements View {
                 theme: theme,
                 itemBuilder: rowBuilder,
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
-                scope: model.id,
               ),
             ),
             if (status != null && innerHeight > 0) status,

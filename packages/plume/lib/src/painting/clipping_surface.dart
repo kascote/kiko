@@ -3,11 +3,11 @@ import 'surface.dart';
 
 /// A [Surface] base that enforces the active clip on every draw call.
 ///
-/// It owns a clip stack and the intersection logic, so a concrete surface only
-/// implements the raw sinks ([rawFillRect] / [rawDrawBorder] / [rawDrawText])
-/// and never sees the clip machinery. Because leaves draw through the public
-/// [drawText] / [fillRect] / [drawBorder] methods, the clip cannot be bypassed
-/// by a leaf.
+/// It owns the node stack — the clip and the tag chain — and the intersection
+/// logic, so a concrete surface only implements the raw sinks ([rawFillRect] /
+/// [rawDrawBorder] / [rawDrawText]) and never sees the clip machinery. Because
+/// leaves draw through the public [drawText] / [fillRect] / [drawBorder]
+/// methods, the clip cannot be bypassed by a leaf.
 ///
 /// Each draw call is measured against the active clip:
 /// - a fill or border with no overlap is dropped, otherwise it is passed
@@ -24,19 +24,25 @@ import 'surface.dart';
 /// an unclipped draw records exactly as it did before clipping existed.
 abstract class ClippingSurface<T> implements Surface<T> {
   final List<Rect> _clips = <Rect>[];
+  final List<Object?> _tags = <Object?>[];
 
   @override
   Rect? get clipRect => _clips.isEmpty ? null : _clips.last;
 
   @override
-  void pushClip(Rect rect) {
+  List<Object> get tagChain => [for (final tag in _tags) ?tag];
+
+  @override
+  void pushNode(Rect rect, [Object? tag]) {
     final top = clipRect;
     _clips.add(top == null ? rect : top.intersect(rect));
+    _tags.add(tag);
   }
 
   @override
-  void popClip() {
+  void popNode() {
     _clips.removeLast();
+    _tags.removeLast();
   }
 
   @override

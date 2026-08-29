@@ -79,9 +79,9 @@ void main() {
         ..place(plume.Offset.zero);
 
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 6, height: 5));
-      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 6, 3));
+      final surface = BufferSurface(buffer)..pushNode(const plume.Rect(0, 2, 6, 3));
       node.paint(surface);
-      surface.popClip();
+      surface.popNode();
 
       // Rows scrolled above the clip are absent, not shown squeezed at the top.
       expect(_dump(buffer), '\n\nline2\nline3\nline4\n');

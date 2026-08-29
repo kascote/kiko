@@ -126,6 +126,10 @@ Rules for the receiving model:
   whoever routed it. The router makes a foreign result unreachable in
   practice; an app that calls `update` without a router relies on the guard.
   A message that is the model's own is consumed, installed or not.
+- **A part's frame report carries the hit path by construction.** Paint
+  addresses a report to the scope path the paint walk carries joined with
+  the widget's id (`docs/architecture.md`, frame reports). A composite passes
+  nothing to its parts for this; a view has no scope parameter.
 - **A composite forwards by leaf first.** Before applying the guard to
   itself, a composite forwards a message whose id's leaf (`HitTag.leafOf`)
   names one of its parts to that part, as it forwards pointer traffic.

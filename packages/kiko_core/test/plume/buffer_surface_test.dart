@@ -112,9 +112,9 @@ void main() {
       test('drops perimeter cells outside the clip', () {
         final b = _buf(6, 5);
         BufferSurface(b)
-          ..pushClip(const plume.Rect(0, 0, 3, 3))
+          ..pushNode(const plume.Rect(0, 0, 3, 3))
           ..drawBorder(const plume.Rect(0, 0, 5, 5), const PaintToken(Style(), border: _plain))
-          ..popClip();
+          ..popNode();
         expect(b[(x: 0, y: 0)].symbol, '┌'); // corner inside the clip
         expect(b[(x: 1, y: 0)].symbol, '─'); // top edge inside the clip
         expect(b[(x: 3, y: 0)].symbol, ' '); // past the clip's right edge
@@ -155,18 +155,18 @@ void main() {
       test('drops a fill entirely outside the clip', () {
         final b = _buf(10, 3);
         BufferSurface(b)
-          ..pushClip(const plume.Rect(0, 0, 3, 3))
+          ..pushNode(const plume.Rect(0, 0, 3, 3))
           ..fillRect(const plume.Rect(5, 0, 3, 3), _tok(const Style(bg: Color.blue)))
-          ..popClip();
+          ..popNode();
         expect(b[(x: 5, y: 0)].bg, Color.reset);
       });
 
       test('trims a fill to the clip', () {
         final b = _buf(10, 1);
         BufferSurface(b)
-          ..pushClip(const plume.Rect(0, 0, 4, 1))
+          ..pushNode(const plume.Rect(0, 0, 4, 1))
           ..fillRect(const plume.Rect(2, 0, 6, 1), _tok(const Style(bg: Color.blue)))
-          ..popClip();
+          ..popNode();
         expect(b[(x: 3, y: 0)].bg, Color.blue); // inside the clip
         expect(b[(x: 4, y: 0)].bg, Color.reset); // past the clip's right edge
       });
@@ -174,9 +174,9 @@ void main() {
       test('trims a text run that starts left of the clip', () {
         final b = _buf(10, 1);
         BufferSurface(b)
-          ..pushClip(const plume.Rect(3, 0, 4, 1))
+          ..pushNode(const plume.Rect(3, 0, 4, 1))
           ..drawText(0, 0, 'abcdefgh', _tok())
-          ..popClip();
+          ..popNode();
         expect(b[(x: 2, y: 0)].symbol, ' '); // trimmed: left of the clip
         expect(b[(x: 3, y: 0)].symbol, 'd'); // first visible cell
         expect(b[(x: 6, y: 0)].symbol, 'g'); // last cell inside the clip
@@ -192,7 +192,7 @@ void main() {
 
       test('records a position inside the active clip', () {
         final s = BufferSurface(_buf(10, 3))
-          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..pushNode(const plume.Rect(0, 0, 4, 3))
           ..placeCursor(const Position(3, 2));
         expect(s.cursor, const Position(3, 2));
       });
@@ -201,7 +201,7 @@ void main() {
         // The caret row of a field half-scrolled off a Viewport: a cursor IS
         // still claimed, but at a cell the clip has cut away.
         final s = BufferSurface(_buf(10, 3))
-          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..pushNode(const plume.Rect(0, 0, 4, 3))
           ..placeCursor(const Position(5, 1));
         expect(s.cursor, isNull);
       });
@@ -211,14 +211,14 @@ void main() {
         // — a claim outside the clip is discarded, not written over the slot.
         final s = BufferSurface(_buf(10, 3))
           ..placeCursor(const Position(1, 1))
-          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..pushNode(const plume.Rect(0, 0, 4, 3))
           ..placeCursor(const Position(9, 1));
         expect(s.cursor, const Position(1, 1));
       });
 
       test('a position on the clip boundary is dropped, right and bottom exclusive', () {
         final s = BufferSurface(_buf(10, 3))
-          ..pushClip(const plume.Rect(0, 0, 4, 3))
+          ..pushNode(const plume.Rect(0, 0, 4, 3))
           ..placeCursor(const Position(4, 0));
         expect(s.cursor, isNull);
       });

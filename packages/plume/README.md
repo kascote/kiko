@@ -86,7 +86,15 @@ buffer; nothing else about the tree changes.
   the paint-side clip, `RecordingSurface`, and the `DrawIntent` types. For
   painting one styled line *without* a layout pass (a host's list row, say),
   `line_painter.dart` exports `paintRuns` and the grapheme-cluster helpers it
-  is built from.
+  is built from. The paint walk pushes each node onto the surface before
+  painting it and pops it after (`pushNode` / `popNode`), so the surface
+  always knows the node painting now. `clipRect` is the intersection of the
+  pushed rects. `tagChain` is the pushed tags, outermost first, with untagged
+  nodes skipped; a node reads it from `paintSelf` to learn its own ancestry.
+  This is not the `Viewport`'s per-descendant chain. The viewport walks its
+  whole subtree before those nodes paint and builds one chain per tagged
+  descendant; the surface stack holds only the ancestry of the one node
+  painting now. Neither can produce the other, so both exist.
 - **Scrolling** — a `Viewport` that windows a child taller than itself: the
   child is laid out tight to the viewport's width with unbounded height, then
   placed `scrollOffset` rows up; the ordinary paint clip cuts off the rest.

@@ -31,6 +31,15 @@ right after the frame commits, behind the frame's hit map. A report implements
 The owner therefore reads the fact one message after the frame that produced
 it, with `ctx.hits` describing that same frame.
 
+A node reports under the path the paint walk gives it. The walk carries the
+node's enclosing scope path on the surface (`BufferSurface.scopePath`), and
+the node addresses its report to `HitTag.join(surface.scopePath, id)`. That
+is the hit path the frame's hit map records for the same node, so a part
+embedded under a composite's scope reports `combo/list` and the router
+delivers it to the composite (`docs/mouse.md`, "Scopes"). A layer painted
+through `renderLayer` starts from an empty scope path, as the hit map walks
+each root from an empty prefix.
+
 Paint reports a fact only when it differs from the fact the model already
 holds. The view has both — the value it just measured and the model it
 paints from — so that compare lives in paint. The runtime queues every

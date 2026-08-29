@@ -88,6 +88,17 @@ exactly as it did before scopes existed; flat widgets never see paths. Inner
 widgets keep their real ids: tests and tooling still address the field by
 the field's id, as a path.
 
+The fold that turns a chain of tags into a path has one implementation,
+`HitTag.scopeUnder`: a `ScopeTag` extends the path with its name, and every
+other tag leaves it unchanged. `HitMap` applies it one step per node while
+it walks a tree. The paint walk applies the same rule: plume pushes each
+node's tag onto the surface while the node paints, and
+`BufferSurface.scopePath` folds that chain into the **scope path** enclosing
+the node painting now. A node that reports from paint addresses the report
+to `HitTag.join(surface.scopePath, id)`, which is the path the hit map
+records for it in the same frame, with nothing passed down from the
+composite (`docs/architecture.md`, frame reports).
+
 Every `HitMap` query keys by full path: `hitId` answers paths, and `rectOf`,
 `regionAt` and `isLive` accept them. The duplicate assert applies to full
 leaf paths. A scope name is a qualifier, not an addressable id, so one name

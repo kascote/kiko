@@ -7,6 +7,7 @@ import '../buffer.dart';
 import '../layout/position.dart';
 import '../mvu/frame_report.dart';
 import '../style.dart';
+import '../widgets/hit_tag.dart';
 import 'paint_token.dart';
 
 /// Paints a laid-out plume tree into a kiko [Buffer].
@@ -67,6 +68,18 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
     _cursor = position;
   }
 
+  /// The scope path enclosing the node painting now: the paint walk's
+  /// [tagChain] folded by [HitTag.scopeUnder].
+  ///
+  /// A node that reports from `paintSelf` addresses the report to
+  /// `HitTag.join(surface.scopePath, id)`, which is the hit path `HitMap`
+  /// records for that node in the same frame. The node's own [IdTag] is on
+  /// the chain while it paints and the fold skips it, so the node joins its
+  /// own id. A [ScopeTag] on the painting node itself counts, as it does in
+  /// `HitMap`. Empty for a node under no scope, so a flat widget's report
+  /// carries its bare id.
+  String get scopePath => HitTag.scopePathOf(tagChain);
+
   final List<FrameReport> _reports = <FrameReport>[];
 
   /// The reports painted nodes appended in this pass, in paint order.
@@ -82,7 +95,9 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
   /// report leaves the draw with the completed frame and reaches the owner's
   /// `update` as a message once the frame commits. Call it behind
   /// `if (surface is BufferSurface)`, as with [placeCursor], and only for a
-  /// fact the model does not hold yet; see [FrameReport].
+  /// fact the model does not hold yet; see [FrameReport]. Address it to
+  /// `HitTag.join(scopePath, id)`, so it carries the node's hit path; see
+  /// [scopePath].
   void report(FrameReport report) => _reports.add(report);
 
   @override

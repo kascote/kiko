@@ -45,12 +45,12 @@ void main() {
         background: 'fill',
         child: SizedBox<String>(width: 4, height: 2),
       );
-      final surface = RecordingSurface<String>()..pushClip(const Rect(0, 0, 4, 4));
+      final surface = RecordingSurface<String>()..pushNode(const Rect(0, 0, 4, 4));
       container
         ..layout(BoxConstraints.tight(const Size(6, 4)), const LayoutContext(measurer: MonospaceMeasurer()))
         ..place(Offset.zero)
         ..paint(surface);
-      surface.popClip();
+      surface.popNode();
       expect(_lines(surface), [
         'fillRect(Rect(0, 0, 6, 4), fill, clip: Rect(0, 0, 4, 4))',
         'drawBorder(Rect(0, 0, 6, 4), edge, clip: Rect(0, 0, 4, 4))',

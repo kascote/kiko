@@ -120,7 +120,7 @@ class _TreeViewport<T> extends Node {
     if (visibleCount <= 0) return;
     // Report the count only while the model does not hold it.
     if (surface is BufferSurface && visibleCount != m.visibleCount) {
-      surface.report(ViewportChanged(m.id, rows: visibleCount));
+      surface.report(ViewportChanged(HitTag.join(surface.scopePath, m.id), rows: visibleCount));
     }
 
     final startIndex = m.scrollOffset;

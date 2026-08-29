@@ -43,6 +43,23 @@ sealed class HitTag {
   /// stays a bare id.
   static String join(String prefix, String segment) => prefix.isEmpty ? segment : '$prefix$separator$segment';
 
+  /// Folds one node's [tag] into the scope path [prefix] its ancestors built.
+  ///
+  /// A [ScopeTag] extends the path with its name. Every other tag — an
+  /// [IdTag], a foreign object, `null` — leaves it unchanged. This is the one
+  /// rule that turns a chain of tags into a hit path; [HitMap] applies it
+  /// step by step while it walks a tree, and [scopePathOf] applies it to a
+  /// chain.
+  static String scopeUnder(String prefix, Object? tag) => tag is ScopeTag ? join(prefix, tag.name) : prefix;
+
+  /// Folds [chain] — tags outermost first — into a scope path.
+  ///
+  /// An empty chain gives `''`. A node under this path joins its own id with
+  /// [join] to get the hit path [HitMap] records for it. A scope on the last
+  /// node of [chain] counts: the path already ends with its name, as it does
+  /// for the children of a scope node in [HitMap].
+  static String scopePathOf(Iterable<Object> chain) => chain.fold('', scopeUnder);
+
   /// Returns the id in [registered] that answers for [path], or `null` when
   /// none does.
   ///

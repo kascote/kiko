@@ -174,6 +174,83 @@ void main() {
     });
   });
 
+  group('a ScrollView under a scope', () {
+    // The scroll view sits under an app scope 'outer'. Every key the view
+    // reports carries that scope too, so a key is the path the hit map
+    // records for the descendant, and ensureVisible takes the same string a
+    // pointer event delivers.
+    View framedField() => const Tagged.scope(
+      'field',
+      Column(
+        children: [
+          SizedBox(width: 6, height: 3),
+          Tagged('field', SizedBox(width: 6, height: 2)),
+        ],
+      ),
+    );
+
+    test('the report is addressed to the scoped path, and the model accepts it by leaf', () {
+      final model = ScrollViewModel(id: 'panel');
+      final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
+      final frame = _frame(6, 3)
+        ..render(
+          Tagged.scope(
+            'outer',
+            Container(
+              child: ScrollView(model: model, child: content),
+            ),
+          ),
+        );
+
+      final report = frame.reports.single as ScrollMetrics;
+      expect(report.id, 'outer/panel');
+      expect(frame.hits.hitId(0, 0), 'outer/panel', reason: 'the same path the hit map records');
+      expect(model.update(report), isA<Handled>());
+      expect(model.viewportRows, equals(3));
+    });
+
+    test('tagRanges keys carry every enclosing scope, the one above the scroll view included', () {
+      final model = ScrollViewModel(id: 'panel');
+      final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
+      final frame = _frame(6, 3)
+        ..render(
+          Tagged.scope(
+            'outer',
+            Container(
+              child: ScrollView(model: model, child: content),
+            ),
+          ),
+        );
+
+      final metrics = frame.reports.single as ScrollMetrics;
+      expect(metrics.tagRanges, {
+        'outer/field': (top: 5, height: 5),
+        'outer/field/field': (top: 8, height: 2),
+      });
+    });
+
+    test('ensureVisible takes the full hit path', () {
+      final model = ScrollViewModel(id: 'panel');
+      final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
+      _frame(6, 3)
+        ..render(
+          Tagged.scope(
+            'outer',
+            Container(
+              child: ScrollView(model: model, child: content),
+            ),
+          ),
+        )
+        ..deliverReports(model);
+
+      model.ensureVisible('outer/field/field');
+      expect(model.scrollOffset, equals(7), reason: 'the leaf spans [8,10); top+height-viewportRows = 8+2-3');
+
+      model.ensureVisible('field/field');
+      expect(model.scrollOffset, equals(7), reason: 'a viewport-relative key is not a hit path: no range, no scroll');
+    });
+  });
+
   group('pointer pass-through', () {
     test('a point over a tagged child resolves to the child, not the ScrollView', () {
       final model = ScrollViewModel(id: 'panel');

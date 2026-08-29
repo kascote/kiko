@@ -40,6 +40,28 @@ class _Reporter extends Node implements View {
   }
 }
 
+/// A one-row leaf tagged [id] that reports under the path the paint walk gives
+/// it — the shape every windowed widget takes.
+class _ScopedReporter extends Node implements View {
+  _ScopedReporter(this.id) {
+    tag = IdTag(id);
+  }
+
+  final String id;
+
+  @override
+  Node build() => this;
+
+  @override
+  Size performLayout(BoxConstraints constraints, LayoutContext context) =>
+      constraints.constrain(Size(constraints.biggest.w, 1));
+
+  @override
+  void paintSelf(Surface surface) {
+    if (surface is BufferSurface) surface.report(_Rows(HitTag.join(surface.scopePath, id), 1));
+  }
+}
+
 /// The ids of [reports], in order.
 List<String> _ids(List<FrameReport> reports) => [for (final r in reports) r.id];
 
@@ -153,6 +175,73 @@ void main() {
       final frame = Frame(b.area, b, 0)..render(_Reporter(const [_Rows('a', 1)]));
 
       expect(() => frame.reports.add(const _Rows('other', 1)), throwsUnsupportedError);
+    });
+  });
+
+  group('a report addressed through BufferSurface.scopePath', () {
+    test('under no scope carries the bare id, the path the hit map records', () {
+      final b = _buf(8, 4);
+      final frame = Frame(b.area, b, 0)..render(_ScopedReporter('list'));
+
+      expect(_ids(frame.reports), ['list']);
+      expect(frame.hits.hitId(0, 0), 'list');
+    });
+
+    test('under one scope carries the scoped path, with nothing passed to the view', () {
+      final b = _buf(8, 4);
+      final frame = Frame(b.area, b, 0)..render(Tagged.scope('combo', Column(children: [_ScopedReporter('list')])));
+
+      expect(_ids(frame.reports), ['combo/list']);
+      expect(frame.hits.hitId(0, 0), 'combo/list');
+    });
+
+    test('under two scopes carries both, outermost first', () {
+      final b = _buf(8, 4);
+      final frame = Frame(b.area, b, 0)
+        ..render(
+          Tagged.scope(
+            'a',
+            Column(
+              children: [
+                Tagged.scope('b', Column(children: [_ScopedReporter('list')])),
+              ],
+            ),
+          ),
+        );
+
+      expect(_ids(frame.reports), ['a/b/list']);
+      expect(frame.hits.hitId(0, 0), 'a/b/list');
+    });
+
+    test("an untagged ancestor and a sibling's id add nothing to the path", () {
+      final b = _buf(8, 4);
+      final frame = Frame(b.area, b, 0)
+        ..render(
+          Tagged.scope(
+            'a',
+            Column(
+              children: [
+                const Tagged('other', SizedBox(width: 8, height: 1)),
+                Container(child: Column(children: [_ScopedReporter('list')])),
+              ],
+            ),
+          ),
+        );
+
+      expect(_ids(frame.reports), ['a/list']);
+      expect(frame.hits.hitId(0, 1), 'a/list');
+    });
+
+    test("a layer pass starts from an empty chain: it reports the layer's own path", () {
+      final b = _buf(8, 4);
+      final layerRect = Rect.create(x: 0, y: 2, width: 8, height: 1);
+      final frame = Frame(b.area, b, 0)
+        ..render(Tagged.scope('base', Column(children: [_ScopedReporter('list')])))
+        ..renderLayer(Tagged.scope('popup', Column(children: [_ScopedReporter('list')])), layerRect);
+
+      expect(_ids(frame.reports), ['base/list', 'popup/list']);
+      expect(frame.hits.hitId(0, 0), 'base/list');
+      expect(frame.hits.hitId(0, 2), 'popup/list');
     });
   });
 

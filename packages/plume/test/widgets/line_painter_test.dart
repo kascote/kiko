@@ -126,9 +126,9 @@ void main() {
 
   group('paintRuns respects the surface clip', () {
     test('trims to an active clip pushed before painting', () {
-      final surface = RecordingSurface<String>()..pushClip(const Rect(0, 0, 3, 1));
+      final surface = RecordingSurface<String>()..pushNode(const Rect(0, 0, 3, 1));
       paintRuns(surface, [const TextRun('hello', 'x')], _mono, x: 0, y: 0, width: 10);
-      surface.popClip();
+      surface.popNode();
       expect(surface.intents.map((intent) => '$intent').toList(), ['drawText(0, 0, "hel", x)']);
     });
   });

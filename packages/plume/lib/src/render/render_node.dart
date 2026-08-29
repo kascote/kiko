@@ -128,12 +128,15 @@ abstract class RenderNode<T> {
 
   /// Emits this node's own draw intents, then paints its children on top.
   ///
-  /// This node's [rect] is pushed as the active clip before painting and popped
-  /// after, so a node — or any descendant — only affects cells inside the box
-  /// layout assigned it (intersected with every ancestor's rect). Clipping is a
-  /// paint-only guarantee: it constrains where a node may draw, not whether
-  /// [hitTest] or [tagAt] can reach it — those prune independently at each
-  /// node's own [rect] (see [hitTest]).
+  /// This node is pushed onto the surface before painting and popped after
+  /// ([Surface.pushNode]). Its [rect] becomes the active clip, so a node — or
+  /// any descendant — only affects cells inside the box layout assigned it
+  /// (intersected with every ancestor's rect). Its [tag] joins the surface's
+  /// [Surface.tagChain], so [paintSelf] here and in every descendant can read
+  /// the tags of the nodes enclosing it. Clipping is a paint-only guarantee:
+  /// it constrains where a node may draw, not whether [hitTest] or [tagAt] can
+  /// reach it — those prune independently at each node's own [rect] (see
+  /// [hitTest]).
   ///
   /// This node's [markedRegions] are dropped before [paintSelf] runs, so the
   /// marks [paintSelf] makes describe only this repaint. A node whose paint is
@@ -142,12 +145,12 @@ abstract class RenderNode<T> {
   /// resolution too.
   void paint(Surface<T> surface) {
     _markedRegions = null;
-    surface.pushClip(rect);
+    surface.pushNode(rect, tag);
     paintSelf(surface);
     for (final child in children) {
       child.paint(surface);
     }
-    surface.popClip();
+    surface.popNode();
   }
 
   /// Emits the draw intents for this node alone, not its children.

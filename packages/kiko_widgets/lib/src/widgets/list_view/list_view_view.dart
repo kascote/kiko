@@ -19,7 +19,7 @@ import 'types.dart';
 /// anatomy — each `null` slot deriving from the theme's tones — and overridable
 /// per state with [styleOverrides]. Wrap it in a [Container] for a border or edge
 /// titles. The node is stamped with the model id so a click routes back through
-/// [HitMap.hitId].
+/// [HitMap.hitId], and its viewport report carries that same hit path.
 final class ListView<T, K> implements View {
   /// Creates a list view over [model], styled by [theme] and built row by row
   /// through [itemBuilder].
@@ -31,20 +31,10 @@ final class ListView<T, K> implements View {
     this.separatorBuilder,
     this.emptyPlaceholder,
     this.loadingItemBuilder,
-    this.scope,
   });
 
   /// The model whose rows, cursor, and selection this view renders.
   final ListViewModel<T, K> model;
-
-  /// The scope this list is painted under, or null for a list at the top
-  /// level.
-  ///
-  /// A composite that embeds the list under `Tagged.scope(id, …)` passes that
-  /// id, so the list's [ViewportChanged] report carries the same path the hit
-  /// map records for it (`combo/list`) and the router delivers it to the
-  /// composite.
-  final String? scope;
 
   /// The theme that resolves row styles.
   final Theme theme;
@@ -74,7 +64,6 @@ final class ListView<T, K> implements View {
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
     loadingItemBuilder: loadingItemBuilder,
-    reportId: HitTag.join(scope ?? '', model.id),
   )..tag = IdTag(model.id);
 }
 
@@ -85,7 +74,6 @@ class _ListViewport<T, K> extends Node {
     required this.model,
     required this.theme,
     required this.itemBuilder,
-    required this.reportId,
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
@@ -94,9 +82,6 @@ class _ListViewport<T, K> extends Node {
 
   final ListViewModel<T, K> model;
   final Theme theme;
-
-  /// The id the viewport report is addressed to: the model id under its scope.
-  final String reportId;
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
   final Map<WidgetState, Style>? styleOverrides;
   final Line Function()? separatorBuilder;
@@ -139,7 +124,7 @@ class _ListViewport<T, K> extends Node {
     // Report the count only while the model does not hold it, so the frame
     // the report causes has nothing more to say.
     if (surface is BufferSurface && visibleCount != m.visibleCount) {
-      surface.report(ViewportChanged(reportId, rows: visibleCount));
+      surface.report(ViewportChanged(HitTag.join(surface.scopePath, m.id), rows: visibleCount));
     }
 
     // Empty state — the data itself is empty, not merely unloaded. A list that

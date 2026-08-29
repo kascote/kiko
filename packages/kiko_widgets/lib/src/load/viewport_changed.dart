@@ -5,10 +5,12 @@ import 'package:meta/meta.dart';
 /// table, how many columns.
 ///
 /// The view reports one from paint through `BufferSurface.report`, addressed
-/// to the widget's id, only when the count differs from the one the model
-/// holds. A part painted under a composite's scope reports the scoped path —
-/// `combo/list` — so the router delivers it to the composite, which forwards
-/// it by leaf. The owner's `update` stores the count and returns the demand
+/// to the widget's hit path, only when the count differs from the one the
+/// model holds. Paint joins the scope path the paint walk carries
+/// (`BufferSurface.scopePath`) with the widget's id, so a part under a
+/// composite's scope reports `combo/list` with nothing passed to the view,
+/// and the router delivers it to the composite, which forwards it by leaf.
+/// The owner's `update` stores the count and returns the demand
 /// pass for the pages the viewport now needs; it keeps a compare against the
 /// count it holds as a guard, answering `Handled` with no command.
 @immutable

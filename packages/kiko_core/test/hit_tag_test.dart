@@ -74,6 +74,41 @@ void main() {
     });
   });
 
+  group('HitTag.scopeUnder', () {
+    test('a scope extends the prefix', () {
+      expect(HitTag.scopeUnder('', ScopeTag('cb')), 'cb');
+      expect(HitTag.scopeUnder('a', ScopeTag('b')), 'a/b');
+    });
+
+    test('an id returns the prefix unchanged', () {
+      expect(HitTag.scopeUnder('', IdTag('field')), '');
+      expect(HitTag.scopeUnder('cb', IdTag('field')), 'cb');
+    });
+
+    test('a foreign tag or none returns the prefix unchanged', () {
+      expect(HitTag.scopeUnder('cb', 'raw'), 'cb');
+      expect(HitTag.scopeUnder('cb', null), 'cb');
+    });
+  });
+
+  group('HitTag.scopePathOf', () {
+    test('an empty chain gives the empty path', () {
+      expect(HitTag.scopePathOf(const []), '');
+    });
+
+    test('folds scopes outermost first and skips ids', () {
+      expect(HitTag.scopePathOf([ScopeTag('a'), IdTag('x'), ScopeTag('b'), IdTag('y')]), 'a/b');
+    });
+
+    test('a scope on the last node counts', () {
+      expect(HitTag.scopePathOf([ScopeTag('a'), ScopeTag('b')]), 'a/b');
+    });
+
+    test('a chain of ids alone gives the empty path', () {
+      expect(HitTag.scopePathOf([IdTag('x'), IdTag('y')]), '');
+    });
+  });
+
   group('equality', () {
     test('tags compare by case and segment', () {
       expect(IdTag('a'), IdTag('a'));

@@ -51,7 +51,8 @@ class PaletteModel with ScrollableModel implements Component {
   /// How many rows the viewport shows. Fixed here to keep the example small;
   /// a production widget measures its viewport while it paints and, when the
   /// count differs from the one the model holds, reports it as a
-  /// `ViewportChanged` message (see ListView's source).
+  /// `ViewportChanged` message addressed to its own hit path,
+  /// `HitTag.join(surface.scopePath, id)` (see ListView's source).
   final int viewportRows;
 
   /// The keyboard-current option.

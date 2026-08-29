@@ -197,9 +197,9 @@ void main() {
         ..place(plume.Offset.zero);
 
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 1));
-      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(3, 0, 4, 1));
+      final surface = BufferSurface(buffer)..pushNode(const plume.Rect(3, 0, 4, 1));
       node.paint(surface);
-      surface.popClip();
+      surface.popNode();
 
       // Columns left of the clip are absent; columns 3-6 show the placeholder's
       // OWN characters '3456', not '0123' shifted over from the field's start.

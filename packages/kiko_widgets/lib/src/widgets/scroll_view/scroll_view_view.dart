@@ -13,15 +13,16 @@ import 'types.dart';
 /// a gap between composed children still resolves to the model, not the
 /// background. Installs the measurement callback that reports the
 /// viewport/content extents it painted as a [ScrollMetrics] addressed to the
-/// model's id when they differ from what the model holds, the way every
+/// model's hit path when they differ from what the model holds, the way every
 /// windowed widget reports its viewport; the model reads them one frame
 /// behind the paint.
 ///
-/// Every tagged descendant's content-relative row range is keyed by its hit
-/// path, folded from its ancestor tag chain. A [ScopeTag] extends the path;
-/// an [IdTag] does not — [HitMap]'s own rule. A bare member id and a scope
-/// wrapping chrome around that member key the same way (see
-/// [ScrollViewModel.ensureVisible]). A tag outside the sealed [HitTag]
+/// Every tagged descendant's content-relative row range is keyed by its full
+/// hit path: the scope path the paint walk carries down to this view
+/// ([BufferSurface.scopePath]), then the descendant's ancestor chain inside
+/// the content, folded by [HitTag.scopeUnder], then its own tag. A bare
+/// member id and a scope wrapping chrome around that member key the same way
+/// (see [ScrollViewModel.ensureVisible]). A tag outside the sealed [HitTag]
 /// vocabulary is dropped, mirroring [HitMap]'s own rule that only that
 /// vocabulary is addressable. A path repeated across several nodes — a scope
 /// may legally sit on more than one — unions its rows: min top to max
@@ -46,13 +47,17 @@ final class ScrollView implements View {
 
   void _onMeasure(ViewportMetrics metrics, Surface surface) {
     if (surface is! BufferSurface) return;
+    // The viewport's own scope path prefixes every key, so a key is the path
+    // the hit map records for that descendant, not one relative to this view.
+    final scopePath = surface.scopePath;
     final tagRanges = <String, ScrollViewTagRange>{};
     for (final entry in metrics.entries) {
       final path = _pathOf(entry.chain);
       if (path == null) continue;
       final range = (top: entry.top, height: entry.height);
-      final existing = tagRanges[path];
-      tagRanges[path] = existing == null ? range : _union(existing, range);
+      final key = HitTag.join(scopePath, path);
+      final existing = tagRanges[key];
+      tagRanges[key] = existing == null ? range : _union(existing, range);
     }
     // Report only while the model does not hold this geometry, so the frame
     // the report causes has nothing more to say.
@@ -63,7 +68,7 @@ final class ScrollView implements View {
     }
     surface.report(
       ScrollMetrics(
-        model.id,
+        HitTag.join(scopePath, model.id),
         viewportRows: metrics.viewportRows,
         contentRows: metrics.contentRows,
         tagRanges: tagRanges,
@@ -71,20 +76,16 @@ final class ScrollView implements View {
     );
   }
 
-  /// Folds [chain] into a hit path with [HitMap]'s own rule, or `null` when
-  /// the node's own tag is outside the sealed [HitTag] vocabulary.
+  /// Folds [chain] into a hit path relative to the viewport's content, or
+  /// `null` when the node's own tag is outside the sealed [HitTag] vocabulary.
   ///
   /// A foreign ancestor tag is ignored, never fatal — [HitMap] walks past
   /// foreign tags the same way.
   static String? _pathOf(List<Object> chain) {
     if (chain.isEmpty) return null;
-    var prefix = '';
-    for (var i = 0; i < chain.length - 1; i++) {
-      final tag = chain[i];
-      if (tag is ScopeTag) prefix = HitTag.join(prefix, tag.name);
-    }
     final own = chain.last;
-    return own is HitTag ? HitTag.join(prefix, own.segment) : null;
+    if (own is! HitTag) return null;
+    return HitTag.join(HitTag.scopePathOf(chain.take(chain.length - 1)), own.segment);
   }
 
   /// The envelope of two ranges on the same path: min top to max bottom.

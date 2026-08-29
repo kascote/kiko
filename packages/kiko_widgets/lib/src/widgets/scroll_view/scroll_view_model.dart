@@ -17,8 +17,9 @@ import 'types.dart';
 ///
 /// The model owns no content and does no layout itself: `ScrollView` wraps a
 /// plume viewport around whatever content the caller composes, and its paint
-/// reports the geometry it painted as a [ScrollMetrics] addressed to [id]
-/// when it differs from what this model holds. The router delivers it here
+/// reports the geometry it painted as a [ScrollMetrics] addressed to this
+/// model's hit path — [id] under any enclosing scope — when it differs from
+/// what this model holds. The router delivers it here
 /// and [update] stores it, one frame behind the paint. Unlike ListView,
 /// TableView and TreeView, this model never loads: it scrolls composed UI
 /// already fully in memory, not paginated data (see

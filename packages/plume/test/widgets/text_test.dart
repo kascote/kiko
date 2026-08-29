@@ -107,9 +107,9 @@ void main() {
         ..layout(BoxConstraints.tight(const Size(5, 1)), _context)
         ..place(Offset.zero);
       // An ancestor only 3 cells wide clips the 5-wide line down to "hel".
-      final surface = RecordingSurface<String>()..pushClip(const Rect(0, 0, 3, 1));
+      final surface = RecordingSurface<String>()..pushNode(const Rect(0, 0, 3, 1));
       text.paint(surface);
-      surface.popClip();
+      surface.popNode();
       expect(surface.intents.map((intent) => '$intent').toList(), ['drawText(0, 0, "hel", x)']);
     });
   });

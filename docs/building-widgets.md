@@ -451,10 +451,12 @@ them:
 `visibleCount` is a fixed constructor value here. A real widget measures its
 viewport while painting and, when the count differs from the one the model
 holds, reports it as a `ViewportChanged` message (`docs/architecture.md`,
-frame reports); the model stores the count in its `update`. ListView's paint
-and its `ViewportChanged` case show the shape, including why the value lands
-one message after the frame that painted it and why that is fine for
-clamping.
+frame reports); the model stores the count in its `update`. The report is
+addressed to `HitTag.join(surface.scopePath, model.id)`: the widget's hit
+path under whatever scope it is painted in, with no parameter on the view.
+ListView's paint and its `ViewportChanged` case show the shape, including why
+the value lands one message after the frame that painted it and why that is
+fine for clamping.
 
 ## Decline everything you don't understand
 

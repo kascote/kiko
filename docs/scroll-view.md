@@ -65,12 +65,15 @@ reachable through `targets`; walk `ctx.hits` inline for that case.
 ## `ensureVisible(id)`
 
 `ensureVisible(id)` scrolls the minimum amount that brings a tagged descendant
-fully into view. `id` shares the hit map's own path namespace
-(`docs/mouse.md`). A bare member id names a scope wrapping chrome around the
-member, and brings the whole frame into view. `id/id` names the bare content
-leaf inside it, and brings only that leaf into view. A scope path that
-repeats across several nodes ranges over every occurrence's union: min top to
-max bottom.
+fully into view. `id` is the descendant's hit path, the same string a
+pointer event delivers for it (`docs/mouse.md`). The keys the view reports
+in `tagRanges` carry every scope enclosing the descendant, the scopes above
+the ScrollView included: a ScrollView under `Tagged.scope('outer', …)`
+reports `outer/field/field`, never `field/field`. A bare member id names a
+scope wrapping chrome around the member, and brings the whole frame into
+view. `id/id` names the bare content leaf inside it, and brings only that
+leaf into view. A scope path that repeats across several nodes ranges over
+every occurrence's union: min top to max bottom.
 
 Never read the descendant's rect from `ctx.hits.rectOf(id)`. A Viewport
 removes a scrolled-off descendant from the hit map entirely, so `rectOf`

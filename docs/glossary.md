@@ -84,6 +84,10 @@ A term of art added to a page gets its entry here in the same change.
 - **hit path** — a tagged node's full identity: its enclosing scope names and
   its id, joined with `/` (`cb/field-3`). A node under no scope has a bare
   id; "path" for short where the pointer context is clear.
+- **scope path** — the part of a hit path its enclosing scopes contribute:
+  the scope names joined with `/`, with no leaf; empty under no scope.
+  `BufferSurface.scopePath` is the scope path of the node painting now, and a
+  node joins its id with it to address a frame report (`docs/mouse.md`).
 - **leaf** — the last segment of a hit path: the id of the node itself. The
   owner of a delivered path reads the leaf to dispatch
   (`docs/components.md`).

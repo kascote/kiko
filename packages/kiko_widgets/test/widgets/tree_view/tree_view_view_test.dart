@@ -129,9 +129,9 @@ void main() {
         ..place(plume.Offset.zero);
 
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 4, height: 5));
-      final surface = BufferSurface(buffer)..pushClip(const plume.Rect(0, 2, 4, 3));
+      final surface = BufferSurface(buffer)..pushNode(const plume.Rect(0, 2, 4, 3));
       node.paint(surface);
-      surface.popClip();
+      surface.popNode();
 
       // Rows scrolled above the clip are absent, not shown squeezed at the top.
       expect(_dump(buffer), '\n\n  n2\n  n3\n  n4\n');
@@ -159,6 +159,23 @@ void main() {
 
       final second = _frame(8, 4)..render(view);
       expect(second.reports, isEmpty, reason: 'the model holds the count, so the frame a report causes settles');
+    });
+
+    test('under a scope, the report carries the scoped path', () {
+      final model = TreeViewModel<String>(id: 'nav')
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
+      final frame = _frame(8, 4)
+        ..render(
+          Tagged.scope(
+            'sidebar',
+            Container(
+              child: TreeView<String>(model: model, theme: Theme.dark),
+            ),
+          ),
+        );
+
+      expect((frame.reports.single as ViewportChanged).id, 'sidebar/nav');
+      expect(frame.hits.hitId(0, 0), 'sidebar/nav', reason: 'the same path the hit map records');
     });
   });
 

@@ -65,15 +65,18 @@ void _view(_App model, Frame frame) {
   comboView.renderPopup(frame);
 }
 
+/// The key the harness quits on, intercepted before the router sees it.
+const _quitKey = 'ctrl+q';
+
 /// Runs [model] through a real application over [backend] until [readyId] has
 /// painted (its rect, or its live scope, is in the committed hit map), then
-/// feeds the events [act] builds from that map, one per frame tick, and lets
-/// a couple of idle ticks settle before quitting.
+/// feeds the events [act] builds from that map, one per committed frame, and
+/// quits from the frame that follows the last one.
 ///
-/// A message emitted on tick N is only dequeued and applied on a later
-/// iteration, so the idle ticks give the last event's effect room to land and
-/// paint before `Quit` skips a frame. Returns the last committed [HitMap]; the
-/// model is mutated in place so later calls can pick straight up from it.
+/// A step goes out from the first frame committed after the previous step was
+/// applied, so the last frame shows the last step's effect. Returns that
+/// frame's [HitMap]; the model is mutated in place so later calls can pick
+/// straight up from it.
 Future<HitMap> _drive(
   TestBackend backend,
   _App model,
@@ -82,35 +85,43 @@ Future<HitMap> _drive(
 ) async {
   List<void Function(TestBackend)>? queue;
   var i = 0;
-  var idleTicks = 0;
+  var pending = false;
+  var quitSent = false;
   HitMap? lastHits;
 
-  await Application(backend: backend, fps: 120).run<_App>(
+  await Application(
+    backend: backend,
+    fps: 120,
+    onFrame: (frame) {
+      lastHits = frame.hits;
+      if (pending) return;
+      if (queue == null) {
+        if (frame.hits.rectOf(readyId) == null && !frame.hits.isLive(readyId)) return;
+        queue = act(frame.hits);
+      }
+      if (i < queue!.length) {
+        pending = true;
+        queue![i++](backend);
+        return;
+      }
+      if (!quitSent) {
+        quitSent = true;
+        backend.emitKey(_quitKey);
+      }
+    },
+  ).run<_App>(
     init: model,
     update: (m, msg, ctx) {
-      if (msg is FrameTickMsg) {
-        if (queue == null) {
-          if (ctx.hits.rectOf(readyId) != null || ctx.hits.isLive(readyId)) queue = act(ctx.hits);
-          return (m, null);
-        }
-        if (i < queue!.length) {
-          queue![i++](backend);
-          return (m, null);
-        }
-        if (idleTicks < 2) {
-          idleTicks++;
-          return (m, null);
-        }
-        return (m, const Quit());
-      }
+      if (msg case KeyMsg(key: _quitKey)) return (m, const Quit());
+      // Anything but the idle beat and the render clock's own message is a
+      // step landing.
+      if (msg is! InitMsg && msg is! NoneMsg && !msg.droppable) pending = false;
       return _update(m, msg, ctx);
     },
-    view: (m, frame) {
-      _view(m, frame);
-      lastHits = frame.hits;
-    },
+    view: _view,
   );
 
+  expect(i, queue!.length, reason: 'every scripted step ran');
   return lastHits!;
 }
 

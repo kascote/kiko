@@ -26,42 +26,50 @@ void main() {
   test('a resize emitted after the first frame updates the tracked size and the on-screen readout', () async {
     final backend = TestBackend(size: const TermSize(40, 12));
     final model = resize.ResizeModel();
-    var ticks = 0;
-    var resizedAtTick = -1;
+    var resized = false;
+    var quitSent = false;
 
-    final rc = await Application(backend: backend).run<resize.ResizeModel>(
-      init: model,
-      update: (m, msg, ctx) {
-        final result = resize.update(m, msg, ctx);
-        if (msg is ResizeMsg && resizedAtTick < 0) resizedAtTick = ticks;
-
-        if (msg is FrameTickMsg) {
-          ticks++;
-          // Emitted only once the first frame has committed — any earlier
-          // and it is startup noise the runtime correctly drops. The
-          // backend's reported size changes in tandem with the event, the
-          // way a real terminal resize would.
-          if (ticks == 1) {
-            // WindowResizeEvent's positional args are (heightChars,
-            // widthChars, heightPixels, widthPixels).
-            backend
-              ..resizeTo(const TermSize(70, 24))
-              ..emit(const WindowResizeEvent(24, 70, 1400, 560));
-          }
-          // Quit a couple of frames after the resize landed, so the frame
-          // that repainted against the new size has had time to commit —
-          // quitting the instant it lands would ship the frame before it.
-          if (resizedAtTick >= 0 && ticks >= resizedAtTick + 2) {
-            return (result.$1, const Quit());
-          }
-        }
-        return result;
-      },
-      view: resize.view,
-    );
+    final rc =
+        await Application(
+          backend: backend,
+          onFrame: (frame) {
+            // The first frame commits inside the startup hold, where a
+            // WindowResizeEvent is startup noise the runtime drops. A nudge key
+            // crosses the hold; the resize goes out once update sees it.
+            if (frame.count == 0) backend.emitKey('n');
+            // The first frame committed after the resize landed painted against
+            // the new size; quitting any earlier would ship the frame before it.
+            if (resized && !quitSent) {
+              quitSent = true;
+              backend.emitKey('q');
+            }
+          },
+        ).run<resize.ResizeModel>(
+          init: model,
+          update: (m, msg, ctx) {
+            switch (msg) {
+              case KeyMsg(key: 'n'):
+                // The backend's reported size changes in tandem with the event,
+                // the way a real terminal resize would. WindowResizeEvent's
+                // positional args are (heightChars, widthChars, heightPixels,
+                // widthPixels).
+                backend
+                  ..resizeTo(const TermSize(70, 24))
+                  ..emit(const WindowResizeEvent(24, 70, 1400, 560));
+                return (m, null);
+              case KeyMsg(key: 'q'):
+                return (m, const Quit());
+              case ResizeMsg():
+                resized = true;
+            }
+            return resize.update(m, msg, ctx);
+          },
+          view: resize.view,
+        );
 
     expect(rc, 0);
-    expect(resizedAtTick, greaterThanOrEqualTo(0), reason: 'the resize should have reached update as a ResizeMsg');
+    expect(resized, isTrue, reason: 'the resize should have reached update as a ResizeMsg');
+    expect(quitSent, isTrue, reason: 'a frame committed after the resize');
 
     expect(model.width, 70);
     expect(model.height, 24);

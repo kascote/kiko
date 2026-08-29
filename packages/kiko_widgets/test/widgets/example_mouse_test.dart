@@ -20,18 +20,18 @@ import '../../example/scrollable_form.dart' as form;
 /// captured mid-run instead, before any of that runs.
 typedef _DriveResult = ({HitMap hits, bool cursorVisible});
 
+/// The key the harness quits on, intercepted before the example's update.
+const _quitKey = 'ctrl+q';
+
 /// Runs [model] through a real application, and once [readyId] has been painted
 /// (its rect is in the committed hit map) feeds the events [events] builds from
-/// that map, one per frame tick. Returns the [HitMap] from the last paint and
-/// the cursor visibility from just before shutdown (see [_DriveResult]); [model]
-/// is mutated in place, so the caller can also inspect it directly.
+/// that map, one per committed frame, then quits from the frame that follows
+/// the last one. Returns the [HitMap] from that frame and the cursor
+/// visibility it left (see [_DriveResult]); [model] is mutated in place, so
+/// the caller can also inspect it directly.
 ///
-/// A message emitted on tick N is only dequeued and applied on a LATER
-/// iteration, and `Application` paints only on a `FrameTickMsg` iteration and
-/// skips that paint entirely once `update` answers `Quit` — so quitting the
-/// instant the queue drains would ship the second-to-last state, never
-/// painting the last event's effect. A couple of idle ticks after the queue
-/// drains give that last message room to be applied and painted before Quit.
+/// A step goes out from the first frame committed after the previous step was
+/// applied, so the last frame shows the last step's effect.
 Future<_DriveResult> _driveWhenReady<M>({
   required TestBackend backend,
   required M model,
@@ -42,40 +42,47 @@ Future<_DriveResult> _driveWhenReady<M>({
 }) async {
   List<void Function(TestBackend)>? queue;
   var i = 0;
-  var idleTicks = 0;
+  var pending = false;
+  var quitSent = false;
   HitMap? lastPaintedHits;
   var lastCursorVisible = backend.cursorVisible;
 
-  await Application(backend: backend, fps: 120).run<M>(
+  await Application(
+    backend: backend,
+    fps: 120,
+    onFrame: (frame) {
+      // Read right after the draw committed, so the LAST value recorded is
+      // the settled state of the final frame — never the post-shutdown state.
+      lastCursorVisible = backend.cursorVisible;
+      lastPaintedHits = frame.hits;
+      if (pending) return;
+      if (queue == null) {
+        if (frame.hits.rectOf(readyId) == null) return;
+        queue = events(frame.hits);
+      }
+      if (i < queue!.length) {
+        pending = true;
+        queue![i++](backend);
+        return;
+      }
+      if (!quitSent) {
+        quitSent = true;
+        backend.emitKey(_quitKey);
+      }
+    },
+  ).run<M>(
     init: model,
     update: (m, msg, ctx) {
-      if (msg is FrameTickMsg) {
-        // Captured before this tick's own draw, so the LAST value recorded
-        // (just before Quit is returned) reflects the previous, now-settled
-        // draw — never the post-shutdown state.
-        lastCursorVisible = backend.cursorVisible;
-        if (queue == null) {
-          if (ctx.hits.rectOf(readyId) != null) queue = events(ctx.hits);
-          return (m, null);
-        }
-        if (i < queue!.length) {
-          queue![i++](backend);
-          return (m, null);
-        }
-        if (idleTicks < 2) {
-          idleTicks++;
-          return (m, null);
-        }
-        return (m, const Quit());
-      }
+      if (msg case KeyMsg(key: _quitKey)) return (m, const Quit());
+      // Anything but the idle beat and the render clock's own message is a
+      // step landing.
+      if (msg is! InitMsg && msg is! NoneMsg && !msg.droppable) pending = false;
       return update(m, msg, ctx);
     },
-    view: (m, frame) {
-      view(m, frame);
-      lastPaintedHits = frame.hits;
-    },
+    view: view,
   );
 
+  expect(i, queue!.length, reason: 'every scripted step ran');
   return (hits: lastPaintedHits!, cursorVisible: lastCursorVisible);
 }
 

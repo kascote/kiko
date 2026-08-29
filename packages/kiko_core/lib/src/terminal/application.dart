@@ -29,6 +29,10 @@ typedef ErrorHandler =
 /// Cleanup callback type. Called before `run()` completes on all paths.
 typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 
+/// Committed-frame callback type. Called after every draw; see
+/// [Application.onFrame].
+typedef FrameCallback = void Function(CompletedFrame frame);
+
 /// Update function for MVU: (model, msg, ctx) -> (model, cmd?)
 ///
 /// [UpdateContext] carries what the runtime knows and the model does not — the
@@ -110,6 +114,17 @@ class Application {
   /// Cleanup callback. Called before `run()` completes on all paths.
   final CleanupCallback? onCleanup;
 
+  /// Called with every committed frame.
+  ///
+  /// It fires synchronously in the run loop, right after a draw commits and
+  /// the frame's hit map has become the one incoming terminal events resolve
+  /// against. A terminal event emitted from the callback is therefore stamped
+  /// against the frame the callback describes, never the one before it. Use
+  /// it for a recording, a screenshot, a first-paint hook, or a frame-cost
+  /// readout; an end-to-end test schedules its scripted terminal events from
+  /// it.
+  final FrameCallback? onFrame;
+
   /// Backend the terminal draws through. If null, draws on the real terminal.
   @visibleForTesting
   final Backend? backend;
@@ -185,6 +200,7 @@ class Application {
     this.defaultErrorCode = 1,
     this.onError,
     this.onCleanup,
+    this.onFrame,
     @visibleForTesting this.backend,
     this.measurer = const TermUnicodeMeasurer(),
     this.eventTimeout = 10,
@@ -275,9 +291,12 @@ class Application {
       ..holdEventsForFirstFrame();
 
     // The map a mouse event resolves against is the one that painted the cells
-    // it was aimed at, so every draw hands its geometry back to the runtime.
+    // it was aimed at, so every draw hands its geometry back to the runtime
+    // before anyone outside hears about the frame.
     Future<void> draw(M model) async {
-      runtime.lastHitMap = (await terminal.draw((frame) => view(model, frame))).hits;
+      final completed = await terminal.draw((frame) => view(model, frame));
+      runtime.lastHitMap = completed.hits;
+      onFrame?.call(completed);
     }
 
     // 1. Send InitMsg, process, render immediately (before FrameTick starts)

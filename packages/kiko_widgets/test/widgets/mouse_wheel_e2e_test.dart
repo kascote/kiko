@@ -10,9 +10,17 @@ import 'package:test/test.dart';
 
 List<Map<String, Object?>> rows(int n) => List.generate(n, (i) => {'id': 'r$i', 'name': 'Name $i'});
 
-/// Runs a real application over [backend], feeding it one of [events] per frame
-/// tick. Every routed [PointerMsg] is handed to [forward] (the widget's own
-/// `update`), and any [LoadRequest] it emits is collected and returned.
+/// The key the harness quits on, intercepted before anything else.
+const _quitKey = 'ctrl+q';
+
+/// Runs a real application over [backend], feeding it [events] one per
+/// committed frame. Every routed [PointerMsg] is handed to [forward] (the
+/// widget's own `update`), and any [LoadRequest] it emits is collected and
+/// returned.
+///
+/// A notch goes out from the first frame committed after the previous one was
+/// applied, so the frame that follows the last notch shows its effect before
+/// the quit key goes out.
 Future<List<LoadRequest>> _driveWheel(
   TestBackend backend,
   List<void Function(TestBackend)> events,
@@ -20,25 +28,43 @@ Future<List<LoadRequest>> _driveWheel(
   Render<int> view,
 ) async {
   final requests = <LoadRequest>[];
+  var step = 0;
+  var pending = false;
+  var quitSent = false;
 
-  await Application(backend: backend, fps: 120).run<int>(
+  await Application(
+    backend: backend,
+    fps: 120,
+    onFrame: (_) {
+      if (pending) return;
+      if (step < events.length) {
+        pending = true;
+        events[step++](backend);
+        return;
+      }
+      if (!quitSent) {
+        quitSent = true;
+        backend.emitKey(_quitKey);
+      }
+    },
+  ).run<int>(
     init: 0,
-    update: (step, msg, _) {
+    update: (model, msg, _) {
       switch (msg) {
-        case FrameTickMsg():
-          if (step >= events.length) return (step, const Quit());
-          events[step](backend);
-          return (step + 1, null);
+        case KeyMsg(key: _quitKey):
+          return (model, const Quit());
         case PointerMsg():
+          pending = false;
           if (forward(msg) case Handled(cmd: final LoadRequest r)) requests.add(r);
-          return (step, null);
+          return (model, null);
         default:
-          return (step, null);
+          return (model, null);
       }
     },
     view: view,
   );
 
+  expect(step, events.length, reason: 'every wheel notch went out');
   return requests;
 }
 

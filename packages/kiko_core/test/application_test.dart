@@ -14,6 +14,19 @@ Future<int> runApp(
 Update<int> quitOnInit([int code = 0]) =>
     (model, msg, _) => (model, msg is InitMsg ? Quit(code) : null);
 
+/// The key [quitOnKey] quits on, emitted by [quitAfterFirstFrame].
+const quitKey = 'q';
+
+/// An update that quits with [code] when [quitKey] arrives.
+Update<int> quitOnKey([int code = 0]) =>
+    (model, msg, _) => (model, msg is KeyMsg && msg.key == quitKey ? Quit(code) : null);
+
+/// A frame callback that emits [quitKey] on [backend] from the first committed
+/// frame, so the application paints once and then stops.
+FrameCallback quitAfterFirstFrame(TestBackend backend) => (frame) {
+  if (frame.count == 0) backend.emitKey(quitKey);
+};
+
 /// A view whose one widget fills the viewport and answers to the id `ok`.
 void tagWholeArea(int _, Frame frame) =>
     frame.render(Tagged('ok', Container(border: BorderType.plain, child: Line(''))));
@@ -347,22 +360,24 @@ void main() {
 
   group('the drain loop', () {
     test('renders on the init message and then on every frame tick', () async {
-      var ticks = 0;
+      var frames = 0;
       var views = 0;
 
       final rc = await runApp(
-        Application(backend: backend),
-        update: (model, msg, _) {
-          if (msg is! FrameTickMsg) return (model, null);
-          ticks++;
-          return (model, ticks == 2 ? const Quit() : null);
-        },
+        Application(
+          backend: backend,
+          onFrame: (_) {
+            frames++;
+            if (frames == 2) backend.emitKey(quitKey);
+          },
+        ),
+        update: quitOnKey(),
         view: (_, _) => views++,
       );
 
       expect(rc, 0);
       expect(views, 2, reason: 'the init draw, then one render for the first tick');
-      expect(backend.drawCount, 2, reason: 'the second tick quits before rendering');
+      expect(backend.drawCount, 2, reason: 'the quit key arrives before the next tick renders');
     });
 
     test('an event emitted by the backend reaches update as a message', () async {
@@ -390,18 +405,16 @@ void main() {
 
     test('a resize emitted after the first frame reaches update as a ResizeMsg', () async {
       ResizeMsg? seenResize;
-      var ticks = 0;
 
       final rc = await runApp(
-        Application(backend: backend),
+        // The first frame commits inside the startup hold, where a
+        // WindowResizeEvent is startup noise and is dropped, never queued. A
+        // nudge key crosses the hold; the resize goes out once update sees it.
+        Application(backend: backend, onFrame: (frame) => frame.count == 0 ? backend.emitKey('n') : null),
         update: (model, msg, _) {
           switch (msg) {
-            case FrameTickMsg():
-              ticks++;
-              // Emitted only once the first frame has committed and the
-              // startup hold has flushed — a WindowResizeEvent emitted any
-              // earlier is startup noise and is dropped, never queued.
-              if (ticks == 1) backend.emit(const WindowResizeEvent(30, 100, 640, 2000));
+            case KeyMsg(key: 'n'):
+              backend.emit(const WindowResizeEvent(30, 100, 640, 2000));
               return (model, null);
             case ResizeMsg():
               seenResize = msg;
@@ -447,9 +460,9 @@ void main() {
       late final Rect? rect;
 
       await runApp(
-        Application(backend: backend),
+        Application(backend: backend, onFrame: quitAfterFirstFrame(backend)),
         update: (model, msg, ctx) {
-          if (msg is! FrameTickMsg) return (model, null);
+          if (msg is! KeyMsg) return (model, null);
           hit = ctx.hits.hitId(3, 1);
           rect = ctx.hits.rectOf('ok');
           return (model, const Quit());
@@ -464,17 +477,17 @@ void main() {
     test('area is the viewport the application owns, not the whole terminal', () async {
       final fixed = Rect.create(x: 1, y: 0, width: 4, height: 2);
       late final Rect areaOnInit;
-      late final Rect areaOnTick;
+      late final Rect areaAfterFrame;
 
       await runApp(
-        Application(backend: backend, viewport: ViewPortFixed(fixed)),
+        Application(backend: backend, viewport: ViewPortFixed(fixed), onFrame: quitAfterFirstFrame(backend)),
         update: (model, msg, ctx) {
           switch (msg) {
             case InitMsg():
               areaOnInit = ctx.area;
               return (model, null);
-            case FrameTickMsg():
-              areaOnTick = ctx.area;
+            case KeyMsg():
+              areaAfterFrame = ctx.area;
               return (model, const Quit());
             default:
               return (model, null);
@@ -483,7 +496,85 @@ void main() {
       );
 
       expect(areaOnInit, fixed, reason: 'the viewport is known before the first draw');
-      expect(areaOnTick, fixed, reason: 'and a committed frame does not swap it for the terminal');
+      expect(areaAfterFrame, fixed, reason: 'and a committed frame does not swap it for the terminal');
+    });
+  });
+
+  group('the committed-frame hook', () {
+    test('onFrame fires once per committed frame, with that frame', () async {
+      final frames = <CompletedFrame>[];
+      var views = 0;
+
+      await runApp(
+        Application(
+          backend: backend,
+          onFrame: (frame) {
+            frames.add(frame);
+            if (frames.length == 3) backend.emitKey(quitKey);
+          },
+        ),
+        update: quitOnKey(),
+        view: (model, frame) {
+          views++;
+          tagWholeArea(model, frame);
+        },
+      );
+
+      expect(frames.map((f) => f.count), [0, 1, 2], reason: 'the init draw, then one per tick until the quit');
+      expect(views, 3);
+      expect(backend.drawCount, 3);
+      for (final frame in frames) {
+        expect(frame.area, backend.screen.area);
+        expect(
+          frame.hits.rectOf('ok'),
+          Rect.create(x: 0, y: 0, width: 8, height: 2),
+          reason: "that frame's own geometry",
+        );
+      }
+    });
+
+    test('a click emitted from onFrame resolves against that frame, the first to show its target', () async {
+      late final PointerMsg click;
+      late final Rect? rectInContext;
+      Rect? boxWhenClicked;
+
+      await Application(
+        backend: backend,
+        onFrame: (frame) {
+          final box = frame.hits.rectOf('box');
+          // The first frame has no box: ask for one. The next frame is the
+          // first to show it, and the click aimed from there must land on it.
+          if (box == null) {
+            backend.emitKey('n');
+            return;
+          }
+          boxWhenClicked = box;
+          backend.emitClick(box.x + 3, box.y + 1);
+        },
+      ).run<int>(
+        init: 0,
+        update: (step, msg, ctx) {
+          switch (msg) {
+            case KeyMsg(key: 'n'):
+              return (1, null);
+            case final PointerMsg p:
+              click = p;
+              rectInContext = ctx.hits.rectOf('box');
+              return (step, const Quit());
+            default:
+              return (step, null);
+          }
+        },
+        view: (step, frame) => frame.render(
+          step == 0 ? Line('') : Tagged('box', Container(border: BorderType.plain, child: Line(''))),
+        ),
+      );
+
+      expect(boxWhenClicked, Rect.create(x: 0, y: 0, width: 8, height: 2));
+      expect(click.targetId, 'box');
+      expect(click.targetRect, boxWhenClicked, reason: 'stamped against the frame the callback described');
+      expect(click.local, const Position(3, 1));
+      expect(rectInContext, boxWhenClicked, reason: 'ctx.hits is that same map');
     });
   });
 
@@ -531,8 +622,8 @@ void main() {
       late final Buffer painted;
 
       await runApp(
-        Application(backend: cjkBackend, measurer: measurer),
-        update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+        Application(backend: cjkBackend, measurer: measurer, onFrame: quitAfterFirstFrame(cjkBackend)),
+        update: quitOnKey(),
         view: (_, frame) {
           frame.render(const Row(children: [Text('°'), Text('X')]));
           painted = frame.buffer;
@@ -560,8 +651,8 @@ void main() {
       late final Buffer painted;
 
       await runApp(
-        Application(backend: narrowBackend),
-        update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+        Application(backend: narrowBackend, onFrame: quitAfterFirstFrame(narrowBackend)),
+        update: quitOnKey(),
         view: (_, frame) {
           frame.render(const Row(children: [Text('°'), Text('X')]));
           painted = frame.buffer;
@@ -583,8 +674,8 @@ void main() {
       Future<Buffer> paintInto(TestBackend testBackend, {required TextMeasurer measurer}) async {
         late final Buffer painted;
         await runApp(
-          Application(backend: testBackend, measurer: measurer),
-          update: (model, msg, _) => (model, msg is FrameTickMsg ? const Quit() : null),
+          Application(backend: testBackend, measurer: measurer, onFrame: quitAfterFirstFrame(testBackend)),
+          update: quitOnKey(),
           view: (_, frame) {
             frame.render(const Text('°'));
             painted = frame.buffer;

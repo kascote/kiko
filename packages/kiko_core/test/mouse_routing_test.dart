@@ -26,30 +26,63 @@ MouseButton _up() => MouseButton.up(MouseButtonKind.left);
 MouseButton _drag() => MouseButton.drag(MouseButtonKind.left);
 MouseButton _move() => MouseButton.moved();
 
-/// Runs a real application over [backend], feeding it one of [events] per frame
-/// tick, and returns every message `update` saw — the render clock and the idle
-/// beats filtered out.
+/// The key every harness here quits on, intercepted before anything else.
+const _quitKey = 'ctrl+q';
+
+/// A message an update queues ahead of a terminal event, to change the model
+/// (and so the next frame) before that event is processed.
+class _Advance extends Msg {
+  const _Advance();
+}
+
+/// Runs a real application over [backend], feeding it [events] one per
+/// committed frame, and returns every message `update` saw — the render clock
+/// and the idle beats filtered out.
+///
+/// A step goes out from the first frame committed after the previous step was
+/// applied, so the frame that follows the last step shows its effect before
+/// the quit key goes out.
 Future<List<Msg>> _drive(TestBackend backend, List<Event> events, Render<int> view) async {
   final seen = <Msg>[];
+  var step = 0;
+  var pending = false;
+  var quitSent = false;
 
-  await Application(backend: backend, fps: 120).run<int>(
+  await Application(
+    backend: backend,
+    fps: 120,
+    onFrame: (_) {
+      if (pending) return;
+      if (step < events.length) {
+        pending = true;
+        backend.emit(events[step++]);
+        return;
+      }
+      if (!quitSent) {
+        quitSent = true;
+        backend.emitKey(_quitKey);
+      }
+    },
+  ).run<int>(
     init: 0,
-    update: (step, msg, _) {
+    update: (model, msg, _) {
       switch (msg) {
-        case FrameTickMsg():
-          if (step == events.length) return (step, const Quit());
-          backend.emit(events[step]);
-          return (step + 1, null);
+        case KeyMsg(key: _quitKey):
+          return (model, const Quit());
         case InitMsg() || NoneMsg():
-          return (step, null);
+          return (model, null);
         default:
+          // The render clock's own message is the only droppable one.
+          if (msg.droppable) return (model, null);
+          pending = false;
           seen.add(msg);
-          return (step, null);
+          return (model, null);
       }
     },
     view: view,
   );
 
+  expect(step, events.length, reason: 'every scripted event went out');
   return seen;
 }
 
@@ -106,28 +139,34 @@ void main() {
     test('a click queued before a frame commits still hits where the widget was', () async {
       late final PointerMsg click;
       late final Rect? rectWhenClicked;
-      late final Rect? rectOnScreen;
+      Rect? rectOnScreen;
 
-      // fps 1 keeps the render clock out of the way: every frame here is one
-      // this test asked for.
-      await Application(backend: backend, fps: 1).run<int>(
+      await Application(
+        backend: backend,
+        fps: 120,
+        onFrame: (frame) {
+          // The second frame is the first painted after the box moved: read
+          // back what is actually on screen, then stop.
+          if (frame.count != 1) return;
+          rectOnScreen = frame.hits.rectOf('box');
+          backend.emitKey(_quitKey);
+        },
+      ).run<int>(
         init: 0,
         update: (step, msg, ctx) {
           switch (msg) {
             case InitMsg():
-              // Aimed at the box where it is painted right now, at x = 0.
+              // Aimed at the box where it is painted right now, at x = 0...
               backend.emit(MouseEvent(1, 1, _down()));
-              // ...and a frame that moves the box is queued ahead of it.
-              return (step, Emit(FrameTickMsg(delta: Duration.zero, frameNumber: 1, timestamp: DateTime.now())));
-            case FrameTickMsg() when step == 0:
+              // ...and a message that moves the box is queued ahead of it.
+              return (step, const Emit(_Advance()));
+            case _Advance():
               return (1, null);
             case final PointerMsg p:
               click = p;
               rectWhenClicked = ctx.hits.rectOf('box');
-              // One more frame, to read back what is actually on screen.
-              return (step, Emit(FrameTickMsg(delta: Duration.zero, frameNumber: 2, timestamp: DateTime.now())));
-            case FrameTickMsg():
-              rectOnScreen = ctx.hits.rectOf('box');
+              return (step, null);
+            case KeyMsg(key: _quitKey):
               return (step, const Quit());
             default:
               return (step, null);
@@ -190,10 +229,10 @@ void main() {
             case PointerMsg(targetId: 'c'):
               seen.add(msg);
               return (step, const Quit());
-            case NoneMsg() || FrameTickMsg():
+            case Routed():
+              seen.add(msg);
               return (step, null);
             default:
-              seen.add(msg);
               return (step, null);
           }
         },
@@ -258,21 +297,28 @@ void main() {
         ),
       );
 
-      await Application(backend: backend, fps: 1).run<int>(
+      var dragged = false;
+
+      await Application(
+        backend: backend,
+        fps: 120,
+        onFrame: (frame) {
+          // Drag from the first frame that no longer shows the captor.
+          if (dragged || frame.hits.isLive('field')) return;
+          dragged = true;
+          backend.emit(MouseEvent(0, 0, _drag()));
+        },
+      ).run<int>(
         init: 0,
         update: (step, msg, _) {
           switch (msg) {
             case InitMsg():
               // Captured while 'field' fills the whole 3-row window.
               backend.emit(MouseEvent(0, 0, _down()));
-              // Queued ahead of it: a frame that scrolls 'field' fully past
-              // the top.
-              return (step, Emit(FrameTickMsg(delta: Duration.zero, frameNumber: 1, timestamp: DateTime.now())));
-            case FrameTickMsg() when step == 0:
-              return (1, null);
-            case final PointerMsg p when p.targetId == 'field':
-              backend.emit(MouseEvent(0, 0, _drag()));
               return (step, null);
+            case final PointerMsg p when p.targetId == 'field':
+              // Button still down: scroll 'field' fully past the top.
+              return (1, null);
             case final PointerCancelMsg c:
               cancelMsg = c;
               return (step, const Quit());
@@ -282,6 +328,8 @@ void main() {
         },
         view: (step, frame) => frame.render(content(step == 0 ? 0 : 6)),
       );
+
+      expect(dragged, isTrue);
 
       expect(cancelMsg, const PointerCancelMsg('field'));
     });

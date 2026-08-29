@@ -109,6 +109,18 @@ void main() {
       expect(t.loading, isEmpty);
     });
 
+    test('clear drops every slot, in flight and failed alike', () {
+      final t = LoadTracker<PageKey>()
+        ..begin(PageKey(i(0)))
+        ..fail(PageKey(i(1)), 'e')
+        ..clear();
+      expect(t.loading, isEmpty);
+      expect(t.isLoading(), isFalse);
+      expect(t.stateFor(PageKey(i(0))).status, LoadStatus.idle);
+      expect(t.stateFor(PageKey(i(1))).status, LoadStatus.idle);
+      expect(t.errorFor(PageKey(i(1))), isNull);
+    });
+
     test('per-key isLoading isolates concurrent slots', () {
       final t = LoadTracker<PageKey>()..begin(PageKey(i(0)));
       expect(t.isLoading(PageKey(i(0))), isTrue);

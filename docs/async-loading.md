@@ -66,9 +66,9 @@ from the message that lifted its gate and fetches what comes back:
 ## Shared primitives (`packages/kiko_widgets/lib/src/load/`)
 
 - `LoadTracker<K>` — the keyed state machine:
-  `begin`/`complete`/`fail`/`stateFor`/`errorFor`, plus `isLoading([key])`
-  (bare = any slot in flight) and `loading` (the keys in flight). Each model
-  **embeds one**.
+  `begin`/`complete`/`fail`/`clear`/`stateFor`/`errorFor`, plus
+  `isLoading([key])` (bare = any slot in flight) and `loading` (the keys in
+  flight). Each model **embeds one**.
 - `LoadRequest(id, {key})` — a `Cmd`: a pure "I need data for (id, key)" with
   no payload. The load half of a tree expand is also a `LoadRequest` (see
   TreeView below).

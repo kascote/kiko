@@ -331,6 +331,26 @@ void main() {
     });
   });
 
+  group('PageLoader reset', () {
+    test('a reset forgets a failed slot along with everything else', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)
+        ..loadFirstPage()
+        ..apply(const LoadResult<PageResult<String>>('w', key: PageKey(0), error: 'boom'));
+      expect(loader.errorFor(const PageKey(0)), equals('boom'));
+      expect(loader.viewportStatus, SliceStatus.failed);
+
+      loader.reset();
+
+      expect(
+        loader.errorFor(const PageKey(0)),
+        isNull,
+        reason: 'a reset is a cold start; the failure does not outlive it',
+      );
+      expect(loader.viewportStatus, SliceStatus.stalled, reason: 'nothing held, nothing in flight, nothing failed');
+      expect(loader.isLoading(), isFalse);
+    });
+  });
+
   group('PageLoader payload mismatch', () {
     test('a wrong-shaped success fails the slot and records no end-of-data', () {
       final loader = _loader(firstRow: () => 0, visibleRows: () => 8)..demand(); // requests page 0

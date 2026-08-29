@@ -358,7 +358,7 @@ class PageLoader<T> {
   /// the reset, as the wholesale-replace idiom does.
   void reset() {
     _window.clear();
-    _loads.loading.toList().forEach(_loads.complete);
+    _loads.clear();
     _totalCount = null;
   }
 

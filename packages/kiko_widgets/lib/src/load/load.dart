@@ -69,6 +69,12 @@ class LoadTracker<K> {
   /// Records that [key]'s fetch failed, keeping [error] so the UI can show it.
   void fail(K key, Object error) => _slots[key] = LoadState(LoadStatus.error, error);
 
+  /// Drops every slot, in flight and failed alike, so every key reads idle.
+  ///
+  /// Call it on a cold start: a result for a fetch that was in flight is
+  /// stale afterwards, and a widget's staleness guard drops it.
+  void clear() => _slots.clear();
+
   /// The current state of [key], or [LoadState.idle] if it has no entry.
   LoadState stateFor(K key) => _slots[key] ?? LoadState.idle;
 

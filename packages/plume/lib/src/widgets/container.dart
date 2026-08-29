@@ -100,8 +100,10 @@ class Container<T> extends RenderNode<T> {
   /// The labels drawn on the top and bottom edges.
   final List<EdgeLabel<T>> labels;
 
+  late final List<RenderNode<T>> _children = <RenderNode<T>>[child, for (final label in labels) label.child];
+
   @override
-  List<RenderNode<T>> get children => <RenderNode<T>>[child, for (final label in labels) label.child];
+  List<RenderNode<T>> get children => _children;
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {

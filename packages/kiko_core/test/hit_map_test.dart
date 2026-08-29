@@ -509,6 +509,19 @@ void main() {
       expect(frame.hits.hitId(0, 0), 'visible', reason: 'the visible sibling still resolves where it overlaps');
       expect(frame.hits.hitId(3, 1), isNull, reason: 'a point covered only by offstage content hits nothing');
     });
+
+    test('offstage content painted on top never intercepts a hit on what lies beneath', () {
+      final node = const Stack(
+        children: [
+          Tagged('under', SizedBox(width: 4, height: 2)),
+          Offstage(child: Tagged('hidden', SizedBox(width: 4, height: 2))),
+        ],
+      ).build();
+      final frame = _frame(6, 3)..renderNode(node);
+
+      expect(frame.hits.hitId(1, 1), 'under');
+      expect(_ids(frame.hits.hitPath(1, 1)), ['under']);
+    });
   });
 
   group('Hit', () {

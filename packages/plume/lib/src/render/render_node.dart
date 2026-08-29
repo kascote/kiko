@@ -93,6 +93,14 @@ abstract class RenderNode<T> {
     children.forEach(visit);
   }
 
+  /// The children in hit order: front-most first, the reverse of [children].
+  ///
+  /// [hitTest] and [tagAt] descend this. A host that resolves hits with a
+  /// walk of its own descends it too, so one definition decides which child
+  /// answers a point on an overlap and which children a node hides. A node
+  /// that hides its subtree from hit resolution overrides it to empty.
+  Iterable<RenderNode<T>> get hitChildren => children.reversed;
+
   /// Sizes this node under [constraints], stores the result in [size], and
   /// returns it.
   ///
@@ -159,8 +167,8 @@ abstract class RenderNode<T> {
   @protected
   void paintSelf(Surface<T> surface) {}
 
-  /// Returns the top-most node whose [rect] contains [point], searching
-  /// children front-to-back. Returns `null` when [point] is outside this node.
+  /// Returns the top-most node whose [rect] contains [point], descending
+  /// [hitChildren]. Returns `null` when [point] is outside this node.
   ///
   /// There is no accumulated clip stack here: each node visited gates its own
   /// descent at its own [rect], so a point outside an ancestor's rect never
@@ -171,7 +179,7 @@ abstract class RenderNode<T> {
     if (!_rect.contains(point)) {
       return null;
     }
-    for (final child in children.reversed) {
+    for (final child in hitChildren) {
       final hit = child.hitTest(point);
       if (hit != null) {
         return hit;
@@ -183,8 +191,8 @@ abstract class RenderNode<T> {
   /// Returns the [tag] of the innermost tagged node enclosing [point], or `null`
   /// when no tagged node covers it.
   ///
-  /// Like [hitTest] this descends children front-to-back, so a node drawn on top
-  /// of an overlap wins; unlike [hitTest] it reports a *tag*, returning the
+  /// Like [hitTest] this descends [hitChildren], so a node drawn on top of an
+  /// overlap wins; unlike [hitTest] it reports a *tag*, returning the
   /// deepest descendant that carries one and only falling back to this node's
   /// own [tag] when nothing below it is tagged. That fallback is the point: the
   /// node physically under a point is usually an untagged leaf, so
@@ -196,7 +204,7 @@ abstract class RenderNode<T> {
     if (!_rect.contains(point)) {
       return null;
     }
-    for (final child in children.reversed) {
+    for (final child in hitChildren) {
       final found = child.tagAt(point);
       if (found != null) {
         return found;

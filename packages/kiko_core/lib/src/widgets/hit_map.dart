@@ -169,12 +169,6 @@ class HitMap {
     return Rect.create(x: r.x, y: r.y, width: r.width, height: r.height);
   }
 
-  static List<plume.RenderNode<PaintToken>> _childrenOf(plume.RenderNode<PaintToken> node) {
-    final kids = <plume.RenderNode<PaintToken>>[];
-    node.visitChildren(kids.add);
-    return kids;
-  }
-
   /// Walks [node] in pre-order, recording the rect of every id-tagged node
   /// whose rect survives the [clip] carried down from a `clipsHits` ancestor
   /// (`null` when nothing upstream clips), under the scope [prefix] inherited
@@ -236,8 +230,9 @@ class HitMap {
   /// [node]'s subtree, qualified by the scope [prefix] inherited from its
   /// ancestors (`''` at the roots).
   ///
-  /// Descends children front-to-back so the node the viewer sees on top wins,
-  /// and gates on each node's rect exactly as Plume's own hit testing does.
+  /// Descends [plume.RenderNode.hitChildren], the walk Plume's own hit testing
+  /// takes, so the node the viewer sees on top wins and each node gates on
+  /// its own rect.
   /// A press on a scope's own cells, with no inner id under the point,
   /// resolves to the scope's path. A tag that is neither an [IdTag] nor a
   /// [ScopeTag] is ignored rather than allowed to shadow one further out:
@@ -247,7 +242,7 @@ class HitMap {
     if (!node.rect.contains(point)) return null;
     final tag = node.tag;
     final childPrefix = HitTag.scopeUnder(prefix, tag);
-    for (final child in _childrenOf(node).reversed) {
+    for (final child in node.hitChildren) {
       final id = _hitIdIn(child, point, childPrefix);
       if (id != null) return id;
     }
@@ -261,9 +256,10 @@ class HitMap {
   /// Returns the innermost region marked under [point] within [node]'s subtree,
   /// or `null` when nothing marked covers it.
   ///
-  /// Descends children front-to-back and, within a node, lets the last-marked
-  /// covering region win — both mirror paint order, so the part painted on top
-  /// answers a click on an overlap (a tree's indicator drawn over its row). The
+  /// Descends [plume.RenderNode.hitChildren] and, within a node, lets the
+  /// last-marked covering region win — both mirror paint order, so the part
+  /// painted on top answers a click on an overlap (a tree's indicator drawn
+  /// over its row). The
   /// walk stops at any nested id-tagged node other than [node] itself: that
   /// is a separate widget, and its regions belong to it, never to the enclosing
   /// widget this resolves for. A non-[Region] mark key (Plume's key is an
@@ -271,7 +267,7 @@ class HitMap {
   static Region? _regionIn(plume.RenderNode<PaintToken> node, plume.Offset point, {required bool isRoot}) {
     if (!node.rect.contains(point)) return null;
     if (!isRoot && node.tag is IdTag) return null;
-    for (final child in _childrenOf(node).reversed) {
+    for (final child in node.hitChildren) {
       final region = _regionIn(child, point, isRoot: false);
       if (region != null) return region;
     }
@@ -326,7 +322,7 @@ class HitMap {
       IdTag(:final id) => HitTag.join(prefix, id),
       _ => null,
     };
-    for (final child in _childrenOf(node).reversed) {
+    for (final child in node.hitChildren) {
       final sub = _pathIn(child, point, childPrefix);
       if (sub.isNotEmpty) {
         return ownPath != null ? [Hit(ownPath, _rectOf(node)), ...sub] : sub;

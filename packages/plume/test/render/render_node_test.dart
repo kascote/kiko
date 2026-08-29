@@ -156,6 +156,10 @@ void main() {
       test('returns null outside the tree', () {
         expect(group.hitTest(const Offset(20, 20)), isNull);
       });
+
+      test('hitChildren lists the children front-most first', () {
+        expect(group.hitChildren.toList(), [b, a]);
+      });
     });
 
     test('hitTest returns the top-most of overlapping children', () {

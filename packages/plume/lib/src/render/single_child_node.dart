@@ -11,6 +11,8 @@ abstract class SingleChildNode<T> extends RenderNode<T> {
   /// The single child this node lays out and positions.
   final RenderNode<T> child;
 
+  late final List<RenderNode<T>> _children = <RenderNode<T>>[child];
+
   @override
-  List<RenderNode<T>> get children => <RenderNode<T>>[child];
+  List<RenderNode<T>> get children => _children;
 }

@@ -43,9 +43,12 @@ class Offstage<T> extends SingleChildNode<T> {
 
   // [children] is left as the inherited `[child]` so [place] still fixes the
   // child's absolute rect — it really is laid out, just never shown. Every
-  // other walk (paint, hitTest, tagAt above, plus anything generic that tours
-  // the tree through [visitChildren], such as a host's tag index) goes through
-  // this override instead of [children], so none of them can reach in.
+  // walk that shows a node is overridden instead: [paint], this node's own
+  // [hitTest] and [tagAt] above, [hitChildren] for any hit resolution that
+  // descends the tree, and [visitChildren] for tooling that tours it.
+  @override
+  Iterable<RenderNode<T>> get hitChildren => const <Never>[];
+
   @override
   void visitChildren(void Function(RenderNode<T> child) visit) {}
 }

@@ -55,6 +55,13 @@ void main() {
       expect(offstage.tagAt(const Offset(1, 1)), isNull);
     });
 
+    test('hitChildren is empty, so a hit walk that descends it never reaches the child', () {
+      final offstage = Offstage<String>(child: SizedBox<String>(width: 2, height: 1))
+        ..layout(BoxConstraints.loose(const Size(20, 10)), _ctx)
+        ..place(Offset.zero);
+      expect(offstage.hitChildren, isEmpty);
+    });
+
     test('visitChildren does not descend into the child it hides', () {
       final offstage = Offstage<String>(child: SizedBox<String>(width: 2, height: 1))
         ..layout(BoxConstraints.loose(const Size(20, 10)), _ctx)

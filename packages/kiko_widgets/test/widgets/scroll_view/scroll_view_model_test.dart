@@ -8,11 +8,22 @@ KeyMsg keyMsg(String key) => KeyMsg(key);
 /// A routed wheel/button message over the widget, at local (0, 0).
 PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, action: action, local: Position.origin);
 
-/// A model with [viewportRows] of [contentRows] installed, as the view's
-/// measurement callback would push in after a real frame.
-ScrollViewModel scrollable({int contentRows = 10, int viewportRows = 5, bool focused = false}) =>
-    ScrollViewModel(focused: focused)
-      ..setViewportMetrics(viewportRows: viewportRows, contentRows: contentRows, tagRanges: const {});
+/// The report the view's paint sends for [model]: [viewportRows] of
+/// [contentRows], with [tagRanges] for its tagged descendants.
+ScrollMetrics metrics(
+  ScrollViewModel model, {
+  required int viewportRows,
+  required int contentRows,
+  Map<String, ScrollViewTagRange> tagRanges = const {},
+}) => ScrollMetrics(model.id, viewportRows: viewportRows, contentRows: contentRows, tagRanges: tagRanges);
+
+/// A model with [viewportRows] of [contentRows] installed from one report, as
+/// the runtime delivers after a real frame.
+ScrollViewModel scrollable({int contentRows = 10, int viewportRows = 5, bool focused = false}) {
+  final model = ScrollViewModel(focused: focused);
+  model.update(metrics(model, viewportRows: viewportRows, contentRows: contentRows));
+  return model;
+}
 
 void main() {
   group('initialization', () {
@@ -173,8 +184,8 @@ void main() {
 
     test('a custom keyBinding overrides the defaults', () {
       final binding = defaultScrollViewBindings.copy()..map(['ctrl+f'], ScrollViewAction.pageDown);
-      final model = ScrollViewModel(focused: true, keyBinding: binding)
-        ..setViewportMetrics(viewportRows: 5, contentRows: 20, tagRanges: const {});
+      final model = ScrollViewModel(focused: true, keyBinding: binding);
+      model.update(metrics(model, viewportRows: 5, contentRows: 20));
 
       expect(model.update(keyMsg('ctrl+f')), isA<Handled>());
       expect(model.scrollOffset, equals(5));
@@ -182,37 +193,90 @@ void main() {
 
     test('unbind removes a default binding', () {
       final binding = defaultScrollViewBindings.copy()..unbind(ScrollViewAction.lineDown);
-      final model = ScrollViewModel(focused: true, keyBinding: binding)
-        ..setViewportMetrics(viewportRows: 5, contentRows: 20, tagRanges: const {});
+      final model = ScrollViewModel(focused: true, keyBinding: binding);
+      model.update(metrics(model, viewportRows: 5, contentRows: 20));
 
       expect(model.update(keyMsg('down')), isA<Declined>());
       expect(model.update(keyMsg('j')), isA<Declined>());
     });
   });
 
-  group('setViewportMetrics', () {
+  group('ScrollMetrics report', () {
     test('installs viewportRows and contentRows, readable through visibleCount too', () {
-      final model = ScrollViewModel()..setViewportMetrics(viewportRows: 4, contentRows: 9, tagRanges: const {});
+      final model = ScrollViewModel();
+      final result = model.update(metrics(model, viewportRows: 4, contentRows: 9));
+
+      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
       expect(model.viewportRows, equals(4));
       expect(model.visibleCount, equals(4));
       expect(model.contentRows, equals(9));
+    });
+
+    test('is handled whether or not the view is focused', () {
+      final model = ScrollViewModel();
+      expect(model.update(metrics(model, viewportRows: 4, contentRows: 9)), isA<Handled>());
+      expect(model.viewportRows, equals(4));
     });
 
     test('re-clamps a scroll offset the new geometry can no longer support', () {
       final model = scrollable(contentRows: 20)..scrollBy(15);
       expect(model.scrollOffset, equals(15));
 
-      // The content shrank (e.g. a filter removed rows) — re-measuring must
+      // The content shrank (e.g. a filter removed rows) — the next report must
       // pull the offset back in, not leave it pointing past the new content.
-      model.setViewportMetrics(viewportRows: 5, contentRows: 8, tagRanges: const {});
+      model.update(metrics(model, viewportRows: 5, contentRows: 8));
       expect(model.scrollOffset, equals(3));
+    });
+
+    test('installs the tag ranges ensureVisible reads', () {
+      final model = ScrollViewModel();
+      model.update(metrics(model, viewportRows: 5, contentRows: 20, tagRanges: {'field': (top: 6, height: 2)}));
+
+      model.ensureVisible('field');
+      expect(model.scrollOffset, equals(3), reason: 'top + height - viewportRows = 6 + 2 - 5');
+    });
+
+    test('a later report replaces the ranges outright', () {
+      final model = ScrollViewModel();
+      model.update(metrics(model, viewportRows: 5, contentRows: 20, tagRanges: {'old': (top: 10, height: 1)}));
+      model.update(metrics(model, viewportRows: 5, contentRows: 20, tagRanges: {'new': (top: 12, height: 1)}));
+
+      model.ensureVisible('old');
+      expect(model.scrollOffset, equals(0), reason: 'old is no longer in the last reported frame');
+      model.ensureVisible('new');
+      expect(model.scrollOffset, equals(8));
+    });
+
+    test('a report addressed to another id is declined and installs nothing', () {
+      final model = ScrollViewModel(id: 'panel');
+      final result = model.update(
+        const ScrollMetrics('other', viewportRows: 4, contentRows: 9, tagRanges: {}),
+      );
+
+      expect(result, isA<Declined>());
+      expect(model.viewportRows, equals(0));
+      expect(model.contentRows, equals(0));
+    });
+
+    test("a report carrying the id as a path leaf is the model's own", () {
+      final model = ScrollViewModel(id: 'panel');
+      final result = model.update(
+        const ScrollMetrics('form/panel', viewportRows: 4, contentRows: 9, tagRanges: {}),
+      );
+
+      expect(result, isA<Handled>());
+      expect(model.viewportRows, equals(4));
     });
   });
 
   group('ensureVisible', () {
-    ScrollViewModel withRanges(Map<String, ScrollViewTagRange> ranges, {int offset = 0}) => ScrollViewModel()
-      ..setViewportMetrics(viewportRows: 5, contentRows: 20, tagRanges: ranges)
-      ..scrollBy(offset);
+    ScrollViewModel withRanges(Map<String, ScrollViewTagRange> ranges, {int offset = 0}) {
+      final model = ScrollViewModel();
+      model
+        ..update(metrics(model, viewportRows: 5, contentRows: 20, tagRanges: ranges))
+        ..scrollBy(offset);
+      return model;
+    }
 
     test('a fully visible range is a no-op', () {
       final model = withRanges({'field': (top: 6, height: 2)}, offset: 5)..ensureVisible('field');
@@ -241,7 +305,7 @@ void main() {
   });
 
   group('getScrollState', () {
-    test('mirrors the offset, viewportRows, and contentRows the view last measured', () {
+    test('mirrors the offset, viewportRows, and contentRows the view last reported', () {
       final model = scrollable(contentRows: 20)..scrollBy(3);
       final state = model.getScrollState();
       expect(state.offset, equals(3));

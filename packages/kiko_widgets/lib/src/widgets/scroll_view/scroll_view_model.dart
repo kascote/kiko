@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import '../scrollable_model.dart';
+import 'scroll_metrics.dart';
 import 'types.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -15,12 +16,12 @@ import 'types.dart';
 /// (stable [id] + [update]) for addressing and focus.
 ///
 /// The model owns no content and does no layout itself: `ScrollView` wraps a
-/// plume viewport around whatever content the caller composes, and reports
-/// each frame's geometry back through [setViewportMetrics] — the same
-/// view-pushes-state-in back-channel pattern List and Tree use for
-/// `visibleCount`. Unlike ListView, TableView and TreeView, this model never
-/// loads: it scrolls composed UI already fully in memory, not paginated data
-/// (see `docs/async-loading.md` for the data-scale widgets).
+/// plume viewport around whatever content the caller composes, and its paint
+/// reports each frame's geometry as a [ScrollMetrics] addressed to [id]. The
+/// router delivers it here and [update] stores it, one frame behind the
+/// paint. Unlike ListView, TableView and TreeView, this model never loads:
+/// it scrolls composed UI already fully in memory, not paginated data (see
+/// `docs/async-loading.md` for the data-scale widgets).
 ///
 /// ```dart
 /// final scroll = ScrollViewModel();
@@ -70,7 +71,7 @@ class ScrollViewModel with ScrollableModel implements Component {
   @override
   int get scrollOffset => _scrollOffset;
 
-  /// Rows the viewport shows, as last pushed in by the view.
+  /// Rows the viewport shows, as last reported by the view.
   int get viewportRows => _viewportRows;
 
   /// Rows the viewport shows — the shared scrollable surface's name for
@@ -78,7 +79,7 @@ class ScrollViewModel with ScrollableModel implements Component {
   @override
   int get visibleCount => viewportRows;
 
-  /// How many rows the content spans, as last pushed in by the view.
+  /// How many rows the content spans, as last reported by the view.
   int get contentRows => _contentRows;
 
   int get _maxOffset {
@@ -95,20 +96,6 @@ class ScrollViewModel with ScrollableModel implements Component {
     return _scrollOffset - before;
   }
 
-  /// Called by the view during paint to install this frame's geometry: how
-  /// many rows the viewport shows, how many the content spans, and every
-  /// tagged descendant's content-relative row range.
-  void setViewportMetrics({
-    required int viewportRows,
-    required int contentRows,
-    required Map<String, ScrollViewTagRange> tagRanges,
-  }) {
-    _viewportRows = viewportRows;
-    _contentRows = contentRows;
-    _tagRanges = tagRanges;
-    _scrollOffset = _scrollOffset.clamp(0, _maxOffset);
-  }
-
   /// Brings the tagged descendant at hit path [id] fully into view, scrolling
   /// the minimum amount needed.
   ///
@@ -121,7 +108,7 @@ class ScrollViewModel with ScrollableModel implements Component {
   ///
   /// A no-op when it is already fully visible; taller than the viewport
   /// top-aligns instead of centering. Does nothing when [id] is absent from
-  /// the last measured frame — the one-frame lag makes absence transiently
+  /// the last reported frame — the one-frame lag makes absence transiently
   /// normal, so this declines to guess rather than scroll on stale geometry.
   ///
   /// Works for any tagged descendant, not just a focused one: scrolling to a
@@ -147,11 +134,14 @@ class ScrollViewModel with ScrollableModel implements Component {
   // Update
   // ─────────────────────────────────────────────
 
-  /// Handles keyboard and pointer messages. Returns [Handled] or [Declined].
+  /// Handles keyboard, pointer and report messages. Returns [Handled] or
+  /// [Declined].
   ///
-  /// The pointer branch sits above the focus gate: a wheel scrolls whether or
-  /// not the view is focused, per-direction declining a notch that moves
-  /// nothing (already at that edge — see [ScrollableModel.scrollBy]'s
+  /// A [ScrollMetrics] whose id's leaf is this model's id installs the
+  /// frame's geometry and clamps the offset to it; one addressed elsewhere is
+  /// declined. The pointer branch sits above the focus gate: a wheel scrolls
+  /// whether or not the view is focused, per-direction declining a notch that
+  /// moves nothing (already at that edge — see [ScrollableModel.scrollBy]'s
   /// contract), so a nesting scroll ancestor gets the chance. Every other
   /// pointer — clicks, hover, drags, a horizontal wheel, leave, cancel — is
   /// declined so it keeps resolving to the children composed inside. The
@@ -159,6 +149,7 @@ class ScrollViewModel with ScrollableModel implements Component {
   /// never a hardcoded key.
   @override
   UpdateResult update(Msg msg) {
+    if (msg case final ScrollMetrics report) return _applyMetrics(report);
     if (msg case final PointerMsg pointer) {
       if (pointer.wheelDeltaY != 0) {
         final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
@@ -199,6 +190,18 @@ class ScrollViewModel with ScrollableModel implements Component {
     }
 
     return const Declined();
+  }
+
+  /// Installs a frame's geometry: viewport rows, content rows, and every
+  /// tagged descendant's range. The offset is clamped to the new extent, so
+  /// content that shrank pulls the window back in.
+  UpdateResult _applyMetrics(ScrollMetrics report) {
+    if (HitTag.leafOf(report.id) != id) return const Declined();
+    _viewportRows = report.viewportRows;
+    _contentRows = report.contentRows;
+    _tagRanges = report.tagRanges;
+    _scrollOffset = _scrollOffset.clamp(0, _maxOffset);
+    return const Handled();
   }
 }
 

@@ -824,6 +824,57 @@ void main() {
       });
     });
 
+    group('PopupPlaced report', () {
+      final area = Rect.create(x: 0, y: 0, width: 10, height: 6);
+      final below = PopupPlacement(side: PopupSide.below, height: 3, decidedAgainst: area);
+
+      test('stores the placement for the next paint while open', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        final result = combo.update(PopupPlaced(combo.id, below));
+
+        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(combo.placement, below);
+      });
+
+      test('is handled whether or not the combobox is focused', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+        combo
+          ..focused =
+              false // closes and clears
+          ..update(pressOn(HitTag.join(combo.id, combo.toggleId))); // reopens unfocused
+
+        expect(combo.isOpen, isTrue);
+        expect(combo.update(PopupPlaced(combo.id, below)), isA<Handled>());
+        expect(combo.placement, below);
+      });
+
+      test('a report landing after the popup closed is consumed and dropped', () {
+        final combo = fruitBox()
+          ..update(keyMsg('down'))
+          ..update(keyMsg('escape'));
+
+        final result = combo.update(PopupPlaced(combo.id, below));
+
+        expect(result, isA<Handled>());
+        expect(combo.placement, isNull, reason: 'close cleared the decision; the next open decides afresh');
+      });
+
+      test('a report addressed to another id is declined', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        expect(combo.update(PopupPlaced('other', below)), isA<Declined>());
+        expect(combo.placement, isNull);
+      });
+
+      test("a report carrying the id as a path leaf is the combobox's own", () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        expect(combo.update(PopupPlaced('form/combo', below)), isA<Handled>());
+        expect(combo.placement, below);
+      });
+    });
+
     group('unfocused', () {
       test('declines a key', () {
         expect(fruitBox(focused: false).update(keyMsg('down')), isA<Declined>());

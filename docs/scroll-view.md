@@ -75,8 +75,9 @@ max bottom.
 Never read the descendant's rect from `ctx.hits.rectOf(id)`. A Viewport
 removes a scrolled-off descendant from the hit map entirely, so `rectOf`
 answers `null` in exactly the case that matters (`docs/mouse.md`, "Viewports
-and the hit map"). The model keeps its own map of ranges keyed by hit path,
-refreshed each paint; `ensureVisible` reads only that map.
+and the hit map"). The view reports each frame's ranges, keyed by hit path,
+in a `ScrollMetrics` message; the model stores that map in `update`, and
+`ensureVisible` reads only that map.
 
 ## Keyboard
 

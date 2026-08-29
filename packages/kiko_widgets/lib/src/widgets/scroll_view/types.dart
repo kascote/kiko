@@ -31,9 +31,8 @@ enum ScrollViewAction {
 ///
 /// Both fields are content-relative — measured from the top of the content,
 /// not the viewport — so a range stays the same as the viewport scrolls.
-/// Installed by the view's measurement callback each frame; one-frame lag
-/// accepted, same as the `visibleCount` back-channel every scrollable widget
-/// takes.
+/// Reported by the view's paint each frame in a `ScrollMetrics`, so the
+/// model reads it one frame behind.
 typedef ScrollViewTagRange = ({int top, int height});
 
 // ═══════════════════════════════════════════════════════════

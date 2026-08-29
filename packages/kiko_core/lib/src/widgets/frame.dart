@@ -63,10 +63,11 @@ class Frame {
 
   /// The reports paint has appended to this frame so far, in paint order.
   ///
-  /// A report is a layout fact a node hands back to its model through
-  /// [BufferSurface.report]. Within one frame only the last report per widget
-  /// id and report type survives, so a node painted twice reports once. The
-  /// runtime reads them from [CompletedFrame.reports] after the commit.
+  /// A report is a layout fact paint hands back to its model, through
+  /// [BufferSurface.report] from a node or [report] from a view. Within one
+  /// frame only the last report per widget id and report type survives, so a
+  /// node painted twice reports once. The runtime reads them from
+  /// [CompletedFrame.reports] after the commit.
   List<FrameReport> get reports => List.unmodifiable(_reports.values);
 
   /// The tagged geometry of this frame, as far as it has been painted.
@@ -149,15 +150,23 @@ class Frame {
     _hits = null;
   }
 
+  /// Appends [report] to this frame, keeping only the last per widget id and
+  /// report type.
+  ///
+  /// A node reports from paint through [BufferSurface.report]; a view that
+  /// composes the frame directly — one that paints a layer and learns where
+  /// it landed, say — reports here. Both land in [reports].
+  void report(FrameReport report) {
+    final key = (report.id, report.runtimeType);
+    // Re-insert, so the surviving report sits where it was painted last.
+    _reports
+      ..remove(key)
+      ..[key] = report;
+  }
+
   /// Folds the reports [surface] collected during its pass into this frame.
   void _collectReports(BufferSurface surface) {
-    for (final report in surface.reports) {
-      final key = (report.id, report.runtimeType);
-      // Re-insert, so the surviving report sits where it was painted last.
-      _reports
-        ..remove(key)
-        ..[key] = report;
-    }
+    surface.reports.forEach(report);
   }
 
   /// Lays [node] out tight to [rect] and paints it into [target].

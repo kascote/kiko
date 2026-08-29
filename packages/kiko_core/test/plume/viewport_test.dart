@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 void main() {
   group('Viewport view builds a plume Viewport node', () {
     test('threads scrollOffset, child, and onMeasure straight through', () {
-      void onMeasure(plume.ViewportMetrics metrics) {}
+      void onMeasure(plume.ViewportMetrics metrics, Surface surface) {}
 
       final node = Viewport(scrollOffset: 5, onMeasure: onMeasure, child: const Text('x')).build();
 
@@ -62,7 +62,7 @@ void main() {
 
     test('onMeasure reports viewport and content extents through the bridge', () {
       plume.ViewportMetrics? metrics;
-      frame(6, 4).render(Viewport(scrollOffset: 0, onMeasure: (m) => metrics = m, child: taggedRows(6)));
+      frame(6, 4).render(Viewport(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: taggedRows(6)));
 
       expect(metrics, isNotNull);
       expect(metrics!.viewportRows, 4);
@@ -71,7 +71,7 @@ void main() {
 
     test('onMeasure reports each descendant as a one-element IdTag chain through the bridge', () {
       plume.ViewportMetrics? metrics;
-      frame(6, 4).render(Viewport(scrollOffset: 0, onMeasure: (m) => metrics = m, child: taggedRows(6)));
+      frame(6, 4).render(Viewport(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: taggedRows(6)));
 
       expect(metrics!.entries.map((e) => e.chain).toList(), [
         [IdTag('a')],

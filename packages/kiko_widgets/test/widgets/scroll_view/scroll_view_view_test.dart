@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
+import '../../support/reports.dart';
+
 Frame _frame(int width, int height) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   return Frame(buffer.area, buffer, 0);
@@ -36,24 +38,48 @@ void main() {
       expect(first.hits.hitId(0, 3), 'b', reason: "b's first row is the window's last row");
       expect(first.hits.rectOf('c'), isNull, reason: 'c is scrolled below the 4-row window');
 
+      first.deliverReports(model); // the model learns its extent before it can scroll
       model.scrollBy(3);
       final second = _frame(6, 4)..render(view);
       expect(second.hits.hitId(0, 0), 'b', reason: 'the window now starts at content row 3');
       expect(second.hits.rectOf('a'), isNull, reason: 'a has scrolled entirely above the window');
     });
 
-    test('installs viewportRows and contentRows into the model after paint', () {
+    test('paint reports a ScrollMetrics addressed to the model, and writes nothing into it', () {
+      final model = ScrollViewModel(id: 'panel');
+      final frame = _frame(6, 4)..render(ScrollView(model: model, child: _taggedRows(6)));
+
+      expect(model.viewportRows, equals(0), reason: 'paint reports; the model learns the fact from the report');
+      expect(model.contentRows, equals(0));
+      final report = frame.reports.single;
+      expect(report, isA<ScrollMetrics>());
+      expect(report.id, 'panel');
+      final metrics = report as ScrollMetrics;
+      expect(metrics.viewportRows, equals(4));
+      expect(metrics.contentRows, equals(9));
+      expect(metrics.tagRanges, {
+        'a': (top: 0, height: 3),
+        'b': (top: 3, height: 3),
+        'c': (top: 6, height: 3),
+      });
+    });
+
+    test('the delivered report installs viewportRows and contentRows into the model', () {
       final model = ScrollViewModel();
-      _frame(6, 4).render(ScrollView(model: model, child: _taggedRows(6)));
+      _frame(6, 4)
+        ..render(ScrollView(model: model, child: _taggedRows(6)))
+        ..deliverReports(model);
 
       expect(model.viewportRows, equals(4));
       expect(model.contentRows, equals(9));
     });
 
-    test('ensureVisible works against the ranges the view measured', () {
+    test('ensureVisible works against the ranges the view reported', () {
       final model = ScrollViewModel();
       final view = ScrollView(model: model, child: _taggedRows(6));
-      _frame(6, 4).render(view);
+      _frame(6, 4)
+        ..render(view)
+        ..deliverReports(model);
 
       model.ensureVisible('c');
       expect(model.scrollOffset, equals(5), reason: 'c spans [6,9); top+height-viewportRows = 6+3-4');
@@ -61,7 +87,9 @@ void main() {
 
     test('an untagged region reports no range, so ensureVisible on it is a no-op', () {
       final model = ScrollViewModel();
-      _frame(6, 4).render(ScrollView(model: model, child: _taggedRows(6)));
+      _frame(6, 4)
+        ..render(ScrollView(model: model, child: _taggedRows(6)))
+        ..deliverReports(model);
 
       model.ensureVisible('no-such-tag');
       expect(model.scrollOffset, equals(0));
@@ -86,7 +114,9 @@ void main() {
     test('a bare scope name brings the whole framed chrome into view', () {
       final model = ScrollViewModel();
       final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
-      _frame(6, 3).render(ScrollView(model: model, child: content));
+      _frame(6, 3)
+        ..render(ScrollView(model: model, child: content))
+        ..deliverReports(model);
 
       model.ensureVisible('field');
       expect(model.scrollOffset, equals(5), reason: 'the frame spans [5,10), taller than the viewport, top-aligns');
@@ -95,7 +125,9 @@ void main() {
     test("the 'id/id' leaf path brings only the content leaf into view", () {
       final model = ScrollViewModel();
       final content = Column(children: [const SizedBox(width: 6, height: 5), framedField()]);
-      _frame(6, 3).render(ScrollView(model: model, child: content));
+      _frame(6, 3)
+        ..render(ScrollView(model: model, child: content))
+        ..deliverReports(model);
 
       model.ensureVisible('field/field');
       expect(model.scrollOffset, equals(7), reason: 'the leaf spans [8,10); top+height-viewportRows = 8+2-3');
@@ -111,7 +143,9 @@ void main() {
           Tagged.scope('group', SizedBox(width: 6, height: 2)), // [9, 11)
         ],
       );
-      _frame(6, 3).render(ScrollView(model: model, child: content));
+      _frame(6, 3)
+        ..render(ScrollView(model: model, child: content))
+        ..deliverReports(model);
 
       model.ensureVisible('group');
       expect(
@@ -166,7 +200,12 @@ void main() {
         ],
       );
 
-      final frame = _frame(10, 5)..render(ScrollView(model: outer, child: content));
+      // Both models learn their viewport from the frame's reports: the outer
+      // its extent, the list its visible rows. Each declines the other's.
+      final frame = _frame(10, 5)
+        ..render(ScrollView(model: outer, child: content))
+        ..deliverReports(outer)
+        ..deliverReports(list);
       return (outer: outer, list: list, hits: frame.hits);
     }
 

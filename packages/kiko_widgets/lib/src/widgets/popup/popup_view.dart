@@ -13,7 +13,8 @@ import 'popup_placement.dart';
 /// [requestedHeight] in rows, a [width], and [popupBuilder] to build the
 /// popup's node, tags included; this helper adds no chrome of its own. Pass
 /// the standing [decision] back on every paint of an open popup — `null`
-/// while closed — and store the return value on the model that owns it.
+/// while closed — and report the return value to the frame as a
+/// `PopupPlaced` addressed to the model that owns the popup.
 ///
 /// The anchor's rect comes from `frame.hits.rectOf(anchorPath)`, so it must
 /// already be definite: a bare scope path has no rect and answers `null`

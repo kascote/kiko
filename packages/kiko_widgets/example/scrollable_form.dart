@@ -3,9 +3,9 @@
 // Fields are composed inside a ScrollView like any other content. There is
 // no hand-maintained "how many rows does the chrome take" constant. There is
 // no manual scroll clamp, and no hand-rolled bubbling loop. The view
-// measures its own content every frame, and reports the geometry back
-// through the model (`ScrollViewModel.setViewportMetrics`) — the same
-// back-channel List/Table/Tree use for `visibleCount`.
+// measures its own content every frame and reports the geometry as a
+// `ScrollMetrics` addressed to the model; the router delivers it, the same
+// way List/Table/Tree learn their viewport.
 //
 // Every field is always composed as a child; the Viewport windows and clips
 // them. A short terminal shows fewer whole fields, never a partial one. The

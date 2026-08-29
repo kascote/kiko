@@ -13,10 +13,11 @@ enum PopupSide {
 /// A popup's placement decision, held for the life of one open session.
 ///
 /// A widget with a floating popup stores one of these, nullable, on its
-/// model: `null` while closed, set on the popup's first paint, and cleared
-/// by the widget when the popup closes. The render helper that produces it
-/// reuses a standing decision while [decidedAgainst] still matches the
-/// current viewport, and decides again the moment it does not.
+/// model: `null` while closed, stored from the `PopupPlaced` report the
+/// popup's first paint sends, and cleared by the widget when the popup
+/// closes. The render helper that produces it reuses a standing decision
+/// while [decidedAgainst] still matches the current viewport, and decides
+/// again the moment it does not.
 @immutable
 class PopupPlacement {
   /// Which side of the anchor the popup renders on.

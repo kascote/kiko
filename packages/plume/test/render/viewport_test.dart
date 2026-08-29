@@ -122,7 +122,7 @@ void main() {
   group('Viewport measurement', () {
     test('onMeasure fires with the viewport and content extents', () {
       ViewportMetrics? metrics;
-      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: _taggedRows());
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: _taggedRows());
       _paint(viewport, const Size(6, 4));
       expect(metrics, isNotNull);
       expect(metrics!.viewportRows, 4);
@@ -131,7 +131,7 @@ void main() {
 
     test('reports each tagged row as a one-element chain with a content-relative range', () {
       ViewportMetrics? metrics;
-      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: _taggedRows());
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: _taggedRows());
       _paint(viewport, const Size(6, 4));
       expect(metrics!.entries, [
         const ViewportTagEntry(['a'], 0, 3),
@@ -142,11 +142,11 @@ void main() {
 
     test('entries do not change as scrollOffset changes', () {
       ViewportMetrics? unscrolled;
-      final atTop = Viewport<String>(scrollOffset: 0, onMeasure: (m) => unscrolled = m, child: _taggedRows());
+      final atTop = Viewport<String>(scrollOffset: 0, onMeasure: (m, _) => unscrolled = m, child: _taggedRows());
       _paint(atTop, const Size(6, 4));
 
       ViewportMetrics? scrolled;
-      final atFive = Viewport<String>(scrollOffset: 5, onMeasure: (m) => scrolled = m, child: _taggedRows());
+      final atFive = Viewport<String>(scrollOffset: 5, onMeasure: (m, _) => scrolled = m, child: _taggedRows());
       _paint(atFive, const Size(6, 4));
 
       expect(scrolled!.entries, unscrolled!.entries);
@@ -162,7 +162,7 @@ void main() {
       final outer = Column<String>(children: [inner])..tag = 'outer';
 
       ViewportMetrics? metrics;
-      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: outer);
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: outer);
       _paint(viewport, const Size(6, 4));
 
       expect(metrics!.entries, [
@@ -177,7 +177,7 @@ void main() {
       final content = Column<String>(children: [left, right]);
 
       ViewportMetrics? metrics;
-      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m) => metrics = m, child: content);
+      final viewport = Viewport<String>(scrollOffset: 0, onMeasure: (m, _) => metrics = m, child: content);
       _paint(viewport, const Size(6, 4));
 
       final leaves = metrics!.entries.where((e) => e.chain.last == 'x').toList();

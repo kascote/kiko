@@ -69,8 +69,10 @@ class ViewportMetrics {
   final List<ViewportTagEntry> entries;
 }
 
-/// Called after each paint with the [Viewport]'s latest [ViewportMetrics].
-typedef ViewportMeasureCallback = void Function(ViewportMetrics metrics);
+/// Called from a [Viewport]'s paint with this frame's [ViewportMetrics] and
+/// the [Surface] the viewport is painting on, so the host can hand the
+/// metrics wherever its paint protocol carries facts.
+typedef ViewportMeasureCallback<T> = void Function(ViewportMetrics metrics, Surface<T> surface);
 
 /// Shows a scrolled window onto a taller [child].
 ///
@@ -99,9 +101,9 @@ class Viewport<T> extends SingleChildNode<T> {
   final int scrollOffset;
 
   /// Fired from [paintSelf] with this frame's [ViewportMetrics] — one
-  /// [ViewportTagEntry] per tagged descendant — or `null` to skip
-  /// measurement.
-  final ViewportMeasureCallback? onMeasure;
+  /// [ViewportTagEntry] per tagged descendant — and the surface being
+  /// painted, or `null` to skip measurement.
+  final ViewportMeasureCallback<T>? onMeasure;
 
   int _contentRows = 0;
 
@@ -135,6 +137,6 @@ class Viewport<T> extends SingleChildNode<T> {
     }
 
     walk(child, const []);
-    callback(ViewportMetrics(viewportRows: rect.height, contentRows: _contentRows, entries: entries));
+    callback(ViewportMetrics(viewportRows: rect.height, contentRows: _contentRows, entries: entries), surface);
   }
 }

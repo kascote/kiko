@@ -97,10 +97,12 @@ Placement comes from `renderAnchoredPopup`
 popup can reuse. It places the popup below the field when the requested
 height fits there, above when below does not fit but above does, and
 otherwise on whichever side has more room, with the height shrunk to fit.
-The decision is made once per open session and held on
-`ComboboxModel.placement`. It is re-decided only when the viewport area
-changes, so the popup does not flip sides as the user scrolls its matches.
-`close()` clears the held decision.
+The decision is made once per open session. `renderPopup` reports it as a
+`PopupPlaced` message addressed to the combobox; `ComboboxModel.update`
+stores it on `placement`, and the next paint passes it back as the standing
+decision. It is re-decided only when the viewport area changes, so the popup
+does not flip sides as the user scrolls its matches. `close()` clears the
+held decision.
 
 `popupBorder` frames the popup with a border. The popup box grows by the
 border's two rows, so the visible match rows stay

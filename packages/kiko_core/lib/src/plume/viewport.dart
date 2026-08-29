@@ -31,11 +31,12 @@ final class Viewport implements View {
   /// The scrollable content.
   final View child;
 
-  /// Fired after each paint with this frame's measured geometry
+  /// Fired from paint with this frame's measured geometry
   /// ([plume.ViewportMetrics]: viewport rows, content rows, and one entry per
   /// tagged descendant — its ancestor tag chain paired with its
-  /// content-relative row range), or `null` to skip measurement.
-  final plume.ViewportMeasureCallback? onMeasure;
+  /// content-relative row range) and the [Surface] being painted, or `null`
+  /// to skip measurement. A `BufferSurface` there takes a `FrameReport`.
+  final ViewportMeasureCallback? onMeasure;
 
   @override
   Node build() => plume.Viewport<PaintToken>(scrollOffset: scrollOffset, child: child.build(), onMeasure: onMeasure);

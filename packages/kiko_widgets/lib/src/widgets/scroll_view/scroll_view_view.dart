@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import 'scroll_metrics.dart';
 import 'scroll_view_model.dart';
 import 'types.dart';
 
@@ -10,10 +11,10 @@ import 'types.dart';
 /// [ScrollViewModel.scrollOffset], and tags the viewport node itself with
 /// [ScrollViewModel.id] — the content area IS the hit region, so a wheel over
 /// a gap between composed children still resolves to the model, not the
-/// background. Installs the measurement callback that feeds this frame's
-/// viewport/content extents back into the model through
-/// [ScrollViewModel.setViewportMetrics] — the same view-pushes-state-in
-/// back-channel List and Tree use for `visibleCount`, one-frame lag accepted.
+/// background. Installs the measurement callback that reports this frame's
+/// viewport/content extents as a [ScrollMetrics] addressed to the model's
+/// id, the way every windowed widget reports its viewport; the model reads
+/// it one frame behind the paint.
 ///
 /// Every tagged descendant's content-relative row range is keyed by its hit
 /// path, folded from its ancestor tag chain. A [ScopeTag] extends the path;
@@ -28,8 +29,8 @@ final class ScrollView implements View {
   /// Creates a scroll view over [model], showing [child]'s scrolled window.
   const ScrollView({required this.model, required this.child});
 
-  /// The model whose offset drives this view and whose geometry back-channel
-  /// this view feeds every frame.
+  /// The model whose offset drives this view and whose id every frame's
+  /// geometry report is addressed to.
   final ScrollViewModel model;
 
   /// The scrollable content, laid out with its main axis unbounded.
@@ -42,7 +43,8 @@ final class ScrollView implements View {
     child: child,
   ).build()..tag = IdTag(model.id);
 
-  void _onMeasure(ViewportMetrics metrics) {
+  void _onMeasure(ViewportMetrics metrics, Surface surface) {
+    if (surface is! BufferSurface) return;
     final tagRanges = <String, ScrollViewTagRange>{};
     for (final entry in metrics.entries) {
       final path = _pathOf(entry.chain);
@@ -51,10 +53,13 @@ final class ScrollView implements View {
       final existing = tagRanges[path];
       tagRanges[path] = existing == null ? range : _union(existing, range);
     }
-    model.setViewportMetrics(
-      viewportRows: metrics.viewportRows,
-      contentRows: metrics.contentRows,
-      tagRanges: tagRanges,
+    surface.report(
+      ScrollMetrics(
+        model.id,
+        viewportRows: metrics.viewportRows,
+        contentRows: metrics.contentRows,
+        tagRanges: tagRanges,
+      ),
     );
   }
 

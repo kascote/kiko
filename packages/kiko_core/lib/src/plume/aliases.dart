@@ -18,7 +18,6 @@ export 'package:plume/plume.dart'
         StackFit,
         TextAlign,
         TextMeasurer,
-        ViewportMeasureCallback,
         ViewportMetrics,
         ViewportTagEntry;
 
@@ -39,6 +38,10 @@ typedef Node = plume.RenderNode<PaintToken>;
 
 /// The draw target a laid-out tree paints [PaintToken]s onto. See plume's `Surface`.
 typedef Surface = plume.Surface<PaintToken>;
+
+/// A `Viewport`'s measurement callback: this frame's [plume.ViewportMetrics]
+/// and the [Surface] the viewport is painting on.
+typedef ViewportMeasureCallback = plume.ViewportMeasureCallback<PaintToken>;
 
 /// Bridges kiko's cell [Rect] to plume's own geometry `Rect`.
 ///

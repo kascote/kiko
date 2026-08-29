@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
+import '../../support/reports.dart';
+
 const Theme _theme = Theme.dark;
 
 Frame _frame(int width, int height) {
@@ -103,12 +105,28 @@ void main() {
 
       Combobox(model: combo, theme: _theme).renderPopup(frame);
 
+      expect(frame.reports, isEmpty, reason: 'a closed popup places nothing, so it reports nothing');
       expect(combo.placement, isNull);
       expect(
         frame.hits.hitId(0, 2),
         isNull,
         reason: 'nothing painted below the closed row — no popup, no scope',
       );
+    });
+
+    test('paint reports a PopupPlaced addressed to the model, and writes nothing into it', () {
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(10, 6);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      expect(combo.placement, isNull, reason: 'paint reports; the model learns the fact from the report');
+      final report = frame.reports.whereType<PopupPlaced>().single;
+      expect(report.id, 'combo');
+      expect(report.placement.side, PopupSide.below);
+      expect(report.placement.height, 3);
     });
 
     test('anchors below the field, at the union width of field and toggle', () {
@@ -118,6 +136,7 @@ void main() {
       _renderRow(frame, view);
 
       view.renderPopup(frame);
+      frame.deliverReports(combo);
 
       expect(combo.placement, isNotNull);
       expect(combo.placement!.side, PopupSide.below);
@@ -208,16 +227,54 @@ void main() {
       final first = _frame(10, 6);
       _renderRow(first, view);
       view.renderPopup(first);
+      first.deliverReports(combo);
       final decided = combo.placement;
       expect(decided, isNotNull);
 
       final second = _frame(10, 6);
       _renderRow(second, view);
       view.renderPopup(second);
+      final reported = second.reports.whereType<PopupPlaced>().single;
+      expect(reported.placement, decided, reason: 'the standing decision is passed back and reported unchanged');
+      second.deliverReports(combo);
       expect(combo.placement, decided, reason: 'the same open session keeps its decided placement');
 
       combo.close();
       expect(combo.placement, isNull);
+    });
+
+    test('the delivered placement is the one the next paint uses', () {
+      // A 6-row frame with the field on row 3: 3 rows fit below and 3 above,
+      // so the first paint decides "below". Once that decision stands, a
+      // frame of the same area keeps it even when the anchor moves down and
+      // below no longer fits.
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      Frame paintWithFieldAt(int row) {
+        final frame = _frame(10, 6)
+          ..render(
+            Column(
+              children: [
+                SizedBox(width: 10, height: row),
+                ConstrainedBox(additionalConstraints: const BoxConstraints(minH: 1, maxH: 1), child: view),
+              ],
+            ),
+          );
+        view.renderPopup(frame);
+        return frame;
+      }
+
+      final first = paintWithFieldAt(2);
+      expect(first.reports.whereType<PopupPlaced>().single.placement.side, PopupSide.below);
+      first.deliverReports(combo);
+
+      final second = paintWithFieldAt(4);
+      expect(
+        second.reports.whereType<PopupPlaced>().single.placement.side,
+        PopupSide.below,
+        reason: 'the delivered decision is sticky for the open session',
+      );
+      expect(first.hits.hitId(0, 3), 'combo/${combo.internalList.id}');
     });
   });
 
@@ -229,6 +286,7 @@ void main() {
       _renderRow(frame, view);
 
       view.renderPopup(frame);
+      frame.deliverReports(combo);
 
       // maxVisibleRows is 3; the box asks for 3 + 2 rows and shows all 3.
       expect(combo.placement!.height, 5);

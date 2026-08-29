@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 import '../../load/load.dart';
 import '../list_view/list_view_model.dart';
 import '../list_view/types.dart';
+import '../popup/popup_placed.dart';
 import '../popup/popup_placement.dart';
 import '../text_input_model.dart';
 import 'types.dart';
@@ -114,9 +115,9 @@ class ComboboxModel<T> implements Component {
 
   /// The popup's held placement decision, or null while closed.
   ///
-  /// The view sets this every open paint via `renderAnchoredPopup`, so the
-  /// popup keeps one side and height for the whole open session; [close]
-  /// clears it.
+  /// The view reports every open paint's decision as a [PopupPlaced] and
+  /// [update] stores it here, so the popup keeps one side and height for the
+  /// whole open session; [close] clears it.
   PopupPlacement? placement;
 
   /// The embedded text field.
@@ -300,7 +301,8 @@ class ComboboxModel<T> implements Component {
   /// caret move, no commit, no close. An [Addressed] message whose id's leaf
   /// names the popup list is forwarded to the list; a [LoadResult] addressed
   /// to the combobox itself installs a remote query's answer, or records its
-  /// failure; one addressed to any other id is declined. Keyboard handling
+  /// failure; a [PopupPlaced] addressed to it stores the popup's placement;
+  /// one addressed to any other id is declined. Keyboard handling
   /// sits behind the gate: while closed, a text-editing key or Down opens the
   /// popup and Enter/Esc are declined for the app; while open,
   /// Up/Down/PageUp/PageDown move the popup cursor, Enter commits, Esc closes
@@ -315,6 +317,7 @@ class ComboboxModel<T> implements Component {
     // is the combobox's own.
     if (msg case Addressed(:final id) when HitTag.leafOf(id) == _list.id) return _list.update(msg);
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
+    if (msg case final PopupPlaced report) return _applyPlacement(report);
 
     if (!focused) return const Declined();
 
@@ -575,6 +578,17 @@ class ComboboxModel<T> implements Component {
     _loads.complete(key);
     _newestInstalled = true;
     _installRemoteOptions(result.data! as List<T>);
+    return const Handled();
+  }
+
+  /// Stores the placement the popup was last painted with.
+  ///
+  /// A report whose id's leaf is not this combobox's id is declined. One that
+  /// lands after the popup closed is consumed and dropped: [close] cleared
+  /// the decision on purpose, and the next open decides afresh.
+  UpdateResult _applyPlacement(PopupPlaced report) {
+    if (HitTag.leafOf(report.id) != id) return const Declined();
+    if (_isOpen) placement = report.placement;
     return const Handled();
   }
 

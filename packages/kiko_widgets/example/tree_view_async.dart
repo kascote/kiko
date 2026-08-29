@@ -209,13 +209,6 @@ class AppModel with ThemeSwitcher {
 // LOAD PLUMBING (one shape for roots and children)
 // ═══════════════════════════════════════════════════════════
 
-/// Flattens a possible [Batch] of widget commands into a list.
-List<Cmd> flattenCmd(Cmd? cmd) => switch (cmd) {
-  null => const [],
-  Batch(:final cmds) => cmds,
-  _ => [cmd],
-};
-
 /// Turns a [LoadRequest] into the fetch that resolves it, routing the outcome
 /// home as a [LoadResult] (data on success, error on failure). A key naming
 /// nothing fetchable is refused with an error, so it fails visibly instead of
@@ -233,6 +226,22 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     onSuccess: (data) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, data: data),
     onError: (e) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, error: e),
   );
+}
+
+/// Translates one widget event: an expand counts, an activation records the
+/// selected path, and a load request becomes a fetch.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  switch (event) {
+    case TreeExpandEvent(:final id) when id == model.tree.id:
+      model.expandCount++; // honest: counts every expansion, cached or not
+    case TreeActivateEvent(:final path):
+      model.selectedPath = path;
+    case final LoadRequest req when req.id == model.tree.id:
+      return fetchFor(model, req);
+    case _:
+      break; // collapse and other events need no app effect
+  }
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -255,26 +264,15 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
     return (model, null);
   }
 
-  // Widget update may return an expand event, a load request, or both (Batch).
-  // A LoadResult takes the same path: it carries the tree's id, and the tree
-  // installs roots and children alike in this one call.
-  final result = model.tree.update(msg);
-  final cmd = result is Handled ? result.cmd : null;
-  Cmd? effect;
-  for (final c in flattenCmd(cmd)) {
-    switch (c) {
-      case TreeExpandEvent(:final id) when id == model.tree.id:
-        model.expandCount++; // honest: counts every expansion, cached or not
-      case TreeActivateEvent(:final path):
-        model.selectedPath = path;
-      case final LoadRequest r when r.id == model.tree.id:
-        effect = fetchFor(model, r);
-      case _:
-        break; // collapse and other events need no app effect
-    }
+  // Widget update may return an expand event, a load request, or both in
+  // its events. A LoadResult takes the same path: it carries the tree's id,
+  // and the tree installs roots and children alike in this one call.
+  switch (model.tree.update(msg)) {
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
+    case Declined():
+      break;
   }
-  if (effect != null) return (model, effect);
-  if (result is Handled) return (model, null);
 
   // Quit
   if (msg case KeyMsg(:final key)) {

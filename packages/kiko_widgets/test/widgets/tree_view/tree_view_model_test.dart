@@ -498,6 +498,39 @@ void main() {
         expect(model.expand('/a'), isA<Batch>()); // fresh retry
         expect(model.isPathLoading('/a'), isTrue);
       });
+
+      group('payload mismatch', () {
+        test('a wrong-shaped roots payload fails the roots slot and installs nothing', () {
+          final model = TreeViewModel<String>()..loadRoots();
+          model.applyLoad(LoadResult<Object?>(model.id, key: const RootsKey(), data: const <int>[1, 2]));
+
+          expect(model.isLoading(const RootsKey()), isFalse, reason: 'the slot resolved');
+          expect(model.errorFor(const RootsKey()), isA<PayloadMismatch>());
+          expect(model.isLoaded, isFalse, reason: 'a mismatch is not an empty tree');
+          expect(model.flatNodes, isEmpty);
+        });
+
+        test('a null children payload on a successful result fails the branch', () {
+          final model = rootedAt('/a')..expand('/a');
+          model.applyLoad(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a')));
+
+          expect(model.isPathLoading('/a'), isFalse);
+          expect(model.errorFor(const PathKey('/a')), isA<PayloadMismatch>());
+          expect(model.branchStatus('/a'), SliceStatus.failed);
+          final under = model.flatNodes.where((n) => n.path.startsWith('/a/')).map((n) => n.path);
+          expect(under, equals(['/a/_error']), reason: 'only the error placeholder, no children installed');
+        });
+
+        test('a wrong-shaped children payload fails the branch, not the app', () {
+          final model = rootedAt('/a')..expand('/a');
+          model.applyLoad(LoadResult<Object?>(model.id, key: const PathKey('/a'), data: 'not a list'));
+
+          expect(model.errorFor(const PathKey('/a')), isA<PayloadMismatch>());
+          expect('${model.errorFor(const PathKey('/a'))}', contains('expected List<TreeNode<String>>'));
+          expect(model.collapse('/a'), isNotNull);
+          expect(model.expand('/a'), isA<Batch>(), reason: 'collapse and expand retries the load');
+        });
+      });
     });
 
     group('cursor movement', () {

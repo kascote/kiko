@@ -523,6 +523,11 @@ class ComboboxModel<T> implements Component, Loadable {
   /// installs nothing, leaving the popup stalled. A failure is kept for
   /// [queryError] only while its key is the newest one; a superseded
   /// query's failure clears its slot like a refusal.
+  ///
+  /// A successful answer must carry a `List<T>`. Any other payload, null
+  /// included, fails the newest key's slot with a [PayloadMismatch] and
+  /// installs nothing, so [queryError] reports the wiring error where a fetch
+  /// failure would show.
   @override
   void applyLoad(LoadResult<Object?> result) {
     if (result.id != id) return;
@@ -544,12 +549,23 @@ class ComboboxModel<T> implements Component, Loadable {
       }
       return;
     }
+    if (key != _newestKey) {
+      _loads.complete(key);
+      return;
+    }
+    final mismatch = payloadMismatch(
+      result,
+      widget: 'Combobox',
+      expected: 'List<$T>',
+      accepts: (data) => data is List<T>,
+    );
+    if (mismatch != null) {
+      _loads.fail(key, mismatch);
+      return;
+    }
     _loads.complete(key);
-    if (key != _newestKey) return;
-
-    final data = result.data;
     _newestInstalled = true;
-    _installRemoteOptions(data is List<T> ? data : const []);
+    _installRemoteOptions(result.data! as List<T>);
   }
 
   /// Rewrites the field's text outright.

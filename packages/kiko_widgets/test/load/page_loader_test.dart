@@ -378,4 +378,50 @@ void main() {
       expect(loader.demand(), isNull, reason: 'nothing exists past the end it recorded');
     });
   });
+
+  group('PageLoader payload mismatch', () {
+    test('a wrong-shaped success fails the slot and records no end-of-data', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)..demand(); // requests page 0
+
+      final installed = loader.apply(const LoadResult<Object?>('w', key: PageKey(0), data: <int>[1, 2, 3]));
+
+      expect(installed, isFalse);
+      expect(loader.isLoading(const PageKey(0)), isFalse, reason: 'the slot resolved');
+      expect(loader.errorFor(const PageKey(0)), isA<PayloadMismatch>());
+      expect(loader.viewportStatus, SliceStatus.failed, reason: 'the mismatch paints as a failure');
+      expect(loader.cachedPages, isEmpty, reason: 'nothing installed');
+      expect(loader.knownRowCount, isNull, reason: 'a mismatch is not a short page: no end recorded');
+      expect(loader.demand(), isNotNull, reason: 'the page is still missing and still fetchable');
+    });
+
+    test('a null payload on a successful result is a mismatch', () {
+      final loader = _loader(firstRow: () => 0, visibleRows: () => 8)..demand();
+
+      final installed = loader.apply(const LoadResult<Object?>('w', key: PageKey(0)));
+
+      expect(installed, isFalse);
+      final error = loader.errorFor(const PageKey(0));
+      expect(error, isA<PayloadMismatch>());
+      expect('$error', contains('carried null'));
+      expect(loader.cachedPages, isEmpty);
+      expect(loader.knownRowCount, isNull, reason: 'null is not an empty page');
+    });
+
+    test('the mismatch is logged once, naming the widget, key, and both shapes', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.error).runZoned(() {
+        _loader(firstRow: () => 0, visibleRows: () => 8)
+          ..demand()
+          ..apply(const LoadResult<Object?>('w', key: PageKey(0), data: <int>[1]));
+      });
+
+      expect(output.records, hasLength(1));
+      final message = output.records.single.message;
+      expect(output.records.single.level, LogLevel.error);
+      expect(message, contains('TestWidget "w"'));
+      expect(message, contains('PageKey(0)'));
+      expect(message, contains('expected List<String> or PageResult<String>'));
+      expect(message, contains('carried List<int>'));
+    });
+  });
 }

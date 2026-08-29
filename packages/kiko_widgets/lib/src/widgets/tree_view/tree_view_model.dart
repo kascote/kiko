@@ -215,6 +215,11 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
   /// Child results are guarded: only a node whose load is still in flight accepts
   /// one, so a late reply for a collapsed or already-loaded node is dropped rather
   /// than corrupting the tree. Roots have no such guard — they load once.
+  ///
+  /// A successful result must carry a `List<TreeNode<T>>`. Any other payload,
+  /// null included, fails the slot with a [PayloadMismatch] and installs no
+  /// nodes, so the branch shows the wiring error where a fetch failure would
+  /// show.
   @override
   void applyLoad(LoadResult<Object?> result) {
     if (result.id != id) return;
@@ -249,12 +254,10 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       _loads.complete(const RootsKey());
       return;
     }
-    if (result.ok) {
-      _roots = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
+    final nodes = _nodesOf(result, const RootsKey());
+    if (nodes != null) {
+      _roots = nodes;
       _rootsLoaded = true;
-      _loads.complete(const RootsKey());
-    } else {
-      _loads.fail(const RootsKey(), result.error!);
     }
     _rebuildFlatNodes();
   }
@@ -268,13 +271,31 @@ class TreeViewModel<T> with ScrollableModel implements Component, Loadable {
       _rebuildFlatNodes();
       return;
     }
-    if (result.ok) {
-      _childrenCache[path] = (result.data as List<TreeNode<T>>?) ?? <TreeNode<T>>[];
-      _loads.complete(PathKey(path));
-    } else {
-      _loads.fail(PathKey(path), result.error!);
-    }
+    final nodes = _nodesOf(result, PathKey(path));
+    if (nodes != null) _childrenCache[path] = nodes;
     _rebuildFlatNodes();
+  }
+
+  /// The nodes a non-refused [result] carries, resolving [key]'s slot on the
+  /// way: complete on a well-shaped success, failed on a fetch error or a
+  /// payload of any other shape. Returns null when nothing installs.
+  List<TreeNode<T>>? _nodesOf(LoadResult<Object?> result, TreeLoadKey key) {
+    if (!result.ok) {
+      _loads.fail(key, result.error!);
+      return null;
+    }
+    final mismatch = payloadMismatch(
+      result,
+      widget: 'TreeView',
+      expected: 'List<TreeNode<$T>>',
+      accepts: (data) => data is List<TreeNode<T>>,
+    );
+    if (mismatch != null) {
+      _loads.fail(key, mismatch);
+      return null;
+    }
+    _loads.complete(key);
+    return result.data! as List<TreeNode<T>>;
   }
 
   /// Expand a node.

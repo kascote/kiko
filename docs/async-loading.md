@@ -71,8 +71,16 @@ frame-tick demand case run it.
 - `LoadResult<D>(id, {key, data, error})` — a `Msg` carrying the outcome
   home. `D` is the payload type at the construction site (type-safe
   `onSuccess`); the registry routes the erased `LoadResult<Object?>`, so
-  `applyLoad` casts `data` **once** internally — inherent to a heterogeneous
-  registry, not a smell.
+  `applyLoad` checks `data` **once** internally, through `payloadMismatch` —
+  inherent to a heterogeneous registry, not a smell.
+- `payloadMismatch(result, widget:, expected:, accepts:)` — the one shape
+  check every `applyLoad` runs on a successful result. A payload that is not
+  the shape the widget installs, null included, is a wiring error: the widget
+  fails the slot with a `PayloadMismatch` (logged once, naming the widget, the
+  key, and both shapes) and installs nothing. The mismatch paints where that
+  widget paints a fetch failure — the page error row, `queryError`, the failed
+  branch. It never records an end-of-data: an empty result is an empty list,
+  never null and never some other type.
 - `Loadable` — `String get id` + `void applyLoad(LoadResult<Object?>)`. The
   app keeps a `Map<String, Loadable>` and routes every result with one
   generic line.

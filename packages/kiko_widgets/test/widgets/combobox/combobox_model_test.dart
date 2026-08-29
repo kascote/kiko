@@ -703,6 +703,27 @@ void main() {
         expect(combo.queryStatus, SliceStatus.filling, reason: 'ap is still in flight');
       });
 
+      test('a wrong-shaped answer fails the newest query and installs nothing', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<Object?>('combo', key: QueryKey('a'), data: 42));
+
+        expect(combo.queryStatus, SliceStatus.failed);
+        expect(combo.queryError, isA<PayloadMismatch>());
+        expect(combo.queryLoads.isLoading(const QueryKey('a')), isFalse, reason: 'the slot resolved');
+        expect(combo.internalList.cachedItemCount, equals(0), reason: 'a mismatch is not "No matches"');
+      });
+
+      test('a null payload on a successful answer is a mismatch', () {
+        final combo = remoteBox()
+          ..update(charMsg('a'))
+          ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a')));
+
+        expect(combo.queryStatus, SliceStatus.failed);
+        expect(combo.queryError, isA<PayloadMismatch>());
+        expect(combo.internalList.cachedItemCount, equals(0));
+      });
+
       test('a result for a query never asked is dropped (staleness guard)', () {
         final combo = remoteBox()
           ..applyLoad(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple']));

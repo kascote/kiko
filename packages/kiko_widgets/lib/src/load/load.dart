@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:kiko_log/kiko_log.dart';
 import 'package:meta/meta.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -132,7 +133,9 @@ class LoadRequest extends Cmd {
 ///
 /// [D] is the payload type where the app constructs the result, which keeps that
 /// site type-safe. The widget consumes it through [Loadable], where the type is
-/// erased, so its handler casts [data] to the shape it expects.
+/// erased, so its handler checks that [data] is the shape it installs. A
+/// successful result carrying any other shape, or a null [data], fails the slot
+/// the way a failed fetch does (see [payloadMismatch]).
 @immutable
 class LoadResult<D> extends Msg {
   /// Creates a result for ([id], [key]): pass [data] on success, [error] on
@@ -149,7 +152,9 @@ class LoadResult<D> extends Msg {
   /// The load this result resolves — the same key its request carried.
   final Object? key;
 
-  /// The loaded items (rows, children, a page). Null on failure.
+  /// The loaded items (rows, children, a page). Null on failure or refusal.
+  ///
+  /// On success it is never null: an empty result is an empty list.
   final D? data;
 
   /// The failure cause — non-null only when the load failed.
@@ -232,15 +237,104 @@ Cmd declineLoad(LoadRequest request, {Object? error}) => Emit(
 /// updates the widget's load state.
 ///
 /// The result arrives with its payload type erased — one registry holds many
-/// kinds of widget — so [applyLoad] casts [LoadResult.data] to the type it
-/// expects, and drops results it no longer wants (a late reply for a branch that
-/// was since collapsed, or a query that has moved on).
+/// kinds of widget — so [applyLoad] checks that [LoadResult.data] is the shape
+/// it installs, through [payloadMismatch], and drops results it no longer wants
+/// (a late reply for a branch that was since collapsed, or a query that has
+/// moved on).
 abstract interface class Loadable {
   /// Stable identity used to route a [LoadResult] to this model.
   String get id;
 
   /// Installs [result] (its data or its error) and updates the load state.
   void applyLoad(LoadResult<Object?> result);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAYLOAD SHAPE
+// ═══════════════════════════════════════════════════════════
+
+/// The error a widget records when a successful [LoadResult] carries a payload
+/// it cannot install.
+///
+/// A widget never throws this. It fails the slot with it, through the same path
+/// a failed fetch takes, so the mismatch paints where that widget paints its
+/// failures. Build one through [payloadMismatch].
+@immutable
+class PayloadMismatch implements Exception {
+  /// Creates the error for the load at ([id], [key]) on [widget], which
+  /// installs [expected] but received [received].
+  const PayloadMismatch({
+    required this.widget,
+    required this.id,
+    required this.key,
+    required this.expected,
+    required this.received,
+  });
+
+  /// The receiving widget's type name.
+  final String widget;
+
+  /// The receiving widget's id.
+  final String id;
+
+  /// The load the result resolved.
+  final Object? key;
+
+  /// The shape the widget installs, as it reads in code.
+  final String expected;
+
+  /// The runtime type the result carried, or `null`.
+  final String received;
+
+  @override
+  String toString() => '$widget "$id": load $key carried $received, expected $expected';
+}
+
+/// Checks that a successful [result] carries the shape its receiver installs.
+///
+/// Returns null when [accepts] holds for [LoadResult.data], and the receiver
+/// installs the payload. Otherwise it logs the mismatch once and returns the
+/// [PayloadMismatch] the receiver fails its slot with. A null payload never
+/// passes: an empty result is an empty list. Call it only for a result whose
+/// [LoadResult.ok] is true.
+///
+/// ```dart
+/// final mismatch = payloadMismatch(
+///   result,
+///   widget: 'TreeView',
+///   expected: 'List<TreeNode<$T>>',
+///   accepts: (data) => data is List<TreeNode<T>>,
+/// );
+/// if (mismatch != null) {
+///   _loads.fail(key, mismatch);
+///   return;
+/// }
+/// final children = result.data! as List<TreeNode<T>>;
+/// ```
+///
+/// [expected] is the shape as it reads in code, for the error message. It is
+/// not derived from [accepts], which can admit more than one shape.
+PayloadMismatch? payloadMismatch(
+  LoadResult<Object?> result, {
+  required String widget,
+  required String expected,
+  required bool Function(Object data) accepts,
+}) {
+  final data = result.data;
+  if (data != null && accepts(data)) return null;
+  final mismatch = PayloadMismatch(
+    widget: widget,
+    id: result.id,
+    key: result.key,
+    expected: expected,
+    received: data == null ? 'null' : '${data.runtimeType}',
+  );
+  Log.error(
+    '$mismatch. A successful LoadResult must carry the shape its widget '
+    'installs; an empty result is an empty list, never null. The slot is '
+    'failed and nothing is installed.',
+  );
+  return mismatch;
 }
 
 // ═══════════════════════════════════════════════════════════

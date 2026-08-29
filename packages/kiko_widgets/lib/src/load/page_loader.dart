@@ -339,6 +339,11 @@ class PageLoader<T> {
   /// refusal clears the slot and installs nothing, so the page keeps its
   /// placeholders and is asked for again by the next demand pass. A failure
   /// records the error, and a later demand pass retries the page.
+  ///
+  /// A successful result must carry a `List<T>` or a `PageResult<T>`. Any
+  /// other payload, null included, fails the slot with a [PayloadMismatch]
+  /// and touches neither the window nor the count: a mismatch is a wiring
+  /// error, not an empty page, so it never records where the data ends.
   bool apply(LoadResult<Object?> result) {
     if (result.id != id) return false;
     final key = result.key;
@@ -356,12 +361,18 @@ class PageLoader<T> {
     }
     // A page arrives either as plain rows or as the PageResult a PageSource
     // returns, which may also carry a count or an outright end-of-data.
+    final mismatch = payloadMismatch(
+      result,
+      widget: widgetName,
+      expected: 'List<$T> or PageResult<$T>',
+      accepts: (data) => data is List<T> || data is PageResult<T>,
+    );
+    if (mismatch != null) {
+      _finishLoad(page, error: mismatch);
+      return false;
+    }
     final data = result.data;
-    final rows = switch (data) {
-      PageResult<T>(:final items) => items,
-      final List<T> list => list,
-      _ => <T>[],
-    };
+    final rows = data is PageResult<T> ? data.items : data! as List<T>;
     // The contradiction check reads the window and the count before install
     // erases the evidence: recording the end drops the later pages it
     // contradicts and tightens the count it contradicts.

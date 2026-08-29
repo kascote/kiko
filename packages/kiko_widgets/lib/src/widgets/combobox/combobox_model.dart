@@ -319,7 +319,7 @@ class ComboboxModel<T> implements Component {
     // A part is forwarded to before the guard below asks whether the message
     // is the combobox's own.
     if (msg case Addressed(id: final path) when HitTag.partOn(path, under: id, parts: {_list.id}) == _list.id) {
-      return _list.update(msg);
+      return _fromList(_list.update(msg));
     }
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
     if (msg case final PopupPlaced report) return _applyPlacement(report);
@@ -363,7 +363,7 @@ class ComboboxModel<T> implements Component {
   /// leaving or cancelling over the list, an [Addressed] message naming it —
   /// and declines otherwise.
   UpdateResult _forwardToListIfAddressed(Msg msg, String path) =>
-      HitTag.partOn(path, under: id, parts: {_list.id}) == _list.id ? _list.update(msg) : const Declined();
+      HitTag.partOn(path, under: id, parts: {_list.id}) == _list.id ? _fromList(_list.update(msg)) : const Declined();
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();
@@ -391,7 +391,7 @@ class ComboboxModel<T> implements Component {
       case 'down':
       case 'pageUp':
       case 'pageDown':
-        return _list.update(msg);
+        return _fromList(_list.update(msg));
       case 'enter':
         return _commit(msg);
       case 'escape':
@@ -423,18 +423,29 @@ class ComboboxModel<T> implements Component {
 
   UpdateResult _commit(KeyMsg msg) => _commitFromList(_list.update(msg));
 
-  /// Turns the popup list's own verdict into the combobox's: a declined
-  /// result passes through unchanged, and a [ListActivateEvent] in the
-  /// list's events — its Enter and its row press both produce one — commits
-  /// the cursor item as the value, closes the popup, and re-addresses the
-  /// effect as [ComboboxSelectEvent] so a click and a keyboard Enter are
-  /// indistinguishable to the app. A wheel scroll or a hover move carries no
-  /// event. Any other event the list produces is absorbed here, so no part's
-  /// event leaks past the combobox.
+  /// Funnels the popup list's [UpdateResult] out of the combobox.
+  ///
+  /// Every result the list produces leaves the combobox through here,
+  /// whether forwarded outright or turned into a commit by
+  /// [_commitFromList]. It scopes a [Tick] the list armed under the
+  /// combobox's own id. The list only knows its own bare id, not any
+  /// wrapping scope.
+  UpdateResult _fromList(UpdateResult result) => result.scopeTicks(id);
+
+  /// Turns the popup list's own verdict into the combobox's, after routing it
+  /// through [_fromList]. A declined result passes through unchanged, and a
+  /// [ListActivateEvent] in the list's events — its Enter and its row press
+  /// both produce one — commits the cursor item as the value, closes the
+  /// popup, and re-addresses the effect as [ComboboxSelectEvent] so a click
+  /// and a keyboard Enter are indistinguishable to the app. A wheel scroll or
+  /// a hover move carries no event. Any other event the list produces is
+  /// absorbed here, so no part's event leaks past the combobox; its command leaves scoped by
+  /// [_fromList].
   UpdateResult _commitFromList(UpdateResult result) {
-    if (result is! Handled) return result;
-    if (!result.events.any((event) => event is ListActivateEvent)) {
-      return Handled(cmd: result.cmd);
+    final funneled = _fromList(result);
+    if (funneled is! Handled) return funneled;
+    if (!funneled.events.any((event) => event is ListActivateEvent)) {
+      return Handled(cmd: funneled.cmd);
     }
 
     final item = _list.cursorItem;

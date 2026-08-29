@@ -496,6 +496,53 @@ void main() {
       });
     });
 
+    group('list result funnel', () {
+      /// The popup list's own path under the combobox's scope.
+      String listPath(ComboboxModel<String> combo) => HitTag.join(combo.id, combo.internalList.id);
+
+      test('an Addressed report reaching the popup list returns exactly what the list returns', () {
+        final combo = fruitBox();
+
+        // No PageKey on the result, so the list's own load slot never matches
+        // it — a deterministic Handled with nothing in it, whatever the list's
+        // window otherwise holds.
+        final result = combo.update(LoadResult<Object?>(listPath(combo)));
+
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty).having((h) => h.cmd, 'cmd', isNull));
+      });
+
+      test('a pointer cancel reaching the popup list passes through declined, unchanged', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+
+        final result = combo.update(PointerCancelMsg(listPath(combo)));
+
+        expect(result, isA<Declined>());
+      });
+
+      test('a cursor key while open forwards to the list, carrying nothing extra', () {
+        final combo = fruitBox()..update(keyMsg('down')); // opens, seeds every option
+
+        final result = combo.update(keyMsg('down')); // moves the cursor; nothing left to load
+
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty).having((h) => h.cmd, 'cmd', isNull));
+      });
+
+      test('a hover move over a popup row returns exactly what the list returns', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+        final move = PointerMsg(
+          global: Position.origin,
+          action: PointerAction.move,
+          local: Position.origin,
+          targetId: listPath(combo),
+          region: const RowRegion(2),
+        );
+
+        final result = combo.update(move);
+
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty).having((h) => h.cmd, 'cmd', isNull));
+      });
+    });
+
     group('nested forwarding', () {
       /// A routed pointer [action] addressed to [targetId], optionally on a
       /// row region.

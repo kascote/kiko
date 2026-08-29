@@ -94,7 +94,7 @@ class ButtonModel implements Component {
   /// model stores no grab state. The keyboard path stays behind the gate.
   ///
   /// Returns [Handled] with a [ButtonPressEvent] on a release inside; [Handled]
-  /// with no command for a press, a slid-off release, a cancel and hover
+  /// with no event for a press, a slid-off release, a cancel and hover
   /// traffic; [Declined] for the wheel (nothing to scroll), for keys it does
   /// not handle, for messages it does not know, and when not focused.
   @override
@@ -113,7 +113,7 @@ class ButtonModel implements Component {
         pressed = false;
         // Fire only when the release lands inside: capture returns the up here
         // even once the cursor has left, so a press slid off does not activate.
-        return pointer.inside ? Handled(ButtonPressEvent(id)) : const Handled();
+        return pointer.inside ? Handled.event(ButtonPressEvent(id)) : const Handled();
       }
       // A move or drag over the button only refreshes the hover.
       hovered = true;
@@ -149,7 +149,7 @@ class ButtonModel implements Component {
 
     final action = effectiveKeyBinding.resolve(msg);
     if (action == ButtonAction.activate) {
-      return Handled(ButtonPressEvent(id));
+      return Handled.event(ButtonPressEvent(id));
     }
 
     return const Declined();

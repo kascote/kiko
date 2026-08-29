@@ -36,22 +36,16 @@ List<TableColumn> sampleColumns() => [
   TableColumn(field: 'value', label: Line('Value')),
 ];
 
-/// The page requests a command carries — one demand pass can ask for several
-/// pages at once, which travel as a [Batch].
-List<LoadRequest> requestsIn(Cmd? cmd) => switch (cmd) {
-  final LoadRequest r => [r],
-  Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
-  _ => const [],
-};
+/// The page requests an update's events carried — one demand pass can ask
+/// for several pages at once.
+List<LoadRequest> requestsOf(UpdateResult result) =>
+    result is Handled ? result.events.whereType<LoadRequest>().toList() : const [];
 
-/// The same, for whatever an update returned.
-List<LoadRequest> requestsOf(UpdateResult result) => result is Handled ? requestsIn(result.cmd) : const [];
-
-/// The pages a command asked for, ascending.
-List<int> pagesIn(Cmd? cmd) => requestsIn(cmd).map((r) => (r.key! as PageKey).page).toList()..sort();
+/// The pages a set of requests asked for, ascending.
+List<int> pagesIn(List<LoadRequest> requests) => requests.map((r) => (r.key! as PageKey).page).toList()..sort();
 
 /// The pages an update asked for, ascending.
-List<int> pagesAsked(UpdateResult result) => pagesIn(result is Handled ? result.cmd : null);
+List<int> pagesAsked(UpdateResult result) => pagesIn(requestsOf(result));
 
 /// A message no model understands: the probe for the decline path.
 class _UnknownMsg extends Msg {
@@ -194,7 +188,7 @@ void main() {
 
       final down = model.update(pointerOnRow(PointerAction.down, 2));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const TableActivateEvent('grid', 'primary')));
+      expect(down, isA<Handled>().having((h) => h.events, 'events', [const TableActivateEvent('grid', 'primary')]));
       expect(model.cursorRow, equals(2));
     });
 
@@ -209,7 +203,11 @@ void main() {
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'nothing to activate, press consumed');
+      expect(
+        down,
+        isA<Handled>().having((h) => h.events, 'events', isEmpty),
+        reason: 'nothing to activate, press consumed',
+      );
       expect(model.cursorRow, equals(3), reason: 'the cursor still moves where the user pointed');
     });
 
@@ -744,7 +742,7 @@ void main() {
       });
     });
 
-    group('commands', () {
+    group('events', () {
       test('enter returns TableActivateEvent with primary action', () async {
         final model = TableViewModel(
           rows: sampleRows(),
@@ -756,11 +754,11 @@ void main() {
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TableActivateEvent>()),
+          isA<Handled>().having((h) => h.events, 'events', [isA<TableActivateEvent>()]),
         );
-        final actionCmd = (result as Handled).cmd! as TableActivateEvent;
-        expect(actionCmd.id, equals(model.id));
-        expect(actionCmd.action, 'primary');
+        final actionEvent = (result as Handled).events.single as TableActivateEvent;
+        expect(actionEvent.id, equals(model.id));
+        expect(actionEvent.action, 'primary');
       });
 
       test('enter on a row the window does not hold is consumed and emits nothing', () {
@@ -775,7 +773,7 @@ void main() {
 
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a declined confirm would fire the app fallback bindings',
         );
       });
@@ -903,7 +901,7 @@ void main() {
 
         final result = model.update(keyMsg('down'));
         // fromList has hasMore = false
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
       });
 
       test('a jump asks for the page it lands on, not the one after the loaded edge', () {
@@ -946,7 +944,7 @@ void main() {
 
         final verdict = model.update(const ViewportChanged('grid', rows: 5, cols: 3));
 
-        expect(verdict, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(verdict, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(model.visibleRows, equals(5));
         expect(model.visibleCols, equals(3));
       });
@@ -1065,7 +1063,7 @@ void main() {
             data: PageResult<Map<String, Object?>>(sampleRows(10), hasMore: false),
           ),
         );
-        expect(model.demand(), isNull, reason: 'nothing exists past the last page');
+        expect(model.demand(), isEmpty, reason: 'nothing exists past the last page');
       });
 
       test('update(LoadResult) records an error, leaving the page retryable', () {
@@ -1083,7 +1081,7 @@ void main() {
         expect(model.cachedRowCount, equals(10), reason: 'nothing installed on failure');
 
         // The page is no longer in flight, so the next demand pass retries it.
-        expect(model.demand(), isNotNull);
+        expect(model.demand(), isNotEmpty);
         expect(model.isLoading(key), isTrue);
         expect(model.errorFor(key), isNull, reason: 'retry clears the error');
       });
@@ -1094,13 +1092,13 @@ void main() {
 
         expect(
           model.update(LoadResult<List<Map<String, Object?>>>.cancelled(req.id, key: req.key)),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a standing refusal must never become a request storm',
         );
         model.loadFirstPage();
         expect(
           model.update(LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, error: StateError('boom'))),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a failure is retried by the next pass the app runs, not by itself',
         );
       });
@@ -1239,7 +1237,7 @@ void main() {
 
         expect(model.viewportStatus, SliceStatus.ready);
         expect(ferry.missingVisibleRows(), isEmpty, reason: 'no hole survives a demand pass');
-        expect(model.demand(), isNull, reason: 'nothing is left to ask for');
+        expect(model.demand(), isEmpty, reason: 'nothing is left to ask for');
       });
 
       test('a refused page is asked for again once the app runs demand — and not before', () {
@@ -1261,7 +1259,7 @@ void main() {
         expect(model.errorFor(PageKey(refused)), isNull, reason: 'a refusal is not a failure');
         expect(
           model.viewport(rows: visible, cols: 3),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'an unchanged viewport report runs no pass: a refusal never re-requests on its own',
         );
 
@@ -1274,7 +1272,7 @@ void main() {
         _Ferry(model, totalRows, size)
           ..take(model.loadFirstPage())
           ..drain();
-        expect(model.demand(), isNull, reason: 'the short viewport is fully loaded');
+        expect(model.demand(), isEmpty, reason: 'the short viewport is fully loaded');
 
         // The view paints the taller viewport and reports it. Nothing else
         // happens — no key, no pointer.
@@ -1284,7 +1282,7 @@ void main() {
         expect(model.viewportStatus, SliceStatus.filling, reason: 'the report leaves nothing stalled');
         expect(
           model.viewport(rows: 40, cols: 3),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'the same viewport reported again runs no pass',
         );
       });
@@ -1307,7 +1305,7 @@ void main() {
           hasLength(1),
           reason: 'one at a time, as configured',
         );
-        expect(model.demand(), isNull, reason: 'the cap is spent');
+        expect(model.demand(), isEmpty, reason: 'the cap is spent');
 
         // Answering one frees the slot, and the landing page's update returns
         // the next pass, so the window drains with no input at all.
@@ -1429,14 +1427,16 @@ class _Ferry {
   final int pageSize;
   final List<int> _outstanding = [];
 
-  /// Records every page a command (or an update's command) asked for.
+  /// Records every page an update's events, a demand pass, or a bare
+  /// [LoadRequest] asked for.
   void take(Object? source) {
-    final cmd = switch (source) {
-      Handled(:final cmd) => cmd,
-      final Cmd c => c,
-      _ => null,
+    final requests = switch (source) {
+      Handled(:final events) => events.whereType<LoadRequest>().toList(),
+      final LoadRequest r => [r],
+      final List<LoadRequest> reqs => reqs,
+      _ => const <LoadRequest>[],
     };
-    _outstanding.addAll(pagesIn(cmd));
+    _outstanding.addAll(pagesIn(requests));
   }
 
   /// Answers the oldest outstanding request, if any.
@@ -1459,7 +1459,7 @@ class _Ferry {
         deliverOne();
       }
       final more = model.demand();
-      if (more == null) return;
+      if (more.isEmpty) return;
       take(more);
     }
     fail('the table never stopped asking for pages');

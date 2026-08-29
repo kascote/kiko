@@ -47,7 +47,7 @@ class ModalModel implements Component {
   /// the app. Whether a click is "outside" is an app-side `hitPath` decision (a
   /// widget's [update] never sees the hit map), so the app tests the click and
   /// fires this; the modal only supplies the request.
-  Cmd dismiss() => ModalCancelEvent(id);
+  ModalCancelEvent dismiss() => ModalCancelEvent(id);
 
   /// Updates the model based on the message.
   ///
@@ -67,8 +67,8 @@ class ModalModel implements Component {
     if (msg is! KeyMsg) return const Declined();
 
     return switch (effectiveKeyBinding.resolve(msg)) {
-      ModalAction.confirm => Handled(ModalConfirmEvent(id, confirmPayload)),
-      ModalAction.cancel => Handled(ModalCancelEvent(id)),
+      ModalAction.confirm => Handled.event(ModalConfirmEvent(id, confirmPayload)),
+      ModalAction.cancel => Handled.event(ModalCancelEvent(id)),
       null => const Declined(),
     };
   }

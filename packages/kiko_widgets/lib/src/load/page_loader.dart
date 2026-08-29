@@ -227,30 +227,29 @@ class PageLoader<T> {
 
   /// Asks for the pages the viewport needs and does not have.
   ///
-  /// Returns a [LoadRequest] for one missing page, a [Batch] of them for
-  /// several, or null when nothing is missing. Demand is presence over the
-  /// whole window — the pages the viewport covers, reaching [loadThreshold]
-  /// rows past each edge — rather than a step past whichever edge was last
-  /// extended. That is what sends a long jump straight to its destination
-  /// page, and what re-requests a page missing in the middle of the window
-  /// instead of leaving it a permanent hole.
+  /// Returns the [LoadRequest]s for the missing pages, or an empty list when
+  /// nothing is missing. Demand is presence over the whole window — the pages
+  /// the viewport covers, reaching [loadThreshold] rows past each edge —
+  /// rather than a step past whichever edge was last extended. That is what
+  /// sends a long jump straight to its destination page, and what
+  /// re-requests a page missing in the middle of the window instead of
+  /// leaving it a permanent hole.
   ///
   /// The owner calls this on every message that moves its viewport, on the
   /// viewport report that reveals rows, and after a page installs and frees a
   /// slot. An app calls it when its own state changes what it is willing to
   /// fetch — after a policy gate that was refusing requests lifts, say — since
   /// a refusal deliberately never re-triggers demand on its own.
-  Cmd? demand() {
+  List<LoadRequest> demand() {
     final budget = maxConcurrentLoads - _loads.loading.length;
-    if (budget <= 0) return null;
+    if (budget <= 0) return const [];
     final pages = _window.missing(_demandSpan, pending: (page) => _loads.isLoading(PageKey(page)), limit: budget);
-    if (pages.isEmpty) return null;
-    final requests = <Cmd>[];
+    final requests = <LoadRequest>[];
     for (final page in pages) {
       _beginLoad(page);
       requests.add(LoadRequest(id, key: PageKey(page)));
     }
-    return requests.length == 1 ? requests.first : Batch(requests);
+    return requests;
   }
 
   // ─────────────────────────────────────────────

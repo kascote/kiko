@@ -149,19 +149,9 @@ class AppModel with ThemeSwitcher {
 
   // Route to list if focused (keyboard)
   if (model.list.focused) {
-    final result = model.list.update(msg);
-
-    // Handle confirm
-    if (result case Handled(cmd: ListActivateEvent(:final id))) {
-      if (id == model.list.id) {
-        model.selected = model.list.cursorItem;
-      }
-      return (model, null);
-    }
-
-    switch (result) {
-      case Handled(:final cmd):
-        return (model, cmd);
+    switch (model.list.update(msg)) {
+      case Handled(:final events, :final cmd):
+        return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
       case Declined():
         break;
     }
@@ -213,18 +203,20 @@ class AppModel with ThemeSwitcher {
   return (model, null);
 }
 
-/// Shared by the pointer and keyboard paths: installs a confirmed selection,
-/// or otherwise just runs the result's effect.
-(AppModel, Cmd?) _handleListResult(AppModel model, UpdateResult result) {
-  if (result case Handled(cmd: ListActivateEvent(:final id)) when id == model.list.id) {
+/// Reads the list's own confirm event: an activation installs the selection.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case ListActivateEvent(:final id) when id == model.list.id) {
     model.selected = model.list.cursorItem;
-    return (model, null);
   }
-  return switch (result) {
-    Handled(:final cmd) => (model, cmd),
-    Declined() => (model, null),
-  };
+  return null;
 }
+
+/// Shared by the pointer and keyboard paths: runs the result's events, then
+/// its command.
+(AppModel, Cmd?) _handleListResult(AppModel model, UpdateResult result) => switch (result) {
+  Handled(:final events, :final cmd) => (model, Batch([cmd, for (final e in events) onEvent(model, e)])),
+  Declined() => (model, null),
+};
 
 // ═══════════════════════════════════════════════════════════
 // VIEW

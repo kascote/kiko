@@ -167,7 +167,7 @@ class TreeViewStyle {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMMANDS
+// EVENTS
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when a node is expanded.
@@ -176,8 +176,9 @@ class TreeViewStyle {
 /// [node] is a carried handle to the node at [path] and is excluded (it is
 /// identity-compared, so folding it into value equality would defeat it).
 @immutable
-class TreeExpandEvent<T> extends Cmd {
+class TreeExpandEvent<T> extends WidgetEvent {
   /// Id of the tree view model.
+  @override
   final String id;
 
   /// Path of the expanded node.
@@ -204,8 +205,9 @@ class TreeExpandEvent<T> extends Cmd {
 ///
 /// Equality is by [id] + [path]; see [TreeExpandEvent] for why [node] is excluded.
 @immutable
-class TreeCollapseEvent<T> extends Cmd {
+class TreeCollapseEvent<T> extends WidgetEvent {
   /// Id of the tree view model.
+  @override
   final String id;
 
   /// Path of the collapsed node.
@@ -232,8 +234,9 @@ class TreeCollapseEvent<T> extends Cmd {
 ///
 /// Equality is by [id] + [path]; see [TreeExpandEvent] for why [node] is excluded.
 @immutable
-class TreeActivateEvent<T> extends Cmd {
+class TreeActivateEvent<T> extends WidgetEvent {
   /// Id of the tree view model.
+  @override
   final String id;
 
   /// Path of the confirmed node.

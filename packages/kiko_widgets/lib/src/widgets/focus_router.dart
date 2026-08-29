@@ -217,7 +217,7 @@ class FocusRouter {
   ///    of — goes to the focused member and is handled or declined exactly as
   ///    that member decides.
   ///
-  /// Commands the member produces pass through untouched, and a [Declined]
+  /// Whatever the member produces passes through untouched, and a [Declined]
   /// verdict means no widget consumed the message, so it is still the app's
   /// to act on.
   UpdateResult route(Msg msg, UpdateContext ctx) {

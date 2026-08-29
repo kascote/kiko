@@ -67,7 +67,7 @@ bool Function(T item, String query) _defaultMatches<T>(String Function(T item) l
 /// Enter commits the popup's highlighted option: the field shows its label,
 /// the popup closes, [value] is set, and the model emits
 /// [ComboboxSelectEvent] addressed by [id]. The app reads the selection back
-/// from [value]; the command carries nothing else.
+/// from [value]; the event carries nothing else.
 ///
 /// A remote combobox asks for options with a [LoadRequest]: every text
 /// change, and opening without one, asks with a fresh [QueryKey] naming the
@@ -123,7 +123,7 @@ class ComboboxModel<T> implements Component {
 
   /// The embedded text field.
   ///
-  /// The combobox owns every decision around it — it emits no commands of its
+  /// The combobox owns every decision around it — it emits no events of its
   /// own, and its `focused` mirrors the combobox's.
   late final TextInputModel field;
 
@@ -249,8 +249,8 @@ class ComboboxModel<T> implements Component {
   /// The embedded popup list, for the view to render.
   ///
   /// Not part of the combobox's public surface: the list's own item type,
-  /// commands and cursor state stay implementation detail — [ComboboxSelectEvent]
-  /// is the only command this widget ever emits. Marked [internal] rather
+  /// events and cursor state stay implementation detail — [ComboboxSelectEvent]
+  /// is the only event this widget ever emits. Marked [internal] rather
   /// than left off the model because the view, a separate file in this
   /// package, must build a real list widget over it.
   @internal
@@ -281,9 +281,9 @@ class ComboboxModel<T> implements Component {
   /// but an open popup reseeds so its rows match the now-empty field: an
   /// in-memory combobox shows the unfiltered options again, and a remote one
   /// asks the empty query, clearing the popup to that query's state. Forward
-  /// the returned command like one from [update]; it is null except on that
-  /// remote path.
-  Cmd? clear() {
+  /// the returned request like one from [update]'s events; it is null except
+  /// on that remote path.
+  LoadRequest? clear() {
     _value = null;
     _setFieldText('');
     if (!_isOpen) return null;
@@ -345,7 +345,8 @@ class ComboboxModel<T> implements Component {
         close();
         return const Handled();
       }
-      return Handled(_open());
+      final request = _open();
+      return request == null ? const Handled() : Handled.event(request);
     }
 
     if (leaf == fieldId) return field.update(pointer);
@@ -363,7 +364,10 @@ class ComboboxModel<T> implements Component {
 
   UpdateResult _handleClosedKey(KeyMsg msg) {
     if (msg.key == 'enter' || msg.key == 'escape') return const Declined();
-    if (msg.key == 'down') return Handled(_open());
+    if (msg.key == 'down') {
+      final request = _open();
+      return request == null ? const Handled() : Handled.event(request);
+    }
     if (!_isFieldEditingKey(msg)) return const Declined();
 
     // The field shows exactly the committed label while closed, so the first
@@ -373,7 +377,7 @@ class ComboboxModel<T> implements Component {
       ..update(msg);
     _fieldPristine = false;
     _isOpen = true;
-    if (isRemote) return Handled(_askQuery(field.value));
+    if (isRemote) return Handled.event(_askQuery(field.value));
     _reseedFilter();
     return const Handled();
   }
@@ -410,21 +414,25 @@ class ComboboxModel<T> implements Component {
       _reseedFilter();
       return result;
     }
-    // The field emits no commands of its own, so the ask is the only effect.
-    return Handled(_askQuery(field.value));
+    // The field emits no events of its own, so the ask is the only effect.
+    return Handled.event(_askQuery(field.value));
   }
 
   UpdateResult _commit(KeyMsg msg) => _commitFromList(_list.update(msg));
 
-  /// Turns the popup list's own verdict into the combobox's: a declined or
-  /// bare-Handled result (nothing at the cursor, a wheel scroll, a hover
-  /// move) passes through unchanged, and a [ListActivateEvent] — the list's
-  /// Enter and its row press both produce one — commits the cursor item as
-  /// the value, closes the popup, and re-addresses the effect as
-  /// [ComboboxSelectEvent] so a click and a keyboard Enter are indistinguishable
-  /// to the app.
+  /// Turns the popup list's own verdict into the combobox's: a declined
+  /// result passes through unchanged, and a [ListActivateEvent] in the
+  /// list's events — its Enter and its row press both produce one — commits
+  /// the cursor item as the value, closes the popup, and re-addresses the
+  /// effect as [ComboboxSelectEvent] so a click and a keyboard Enter are
+  /// indistinguishable to the app. A wheel scroll or a hover move carries no
+  /// event. Any other event the list produces is absorbed here, so no part's
+  /// event leaks past the combobox.
   UpdateResult _commitFromList(UpdateResult result) {
-    if (result is! Handled || result.cmd is! ListActivateEvent) return result;
+    if (result is! Handled) return result;
+    if (!result.events.any((event) => event is ListActivateEvent)) {
+      return Handled(cmd: result.cmd);
+    }
 
     final item = _list.cursorItem;
     if (item == null) return const Handled();
@@ -433,7 +441,7 @@ class ComboboxModel<T> implements Component {
     _isOpen = false;
     placement = null;
     _setFieldText(label(item));
-    return Handled(ComboboxSelectEvent(id));
+    return Handled.event(ComboboxSelectEvent(id));
   }
 
   /// Whether [msg] would change the field's text — a bound editing action, or
@@ -447,7 +455,7 @@ class ComboboxModel<T> implements Component {
 
   /// Opens the popup unfiltered: from [_options] when local, or by asking the
   /// app for the empty [QueryKey] when [isRemote].
-  Cmd? _open() {
+  LoadRequest? _open() {
     if (isRemote) {
       _isOpen = true;
       return _askQuery('');

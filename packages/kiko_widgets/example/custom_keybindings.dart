@@ -107,6 +107,18 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
+/// Reads the list's own confirm event; nothing else the router delivers
+/// here needs app-side handling.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  // Enter (or a click) on the list confirms the cursor row — a widget→app
+  // event the app intercepts. The same Enter falls through to
+  // AppAction.submit below while a text field is focused instead.
+  if (event case ListActivateEvent(:final id) when id == model.list.id) {
+    model.message = 'Picked: ${model.list.cursorItem}';
+  }
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   // Theme keys are app-owned; intercept them before any widget sees them.
   if (model.handleThemeSwitch(msg)) return (model, null);
@@ -116,14 +128,8 @@ class AppModel with ThemeSwitcher {
   // other key goes to the focused widget, a pointer goes to whichever widget
   // it's addressed to, and a down-click moves focus there.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ListActivateEvent(:final id)) when id == model.list.id:
-      // Enter (or a click) on the list confirms the cursor row — a
-      // widget→app command the app intercepts. The same Enter falls through
-      // to AppAction.submit below while a text field is focused instead.
-      model.message = 'Picked: ${model.list.cursorItem}';
-      return (model, null);
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic — fall through to fallback keys
   }

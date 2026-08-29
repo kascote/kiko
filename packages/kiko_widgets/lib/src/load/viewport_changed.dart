@@ -12,7 +12,7 @@ import 'package:meta/meta.dart';
 /// and the router delivers it to the composite, which forwards it by leaf.
 /// The owner's `update` stores the count and returns the demand
 /// pass for the pages the viewport now needs; it keeps a compare against the
-/// count it holds as a guard, answering `Handled` with no command.
+/// count it holds as a guard, answering `Handled` with no events.
 @immutable
 class ViewportChanged extends FrameReport {
   /// Creates a report that the widget registered under [id] painted [rows]

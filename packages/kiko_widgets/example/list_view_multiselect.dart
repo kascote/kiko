@@ -64,6 +64,11 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
+/// Nothing this demo does reacts to the list's own events — Space toggles
+/// the checkbox directly on the model, and a click/Enter activation is not
+/// wired to anything here.
+Cmd? onEvent(AppModel model, WidgetEvent event) => null;
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
@@ -75,8 +80,8 @@ class AppModel with ThemeSwitcher {
   }
 
   switch (model.list.update(msg)) {
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break;
   }

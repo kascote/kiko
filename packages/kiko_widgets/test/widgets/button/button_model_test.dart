@@ -57,9 +57,9 @@ void main() {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
       final result = button.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
-      final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressEvent>());
-      expect((cmd! as ButtonPressEvent).id, equals('btn'));
+      final event = (result as Handled).events.single;
+      expect(event, isA<ButtonPressEvent>());
+      expect((event as ButtonPressEvent).id, equals('btn'));
     });
 
     test('declines unhandled keys', () {
@@ -74,10 +74,10 @@ void main() {
         focused: true,
         disabled: true,
       );
-      // Silent ignore: consumed with no command.
+      // Silent ignore: consumed with no event.
       expect(
         button.update(const KeyMsg('enter')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        isA<Handled>().having((h) => h.events, 'events', isEmpty),
       );
     });
 
@@ -88,10 +88,10 @@ void main() {
         focused: true,
         loading: true,
       );
-      // Silent ignore: consumed with no command.
+      // Silent ignore: consumed with no event.
       expect(
         button.update(const KeyMsg('enter')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        isA<Handled>().having((h) => h.events, 'events', isEmpty),
       );
     });
 
@@ -112,7 +112,7 @@ void main() {
       // space should work
       expect(
         button.update(const KeyMsg('space')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', isA<ButtonPressEvent>()),
+        isA<Handled>().having((h) => h.events, 'events', [isA<ButtonPressEvent>()]),
       );
 
       // enter should not work with custom bindings
@@ -127,15 +127,15 @@ void main() {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
 
       final down = button.update(pointerAt(PointerAction.down, x: 2));
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
       expect(button.pressed, isTrue);
 
       final up = button.update(pointerAt(PointerAction.up, x: 2));
       expect(button.pressed, isFalse);
       expect(up, isA<Handled>());
-      final cmd = (up as Handled).cmd;
-      expect(cmd, isA<ButtonPressEvent>());
-      expect((cmd! as ButtonPressEvent).id, equals('btn'));
+      final event = (up as Handled).events.single;
+      expect(event, isA<ButtonPressEvent>());
+      expect((event as ButtonPressEvent).id, equals('btn'));
     });
 
     test('down then up slid off does not activate', () {
@@ -145,7 +145,7 @@ void main() {
       // Captured: the cursor left the 6-cell button, so the up lands outside.
       final up = button.update(pointerAt(PointerAction.up, x: 20));
       expect(button.pressed, isFalse);
-      expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(up, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('cancel ends the press without activating', () {
@@ -154,7 +154,7 @@ void main() {
 
       final cancelled = button.update(const PointerCancelMsg('btn'));
       expect(button.pressed, isFalse);
-      expect(cancelled, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(cancelled, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('a pointer sets hover, a leave clears it', () {
@@ -173,10 +173,10 @@ void main() {
 
       final down = button.update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isFalse);
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
 
       final up = button.update(pointerAt(PointerAction.up, x: 2));
-      expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(up, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('a loading button ignores the press', () {
@@ -184,7 +184,7 @@ void main() {
         ..update(pointerAt(PointerAction.down, x: 2));
       expect(button.pressed, isFalse);
       final up = button.update(pointerAt(PointerAction.up, x: 2));
-      expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(up, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('the wheel is declined so a scrollable ancestor gets it', () {

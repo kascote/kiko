@@ -129,6 +129,18 @@ String _formatNumber(int n) {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
+/// Reads the table's own confirm event: a primary activation records the
+/// confirmed cell.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case TableActivateEvent(:final id, action: 'primary') when id == model.table.id) {
+    final row = model.table.cursorRowData;
+    final field = model.table.cursorColField;
+    final value = model.table.cursorCellValue;
+    model.confirmedCell = '$field: $value (row ${row?['id']})';
+  }
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
@@ -155,20 +167,9 @@ String _formatNumber(int n) {
 
   final result = model.table.update(msg);
 
-  // Handle confirm
-  if (result case Handled(cmd: TableActivateEvent(:final id, action: 'primary'))) {
-    if (id == model.table.id) {
-      final row = model.table.cursorRowData;
-      final field = model.table.cursorColField;
-      final value = model.table.cursorCellValue;
-      model.confirmedCell = '$field: $value (row ${row?['id']})';
-    }
-    return (model, null);
-  }
-
   switch (result) {
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break;
   }

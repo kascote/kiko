@@ -19,6 +19,25 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
+/// Reads one of the modal's own events: a confirm applies the payload, a
+/// cancel just closes it. Both close the modal and set the status line —
+/// the same handling whether the event came from a key or from the app's own
+/// outside-click [ModalModel.dismiss].
+Cmd? onModalEvent(AppModel model, WidgetEvent event) {
+  switch (event) {
+    case ModalConfirmEvent(:final payload):
+      model
+        ..modal = null
+        ..count += payload! as int
+        ..lastAction = 'Confirmed! +$payload';
+    case ModalCancelEvent():
+      model
+        ..modal = null
+        ..lastAction = 'Cancelled';
+  }
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
@@ -32,33 +51,13 @@ class AppModel with ThemeSwitcher {
     if (msg case final PointerMsg pointer when pointer.isDown) {
       final rect = ctx.hits.rectOf(modal.id);
       if (rect == null || !rect.contains(pointer.global)) {
-        return switch (modal.dismiss()) {
-          ModalCancelEvent() => (
-            model
-              ..modal = null
-              ..lastAction = 'Cancelled',
-            null,
-          ),
-          _ => (model, null),
-        };
+        return (model, onModalEvent(model, modal.dismiss()));
       }
     }
 
     return switch (modal.update(msg)) {
-      Handled(cmd: ModalConfirmEvent(:final payload)) => (
-        model
-          ..modal = null
-          ..count += payload! as int
-          ..lastAction = 'Confirmed! +$payload',
-        null,
-      ),
-      Handled(cmd: ModalCancelEvent()) => (
-        model
-          ..modal = null
-          ..lastAction = 'Cancelled',
-        null,
-      ),
-      _ => (model, null),
+      Handled(:final events, :final cmd) => (model, Batch([cmd, for (final e in events) onModalEvent(model, e)])),
+      Declined() => (model, null),
     };
   }
 

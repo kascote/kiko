@@ -15,7 +15,7 @@ import 'types.dart';
 /// the same [update].
 ///
 /// The model performs no I/O. The app owns the data source and drives every
-/// fetch: it calls [loadRoots] once to start, and [expand] returns a
+/// fetch: it calls [loadRoots] once to start, and [expand]'s events include a
 /// [LoadRequest] when a node's children aren't loaded yet. The app turns each
 /// request into a runtime `Task` whose outcome is a [LoadResult] carrying the
 /// tree's id, and the router delivers it to [update].
@@ -26,7 +26,7 @@ import 'types.dart';
 /// // the fetch ends: LoadResult(tree.id, key: req.key, data: roots) → tree.update
 /// ```
 class TreeViewModel<T> with ScrollableModel implements Component {
-  /// Stable address for this model, carried by value in the widget→app commands
+  /// Stable address for this model, carried by value in the widget→app events
   /// it emits ([TreeExpandEvent], [TreeCollapseEvent], [TreeActivateEvent], [LoadRequest]).
   ///
   /// Auto-generated when omitted; pass an explicit id to match against a literal
@@ -311,16 +311,16 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
   /// Expand a node.
   ///
-  /// Returns `null` if the node can't expand (leaf, missing, or already open).
-  /// Otherwise emits a [TreeExpandEvent] event on every expansion. When the node's
-  /// children aren't loaded yet, it also emits a [LoadRequest] (the two wrapped in
-  /// a [Batch]) and shows a loading placeholder; the app drives the fetch and
-  /// its [LoadResult] comes back through [update]. The widget never performs I/O.
-  Cmd? expand(String path) {
-    if (_expanded.contains(path)) return null;
+  /// Returns an empty list if the node can't expand (leaf, missing, or
+  /// already open). Otherwise the list holds a [TreeExpandEvent] for every
+  /// expansion, plus a [LoadRequest] when the node's children aren't loaded
+  /// yet; the app drives that fetch, and its [LoadResult] comes back through
+  /// [update]. The widget never performs I/O.
+  List<WidgetEvent> expand(String path) {
+    if (_expanded.contains(path)) return const [];
 
     final node = _findNode(path);
-    if (node == null || node.isLeaf) return null;
+    if (node == null || node.isLeaf) return const [];
 
     _expanded.add(path);
     final event = TreeExpandEvent<T>(id, path, node);
@@ -328,22 +328,25 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     // Children already cached, or a load already in flight: just the event.
     if (_childrenCache.containsKey(path) || _loads.isLoading(PathKey(path))) {
       _rebuildFlatNodes();
-      return event;
+      return [event];
     }
 
     // Children not loaded: event + load request; mark the slot so we don't ask
     // twice.
     _loads.begin(PathKey(path));
     _rebuildFlatNodes();
-    return Batch([event, LoadRequest(id, key: PathKey(path))]);
+    return [event, LoadRequest(id, key: PathKey(path))];
   }
 
   /// Collapse a node.
-  Cmd? collapse(String path) {
-    if (!_expanded.contains(path)) return null;
+  ///
+  /// Returns an empty list if the node can't collapse (missing, or already
+  /// closed); otherwise a list holding the one [TreeCollapseEvent].
+  List<WidgetEvent> collapse(String path) {
+    if (!_expanded.contains(path)) return const [];
 
     final node = _findNode(path);
-    if (node == null) return null;
+    if (node == null) return const [];
 
     _expanded.remove(path);
     // Cancel any pending or failed load: a late result must not resurrect a
@@ -356,14 +359,15 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       _cursor = _flatNodes.isEmpty ? 0 : _flatNodes.length - 1;
     }
 
-    return TreeCollapseEvent<T>(id, path, node);
+    return [TreeCollapseEvent<T>(id, path, node)];
   }
 
   /// Toggle expand/collapse.
   ///
-  /// When expanding an uncached node, returns the [Batch] load request from
-  /// [expand]; when collapsing, a [TreeCollapseEvent]; otherwise the expand event.
-  Cmd? toggle(String path) {
+  /// When expanding an uncached node, returns the event-plus-request list
+  /// from [expand]; when collapsing, the list from [collapse]; otherwise the
+  /// expand event alone.
+  List<WidgetEvent> toggle(String path) {
     if (_expanded.contains(path)) {
       return collapse(path);
     }
@@ -483,7 +487,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       if (region is TreeIndicatorRegion && pointer.isDown) {
         _cursor = region.index;
         _adjustScrollToCursor();
-        return Handled(_handleToggle());
+        return Handled(events: _handleToggle());
       }
       if (region is RowScoped) {
         return handleRowPointer(
@@ -535,13 +539,14 @@ class TreeViewModel<T> with ScrollableModel implements Component {
         case TreeViewAction.pageDown:
           _moveCursor(_visibleCount.clamp(1, 100));
         case TreeViewAction.expand:
-          return Handled(_handleExpand());
+          return Handled(events: _handleExpand());
         case TreeViewAction.collapse:
-          return Handled(_handleCollapse());
+          return Handled(events: _handleCollapse());
         case TreeViewAction.toggle:
-          return Handled(_handleToggle());
+          return Handled(events: _handleToggle());
         case TreeViewAction.confirm:
-          return Handled(_handleConfirm());
+          final event = _handleConfirm();
+          return event == null ? const Handled() : Handled.event(event);
       }
 
       return const Handled();
@@ -618,11 +623,11 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     }
   }
 
-  Cmd? _handleExpand() {
+  List<WidgetEvent> _handleExpand() {
     final node = cursorNode;
-    if (node == null) return null;
+    if (node == null) return const [];
 
-    if (node.isLeaf) return null;
+    if (node.isLeaf) return const [];
 
     if (_expanded.contains(node.path)) {
       // Already expanded - move to first child
@@ -634,17 +639,17 @@ class TreeViewModel<T> with ScrollableModel implements Component {
           _adjustScrollToCursor();
         }
       }
-      return null;
+      return const [];
     }
 
-    // Request expansion — returns a Batch (expand event + load request) when the
-    // node's children aren't cached yet (the app drives the fetch).
+    // Request expansion — returns the expand event plus a load request when
+    // the node's children aren't cached yet (the app drives the fetch).
     return expand(node.path);
   }
 
-  Cmd? _handleCollapse() {
+  List<WidgetEvent> _handleCollapse() {
     final node = cursorNode;
-    if (node == null) return null;
+    if (node == null) return const [];
 
     if (_expanded.contains(node.path)) {
       // Collapse this node
@@ -659,13 +664,13 @@ class TreeViewModel<T> with ScrollableModel implements Component {
           _adjustScrollToCursor();
         }
       }
-      return null;
+      return const [];
     }
   }
 
-  Cmd? _handleToggle() {
+  List<WidgetEvent> _handleToggle() {
     final node = cursorNode;
-    if (node == null || node.isLeaf) return null;
+    if (node == null || node.isLeaf) return const [];
 
     if (_expanded.contains(node.path)) {
       return collapse(node.path);
@@ -673,7 +678,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     return expand(node.path);
   }
 
-  Cmd? _handleConfirm() {
+  TreeActivateEvent<T>? _handleConfirm() {
     final node = cursorNode;
     if (node == null) return null;
     return TreeActivateEvent<T>(id, node.path, node);

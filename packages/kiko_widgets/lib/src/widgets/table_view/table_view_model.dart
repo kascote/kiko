@@ -21,10 +21,9 @@ import 'types.dart';
 /// [PageKey], so several pages can be in flight at once, a result places
 /// itself, and a page is never asked for twice while it is on its way. The model
 /// performs no I/O — anything that moves the viewport runs a [demand] pass, which
-/// returns a [LoadRequest] (or a [Batch] of them) for the pages the viewport
-/// needs and does not have. The app fetches, and each page comes back as a
-/// [LoadResult] carrying the table's id, which the router delivers to
-/// [update].
+/// returns the [LoadRequest]s for the pages the viewport needs and does not
+/// have. The app fetches, and each page comes back as a [LoadResult] carrying
+/// the table's id, which the router delivers to [update].
 ///
 /// One obligation sits on the app: answer **every** request — with rows, with
 /// an error, or with a refusal built by `declineLoad`. A request left
@@ -381,19 +380,19 @@ class TableViewModel with ScrollableModel implements Component {
 
   /// Asks for the pages the viewport needs and does not have.
   ///
-  /// Returns a [LoadRequest] for one missing page, a [Batch] of them for
-  /// several, or null when nothing is missing. Demand is presence over the whole
-  /// window — the pages the viewport covers, reaching [loadThreshold] rows past
-  /// each edge — rather than a step past whichever edge was last extended. That
-  /// is what sends a long jump straight to its destination page, and what
-  /// re-requests a page missing in the middle of the window instead of leaving
-  /// it a permanent hole.
+  /// Returns the [LoadRequest]s for the missing pages, or an empty list when
+  /// nothing is missing. Demand is presence over the whole window — the pages
+  /// the viewport covers, reaching [loadThreshold] rows past each edge —
+  /// rather than a step past whichever edge was last extended. That is what
+  /// sends a long jump straight to its destination page, and what
+  /// re-requests a page missing in the middle of the window instead of
+  /// leaving it a permanent hole.
   ///
   /// The model calls this itself on every message that moves the viewport. An
   /// app calls it when its own state changes what it is willing to fetch — after
   /// a policy gate that was refusing requests lifts, say — since a refusal
   /// deliberately never re-triggers demand on its own.
-  Cmd? demand() => _loader.demand();
+  List<LoadRequest> demand() => _loader.demand();
 
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
@@ -405,8 +404,8 @@ class TableViewModel with ScrollableModel implements Component {
   ///
   /// On success the rows install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. The
-  /// install frees a slot, so the next [demand] pass runs and comes back as
-  /// the command: that is what drains a window the in-flight cap truncated. A
+  /// install frees a slot, so the next [demand] pass runs and comes back in
+  /// the events: that is what drains a window the in-flight cap truncated. A
   /// refusal clears the slot and installs nothing, so the page keeps its
   /// placeholders and is asked for again by the next demand pass. A failure
   /// records the error, and a later demand pass retries the page. Neither
@@ -415,15 +414,15 @@ class TableViewModel with ScrollableModel implements Component {
     if (HitTag.leafOf(result.id) != id) return const Declined();
     if (!_loader.apply(result)) return const Handled();
     _clampToKnownEnd();
-    return Handled(demand());
+    return Handled(events: demand());
   }
 
   /// Takes the viewport the view painted and asks for the rows it reveals.
   ///
   /// A report whose id's leaf is not this table's id is declined. A report
   /// equal to the stored rows and columns changes nothing and returns no
-  /// command; a changed one is stored, and the [demand] pass for the pages the
-  /// viewport now needs comes back as the command. A report with no column
+  /// events; a changed one is stored, and the [demand] pass for the pages the
+  /// viewport now needs comes back in the events. A report with no column
   /// count keeps the stored one.
   UpdateResult _applyViewport(ViewportChanged report) {
     if (HitTag.leafOf(report.id) != id) return const Declined();
@@ -431,7 +430,7 @@ class TableViewModel with ScrollableModel implements Component {
     if (report.rows == _visibleRows && cols == _visibleCols) return const Handled();
     _visibleRows = report.rows;
     _visibleCols = cols;
-    return Handled(demand());
+    return Handled(events: demand());
   }
 
   // ─────────────────────────────────────────────
@@ -491,7 +490,7 @@ class TableViewModel with ScrollableModel implements Component {
         // nesting scroll ancestor gets the notch; consuming at the limit would
         // make nesting permanently dead.
         if (moved == 0) return const Declined();
-        return Handled(demand());
+        return Handled(events: demand());
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
@@ -508,7 +507,7 @@ class TableViewModel with ScrollableModel implements Component {
             _adjustScrollToCursor();
           },
           // A row the window does not hold cannot be activated: the cursor
-          // still moves, the press stays consumed, and no command is emitted.
+          // still moves, the press stays consumed, and no event is emitted.
           activate: () => cursorRowData == null ? null : TableActivateEvent(id, 'primary'),
         );
       }
@@ -569,12 +568,12 @@ class TableViewModel with ScrollableModel implements Component {
         case TableViewAction.confirm:
           // A row the window does not hold cannot be confirmed: the key is
           // consumed — a declined confirm would fire the app's fallback
-          // bindings — and no command is emitted.
+          // bindings — and no event is emitted.
           if (cursorRowData == null) return const Handled();
-          return Handled(TableActivateEvent(id, 'primary'));
+          return Handled.event(TableActivateEvent(id, 'primary'));
       }
 
-      return Handled(demand());
+      return Handled(events: demand());
     }
 
     return const Declined();

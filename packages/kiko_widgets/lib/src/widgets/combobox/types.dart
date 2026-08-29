@@ -46,17 +46,18 @@ class ComboboxStyle {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMMANDS
+// EVENTS
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when a combobox commits its highlighted option as the value.
 ///
 /// Addressed by the combobox's own [id] — never the id of the list it embeds
-/// internally. The command carries no value; the app reads the selection back
+/// internally. The event carries no value; the app reads the selection back
 /// from `ComboboxModel.value`.
 @immutable
-class ComboboxSelectEvent extends Cmd {
+class ComboboxSelectEvent extends WidgetEvent {
   /// Id of the combobox model where the selection was committed.
+  @override
   final String id;
 
   /// Creates a ComboboxSelectEvent.

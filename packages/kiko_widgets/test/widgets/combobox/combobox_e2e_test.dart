@@ -38,13 +38,17 @@ class _App {
   final List<String> log = [];
 }
 
+/// Reads the combobox's own selection event; nothing else it emits reaches
+/// here.
+Cmd? _onEvent(_App model, WidgetEvent event) {
+  if (event case ComboboxSelectEvent(:final id)) model.log.add('$id -> ${model.combo.value}');
+  return null;
+}
+
 (_App, Cmd?) _update(_App model, Msg msg, UpdateContext ctx) {
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ComboboxSelectEvent(:final id)):
-      model.log.add('$id -> ${model.combo.value}');
-      return (model, null);
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) _onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic the router owns
   }

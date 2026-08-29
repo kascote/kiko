@@ -2,10 +2,13 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
-/// A stand-in activate command, the shape each widget's own action command
+/// A stand-in activate event, the shape each widget's own action event
 /// takes ([ListActivateEvent] and its siblings).
-class _Activate extends Cmd {
+class _Activate extends WidgetEvent {
   const _Activate();
+
+  @override
+  String get id => 'x';
 }
 
 /// A minimal model mixing in [ScrollableModel] so [ScrollableModel.handleRowPointer]
@@ -67,7 +70,7 @@ void main() {
       expect(model.hover, 2);
       expect(model.cursorMovedTo, 2);
       expect(result, isA<Handled>());
-      expect((result as Handled).cmd, isA<_Activate>(), reason: 'a click activates like Enter');
+      expect((result as Handled).events, [isA<_Activate>()], reason: 'a click activates like Enter');
     });
 
     test('a move only refreshes the hover', () {
@@ -76,7 +79,7 @@ void main() {
       expect(model.hover, 1);
       expect(model.cursorMovedTo, isNull, reason: 'a move never moves the cursor');
       expect(result, isA<Handled>());
-      expect((result as Handled).cmd, isNull, reason: 'and carries no activate command');
+      expect((result as Handled).events, isEmpty, reason: 'and carries no activate event');
     });
 
     test('a drag only refreshes the hover', () {
@@ -84,7 +87,7 @@ void main() {
 
       expect(model.hover, 4);
       expect(model.cursorMovedTo, isNull);
-      expect((result as Handled).cmd, isNull);
+      expect((result as Handled).events, isEmpty);
     });
 
     test('the release half of a click only refreshes the hover', () {
@@ -92,7 +95,7 @@ void main() {
 
       expect(model.hover, 0);
       expect(model.cursorMovedTo, isNull, reason: 'only the press half moves the cursor and activates');
-      expect((result as Handled).cmd, isNull);
+      expect((result as Handled).events, isEmpty);
     });
   });
 }

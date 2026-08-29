@@ -31,8 +31,12 @@ class Batch extends Cmd {
   /// List of commands to execute (unmodifiable).
   final List<Cmd> cmds;
 
-  /// Creates a Batch command.
-  Batch(List<Cmd> cmds) : cmds = List.unmodifiable(cmds);
+  /// Creates a Batch command from [cmds], dropping any null entries.
+  ///
+  /// Accepting `Cmd?` lets a caller build the list from expressions that may
+  /// have nothing to contribute — `Batch([cmd, for (final e in events) onEvent(e)])`
+  /// — without filtering nulls itself.
+  Batch(Iterable<Cmd?> cmds) : cmds = List.unmodifiable(cmds.whereType<Cmd>());
 }
 
 /// Immediately queue a message for processing.

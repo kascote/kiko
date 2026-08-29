@@ -16,10 +16,11 @@ enum ButtonGroupAction {
   next,
 }
 
-/// Command emitted when a button is pressed.
+/// Event emitted when a button is pressed.
 @immutable
-class ButtonPressEvent extends Cmd {
+class ButtonPressEvent extends WidgetEvent {
   /// The id of the pressed button.
+  @override
   final String id;
 
   /// Creates a ButtonPressEvent.

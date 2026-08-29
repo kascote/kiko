@@ -27,7 +27,7 @@ Future<List<LoadRequest>> _driveWheel(
     init: 0,
     update: script.wrap((model, msg, _) {
       if (msg is PointerMsg) {
-        if (forward(msg) case Handled(cmd: final LoadRequest r)) requests.add(r);
+        if (forward(msg) case Handled(events: [final LoadRequest r])) requests.add(r);
       }
       return (model, null);
     }),

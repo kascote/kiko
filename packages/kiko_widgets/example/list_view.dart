@@ -76,6 +76,14 @@ class AppModel with ThemeSwitcher {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
+/// Reads the list's own confirm event: an activation installs the selection.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case ListActivateEvent(:final id) when id == model.list.id) {
+    model.selected = model.list.cursorItem;
+  }
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
@@ -86,19 +94,9 @@ class AppModel with ThemeSwitcher {
     return (model, null);
   }
 
-  final result = model.list.update(msg);
-
-  // Handle confirm
-  if (result case Handled(cmd: ListActivateEvent(:final id))) {
-    if (id == model.list.id) {
-      model.selected = model.list.cursorItem;
-    }
-    return (model, null);
-  }
-
-  switch (result) {
-    case Handled(:final cmd):
-      return (model, cmd);
+  switch (model.list.update(msg)) {
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break;
   }

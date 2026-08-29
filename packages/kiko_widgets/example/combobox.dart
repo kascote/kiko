@@ -188,6 +188,17 @@ String _selectionStatus(AppModel model, String id) {
   return country == null ? '' : 'Country: ${country.name} ${country.flag}';
 }
 
+/// Translates one widget event: a selection updates the status line, and a
+/// [LoadRequest] becomes a fetch.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case ComboboxSelectEvent(:final id)) {
+    model.status = _selectionStatus(model, id);
+    return null;
+  }
+  if (event case final LoadRequest req) return fetchFor(model, req);
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
@@ -201,13 +212,8 @@ String _selectionStatus(AppModel model, String id) {
   }
 
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: ComboboxSelectEvent(:final id)):
-      model.status = _selectionStatus(model, id);
-      return (model, null);
-    case Handled(cmd: final LoadRequest req):
-      return (model, fetchFor(model, req));
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic the router owns — fall through
   }

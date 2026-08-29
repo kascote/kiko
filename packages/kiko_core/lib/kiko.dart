@@ -30,6 +30,7 @@ export 'src/mvu/mvu_runtime.dart';
 export 'src/mvu/pointer_msg.dart' hide isWheelAction, pointerFieldsFrom;
 export 'src/mvu/region.dart';
 export 'src/mvu/update_context.dart';
+export 'src/mvu/widget_event.dart';
 export 'src/plume/aliases.dart';
 export 'src/plume/buffer_surface.dart';
 export 'src/plume/containers.dart';

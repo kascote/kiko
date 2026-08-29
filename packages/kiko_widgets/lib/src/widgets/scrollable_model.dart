@@ -51,14 +51,14 @@ mixin ScrollableModel {
   /// A widget calls this from its own update switch for a row-scoped region,
   /// passing the seams the mixin cannot reach into: [setHover] writes the
   /// model's hover field, [moveCursorTo] sets the cursor and adjusts the scroll,
-  /// and [activate] builds the widget's own action command (`ListActivateEvent`,
-  /// `TableActivateEvent`, a tree's confirm command, each carrying the model id).
+  /// and [activate] builds the widget's own action event (`ListActivateEvent`,
+  /// `TableActivateEvent`, a tree's confirm event, each carrying the model id).
   /// [activate] is a callback, not a value, so it is built only on a press and
   /// never on a hot hover move, and it may return `null` when the widget's
-  /// activation produces no command.
+  /// activation produces no event.
   ///
   /// A press ([PointerMsg.isDown]) returns [Handled] carrying the activate
-  /// command, exactly as Enter does; any other pointer — a move, a drag, the
+  /// event, exactly as Enter does; any other pointer — a move, a drag, the
   /// release half of a click — only refreshes the hover and returns a bare
   /// [Handled]. The verdict and any deviation stay with the widget: the mixin
   /// never invokes this itself, and a part that should not highlight its row
@@ -69,12 +69,13 @@ mixin ScrollableModel {
     int row, {
     required void Function(int row) setHover,
     required void Function(int row) moveCursorTo,
-    required Cmd? Function() activate,
+    required WidgetEvent? Function() activate,
   }) {
     setHover(row);
     if (pointer.isDown) {
       moveCursorTo(row);
-      return Handled(activate());
+      final event = activate();
+      return event == null ? const Handled() : Handled.event(event);
     }
     return const Handled();
   }

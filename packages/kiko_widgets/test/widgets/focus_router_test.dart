@@ -205,7 +205,7 @@ void main() {
       final ctx = UpdateContext(hits: frame.hits, area: frame.area);
 
       const cmd = Quit();
-      final a = _FakeComponent('a', (_) => const Handled(cmd));
+      final a = _FakeComponent('a', (_) => const Handled(cmd: cmd));
       final targets = <String, Component>{'a': a};
 
       final result = routeToTarget(_pressAt(0, 0, targetId: 'a'), ctx, targets);
@@ -298,7 +298,7 @@ void main() {
   group('routeToTarget addressed', () {
     test('an addressed message delivers to the component under its id, verbatim, verdict as-is', () {
       const cmd = Quit();
-      final a = _FakeComponent('a', (_) => const Handled(cmd));
+      final a = _FakeComponent('a', (_) => const Handled(cmd: cmd));
       final b = _FakeComponent('b', (_) => const Handled());
       final targets = <String, Component>{'a': a, 'b': b};
       final result = _loadFor('a');
@@ -379,7 +379,7 @@ void main() {
 
     test('an unbound key reaches the focused member and its result comes back untouched', () {
       const cmd = Quit();
-      final handles = _FakeComponent('handles', (_) => const Handled(cmd));
+      final handles = _FakeComponent('handles', (_) => const Handled(cmd: cmd));
       final ctx = _ctx();
 
       final handledResult = FocusRouter(FocusGroup<Component>([handles])).route(const KeyMsg('enter'), ctx);
@@ -439,7 +439,7 @@ void main() {
     test('a press on an unfocused member moves focus and the member still receives it', () {
       const cmd = Quit();
       final a = _FakeComponent('a', (_) => const Declined());
-      final b = _FakeComponent('b', (_) => const Handled(cmd));
+      final b = _FakeComponent('b', (_) => const Handled(cmd: cmd));
       final focus = FocusGroup<Component>([a, b]);
       Component? changed;
       final router = FocusRouter(focus, onFocusChange: (c) => changed = c);
@@ -546,7 +546,7 @@ void main() {
 
     test('a command the focused member returns for a forwarded message passes through untouched', () {
       const cmd = Quit();
-      final a = _FakeComponent('a', (_) => const Handled(cmd));
+      final a = _FakeComponent('a', (_) => const Handled(cmd: cmd));
       final router = FocusRouter(FocusGroup<Component>([a]));
 
       final result = router.route(const _DomainMsg(), _ctx());
@@ -570,7 +570,7 @@ void main() {
     test('a LoadResult addressed to an unfocused member reaches it, not the focused one, and focus stays', () {
       const cmd = Quit();
       final a = _FakeComponent('a', (_) => const Declined());
-      final b = _FakeComponent('b', (_) => const Handled(cmd));
+      final b = _FakeComponent('b', (_) => const Handled(cmd: cmd));
       final focus = FocusGroup<Component>([a, b]);
       var changeCalls = 0;
       final router = FocusRouter(focus, onFocusChange: (_) => changeCalls++);

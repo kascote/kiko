@@ -56,7 +56,7 @@ void main() {
 
       expect(
         result,
-        isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+        isA<Handled>().having((h) => h.events, 'events', isEmpty),
         reason: 'a tree pages on expand, not on scroll',
       );
       expect(model.scrollOffset, equals(3), reason: 'one notch is three rows');
@@ -142,9 +142,9 @@ void main() {
       expect(
         down,
         isA<Handled>().having(
-          (h) => h.cmd,
-          'cmd',
-          isA<TreeActivateEvent<String>>().having((c) => c.path, 'path', '/b'),
+          (h) => h.events,
+          'events',
+          [isA<TreeActivateEvent<String>>().having((c) => c.path, 'path', '/b')],
         ),
       );
       expect(model.cursor, equals(1));
@@ -158,7 +158,7 @@ void main() {
       expect(model.isExpanded('/A'), isTrue, reason: 'the indicator press expanded the node');
       expect(
         down,
-        isA<Handled>().having((h) => h.cmd, 'cmd', isA<Batch>()),
+        isA<Handled>().having((h) => h.events, 'events', [isA<TreeExpandEvent<String>>(), isA<LoadRequest>()]),
         reason: 'expanding an uncached node emits the expand event plus a load request',
       );
 
@@ -168,9 +168,9 @@ void main() {
       expect(
         again,
         isA<Handled>().having(
-          (h) => h.cmd,
-          'cmd',
-          isA<TreeCollapseEvent<String>>().having((c) => c.path, 'path', '/A'),
+          (h) => h.events,
+          'events',
+          [isA<TreeCollapseEvent<String>>().having((c) => c.path, 'path', '/A')],
         ),
       );
     });
@@ -182,7 +182,7 @@ void main() {
 
       expect(model.hoverRow, equals(0), reason: 'the indicator is row-scoped, so a hover highlights the row');
       expect(model.isExpanded('/A'), isFalse, reason: 'a hover never toggles');
-      expect(move, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(move, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('a press on no marked part (the tail) is declined', () {
@@ -278,16 +278,14 @@ void main() {
         ]);
       });
 
-      test('expand on uncached children batches an expand event + load request', () {
-        final cmd = model.expand('/a');
+      test('expand on uncached children returns the expand event + load request', () {
+        final events = model.expand('/a');
 
-        // Cache miss → the expansion event AND a load request, wrapped together.
-        expect(cmd, isA<Batch>());
-        final cmds = (cmd! as Batch).cmds;
-        expect(cmds, hasLength(2));
-        expect(cmds[0], isA<TreeExpandEvent<String>>());
-        expect((cmds[0] as TreeExpandEvent).path, equals('/a'));
-        expect(cmds[1], equals(LoadRequest(model.id, key: const PathKey('/a'))));
+        // Cache miss → the expansion event AND a load request.
+        expect(events, hasLength(2));
+        expect(events[0], isA<TreeExpandEvent<String>>());
+        expect((events[0] as TreeExpandEvent).path, equals('/a'));
+        expect(events[1], equals(LoadRequest(model.id, key: const PathKey('/a'))));
 
         expect(model.isExpanded('/a'), isTrue);
         expect(model.isPathLoading('/a'), isTrue);
@@ -323,11 +321,10 @@ void main() {
         expandLoaded(model, '/a', children['/a']!);
         model.collapse('/a');
 
-        final cmd = model.expand('/a');
+        final events = model.expand('/a');
 
-        // Cache hit → a bare expansion event, never a Batch with a load request.
-        expect(cmd, isA<TreeExpandEvent<String>>());
-        expect(cmd, isNot(isA<Batch>()));
+        // Cache hit → a bare expansion event, no load request.
+        expect(events, [isA<TreeExpandEvent<String>>()]);
         expect(model.isExpanded('/a'), isTrue);
         expect(model.flatNodes.length, equals(4));
       });
@@ -336,17 +333,17 @@ void main() {
         expandLoaded(model, '/a', children['/a']!);
         expect(model.flatNodes.length, equals(4));
 
-        final cmd = model.collapse('/a');
+        final events = model.collapse('/a');
 
         expect(model.isExpanded('/a'), isFalse);
         expect(model.flatNodes.length, equals(2));
-        expect(cmd, isA<TreeCollapseEvent<String>>());
+        expect(events, [isA<TreeCollapseEvent<String>>()]);
       });
 
-      test('expand on leaf returns null', () {
+      test('expand on leaf returns nothing', () {
         expandLoaded(model, '/a', children['/a']!);
-        final cmd = model.expand('/a/1');
-        expect(cmd, isNull);
+        final events = model.expand('/a/1');
+        expect(events, isEmpty);
       });
 
       test('toggle expands then collapses', () {
@@ -367,14 +364,14 @@ void main() {
     });
 
     group('viewport reports', () {
-      test('stores the count and returns no command', () {
+      test('stores the count and returns no events', () {
         final model = TreeViewModel<String>(id: 'nav')..applyRoots(leaves(30));
 
         final verdict = model.update(const ViewportChanged('nav', rows: 7));
 
         expect(
           verdict,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a tree pages on expand, never on its viewport',
         );
         expect(model.visibleCount, equals(7));
@@ -457,7 +454,7 @@ void main() {
         expect(model.flatNodes.any((n) => n.path == '/a/_stalled'), isTrue);
         // Nothing was cached, so collapsing and expanding asks again.
         model.collapse('/a');
-        expect(model.expand('/a'), isA<Batch>());
+        expect(model.expand('/a'), contains(isA<LoadRequest>()));
         expect(model.isPathLoading('/a'), isTrue);
       });
 
@@ -489,7 +486,7 @@ void main() {
 
         expect(model.flatNodes.any((n) => n.path == '/a/x'), isFalse);
         // Nothing cached: expanding now starts a fresh load.
-        expect(model.expand('/a'), isA<Batch>());
+        expect(model.expand('/a'), contains(isA<LoadRequest>()));
         expect(model.isPathLoading('/a'), isTrue);
       });
 
@@ -529,7 +526,7 @@ void main() {
 
         // The original fetch resolves late — dropped, nothing cached.
         model.applyChildren('/a', [TreeNode(path: '/a/late', label: Line('Late'), isLeaf: true)]);
-        expect(model.expand('/a'), isA<Batch>()); // re-expand refetches
+        expect(model.expand('/a'), contains(isA<LoadRequest>())); // re-expand refetches
       });
 
       test('collapse clears a failed load so re-expand retries', () {
@@ -540,7 +537,7 @@ void main() {
         model.collapse('/a');
         expect(model.errorFor(const PathKey('/a')), isNull); // cleared
 
-        expect(model.expand('/a'), isA<Batch>()); // fresh retry
+        expect(model.expand('/a'), contains(isA<LoadRequest>())); // fresh retry
         expect(model.isPathLoading('/a'), isTrue);
       });
 
@@ -572,8 +569,8 @@ void main() {
 
           expect(model.errorFor(const PathKey('/a')), isA<PayloadMismatch>());
           expect('${model.errorFor(const PathKey('/a'))}', contains('expected List<TreeNode<String>>'));
-          expect(model.collapse('/a'), isNotNull);
-          expect(model.expand('/a'), isA<Batch>(), reason: 'collapse and expand retries the load');
+          expect(model.collapse('/a'), [isA<TreeCollapseEvent<String>>()]);
+          expect(model.expand('/a'), contains(isA<LoadRequest>()), reason: 'collapse and expand retries the load');
         });
       });
     });
@@ -674,8 +671,11 @@ void main() {
 
       test('right requests expand', () {
         final result = model.update(keyMsg('right'));
-        // Uncached → Batch(expand event + load request).
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<Batch>()));
+        // Uncached → the expand event plus a load request.
+        expect(
+          result,
+          isA<Handled>().having((h) => h.events, 'events', [isA<TreeExpandEvent<String>>(), isA<LoadRequest>()]),
+        );
         expect(model.isExpanded('/a'), isTrue);
       });
 
@@ -778,17 +778,17 @@ void main() {
       });
     });
 
-    group('commands', () {
+    group('events', () {
       test('enter returns TreeActivateEvent', () {
         final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
 
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<TreeActivateEvent<String>>()),
+          isA<Handled>().having((h) => h.events, 'events', [isA<TreeActivateEvent<String>>()]),
         );
-        final cmd = (result as Handled).cmd;
-        expect((cmd! as TreeActivateEvent).path, equals('/a'));
+        final event = (result as Handled).events.single;
+        expect((event as TreeActivateEvent).path, equals('/a'));
       });
 
       test('unhandled key declines', () {

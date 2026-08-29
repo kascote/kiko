@@ -43,7 +43,7 @@ void main() {
         ..apply(_result(0, _page(0, size: 4), hasMore: true));
 
       expect(loader.knownRowCount, equals(4));
-      expect(loader.demand(), isNull, reason: 'no page past the recorded end is asked for');
+      expect(loader.demand(), isEmpty, reason: 'no page past the recorded end is asked for');
     });
   });
 
@@ -66,7 +66,7 @@ void main() {
       expect(probedBoth, isTrue, reason: 'both probes must be in flight at once');
       expect(loader.knownRowCount, equals(50));
       expect(loader.rowLimit, equals(50));
-      expect(loader.demand(), isNull, reason: 'no page past the end is asked for again');
+      expect(loader.demand(), isEmpty, reason: 'no page past the end is asked for again');
       expect(output.records, isEmpty, reason: 'probing past the end is routine, not a contradiction');
     });
   });
@@ -180,7 +180,7 @@ void main() {
       expect(loader.totalCount, equals(4));
       expect(loader.knownRowCount, equals(4));
       expect(loader.rowLimit, equals(4));
-      expect(loader.demand(), isNull, reason: 'no placeholder row is left that no pass will fill');
+      expect(loader.demand(), isEmpty, reason: 'no placeholder row is left that no pass will fill');
     });
 
     test('the end-of-data flag tightens an earlier count', () {
@@ -192,7 +192,7 @@ void main() {
       expect(loader.totalCount, equals(10));
       expect(loader.knownRowCount, equals(10));
       expect(loader.rowLimit, equals(10));
-      expect(loader.demand(), isNull);
+      expect(loader.demand(), isEmpty);
     });
 
     test('an empty first page tightens an earlier count to zero', () {
@@ -207,7 +207,7 @@ void main() {
       expect(loader.totalCount, equals(0));
       expect(loader.knownRowCount, equals(0));
       expect(loader.rowLimit, equals(0));
-      expect(loader.demand(), isNull);
+      expect(loader.demand(), isEmpty);
     });
 
     test('an empty page far out tightens the count only to the pages still fetchable', () {
@@ -231,7 +231,7 @@ void main() {
       expect(loader.totalCount, equals(14));
       expect(loader.knownRowCount, equals(14));
       expect(loader.rowLimit, equals(14));
-      expect(loader.demand(), isNull);
+      expect(loader.demand(), isEmpty);
     });
 
     test('a count arriving after the short evidence re-opens the data', () {
@@ -246,7 +246,7 @@ void main() {
 
       expect(loader.totalCount, equals(100));
       expect(loader.knownRowCount, equals(100));
-      expect(loader.demand(), isNotNull, reason: 'the pages past the short page are fetchable again');
+      expect(loader.demand(), isNotEmpty, reason: 'the pages past the short page are fetchable again');
     });
   });
 
@@ -268,12 +268,12 @@ void main() {
       loader
         ..loadFirstPage()
         ..apply(_result(0, _page(0))); // the source grew: page 0 is full now
-      expect(loader.demand(), isNotNull, reason: 'a full first page keeps the demand pass probing');
+      expect(loader.demand(), isNotEmpty, reason: 'a full first page keeps the demand pass probing');
       expect(loader.isLoading(const PageKey(1)), isTrue);
 
       loader.apply(_result(1, _page(1, size: 3)));
       expect(loader.knownRowCount, equals(13), reason: 'the refresh found the grown size on its own');
-      expect(loader.demand(), isNull);
+      expect(loader.demand(), isEmpty);
     });
 
     test('a full page on the recorded end page past the count re-opens the data', () {
@@ -285,7 +285,7 @@ void main() {
 
       expect(loader.totalCount, isNull, reason: 'the page holds rows the count said do not exist');
       expect(loader.knownRowCount, isNull, reason: 'where the data ends is unknown again');
-      expect(loader.demand(), isNotNull, reason: 'page 2 is fetchable again');
+      expect(loader.demand(), isNotEmpty, reason: 'page 2 is fetchable again');
       expect(loader.isLoading(const PageKey(2)), isTrue);
 
       loader.apply(_result(2, _page(2, size: 3)));
@@ -303,7 +303,7 @@ void main() {
 
       first = 12; // the viewport's demand span now covers page 2
       expect(loader.totalCount, equals(20));
-      expect(loader.demand(), isNull, reason: 'a consistent end pays no probe past it');
+      expect(loader.demand(), isEmpty, reason: 'a consistent end pays no probe past it');
     });
 
     test('a full page past the recorded end clears the stale count with the record', () {
@@ -327,7 +327,7 @@ void main() {
 
       expect(loader.totalCount, isNull);
       expect(loader.knownRowCount, equals(18), reason: 'the short page is the newest end evidence');
-      expect(loader.demand(), isNull, reason: 'nothing exists past the end it recorded');
+      expect(loader.demand(), isEmpty, reason: 'nothing exists past the end it recorded');
     });
   });
 
@@ -363,7 +363,7 @@ void main() {
       expect(loader.viewportStatus, SliceStatus.failed, reason: 'the mismatch paints as a failure');
       expect(loader.cachedPages, isEmpty, reason: 'nothing installed');
       expect(loader.knownRowCount, isNull, reason: 'a mismatch is not a short page: no end recorded');
-      expect(loader.demand(), isNotNull, reason: 'the page is still missing and still fetchable');
+      expect(loader.demand(), isNotEmpty, reason: 'the page is still missing and still fetchable');
     });
 
     test('a null payload on a successful result is a mismatch', () {

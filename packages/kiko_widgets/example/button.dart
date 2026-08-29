@@ -117,6 +117,24 @@ class SubmitComplete extends Msg {
   const SubmitComplete();
 }
 
+/// Reads the button's own press event. Submitting kicks off the async
+/// delay; any other button just records the press.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case ButtonPressEvent(:final id)) {
+    if (id == 'submit' && !model.submitButton.loading) {
+      // Simulate async action
+      model.submitButton.loading = true;
+      model.lastPress = 'Submitting...';
+      return Task(
+        () => Future<void>.delayed(const Duration(seconds: 2)),
+        onSuccess: (_) => const SubmitComplete(),
+      );
+    }
+    model.lastPress = 'Pressed: $id';
+  }
+  return null;
+}
+
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext _) {
   // Handle theme switching
   if (model.handleThemeSwitch(msg)) return (model, null);
@@ -143,27 +161,9 @@ class SubmitComplete extends Msg {
     result = model.currentGroup.update(msg);
   }
 
-  // Handle button press
-  if (result case Handled(cmd: ButtonPressEvent(:final id))) {
-    if (id == 'submit' && !model.submitButton.loading) {
-      // Simulate async action
-      model.submitButton.loading = true;
-      model.lastPress = 'Submitting...';
-      return (
-        model,
-        Task(
-          () => Future<void>.delayed(const Duration(seconds: 2)),
-          onSuccess: (_) => const SubmitComplete(),
-        ),
-      );
-    }
-    model.lastPress = 'Pressed: $id';
-    return (model, null);
-  }
-
   switch (result) {
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break;
   }

@@ -30,6 +30,14 @@ class _UnknownMsg extends Msg {
   const _UnknownMsg();
 }
 
+/// A stand-in widget event, the shape a real one takes ([id] plus payload).
+class _TestEvent extends WidgetEvent {
+  _TestEvent(this.id);
+
+  @override
+  final String id;
+}
+
 void main() {
   group('FocusGroup', () {
     test('initializes with first item focused', () {
@@ -184,7 +192,14 @@ void main() {
 
     test('Handled carries an optional command', () {
       expect(const Handled().cmd, isNull);
-      expect(const Handled(Quit()).cmd, isA<Quit>());
+      expect(const Handled(cmd: Quit()).cmd, isA<Quit>());
+    });
+
+    test('Handled carries widget events apart from the command', () {
+      expect(const Handled().events, isEmpty);
+      final event = _TestEvent('w');
+      expect(Handled.event(event).events, equals([event]));
+      expect(Handled.event(event).cmd, isNull);
     });
 
     test('a decline is distinguishable from a handle', () {

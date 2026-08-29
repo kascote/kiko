@@ -137,9 +137,9 @@ void main() {
       final group = ButtonGroupModel(buttons: buttons, focused: true);
       final result = group.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
-      final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressEvent>());
-      expect((cmd! as ButtonPressEvent).id, equals('a'));
+      final event = (result as Handled).events.single;
+      expect(event, isA<ButtonPressEvent>());
+      expect((event as ButtonPressEvent).id, equals('a'));
     });
 
     test('delegates to second button when focused', () {
@@ -150,9 +150,9 @@ void main() {
       );
       final result = group.update(const KeyMsg('enter'));
       expect(result, isA<Handled>());
-      final cmd = (result as Handled).cmd;
-      expect(cmd, isA<ButtonPressEvent>());
-      expect((cmd! as ButtonPressEvent).id, equals('b'));
+      final event = (result as Handled).events.single;
+      expect(event, isA<ButtonPressEvent>());
+      expect((event as ButtonPressEvent).id, equals('b'));
     });
   });
 

@@ -228,7 +228,7 @@ class TableViewStyle {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMMANDS
+// EVENTS
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when an action is triggered on the table.
@@ -238,8 +238,9 @@ class TableViewStyle {
 ///
 /// Custom actions can be added via keybindings.
 @immutable
-class TableActivateEvent extends Cmd {
+class TableActivateEvent extends WidgetEvent {
   /// Id of the table view model.
+  @override
   final String id;
 
   /// Action name (e.g., 'primary' for Enter, or custom action name).

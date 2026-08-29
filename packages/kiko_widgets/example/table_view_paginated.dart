@@ -4,7 +4,7 @@
 // - A PageSource over a simulated offset API, fetched with the fetchInto helper
 // - LoadRequest → fetch, keyed by page number; the LoadResult routes itself
 //   home to the table, which installs it in its own update
-// - A demand pass that may ask for several pages at once (flattened by the app)
+// - A demand pass that may ask for several pages at once (each fetched by the app)
 // - The viewport report the view paints, which asks for what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Loading state indicator
@@ -196,16 +196,11 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   return declineLoad(req, error: 'no source wired for ${req.id}');
 }
 
-/// One demand pass can ask for several pages at once, so the app flattens
-/// whatever the table returned and fetches each request.
-Cmd? fetchAll(AppModel model, Cmd? cmd) {
-  final requests = switch (cmd) {
-    final LoadRequest r => [r],
-    Batch(:final cmds) => cmds.whereType<LoadRequest>().toList(),
-    _ => const <LoadRequest>[],
-  };
-  if (requests.isEmpty) return cmd;
-  return Batch([for (final r in requests) fetchFor(model, r)]);
+/// Translates one widget event: a [LoadRequest] becomes a fetch; a
+/// [TableActivateEvent] has no effect in this demo.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case final LoadRequest req) return fetchFor(model, req);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -253,8 +248,8 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
   final result = model.table.update(msg);
 
   switch (result) {
-    case Handled(:final cmd):
-      return (model, fetchAll(model, cmd));
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break;
   }
@@ -266,7 +261,10 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     // so the app runs the demand pass itself and fetches what it asks for.
     if (key == 'p') {
       model.paused = !model.paused;
-      return (model, model.paused ? null : fetchAll(model, model.table.demand()));
+      return (
+        model,
+        model.paused ? null : Batch([for (final r in model.table.demand()) fetchFor(model, r)]),
+      );
     }
     if (key == 'escape' || key == 'ctrl+q') {
       return (model, const Quit());

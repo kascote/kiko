@@ -62,11 +62,11 @@ void main() {
           table(id: 'tableB'),
         );
 
-        final cmd = (app.b.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
+        final event = (app.b.update(keyMsg('enter')) as Handled).events.single as TableActivateEvent;
 
-        expect(cmd.id, equals('tableB'));
-        expect(app.resolve(cmd.id), same(app.b));
-        expect(app.resolve(cmd.id), isNot(same(app.a)));
+        expect(event.id, equals('tableB'));
+        expect(app.resolve(event.id), same(app.b));
+        expect(app.resolve(event.id), isNot(same(app.a)));
       });
 
       test('the sibling instance resolves to itself, not the other', () {
@@ -75,10 +75,10 @@ void main() {
           table(id: 'tableB', focused: false),
         );
 
-        final cmd = (app.a.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
+        final event = (app.a.update(keyMsg('enter')) as Handled).events.single as TableActivateEvent;
 
-        expect(cmd.id, equals('tableA'));
-        expect(app.resolve(cmd.id), same(app.a));
+        expect(event.id, equals('tableA'));
+        expect(app.resolve(event.id), same(app.a));
       });
 
       test('auto-generated ids still disambiguate two instances', () {
@@ -87,9 +87,9 @@ void main() {
 
         expect(a.id, isNot(equals(b.id)));
 
-        final cmd = (a.update(keyMsg('enter')) as Handled).cmd! as TableActivateEvent;
-        expect(cmd.id, equals(a.id));
-        expect(cmd.id, isNot(equals(b.id)));
+        final event = (a.update(keyMsg('enter')) as Handled).events.single as TableActivateEvent;
+        expect(event.id, equals(a.id));
+        expect(event.id, isNot(equals(b.id)));
       });
     });
 
@@ -127,7 +127,7 @@ void main() {
       // marks its own forward slot loading as it emits the request.
       LoadRequest? request;
       for (var i = 0; i < 12 && request == null; i++) {
-        if (a.update(keyMsg('down')) case Handled(cmd: final LoadRequest r)) {
+        if (a.update(keyMsg('down')) case Handled(events: [final LoadRequest r])) {
           request = r;
         }
       }

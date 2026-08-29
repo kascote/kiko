@@ -95,21 +95,27 @@ class AppModel {
 // UPDATE
 // ═══════════════════════════════════════════════════════════
 
-(AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // (2) The one routing line, switched on where key and pointer results
-  // converge. The activation cases are the whole point: a click and an Enter
-  // arrive as the identical id-addressed command, so one case serves both
-  // input devices.
-  switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: TableActivateEvent(:final id, action: 'primary')):
+/// The activation cases are the whole point: a click and an Enter arrive as
+/// the identical id-addressed event, so one case serves both input devices.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  switch (event) {
+    case TableActivateEvent(:final id, action: 'primary'):
       final row = model.table.cursorRowData;
       model.note('$id · activated "${row?['name'] ?? '?'}"');
-      return (model, null);
-    case Handled(cmd: ListActivateEvent(:final id)):
+    case ListActivateEvent(:final id):
       model.note('$id · activated "${model.list.cursorItem ?? '?'}"');
-      return (model, null);
-    case Handled(:final cmd):
-      return (model, cmd);
+    case _:
+      break;
+  }
+  return null;
+}
+
+(AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
+  // (2) The one routing line, switched on where key and pointer results
+  // converge.
+  switch (model.router.route(msg, ctx)) {
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic — fall through to fallback keys
   }

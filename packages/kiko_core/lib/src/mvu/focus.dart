@@ -1,5 +1,6 @@
 import 'cmd.dart';
 import 'msg.dart';
+import 'widget_event.dart';
 
 /// Interface for objects that can receive focus.
 ///
@@ -12,25 +13,37 @@ abstract interface class Focusable {
 }
 
 /// The outcome of a widget model handling a message: whether it consumed the
-/// message, and any effect that consuming it produced.
+/// message, and what handling it produced.
 ///
 /// A parent routes a message to a child through [Component.update] and switches
-/// on the result. A [Handled] result ends the message and its effect runs; a
-/// [Declined] result leaves the message in flight, so the parent may offer it
-/// to the next candidate — the next id under a pointer, or its own fallback keys.
+/// on the result. A [Handled] result ends the message and carries what it
+/// produced; a [Declined] result leaves the message in flight, so the parent
+/// may offer it to the next candidate — the next id under a pointer, or its
+/// own fallback keys.
 sealed class UpdateResult {
   /// Const constructor for subclasses.
   const UpdateResult();
 }
 
-/// The model consumed the message. [cmd] is the effect that handling it
-/// produced, or null when handling it produced no effect.
+/// The model consumed the message. [events] holds what it produced for the
+/// app to interpret; [cmd] holds what it produced for the runtime to perform.
+///
+/// The two slots are independent and both optional: a click on a button
+/// carries a [WidgetEvent] in [events] and no [cmd]; a widget that queues its
+/// own [Tick] carries a [cmd] and no events; most messages carry neither.
 class Handled extends UpdateResult {
-  /// The effect produced by handling the message, if any.
+  /// Widget→app events produced by handling the message. Empty when handling
+  /// it produced none.
+  final List<WidgetEvent> events;
+
+  /// The runtime effect produced by handling the message, if any.
   final Cmd? cmd;
 
-  /// Creates a [Handled] result carrying an optional effect.
-  const Handled([this.cmd]);
+  /// Creates a [Handled] result carrying [events] and/or [cmd].
+  const Handled({this.events = const [], this.cmd});
+
+  /// Creates a [Handled] result carrying the single widget event [event].
+  Handled.event(WidgetEvent event) : events = [event], cmd = null;
 }
 
 /// The model did not consume the message.
@@ -49,24 +62,25 @@ class Declined extends UpdateResult {
 /// Every widget model already exposes [update] (by convention); [Component]
 /// promotes that convention to a type so a parent can route to a child
 /// generically. [id] is the model's stable identity; widget→app addressing
-/// is one *use* of it — the commands a model emits carry the id as their address.
-/// Models that emit no addressed commands still have an identity; the id is simply unused.
+/// is one *use* of it — every [WidgetEvent] a model emits carries the id as
+/// its address. Models that emit no events still have an identity; the id is
+/// simply unused.
 ///
 /// Widget models declare `implements Component`; their existing `update` and
 /// `id` members satisfy it with no behaviour change.
 abstract interface class Component implements Focusable {
   /// Stable identity for this model.
   ///
-  /// Widget→app commands carry it as their address, so an app resolves a
-  /// command back to its owner by matching this id — a command whose id
-  /// resolves to no model is observably dropped rather than silently mishandled.
+  /// A [WidgetEvent] carries it as its address, so an app resolves the event
+  /// back to its owner by matching this id — an event whose id resolves to no
+  /// model is observably dropped rather than silently mishandled.
   String get id;
 
-  /// Handles a message, reporting whether it was consumed and any effect.
+  /// Handles a message, reporting whether it was consumed and what it produced.
   ///
-  /// Returns [Handled] (optionally carrying a command) when the model consumes
-  /// the message, and [Declined] when it does not — leaving the message for a
-  /// parent to route elsewhere.
+  /// Returns [Handled] (optionally carrying events and a command) when the
+  /// model consumes the message, and [Declined] when it does not — leaving
+  /// the message for a parent to route elsewhere.
   UpdateResult update(Msg msg);
 }
 

@@ -283,41 +283,38 @@ Cmd fetchFor(Model model, LoadRequest req) {
   return declineLoad(req, error: 'no source wired for ${req.id}');
 }
 
-/// Runs whatever a widget returned: load requests become fetches, action
-/// commands become the status line, expand/collapse events need nothing.
-Cmd? handleCmds(Model model, Cmd? cmd) {
-  final cmds = switch (cmd) {
-    null => const <Cmd>[],
-    Batch(:final cmds) => cmds,
-    _ => [cmd],
-  };
-  final fetches = <Cmd>[];
-  for (final c in cmds) {
-    switch (c) {
-      case final LoadRequest req:
-        fetches.add(fetchFor(model, req));
-      case ButtonPressEvent(:final id) when id == model.dialogButton.id:
-        model.combo.close();
-        model.modal = ModalModel(id: 'demo-dialog');
-      case ButtonPressEvent(:final id):
-        model.status = 'Button: $id pressed';
-      case ComboboxSelectEvent():
-        model.status = 'Combobox: ${model.combo.value}';
-      case ListActivateEvent():
-        model.status = 'List: row activated';
-      case TreeActivateEvent(:final path):
-        model.status = 'Tree: $path';
-      case TableActivateEvent(:final action):
-        model.status = 'Table: $action on row ${model.table.cursorRow + 1}';
-      case _:
-        break; // expand/collapse and similar events need no app effect here
-    }
+/// Runs one widget event: a load request becomes a fetch, an action event
+/// becomes the status line, a modal confirm/cancel closes the dialog, and an
+/// expand/collapse event needs nothing.
+Cmd? onEvent(Model model, WidgetEvent event) {
+  switch (event) {
+    case final LoadRequest req:
+      return fetchFor(model, req);
+    case ButtonPressEvent(:final id) when id == model.dialogButton.id:
+      model.combo.close();
+      model.modal = ModalModel(id: 'demo-dialog');
+    case ButtonPressEvent(:final id):
+      model.status = 'Button: $id pressed';
+    case ComboboxSelectEvent():
+      model.status = 'Combobox: ${model.combo.value}';
+    case ListActivateEvent():
+      model.status = 'List: row activated';
+    case TreeActivateEvent(:final path):
+      model.status = 'Tree: $path';
+    case TableActivateEvent(:final action):
+      model.status = 'Table: $action on row ${model.table.cursorRow + 1}';
+    case ModalConfirmEvent():
+      model
+        ..modal = null
+        ..status = 'Dialog: confirmed';
+    case ModalCancelEvent():
+      model
+        ..modal = null
+        ..status = 'Dialog: cancelled';
+    case _:
+      break; // expand/collapse and similar events need no app effect here
   }
-  return switch (fetches.length) {
-    0 => null,
-    1 => fetches.first,
-    _ => Batch(fetches),
-  };
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -350,31 +347,12 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
     if (msg case final PointerMsg pointer when pointer.isDown) {
       final rect = ctx.hits.rectOf(modal.id);
       if (rect == null || !rect.contains(pointer.global)) {
-        return switch (modal.dismiss()) {
-          ModalCancelEvent() => (
-            model
-              ..modal = null
-              ..status = 'Dialog: cancelled',
-            null,
-          ),
-          _ => (model, null),
-        };
+        return (model, onEvent(model, modal.dismiss()));
       }
     }
     return switch (modal.update(msg)) {
-      Handled(cmd: ModalConfirmEvent()) => (
-        model
-          ..modal = null
-          ..status = 'Dialog: confirmed',
-        null,
-      ),
-      Handled(cmd: ModalCancelEvent()) => (
-        model
-          ..modal = null
-          ..status = 'Dialog: cancelled',
-        null,
-      ),
-      _ => (model, null),
+      Handled(:final events, :final cmd) => (model, Batch([cmd, for (final e in events) onEvent(model, e)])),
+      Declined() => (model, null),
     };
   }
 
@@ -392,8 +370,8 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
   // there on a down-press — and a load result to the widget whose id it
   // carries, which installs it.
   switch (model.router.route(msg, ctx)) {
-    case Handled(:final cmd):
-      return (model, handleCmds(model, cmd));
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic the router owns — fall through
   }

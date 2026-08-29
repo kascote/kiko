@@ -147,13 +147,14 @@ class ListViewStyle {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMMANDS
+// EVENTS
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when execute an action in the current item
 @immutable
-class ListActivateEvent extends Cmd {
+class ListActivateEvent extends WidgetEvent {
   /// Id of the list view model where confirm was triggered.
+  @override
   final String id;
 
   /// Creates a ListActivateEvent.

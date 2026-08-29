@@ -217,7 +217,7 @@ class TextInputModel implements Component {
           // local.x is a display column; add the horizontal scroll to reach
           // the absolute text column, then map it to a grapheme. A caret move
           // is internal state, so the click is consumed with no widget→app
-          // command.
+          // event.
           _cursor = _columnToIndex(pointer.local.x + _scrollOffset);
         }
         return const Handled();

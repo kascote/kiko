@@ -22,10 +22,9 @@ import 'types.dart';
 /// [PageKey], so several pages can be in flight at once, a result places
 /// itself, and a page is never asked for twice while it is on its way. The
 /// model performs no I/O — anything that moves the viewport runs a [demand]
-/// pass, which returns a [LoadRequest] (or a [Batch] of them) for the pages the
-/// viewport needs and does not have. The app fetches, and each page comes back
-/// as a [LoadResult] carrying the list's id, which the router delivers to
-/// [update].
+/// pass, which returns the [LoadRequest]s for the pages the viewport needs and
+/// does not have. The app fetches, and each page comes back as a [LoadResult]
+/// carrying the list's id, which the router delivers to [update].
 ///
 /// One obligation sits on the app: answer **every** request — with items,
 /// with an error, or with a refusal built by `declineLoad`. A request left
@@ -58,7 +57,7 @@ import 'types.dart';
 /// );
 /// ```
 class ListViewModel<T, K> with ScrollableModel implements Component {
-  /// Stable address for this model, carried by value in the widget→app commands
+  /// Stable address for this model, carried by value in the widget→app events
   /// it emits ([ListActivateEvent]) and the [LoadRequest]s it returns when pages
   /// are needed.
   ///
@@ -332,16 +331,16 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
 
   /// Asks for the pages the viewport needs and does not have.
   ///
-  /// Returns a [LoadRequest] for one missing page, a [Batch] of them for
-  /// several, or null when nothing is missing. Demand is presence over the
-  /// whole window — the pages the viewport covers, reaching [loadThreshold]
-  /// items past each edge — so a long jump fetches its destination first, and a
-  /// hole in the middle of the window is re-requested like any other absence.
+  /// Returns the [LoadRequest]s for the missing pages, or an empty list when
+  /// nothing is missing. Demand is presence over the whole window — the pages
+  /// the viewport covers, reaching [loadThreshold] items past each edge — so a
+  /// long jump fetches its destination first, and a hole in the middle of the
+  /// window is re-requested like any other absence.
   ///
   /// The model calls this itself on every message that moves the viewport. An
   /// app calls it when its own state changes what it is willing to fetch, since
   /// a refusal deliberately never re-triggers demand on its own.
-  Cmd? demand() => _loader.demand();
+  List<LoadRequest> demand() => _loader.demand();
 
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
@@ -356,7 +355,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   /// a range anchor is active, the installed items that fall inside the
   /// anchor-to-cursor span join the selection, so a range swept over items
   /// still being fetched completes itself when they arrive. The install frees
-  /// a slot, so the next [demand] pass runs and comes back as the command:
+  /// a slot, so the next [demand] pass runs and comes back in the events:
   /// that is what drains a window the in-flight cap truncated. A refusal
   /// clears the slot and installs nothing, so the page keeps its placeholders
   /// and is asked for again by the next demand pass. A failure records the
@@ -366,20 +365,20 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
     if (!_loader.apply(result)) return const Handled();
     _clampToKnownEnd();
     if (result.key case final PageKey key) _completeRangeFor(key.page);
-    return Handled(demand());
+    return Handled(events: demand());
   }
 
   /// Takes the viewport the view painted and asks for the items it reveals.
   ///
   /// A report whose id's leaf is not this list's id is declined. A report
-  /// equal to the stored count changes nothing and returns no command; a
+  /// equal to the stored count changes nothing and returns no events; a
   /// changed count is stored, and the [demand] pass for the pages the
-  /// viewport now needs comes back as the command.
+  /// viewport now needs comes back in the events.
   UpdateResult _applyViewport(ViewportChanged report) {
     if (HitTag.leafOf(report.id) != id) return const Declined();
     if (report.rows == _visibleCount) return const Handled();
     _visibleCount = report.rows;
-    return Handled(demand());
+    return Handled(events: demand());
   }
 
   // ─────────────────────────────────────────────
@@ -442,7 +441,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
         // nesting scroll ancestor gets the notch; consuming at the limit would
         // make nesting permanently dead.
         if (moved == 0) return const Declined();
-        return Handled(demand());
+        return Handled(events: demand());
       }
       if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
@@ -459,7 +458,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
             _adjustScrollToCursor();
           },
           // An item the window does not hold cannot be activated: the cursor
-          // still moves, the press stays consumed, and no command is emitted.
+          // still moves, the press stays consumed, and no event is emitted.
           activate: () => cursorItem == null ? null : ListActivateEvent(id),
         );
       }
@@ -509,16 +508,16 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
         case ListViewAction.confirm:
           // An item the window does not hold cannot be confirmed: the key is
           // consumed — a declined confirm would fire the app's fallback
-          // bindings — and no command is emitted.
+          // bindings — and no event is emitted.
           if (cursorItem == null) return const Handled();
-          return Handled(ListActivateEvent(id));
+          return Handled.event(ListActivateEvent(id));
         case ListViewAction.selectUp:
           if (multiSelect) _rangeSelect(-1);
         case ListViewAction.selectDown:
           if (multiSelect) _rangeSelect(1);
       }
 
-      return Handled(demand());
+      return Handled(events: demand());
     }
 
     return const Declined();

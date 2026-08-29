@@ -22,7 +22,7 @@ void main() {
       final modal = ModalModel(id: 'm', confirmPayload: 'delete');
       expect(
         modal.update(const KeyMsg('enter')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', equals(const ModalConfirmEvent('m', 'delete'))),
+        isA<Handled>().having((h) => h.events, 'events', equals([const ModalConfirmEvent('m', 'delete')])),
       );
     });
 
@@ -30,7 +30,7 @@ void main() {
       final modal = ModalModel(id: 'm');
       expect(
         modal.update(const KeyMsg('escape')),
-        isA<Handled>().having((h) => h.cmd, 'cmd', equals(const ModalCancelEvent('m'))),
+        isA<Handled>().having((h) => h.events, 'events', equals([const ModalCancelEvent('m')])),
       );
     });
 
@@ -55,9 +55,9 @@ void main() {
       final modal = ModalModel(id: 'm');
       // The app detects the outside click (an app-side hitPath decision) and
       // fires this — the same event, same id, that Escape emits.
-      final escapeCmd = (modal.update(const KeyMsg('escape')) as Handled).cmd;
+      final escapeEvent = (modal.update(const KeyMsg('escape')) as Handled).events.single;
       expect(modal.dismiss(), equals(const ModalCancelEvent('m')));
-      expect(modal.dismiss(), equals(escapeCmd));
+      expect(modal.dismiss(), equals(escapeEvent));
     });
   });
 }

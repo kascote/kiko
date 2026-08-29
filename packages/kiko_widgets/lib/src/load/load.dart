@@ -106,11 +106,12 @@ class LoadTracker<K> {
 /// [key] is typed as [Object] so a single routing path can carry any widget's
 /// key; each widget recovers its own key type by pattern-matching on it.
 @immutable
-class LoadRequest extends Cmd {
+class LoadRequest extends WidgetEvent {
   /// Creates a request from the widget [id] for the load named by [key].
   const LoadRequest(this.id, {this.key});
 
   /// Identifies the widget that needs data.
+  @override
   final String id;
 
   /// Names which load within that widget (e.g. [PathKey], [PageKey]).

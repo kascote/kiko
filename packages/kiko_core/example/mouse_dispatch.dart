@@ -47,11 +47,12 @@ import 'package:kiko/kiko.dart';
 
 /// Widget→app event: a row was activated. Addressed by the menu's id, whether a
 /// click or an Enter key produced it.
-class MenuActivated extends Cmd {
+class MenuActivated extends WidgetEvent {
+  const MenuActivated(this.id, this.index);
+
+  @override
   final String id;
   final int index;
-
-  const MenuActivated(this.id, this.index);
 }
 
 /// A menu of rows, driven by key or by pointer, ignorant of both the app and
@@ -80,47 +81,64 @@ class MenuModel implements Component {
   set focused(bool value) => _focused = value;
 
   @override
-  UpdateResult update(Msg msg) => switch (msg) {
-    KeyMsg(key: 'up') => Handled(_moveBy(-1)),
-    KeyMsg(key: 'down') => Handled(_moveBy(1)),
-    KeyMsg(key: 'enter') => Handled(MenuActivated(id, cursor)),
+  UpdateResult update(Msg msg) {
+    switch (msg) {
+      case KeyMsg(key: 'up'):
+        _moveBy(-1);
+        return const Handled();
+      case KeyMsg(key: 'down'):
+        _moveBy(1);
+        return const Handled();
+      case KeyMsg(key: 'enter'):
+        return Handled.event(MenuActivated(id, cursor));
 
-    // The pointer has gone somewhere else and no event will address this menu
-    // again, so nothing else in the app has to notice that hover ended.
-    PointerLeaveMsg() => Handled(_hoverOn(null)),
+      // The pointer has gone somewhere else and no event will address this
+      // menu again, so nothing else in the app has to notice that hover ended.
+      case PointerLeaveMsg():
+        _hoverOn(null);
+        return const Handled();
 
-    // A press selects the row it landed on and activates it — emitting exactly
-    // what Enter emits, so the app grew no second case for the mouse.
-    PointerMsg(isDown: true, inside: true, :final local) => Handled(_activate(local.y)),
+      // A press selects the row it landed on and activates it — emitting
+      // exactly what Enter emits, so the app grew no second case for the mouse.
+      case PointerMsg(isDown: true, inside: true, :final local):
+        final event = _activate(local.y);
+        return event == null ? const Handled() : Handled.event(event);
 
-    PointerMsg(isMove: true, inside: true, :final local) => Handled(_hoverOn(local.y)),
+      case PointerMsg(isMove: true, inside: true, :final local):
+        _hoverOn(local.y);
+        return const Handled();
 
-    // The wheel carries a direction, not a position: `wheelDeltaY` is `PointerMsg`'s
-    // own signed notch, `-1`/`1`, so no case here reads the terminal event's enum.
-    PointerMsg(wheelDeltaY: -1) => Handled(_moveBy(-1)),
-    PointerMsg(wheelDeltaY: 1) => Handled(_moveBy(1)),
+      // The wheel carries a direction, not a position: `wheelDeltaY` is
+      // `PointerMsg`'s own signed notch, `-1`/`1`, so no case here reads the
+      // terminal event's enum.
+      case PointerMsg(wheelDeltaY: -1):
+        _moveBy(-1);
+        return const Handled();
+      case PointerMsg(wheelDeltaY: 1):
+        _moveBy(1);
+        return const Handled();
 
-    // Everything else is declined, and the app may try something else with it.
-    _ => const Declined(),
-  };
+      // Everything else is declined, and the app may try something else with it.
+      default:
+        return const Declined();
+    }
+  }
 
-  Cmd? _moveBy(int delta) {
+  void _moveBy(int delta) {
     cursor = (cursor + delta).clamp(0, items.length - 1);
-    return null;
   }
 
   /// The tag sits on the rows, so `local.y` is a row index with nothing to
   /// subtract — but the rows do not fill the pane, and a click below the last
   /// one still lands inside the tagged region.
-  Cmd? _activate(int row) {
+  MenuActivated? _activate(int row) {
     if (row >= items.length) return null;
     cursor = row;
     return MenuActivated(id, row);
   }
 
-  Cmd? _hoverOn(int? row) {
+  void _hoverOn(int? row) {
     hoverRow = row != null && row < items.length ? row : null;
-    return null;
   }
 }
 
@@ -212,7 +230,7 @@ class AppModel {
 /// to try the next id out.
 (AppModel, Cmd?) _handle(AppModel model, UpdateResult result) {
   switch (result) {
-    case Handled(cmd: MenuActivated(:final id, :final index)):
+    case Handled(events: [MenuActivated(:final id, :final index)]):
       model.note('$id · activated "${model.menu(id).items[index]}"');
       return (model, null);
     case Handled(:final cmd):

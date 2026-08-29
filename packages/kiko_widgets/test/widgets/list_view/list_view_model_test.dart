@@ -71,7 +71,7 @@ void main() {
 
       final result = model.update(pointer(PointerAction.wheelDown));
 
-      expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()));
+      expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<LoadRequest>()]));
       expect(model.isLoading(), isTrue, reason: 'wheel alone brought a missing page into demand');
     });
 
@@ -132,12 +132,12 @@ void main() {
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', const ListActivateEvent('menu')));
+      expect(down, isA<Handled>().having((h) => h.events, 'events', [const ListActivateEvent('menu')]));
       expect(model.cursor, equals(3));
 
       // The release half only refreshes hover — it does not fire a second time.
       final up = model.update(pointerOnRow(PointerAction.up, 3));
-      expect(up, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+      expect(up, isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('a click on an item the window does not hold moves the cursor but emits nothing', () {
@@ -149,7 +149,11 @@ void main() {
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
-      expect(down, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'nothing to activate, press consumed');
+      expect(
+        down,
+        isA<Handled>().having((h) => h.events, 'events', isEmpty),
+        reason: 'nothing to activate, press consumed',
+      );
       expect(model.cursor, equals(3), reason: 'the cursor still moves where the user pointed');
     });
 
@@ -326,7 +330,7 @@ void main() {
         expect(paged.cursor, equals(14));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNotNull),
+          isA<Handled>().having((h) => h.events, 'events', isNotEmpty),
           reason: 'the jump lands on missing pages',
         );
         expect(paged.isLoading(const PageKey(2)), isTrue, reason: 'the destination page is fetched first');
@@ -554,7 +558,7 @@ void main() {
       });
     });
 
-    group('commands', () {
+    group('events', () {
       test('enter returns ListActivateEvent', () {
         final model = ListViewModel<String, String>(
           items: const ['a', 'b'],
@@ -563,10 +567,10 @@ void main() {
         final result = model.update(keyMsg('enter'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<ListActivateEvent>()),
+          isA<Handled>().having((h) => h.events, 'events', [isA<ListActivateEvent>()]),
         );
-        final cmd = (result as Handled).cmd;
-        expect((cmd! as ListActivateEvent).id, equals(model.id));
+        final event = (result as Handled).events.single;
+        expect((event as ListActivateEvent).id, equals(model.id));
       });
 
       test('enter on an item the window does not hold is consumed and emits nothing', () {
@@ -579,7 +583,7 @@ void main() {
 
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a declined confirm would fire the app fallback bindings',
         );
       });
@@ -631,11 +635,11 @@ void main() {
         final result = model.update(keyMsg('down')); // cursor 3 — threshold reaches page 1
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>()),
+          isA<Handled>().having((h) => h.events, 'events', [isA<LoadRequest>()]),
         );
-        final cmd = (result as Handled).cmd;
-        expect((cmd! as LoadRequest).id, equals(model.id));
-        expect((cmd as LoadRequest).key, equals(const PageKey(1)));
+        final event = (result as Handled).events.single as LoadRequest;
+        expect(event.id, equals(model.id));
+        expect(event.key, equals(const PageKey(1)));
         expect(model.isLoading(), isTrue, reason: 'the widget self-marks loading on emit');
       });
 
@@ -649,7 +653,7 @@ void main() {
         final result = model.update(keyMsg('down'));
         expect(
           result,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'the page is already on its way',
         );
       });
@@ -667,7 +671,7 @@ void main() {
 
         final result = model.update(keyMsg('down'));
         // Items seeded with no totalCount are all the data: no page is missing.
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
       });
     });
 
@@ -687,7 +691,7 @@ void main() {
 
         final verdict = model.update(const ViewportChanged('list', rows: 2));
 
-        expect(verdict, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(verdict, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(model.visibleCount, equals(2));
       });
 
@@ -699,7 +703,11 @@ void main() {
         expect(model.visibleCount, equals(10));
         expect(
           verdict,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>().having((r) => r.key, 'key', const PageKey(1))),
+          isA<Handled>().having(
+            (h) => h.events,
+            'events',
+            [isA<LoadRequest>().having((r) => r.key, 'key', const PageKey(1))],
+          ),
           reason: 'the taller viewport reaches page 1',
         );
         expect(model.isLoading(const PageKey(1)), isTrue);
@@ -747,7 +755,7 @@ void main() {
         expect(model.knownItemCount, isNull, reason: 'a full page says nothing about where the data ends');
         expect(
           verdict,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNotNull),
+          isA<Handled>().having((h) => h.events, 'events', isNotEmpty),
           reason: 'the install freed a slot: the pass asks for the pages past the one that landed',
         );
         expect(model.isLoading(const PageKey(1)), isTrue);
@@ -769,7 +777,7 @@ void main() {
 
         expect(model.isLoading(), isFalse);
         expect(model.errorFor(const PageKey(0)), equals('boom'));
-        expect(model.demand(), isNotNull, reason: 'the next demand pass retries');
+        expect(model.demand(), isNotEmpty, reason: 'the next demand pass retries');
         expect(model.isLoading(const PageKey(0)), isTrue, reason: 'the failed page is asked for again');
       });
 
@@ -790,13 +798,13 @@ void main() {
 
         expect(
           model.update(LoadResult<List<String>>.cancelled(req.id, key: req.key)),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a standing refusal must never become a request storm',
         );
         model.loadFirstPage();
         expect(
           model.update(LoadResult<List<String>>(req.id, key: req.key, error: 'boom')),
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a failure is retried by the next pass the app runs, not by itself',
         );
       });
@@ -897,7 +905,7 @@ void main() {
         expect(model.getSelectedKeys(), isEmpty);
         expect(model.knownItemCount, equals(2));
         expect(model.getItem(0), equals('b'));
-        expect(model.demand(), isNull, reason: 'the new length says where the data ends');
+        expect(model.demand(), isEmpty, reason: 'the new length says where the data ends');
       });
     });
 

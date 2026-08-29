@@ -15,17 +15,18 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════
-// COMMAND
+// EVENT
 // ═══════════════════════════════════════════════════════════
 
 /// Emitted when an option is chosen — by Enter or by a click alike. It
 /// addresses its owner by [id], so an app holding several palettes can route
 /// it home.
-class PaletteChooseEvent extends Cmd {
-  /// Creates the command carrying the owner's [id] and the chosen [value].
+class PaletteChooseEvent extends WidgetEvent {
+  /// Creates the event carrying the owner's [id] and the chosen [value].
   const PaletteChooseEvent(this.id, this.value);
 
   /// The id of the palette that emitted this.
+  @override
   final String id;
 
   /// The option that was chosen.
@@ -150,7 +151,7 @@ class PaletteModel with ScrollableModel implements Component {
         _snapToCursor();
         return const Handled();
       case KeyMsg(key: 'enter'):
-        return Handled(PaletteChooseEvent(id, options[cursor]));
+        return Handled.event(PaletteChooseEvent(id, options[cursor]));
     }
 
     // Everything else was never ours — decline it, never swallow it.
@@ -260,14 +261,18 @@ class AppModel {
   String? chosen;
 }
 
+/// Reads the palette's choice out of a widget event; nothing else the palette
+/// emits reaches here.
+Cmd? onEvent(AppModel model, WidgetEvent event) {
+  if (event case PaletteChooseEvent(:final value)) model.chosen = value;
+  return null;
+}
+
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
-  // Widget→app commands first: intercept the palette's choice by id.
+  // Widget→app events first: intercept the palette's choice by id.
   switch (model.router.route(msg, ctx)) {
-    case Handled(cmd: PaletteChooseEvent(:final value)):
-      model.chosen = value;
-      return (model, null);
-    case Handled(:final cmd):
-      return (model, cmd);
+    case Handled(:final events, :final cmd):
+      return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // nothing consumed it — fall through to the app's own keys
   }

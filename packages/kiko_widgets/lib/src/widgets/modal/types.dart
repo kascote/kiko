@@ -10,13 +10,14 @@ enum ModalAction {
   cancel,
 }
 
-/// Command emitted when a modal is confirmed.
+/// Event emitted when a modal is confirmed.
 ///
 /// The app resolves this to the dismissed modal by [id] and drops it from
 /// whatever state is holding it open, then acts on [payload].
 @immutable
-class ModalConfirmEvent extends Cmd {
+class ModalConfirmEvent extends WidgetEvent {
   /// The id of the confirmed modal.
+  @override
   final String id;
 
   /// App-supplied data carried from the modal to its result handler.
@@ -36,10 +37,11 @@ class ModalConfirmEvent extends Cmd {
   String toString() => 'ModalConfirmEvent($id, $payload)';
 }
 
-/// Command emitted when a modal is cancelled.
+/// Event emitted when a modal is cancelled.
 @immutable
-class ModalCancelEvent extends Cmd {
+class ModalCancelEvent extends WidgetEvent {
   /// The id of the cancelled modal.
+  @override
   final String id;
 
   /// Creates a ModalCancelEvent.

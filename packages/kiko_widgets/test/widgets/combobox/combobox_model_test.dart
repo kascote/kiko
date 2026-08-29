@@ -87,7 +87,7 @@ void main() {
         )..update(charMsg('1'));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals(1), reason: '1, 21 and 31 all end with "1"; the first match commits');
       });
     });
@@ -173,7 +173,7 @@ void main() {
           ..update(keyMsg('down')); // cursor on row 1 (Banana)
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Banana'));
       });
 
@@ -217,7 +217,7 @@ void main() {
           ..update(charMsg('h'));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Cherry'));
         expect(combo.field.value, equals('Cherry'));
         expect(combo.isOpen, isFalse);
@@ -240,7 +240,7 @@ void main() {
 
         // An unmoved commit lands on whatever row the cursor opened on.
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Cherry'));
       });
 
@@ -258,18 +258,18 @@ void main() {
         final combo = fruitBox(options: const [])..update(keyMsg('down'));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(combo.value, isNull);
         expect(combo.isOpen, isTrue, reason: 'nothing was committed, so nothing closes');
       });
 
-      test('the emitted command addresses the combobox, never the embedded list', () {
+      test('the emitted event addresses the combobox, never the embedded list', () {
         final combo = fruitBox()..update(keyMsg('down'));
 
         final result = combo.update(keyMsg('enter')) as Handled;
-        final cmd = result.cmd! as ComboboxSelectEvent;
-        expect(cmd.id, equals('combo'));
-        expect(cmd, isNot(isA<ListActivateEvent>()));
+        final event = result.events.single as ComboboxSelectEvent;
+        expect(event.id, equals('combo'));
+        expect(event, isNot(isA<ListActivateEvent>()));
       });
     });
 
@@ -374,7 +374,7 @@ void main() {
         expect(combo.field.value, isEmpty);
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals(1), reason: 'the full set returned, cursor on the first row');
       });
     });
@@ -423,8 +423,8 @@ void main() {
 
         final result = combo.update(onList(combo, PointerAction.down, row: 1)); // Banana
 
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
-        expect((result as Handled).cmd! as ComboboxSelectEvent, ComboboxSelectEvent(combo.id));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
+        expect((result as Handled).events.single as ComboboxSelectEvent, ComboboxSelectEvent(combo.id));
         expect(combo.value, equals('Banana'));
         expect(combo.field.value, equals('Banana'));
         expect(combo.isOpen, isFalse);
@@ -436,7 +436,7 @@ void main() {
 
         final result = combo.update(onList(combo, PointerAction.down, row: 0));
 
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(combo.value, isNull);
         expect(combo.isOpen, isTrue);
       });
@@ -516,9 +516,9 @@ void main() {
         final result = combo.update(charMsg('a'));
 
         expect(combo.isOpen, isTrue);
-        final cmd = (result as Handled).cmd! as LoadRequest;
-        expect(cmd.id, equals('combo'));
-        expect(cmd.key, equals(const QueryKey('a')));
+        final event = (result as Handled).events.single as LoadRequest;
+        expect(event.id, equals('combo'));
+        expect(event.key, equals(const QueryKey('a')));
         expect(combo.queryStatus, SliceStatus.filling);
       });
 
@@ -527,8 +527,8 @@ void main() {
         final result = combo.update(keyMsg('down'));
 
         expect(combo.isOpen, isTrue);
-        final cmd = (result as Handled).cmd! as LoadRequest;
-        expect(cmd.key, equals(const QueryKey('')));
+        final event = (result as Handled).events.single as LoadRequest;
+        expect(event.key, equals(const QueryKey('')));
       });
 
       test('a toggle press while closed asks the empty query', () {
@@ -536,16 +536,16 @@ void main() {
         final result = combo.update(pressOn('combo-toggle'));
 
         expect(combo.isOpen, isTrue);
-        final cmd = (result as Handled).cmd! as LoadRequest;
-        expect(cmd.key, equals(const QueryKey('')));
+        final event = (result as Handled).events.single as LoadRequest;
+        expect(event.key, equals(const QueryKey('')));
       });
 
       test('further typing asks a new query for the newest text', () {
         final combo = remoteBox()..update(charMsg('a'));
         final result = combo.update(charMsg('p'));
 
-        final cmd = (result as Handled).cmd! as LoadRequest;
-        expect(cmd.key, equals(const QueryKey('ap')));
+        final event = (result as Handled).events.single as LoadRequest;
+        expect(event.key, equals(const QueryKey('ap')));
       });
 
       test('an installing answer replaces the options wholesale, cursor on the first row', () {
@@ -559,7 +559,7 @@ void main() {
           reason: 'the loading row disappears once the newest query installs',
         );
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Apple'));
       });
 
@@ -580,7 +580,7 @@ void main() {
         combo.update(LoadResult<List<RemoteOption>>('combo', key: const QueryKey(''), data: fetched));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals(stored), reason: 'the cursor opened on the value, not the first row');
       });
 
@@ -590,7 +590,7 @@ void main() {
           ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Banana']));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Apple'), reason: 'an edited query installs with the cursor on the first match');
       });
 
@@ -604,14 +604,14 @@ void main() {
         final staleCommit = combo.update(keyMsg('enter'));
         expect(
           staleCommit,
-          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'the superseded answer never installed, so there is still nothing to commit',
         );
 
         // The newest query's own answer lands and installs.
         combo.update(const LoadResult<List<String>>('combo', key: QueryKey('ap'), data: ['Apple']));
         final commit = combo.update(keyMsg('enter'));
-        expect(commit, isA<Handled>().having((h) => h.cmd, 'cmd', isA<ComboboxSelectEvent>()));
+        expect(commit, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Apple'));
       });
 
@@ -625,7 +625,7 @@ void main() {
         expect(combo.queryStatus, SliceStatus.stalled);
         expect(combo.queryError, isNull, reason: 'a refusal is not a failure');
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'nothing stands to commit');
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty), reason: 'nothing stands to commit');
       });
 
       test('an installed empty answer is ready, not stalled', () {
@@ -803,7 +803,7 @@ void main() {
           ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
 
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(combo.value, isNull);
         expect(combo.isOpen, isTrue, reason: 'nothing was committed, so nothing closes');
       });
@@ -813,7 +813,7 @@ void main() {
 
         expect(combo.queryStatus, SliceStatus.filling);
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(combo.value, isNull);
       });
 
@@ -825,7 +825,7 @@ void main() {
 
         expect(combo.queryStatus, SliceStatus.filling);
         final result = combo.update(keyMsg('enter'));
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull), reason: 'the stale matches are gone');
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty), reason: 'the stale matches are gone');
       });
     });
 
@@ -838,7 +838,7 @@ void main() {
 
         final result = combo.update(PopupPlaced(combo.id, below));
 
-        expect(result, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
         expect(combo.placement, below);
       });
 

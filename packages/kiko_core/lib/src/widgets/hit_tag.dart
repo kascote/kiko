@@ -80,6 +80,50 @@ sealed class HitTag {
       candidate = candidate.substring(0, cut);
     }
   }
+
+  /// Returns the part of a composite that a delivered [path] names, or
+  /// `null` when [path] does not name one of [parts] under [under].
+  ///
+  /// A composite calls this before its own guard: forward to the part
+  /// [partOn] names, treat the message as its own when
+  /// `HitTag.leafOf(path) == id`, and decline otherwise.
+  ///
+  /// ```dart
+  /// switch (HitTag.partOn(path, under: id, parts: {'field', 'list'})) {
+  ///   case 'field':
+  ///     return field.update(msg);
+  ///   case 'list':
+  ///     return list.update(msg);
+  ///   case null when HitTag.leafOf(path) == id:
+  ///     return updateSelf(msg);
+  ///   case null:
+  ///     return const Declined();
+  /// }
+  /// ```
+  ///
+  /// A composite does not know its own scope path, so it searches for
+  /// [under] on [path] instead of stripping a known prefix. When [under]
+  /// appears more than once on [path], each occurrence is tried in order,
+  /// leftmost first.
+  static String? partOn(String path, {required String under, required Set<String> parts}) {
+    final segments = path.split(separator);
+    final underSegments = under.split(separator);
+    for (var start = 0; start + underSegments.length <= segments.length; start++) {
+      var matches = true;
+      for (var offset = 0; offset < underSegments.length; offset++) {
+        if (segments[start + offset] != underSegments[offset]) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) continue;
+      final candidateIndex = start + underSegments.length;
+      if (candidateIndex == segments.length) continue;
+      final candidate = segments[candidateIndex];
+      if (parts.contains(candidate)) return candidate;
+    }
+    return null;
+  }
 }
 
 /// The tag of an addressable node: the id pointer events resolve to.

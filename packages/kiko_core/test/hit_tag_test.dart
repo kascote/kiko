@@ -74,6 +74,61 @@ void main() {
     });
   });
 
+  group('HitTag.partOn', () {
+    test('one level: the segment right after the composite names the part', () {
+      expect(HitTag.partOn('combo/list', under: 'combo', parts: {'field', 'list'}), 'list');
+    });
+
+    test('two levels: each composite reads the segment right after its own id', () {
+      expect(HitTag.partOn('outer/inner/spinner', under: 'outer', parts: {'inner'}), 'inner');
+      expect(HitTag.partOn('outer/inner/spinner', under: 'inner', parts: {'spinner'}), 'spinner');
+    });
+
+    test('three levels: a deeply nested id still finds its own segment', () {
+      expect(HitTag.partOn('top/outer/inner/spinner', under: 'inner', parts: {'spinner'}), 'spinner');
+    });
+
+    test("the path is the id: nothing follows it, so the message is the composite's own", () {
+      expect(HitTag.partOn('combo', under: 'combo', parts: {'field', 'list'}), isNull);
+    });
+
+    test('the id is absent from the path', () {
+      expect(HitTag.partOn('list', under: 'combo', parts: {'list'}), isNull);
+      expect(
+        HitTag.partOn('combobox/list', under: 'combo', parts: {'list'}),
+        isNull,
+        reason: 'segment boundary, as HitTag.isPrefix treats it',
+      );
+    });
+
+    test('a part named like its composite', () {
+      expect(HitTag.partOn('echo/echo', under: 'echo', parts: {'echo'}), 'echo');
+    });
+
+    test('a repeated id, nested', () {
+      expect(HitTag.partOn('a/a/spinner', under: 'a', parts: {'a'}), 'a');
+      expect(HitTag.partOn('a/a/spinner', under: 'a', parts: {'spinner'}), 'spinner');
+    });
+
+    test('an unknown part', () {
+      expect(HitTag.partOn('panel/ghost', under: 'panel', parts: {'spinner'}), isNull);
+      expect(
+        HitTag.partOn('panel/ghost/spinner', under: 'panel', parts: {'spinner'}),
+        isNull,
+        reason: 'only the segment right after the id counts',
+      );
+    });
+
+    test('a path-form id', () {
+      expect(HitTag.partOn('form/combo/list', under: 'form/combo', parts: {'list'}), 'list');
+      expect(HitTag.partOn('form/combo', under: 'form/combo', parts: {'list'}), isNull);
+    });
+
+    test('a path-form id must match at a segment boundary', () {
+      expect(HitTag.partOn('xform/combo/list', under: 'form/combo', parts: {'list'}), isNull);
+    });
+  });
+
   group('HitTag.scopeUnder', () {
     test('a scope extends the prefix', () {
       expect(HitTag.scopeUnder('', ScopeTag('cb')), 'cb');

@@ -103,9 +103,9 @@ class HitMap {
   /// Trees rendered later win an overlap, matching what the viewer sees, and
   /// within a tree the deepest tagged node wins. A press on a scope's own
   /// cells, with no inner id under the point, resolves to the scope's path.
-  /// This is the router's per-event hot path; it allocates nothing and stops
-  /// at the first hit. Untagged nodes painted on top do not swallow the
-  /// tagged widget beneath them.
+  /// This is the router's per-event hot path; it stops at the first hit.
+  /// Untagged nodes painted on top do not swallow the tagged widget beneath
+  /// them.
   String? hitId(int x, int y) {
     final point = plume.Offset(x, y);
     for (final root in _roots.reversed) {

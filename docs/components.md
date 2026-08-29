@@ -130,9 +130,19 @@ Rules for the receiving model:
   addresses a report to the scope path the paint walk carries joined with
   the widget's id (`docs/architecture.md`, frame reports). A composite passes
   nothing to its parts for this; a view has no scope parameter.
-- **A composite forwards by leaf first.** Before applying the guard to
-  itself, a composite forwards a message whose id's leaf (`HitTag.leafOf`)
-  names one of its parts to that part, as it forwards pointer traffic.
+- **A composite forwards to the part the path names, first.** The segment
+  right after the composite's own id on the path names the part
+  (`HitTag.partOn`). A path that does not contain the composite's id, or
+  whose next segment names no part, is not forwarded. Dispatch runs in
+  order: forward to a part when the path names one. Otherwise, the message
+  is the composite's own when the leaf is its id. Decline everything else.
+  A composite does not know its own scope path, so it finds its own id on
+  the path instead of stripping a prefix. The order matters when a part's
+  id matches the composite's own: on `echo/echo`, forwarding runs first, so
+  the message reaches the part instead of the composite's own guard. A bare
+  part id (`list`, with no `combo/` ahead of it) is declined. A part's
+  outside address is a path under its composite, so the bare form is not
+  one the composite recognizes.
 - **One entry point.** `update` is the only way a result enters a model.
   There is no second method for async results.
 
@@ -151,8 +161,8 @@ Prefix addressing resolves that path to a registered component:
   segments to climb, so it matches only exactly.
 - **Delivery is as-is.** The message keeps the resolved path, rect, and
   region; the router never rebuilds it against the resolved owner. The owner
-  reads the path's leaf (`HitTag.leafOf`) to dispatch to the inner widget,
-  whose local math and regions arrive intact.
+  reads the segment after its own id (`HitTag.partOn`) to dispatch, per the
+  rule above. The inner widget's local math and regions arrive intact.
 - **Inner widgets keep their real ids.** No overwritten tags, no derived
   ids, no delegate components. The parts stay addressable by their own ids,
   as paths.

@@ -93,9 +93,9 @@ A term of art added to a page gets its entry here in the same change.
   the scope names joined with `/`, with no leaf; empty under no scope.
   `BufferSurface.scopePath` is the scope path of the node painting now, and a
   node joins its id with it to address a frame report (`docs/mouse.md`).
-- **leaf** — the last segment of a hit path: the id of the node itself. The
-  owner of a delivered path reads the leaf to dispatch
-  (`docs/components.md`).
+- **leaf** — the last segment of a hit path: the id of the node itself. A
+  model's own guard compares the leaf. Dispatch to a part uses the segment
+  after the composite's own id instead (`docs/components.md`).
 - **hit region** — a part a view marks while painting (a row, a header).
   Answers *which part* of the widget; delivered on `PointerMsg.region`.
 - **hit presence** — whether a tagged widget appears in a frame's hit map at

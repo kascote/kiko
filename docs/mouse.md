@@ -120,9 +120,9 @@ everything beneath it — an overlay scope above the base tree most of all.
 Size the scope to the content it owns.
 
 Delivery is the routers' half: a path resolves to the component registered
-under its longest prefix and arrives as-is, and the owner reads the leaf to
-dispatch. The addressing rules live in `docs/components.md`; the packaged
-routing in `docs/focus-router.md`.
+under its longest prefix and arrives as-is, and the owner reads the segment
+after its own id to dispatch. The addressing rules live in
+`docs/components.md`; the packaged routing in `docs/focus-router.md`.
 
 ## Hit regions — the part under the pointer
 

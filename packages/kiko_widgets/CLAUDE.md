@@ -26,7 +26,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - A widget places its caret only from a press that carries a rect (`docs/mouse.md`).
 - Editors insert `msg.text`, never `msg.key`; decline `KeyReleaseMsg` and `ModifierKeyMsg` (`docs/keyboard.md`).
 - Address by stable `id` carried by value; thread both `id` and `key` into every async result (`docs/components.md`).
-- A model owns a message whose id's leaf is its own id and declines every other; a composite forwards by leaf first (`docs/components.md`).
+- A model owns a message whose id's leaf is its own id and declines every other; a composite forwards to the part named by the segment after its own id, before its own guard (`docs/components.md`).
 - A `LoadResult` is handled in the model's `update`, never in the app: the router delivers it by id (`docs/async-loading.md`).
 - Widgets never perform async I/O; every `LoadRequest` resolves its slot — with data, an error, or `declineLoad` (`docs/async-loading.md`).
 - Paint reports a layout fact through `surface.report(...)`; it never writes into a model (`docs/architecture.md`, `docs/async-loading.md`).

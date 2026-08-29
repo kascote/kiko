@@ -102,7 +102,8 @@ from the message that lifted its gate and fetches what comes back:
   showed and, for a table, the columns. The runtime queues it after the frame
   commits and the router delivers it to the model (`docs/architecture.md`,
   frame reports). A part painted under a composite's scope reports the scoped
-  path (`combo/list`); the composite forwards it by leaf.
+  path (`combo/list`); the composite forwards it by the part the path names
+  (`docs/components.md`).
 - `PageSource<T>` + `PageResult<T>` — the app-side source interface: index
   addressed, owning the page size, `Future<PageResult<T>> read(int page)`.
   `PageSource.offset(...)` wraps an offset/limit query. `PageSource.cursor(...)`

@@ -1,3 +1,4 @@
+import '../widgets/hit_tag.dart';
 import 'cmd.dart';
 import 'msg.dart';
 import 'widget_event.dart';
@@ -54,6 +55,37 @@ class Handled extends UpdateResult {
 class Declined extends UpdateResult {
   /// Creates a [Declined] result.
   const Declined();
+}
+
+/// Scopes the [Tick] commands a part's [UpdateResult] carries under a
+/// composite's id.
+///
+/// A composite calls [scopeTicks] where it forwards a part's result upward:
+/// `_part.update(msg).scopeTicks(id)`. A part arms an animation with its own
+/// bare id, the only id it knows; the composite is the only party that knows
+/// the prefix a [Tick] needs to reach the part again.
+extension ScopeTicks on UpdateResult {
+  /// Returns this result with every [Tick] inside its command rewritten to
+  /// carry [scope] as a path prefix on [Tick.id].
+  ///
+  /// [Declined] returns itself. A [Handled] returns a new [Handled] with the
+  /// same [Handled.events] — events are not scoped — and [Handled.cmd]
+  /// rewritten; a [Batch] is rebuilt with each member scoped, in order, and
+  /// [Quit], [Emit], [Task], and a `null` command pass through unchanged.
+  UpdateResult scopeTicks(String scope) => switch (this) {
+    Declined() => this,
+    Handled(:final events, :final cmd) => Handled(events: events, cmd: cmd?._scopedTicks(scope)),
+  };
+}
+
+extension on Cmd {
+  Cmd _scopedTicks(String scope) => switch (this) {
+    Tick(:final interval, :final id, :final key) => Tick(interval, id: HitTag.join(scope, id), key: key),
+    Batch(:final cmds) => Batch(cmds.map((cmd) => cmd._scopedTicks(scope))),
+    Quit() => this,
+    Emit() => this,
+    Task<Object?>() => this,
+  };
 }
 
 /// The widget-model contract: a [Focusable] model that handles messages and

@@ -16,14 +16,27 @@ class AppModel {
   final bool running;
   final int counter;
 
-  const AppModel({this.seconds = 0, this.running = false, this.counter = 0});
+  /// The generation of the running tick chain. Each start bumps it, and a
+  /// tick carrying an older key is dropped instead of re-armed, so stopping
+  /// and starting within one second never runs two chains at once.
+  final int chain;
 
-  AppModel copyWith({int? seconds, bool? running, int? counter}) => AppModel(
+  const AppModel({this.seconds = 0, this.running = false, this.counter = 0, this.chain = 0});
+
+  AppModel copyWith({int? seconds, bool? running, int? counter, int? chain}) => AppModel(
     seconds: seconds ?? this.seconds,
     running: running ?? this.running,
     counter: counter ?? this.counter,
+    chain: chain ?? this.chain,
   );
 }
+
+/// The id the timer's ticks are addressed to. No widget claims it, so the
+/// app's own update handles them.
+const _timerId = 'timer';
+
+/// One second, re-armed from each tick while the timer runs.
+Cmd _armTick(AppModel model) => Tick(const Duration(seconds: 1), id: _timerId, key: model.chain);
 
 // ═══════════════════════════════════════════════════════════
 // UPDATE
@@ -33,24 +46,34 @@ class AppModel {
     // Quit on 'q'
     KeyMsg(key: 'q') => (model, const Quit()),
 
-    // Space toggles timer
-    KeyMsg(key: 'space') =>
-      model.running
-          ? (model.copyWith(running: false), const StopTick())
-          : (model.copyWith(running: true), const Tick(Duration(seconds: 1))),
+    // Space toggles the timer: starting arms a tick under a fresh generation;
+    // stopping just stops re-arming.
+    KeyMsg(key: 'space') when model.running => (model.copyWith(running: false), null),
+    KeyMsg(key: 'space') => _start(model),
 
     // Reset timer on 'r'
-    KeyMsg(key: 'r') => (model.copyWith(seconds: 0, running: false), const StopTick()),
+    KeyMsg(key: 'r') => (model.copyWith(seconds: 0, running: false), null),
 
     // Arrow keys control counter (works while timer runs)
     KeyMsg(key: 'up') => (model.copyWith(counter: model.counter + 1), null),
     KeyMsg(key: 'down') => (model.copyWith(counter: model.counter - 1), null),
 
-    // Tick increments timer
-    TickMsg() => (model.copyWith(seconds: model.seconds + 1), null),
+    // A tick of the current chain advances the timer and re-arms itself. One
+    // from a chain that was stopped, or restarted since, is consumed and
+    // dropped.
+    TickMsg(id: _timerId, :final key) when model.running && key == model.chain => (
+      model.copyWith(seconds: model.seconds + 1),
+      _armTick(model),
+    ),
+    TickMsg() => (model, null),
 
     _ => (model, null),
   };
+}
+
+(AppModel, Cmd?) _start(AppModel model) {
+  final started = model.copyWith(running: true, chain: model.chain + 1);
+  return (started, _armTick(started));
 }
 
 // ═══════════════════════════════════════════════════════════

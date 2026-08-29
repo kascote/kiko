@@ -16,6 +16,11 @@ class _FakeComponent implements Component {
   UpdateResult update(Msg msg) => const Handled();
 }
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('FocusSlot', () {
     test('declines a key message', () {
@@ -36,7 +41,7 @@ void main() {
 
     test('declines any other message', () {
       final slot = FocusSlot();
-      expect(slot.update(const NoneMsg()), isA<Declined>());
+      expect(slot.update(const _UnknownMsg()), isA<Declined>());
     });
 
     test('defaults to unfocused, and focused is settable', () {

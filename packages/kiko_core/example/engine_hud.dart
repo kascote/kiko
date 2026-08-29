@@ -6,15 +6,17 @@ import 'package:plume/plume.dart' as plume;
 // ═══════════════════════════════════════════════════════════
 // Engine HUD.
 //
-// A sprite bounces around, advanced by `FrameTickMsg` using its `delta` so
-// motion is frame-rate independent. The HUD surfaces what the render engine is
-// doing — FPS, frame number, delta — and, most usefully, the cells the double
-// buffer redrew last frame (`Frame.lastDiffCount`).
+// A sprite bounces around, advanced by a one-shot `Tick` the app re-arms
+// from every `TickMsg`, using `elapsed` so motion is rate independent. The
+// HUD surfaces what the loop is doing — ticks per second, tick number, delta
+// — and, most usefully, the cells the double buffer redrew last frame
+// (`Frame.lastDiffCount`).
 //
 // That last number is the point. A small sprite moving should redraw only a
-// handful of cells, not the whole screen. Press space to pause: nothing moves,
-// so the diff drops to 0. If double-buffering ever regressed into full repaints,
-// this number would sit at width×height every frame.
+// handful of cells, not the whole screen. Press space to pause: the tick is
+// not re-armed, nothing moves, and no frame is drawn at all — the diff stays
+// at whatever the last moving frame cost. If double-buffering ever regressed
+// into full repaints, this number would sit at width×height every frame.
 // ═══════════════════════════════════════════════════════════
 
 const _spriteW = 8;
@@ -23,6 +25,11 @@ const _spriteH = 4;
 // Fixed HUD width so the box does not resize as the readout digits change.
 const _hudW = 38;
 
+// The animation's own id and step. No widget claims the id, so the ticks
+// reach the app's update directly.
+const _spriteId = 'sprite';
+const _step = Duration(microseconds: 16667); // about 60 ticks a second
+
 class HudModel {
   // Sprite position (top-left) and velocity, in cells and cells/second.
   double x = 2;
@@ -30,23 +37,25 @@ class HudModel {
   double vx = 22;
   double vy = 11;
 
-  // Viewport size, learned from the frame each render so update can bounce.
-  int areaW = 0;
-  int areaH = 0;
-
   bool paused = false;
 
-  // Last frame's timing, for the readout.
-  Duration delta = Duration.zero;
-  int frameNumber = 0;
+  // The generation of the running tick chain: bumped on every resume, so a
+  // tick armed before a pause is dropped when it lands, never re-armed.
+  int chain = 0;
 
-  void advance(Duration dt) {
+  // Last tick's timing, for the readout.
+  Duration delta = Duration.zero;
+  int tickNumber = 0;
+
+  /// Moves the sprite by [dt] and bounces it off the edges of [area], the
+  /// viewport the update context carries.
+  void advance(Duration dt, Rect area) {
     final seconds = dt.inMicroseconds / 1e6;
     x += vx * seconds;
     y += vy * seconds;
 
-    final maxX = (areaW - _spriteW).toDouble();
-    final maxY = (areaH - _spriteH).toDouble();
+    final maxX = (area.width - _spriteW).toDouble();
+    final maxY = (area.height - _spriteH).toDouble();
     if (maxX <= 0 || maxY <= 0) return;
 
     if (x < 0) {
@@ -66,33 +75,35 @@ class HudModel {
   }
 }
 
-(HudModel, Cmd?) update(HudModel model, Msg msg, UpdateContext _) {
+/// Arms the next step of the sprite's tick chain.
+Cmd _tick(HudModel model) => Tick(_step, id: _spriteId, key: model.chain);
+
+(HudModel, Cmd?) update(HudModel model, Msg msg, UpdateContext ctx) {
   switch (msg) {
+    case InitMsg():
+      return (model, _tick(model));
     case KeyMsg(key: 'q'):
       return (model, const Quit());
     case KeyMsg(key: 'space'):
       model.paused = !model.paused;
-      return (model, null);
-    case FrameTickMsg(:final delta, :final frameNumber):
-      // While paused nothing in the model changes, so consecutive frames are
-      // byte-identical and the buffer diff is empty — the HUD reads 0 redrawn.
+      // Pausing stops the chain by not re-arming; resuming starts a fresh
+      // one, so a tick still pending from before the pause is stale.
       if (model.paused) return (model, null);
+      model.chain++;
+      return (model, _tick(model));
+    case TickMsg(id: _spriteId, :final key, :final elapsed):
+      if (model.paused || key != model.chain) return (model, null);
       model
-        ..delta = delta
-        ..frameNumber = frameNumber
-        ..advance(delta);
-      return (model, null);
+        ..delta = elapsed
+        ..tickNumber += 1
+        ..advance(elapsed, ctx.area);
+      return (model, _tick(model));
     default:
       return (model, null);
   }
 }
 
 void view(HudModel model, Frame frame) {
-  // Learn the viewport so the next tick can bounce against real bounds.
-  model
-    ..areaW = frame.area.width
-    ..areaH = frame.area.height;
-
   final ui = Stack(
     fit: plume.StackFit.expand,
     children: [
@@ -136,8 +147,8 @@ View _hud(HudModel model, Frame frame) {
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _stat('fps', fps.toStringAsFixed(1).padLeft(6)),
-        _stat('frame #', '${model.frameNumber}'.padLeft(6)),
+        _stat('ticks/s', fps.toStringAsFixed(1).padLeft(6)),
+        _stat('tick #', '${model.tickNumber}'.padLeft(6)),
         _stat('delta ms', ms.toStringAsFixed(2).padLeft(6)),
         _stat(
           'cells redrawn',
@@ -162,7 +173,7 @@ View _stat(String label, String value, {bool accent = false}) => Line.fromTexts(
 ]);
 
 View _hint(HudModel model) => Line(
-  model.paused ? '⏸ paused — cells redrawn should be 0 · space resumes · q quits' : '▶ space pauses · q quits',
+  model.paused ? '⏸ paused — no ticks, no frames · space resumes · q quits' : '▶ space pauses · q quits',
   style: const Style(fg: Color.darkGray),
 );
 

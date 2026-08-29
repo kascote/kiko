@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'addressed.dart';
 import 'msg.dart';
 
@@ -14,6 +16,12 @@ import 'msg.dart';
 /// Extend it beside the model that consumes it; core carries reports and never
 /// reads them. A report is [Addressed], so a focus router delivers it to its
 /// owner by [id]. An app without a router matches on it in its own `update`.
+///
+/// A report is a value: override `==` and `hashCode` over every field. The
+/// runtime queues a frame's report only when it differs from the one the
+/// previous frame produced under the same id and type, so an unchanged fact
+/// is delivered once, not once per frame.
+@immutable
 abstract class FrameReport extends Msg implements Addressed {
   /// Creates a report for the widget registered under [id].
   const FrameReport(this.id);

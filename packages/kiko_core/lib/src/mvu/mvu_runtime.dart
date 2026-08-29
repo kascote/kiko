@@ -6,6 +6,7 @@ import 'package:termparser/termparser_events.dart';
 
 import '../widgets/hit_map.dart';
 import 'cmd.dart';
+import 'frame_report.dart';
 import 'mouse_router.dart';
 import 'msg.dart';
 import 'pointer_msg.dart';
@@ -34,18 +35,17 @@ typedef OnMsgQueued = void Function();
 
 /// MVU runtime handles command processing and message queue management.
 ///
-/// Uses unified stream architecture where all event sources (terminal events,
-/// ticks, async tasks) push to the same queue in FIFO order.
+/// Every event source — terminal events, one-shot ticks, async task results,
+/// frame reports — pushes to one queue in FIFO order. [nextMsg] waits on that
+/// queue without polling; [close] wakes a waiting loop so shutdown can regain
+/// control.
 class MvuRuntime {
   final Queue<Msg> _msgQueue = Queue<Msg>();
   final MouseRouter _router = MouseRouter();
-  Timer? _tickTimer;
-  Timer? _frameTickTimer;
   _CancellationToken _token = _CancellationToken();
 
-  // Frame timing
-  DateTime _lastFrameTime = DateTime.now();
-  int _frameNumber = 0;
+  /// The one-shot timers armed by [Tick] and not yet fired.
+  final Set<Timer> _pendingTicks = {};
 
   /// Subscription to terminal events stream.
   StreamSubscription<Event>? _eventSubscription;
@@ -58,6 +58,14 @@ class MvuRuntime {
   /// Whether an incoming event is stamped and queued immediately, rather than
   /// held in [_startupEvents]. See [holdEventsForFirstFrame].
   bool _liveDelivery = true;
+
+  /// Whether [close] has been called: [nextMsg] answers null from then on.
+  bool _closed = false;
+
+  /// The last report the previous frame produced, per widget id and type.
+  ///
+  /// A frame's report equal to this one is not news and is not queued.
+  Map<(String, Type), FrameReport> _lastReports = const {};
 
   /// Exit code set by Quit command.
   int exitCode = 0;
@@ -85,12 +93,9 @@ class MvuRuntime {
     _router.reset();
     _msgQueue.clear();
     _wakeUp = Completer<void>();
-    _tickTimer?.cancel();
-    _tickTimer = null;
-    _frameTickTimer?.cancel();
-    _frameTickTimer = null;
-    _lastFrameTime = DateTime.now();
-    _frameNumber = 0;
+    _closed = false;
+    _lastReports = const {};
+    _cancelTicks();
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = null;
     _startupEvents.clear();
@@ -176,6 +181,28 @@ class MvuRuntime {
     _signalWakeUp();
   }
 
+  /// Queues the reports of a committed frame that carry news.
+  ///
+  /// A report equal to the one the previous frame produced under the same id
+  /// and type is not queued: the fact has not changed, so its owner has
+  /// nothing to learn. That is what lets a frame caused by a report settle
+  /// instead of reporting its way into the next frame forever. A report
+  /// whose id and type were absent from the previous frame is always queued.
+  ///
+  /// Reports are compared with `==`, so a report kind is a value.
+  void queueReports(Iterable<FrameReport> reports) {
+    final next = <(String, Type), FrameReport>{};
+    for (final report in reports) {
+      final key = (report.id, report.runtimeType);
+      next[key] = report;
+      if (_lastReports[key] != report) queueMsg(report);
+    }
+    _lastReports = next;
+  }
+
+  /// Whether a message is waiting in the queue.
+  bool get hasPending => _msgQueue.isNotEmpty;
+
   /// Signals the event loop to wake up.
   void _signalWakeUp() {
     if (!_wakeUp.isCompleted) {
@@ -194,77 +221,30 @@ class MvuRuntime {
   /// Returns the wake-up future for awaiting.
   Future<void> get wakeUpFuture => _wakeUp.future;
 
-  /// Gets next message from the unified queue.
+  /// Takes the next message from the queue, waiting until one is queued.
   ///
-  /// All event sources (terminal events, ticks, async tasks) push to the same
-  /// queue in FIFO order, providing fair interleaving without starvation.
-  ///
-  /// Returns immediately if message available, otherwise waits for wake-up
-  /// signal or timeout.
-  Future<Msg> nextMsg({required int timeout}) async {
-    // Check queue first
-    if (_msgQueue.isNotEmpty) {
-      return _msgQueue.removeFirst();
+  /// Every event source pushes to the same queue in FIFO order, so messages
+  /// interleave fairly without starvation. Returns immediately when a message
+  /// is waiting; otherwise waits — indefinitely — for [queueMsg] or [close].
+  /// Answers null once the runtime is closed, whether or not messages remain:
+  /// shutdown has started and nothing else is to be processed.
+  Future<Msg?> nextMsg() async {
+    while (true) {
+      if (_closed) return null;
+      if (_msgQueue.isNotEmpty) return _msgQueue.removeFirst();
+      await _wakeUp.future;
+      _resetWakeUp();
     }
-
-    // Wait for message or timeout
-    await Future.any([
-      _wakeUp.future,
-      Future<void>.delayed(Duration(milliseconds: timeout)),
-    ]);
-
-    // Reset wake-up for next round
-    _resetWakeUp();
-
-    // Return message if available, otherwise NoneMsg
-    if (_msgQueue.isNotEmpty) {
-      return _msgQueue.removeFirst();
-    }
-    return const NoneMsg();
   }
 
-  /// Starts the frame tick timer at the specified fps.
+  /// Closes the queue: a waiting [nextMsg] wakes and answers null, and so does
+  /// every call after.
   ///
-  /// FrameTick is internal and drives the render loop.
-  /// This is separate from user [Tick] timers.
-  void startFrameTick(int fps) {
-    _frameTickTimer?.cancel();
-    _lastFrameTime = DateTime.now();
-    _frameNumber = 0;
-
-    final interval = Duration(milliseconds: (1000 / fps).round());
-    _frameTickTimer = Timer.periodic(interval, (_) {
-      final now = DateTime.now();
-      final delta = now.difference(_lastFrameTime);
-      _lastFrameTime = now;
-      _frameNumber++;
-
-      queueMsg(
-        FrameTickMsg(
-          delta: delta,
-          frameNumber: _frameNumber,
-          timestamp: now,
-        ),
-      );
-    });
-  }
-
-  /// Stops the frame tick timer.
-  void stopFrameTick() {
-    _frameTickTimer?.cancel();
-    _frameTickTimer = null;
-  }
-
-  /// Checks if a message is stale and should be dropped.
-  ///
-  /// Droppable messages (e.g. FrameTickMsg) are stale when older than
-  /// 2 frame intervals. This prevents rendering backlog from building up.
-  bool isStale(Msg msg, int fps) {
-    if (!msg.droppable) return false;
-    if (msg is! FrameTickMsg) return false;
-    // Stale = older than 2 frame intervals
-    final threshold = Duration(milliseconds: (1000 / fps * 2).round());
-    return DateTime.now().difference(msg.timestamp) > threshold;
+  /// [dispose] calls it; shutdown from outside the loop — a signal, a
+  /// `dispose(code)` — reaches the loop through it.
+  void close() {
+    _closed = true;
+    _signalWakeUp();
   }
 
   /// Coalesces pending messages in the queue.
@@ -300,12 +280,17 @@ class MvuRuntime {
     }
   }
 
+  /// Cancels every pending one-shot tick.
+  void _cancelTicks() {
+    for (final timer in _pendingTicks) {
+      timer.cancel();
+    }
+    _pendingTicks.clear();
+  }
+
   /// Cancels timers and subscriptions.
   void _cleanup() {
-    _tickTimer?.cancel();
-    _tickTimer = null;
-    _frameTickTimer?.cancel();
-    _frameTickTimer = null;
+    _cancelTicks();
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = null;
   }
@@ -320,16 +305,14 @@ class MvuRuntime {
         exitCode = code;
         _cleanup();
         return true;
-      case Tick(:final interval):
-        _tickTimer?.cancel();
+      case Tick(:final interval, :final id, :final key):
         final stopwatch = Stopwatch()..start();
-        _tickTimer = Timer.periodic(interval, (_) {
-          queueMsg(TickMsg(stopwatch.elapsed));
+        late final Timer timer;
+        timer = Timer(interval, () {
+          _pendingTicks.remove(timer);
+          queueMsg(TickMsg(id, key: key, elapsed: stopwatch.elapsed));
         });
-        return false;
-      case StopTick():
-        _tickTimer?.cancel();
-        _tickTimer = null;
+        _pendingTicks.add(timer);
         return false;
       case Emit(:final msg):
         queueMsg(msg);
@@ -338,7 +321,7 @@ class MvuRuntime {
         final token = _token; // Capture current token
         unawaited(
           task.execute().then((msg) {
-            if (!token.isCancelled) queueMsg(msg);
+            if (msg != null && !token.isCancelled) queueMsg(msg);
           }),
         );
         return false;
@@ -363,6 +346,9 @@ class MvuRuntime {
     }
   }
 
-  /// Disposes runtime resources.
-  void dispose() => _cleanup();
+  /// Disposes runtime resources and closes the queue.
+  void dispose() {
+    _cleanup();
+    close();
+  }
 }

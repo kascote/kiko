@@ -69,11 +69,9 @@ Future<List<Msg>> _drive(TestBackend backend, List<Event> events, Render<int> vi
       switch (msg) {
         case KeyMsg(key: _quitKey):
           return (model, const Quit());
-        case InitMsg() || NoneMsg():
+        case InitMsg():
           return (model, null);
         default:
-          // The render clock's own message is the only droppable one.
-          if (msg.droppable) return (model, null);
           pending = false;
           seen.add(msg);
           return (model, null);
@@ -207,9 +205,10 @@ void main() {
     test('a burst of moves coalesces, so the pane swept over never hears about it', () async {
       final seen = <Msg>[];
 
-      // fps 1 keeps the render clock out of the way. The cursor arrives over
-      // `a`, then two more moves land in the queue before the loop can drain
-      // either — as they would from a cursor outrunning the frame rate.
+      // The cursor arrives over `a`, then two more moves land in the queue
+      // before the loop can drain either — as they would from a cursor
+      // outrunning the frame rate. fps 1 keeps a draw from landing between
+      // them.
       await Application(backend: backend, fps: 1).run<int>(
         init: 0,
         update: (step, msg, ctx) {

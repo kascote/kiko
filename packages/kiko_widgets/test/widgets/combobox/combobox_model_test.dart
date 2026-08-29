@@ -39,6 +39,11 @@ class RemoteOption {
   int get hashCode => id.hashCode;
 }
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('ComboboxModel', () {
     ComboboxModel<String> fruitBox({
@@ -883,7 +888,7 @@ void main() {
 
     group('unknown messages', () {
       test('declines a message it does not know', () {
-        expect(fruitBox().update(const NoneMsg()), isA<Declined>());
+        expect(fruitBox().update(const _UnknownMsg()), isA<Declined>());
       });
 
       test('declines a pointer leave and a pointer cancel', () {

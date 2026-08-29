@@ -162,7 +162,7 @@ void main() {
   group('fetchInto', () {
     LoadRequest request(int page) => LoadRequest('products', key: PageKey(page));
 
-    Future<Msg> run(Cmd cmd) => (cmd as AsyncCmd).execute();
+    Future<Msg?> run(Cmd cmd) => (cmd as AsyncCmd).execute();
 
     test('threads the request id and key into the result', () async {
       final source = PageSource.offset<String>(
@@ -173,7 +173,7 @@ void main() {
       final msg = await run(fetchInto(request(1), source));
 
       expect(msg, isA<LoadResult<PageResult<String>>>());
-      final result = msg as LoadResult<PageResult<String>>;
+      final result = msg! as LoadResult<PageResult<String>>;
       expect(result.id, equals('products'));
       expect(result.key, equals(const PageKey(1)));
       expect(result.ok, isTrue);
@@ -187,7 +187,7 @@ void main() {
         read: (offset, limit) async => throw boom,
       );
 
-      final result = await run(fetchInto(request(2), source)) as LoadResult<Object?>;
+      final result = (await run(fetchInto(request(2), source)))! as LoadResult<Object?>;
 
       expect(result.ok, isFalse, reason: 'the page resolves as failed rather than staying in flight');
       expect(result.cancelled, isFalse);

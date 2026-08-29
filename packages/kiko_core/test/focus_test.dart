@@ -25,6 +25,11 @@ class MockComponent implements Component {
   UpdateResult update(Msg msg) => const Handled();
 }
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('FocusGroup', () {
     test('initializes with first item focused', () {
@@ -167,7 +172,7 @@ void main() {
 
     test('update is reachable generically through Component', () {
       final Component c = MockComponent('w');
-      expect(c.update(const NoneMsg()), isA<Handled>());
+      expect(c.update(const _UnknownMsg()), isA<Handled>());
     });
   });
 

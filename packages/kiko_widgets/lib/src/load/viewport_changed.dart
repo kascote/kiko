@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:meta/meta.dart';
 
 /// The viewport a windowed widget painted: how many rows it showed and, for a
 /// table, how many columns.
@@ -10,6 +11,7 @@ import 'package:kiko/kiko.dart';
 /// count it holds: an unchanged report is `Handled` with no command; a changed
 /// one stores the count and returns the demand pass for the pages the viewport
 /// now needs.
+@immutable
 class ViewportChanged extends FrameReport {
   /// Creates a report that the widget registered under [id] painted [rows]
   /// rows and, when it windows columns too, [cols] columns.
@@ -21,4 +23,14 @@ class ViewportChanged extends FrameReport {
   /// The columns the viewport showed, or null for a widget that windows rows
   /// only.
   final int? cols;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is ViewportChanged && other.id == id && other.rows == rows && other.cols == cols;
+
+  @override
+  int get hashCode => Object.hash(id, rows, cols);
+
+  @override
+  String toString() => 'ViewportChanged($id, rows: $rows, cols: $cols)';
 }

@@ -12,8 +12,9 @@ abstract class Cmd {
 /// A command that can be executed asynchronously.
 // ignore: one_member_abstracts
 abstract interface class AsyncCmd {
-  /// Executes the command and returns the resulting message.
-  Future<Msg> execute();
+  /// Executes the command and returns the resulting message, or null when the
+  /// outcome has no message. A null result queues nothing.
+  Future<Msg?> execute();
 }
 
 /// Quit the application with an exit code.
@@ -52,22 +53,38 @@ class Emit extends Cmd {
   const Emit(this.msg);
 }
 
-/// Request periodic tick messages.
+/// Request one `TickMsg` after [interval].
 ///
-/// When returned from update, the runtime will send `TickMsg` at the
-/// specified interval until a `StopTick` command is issued.
+/// A tick is one-shot: exactly one `TickMsg` arrives, carrying [id], [key],
+/// and the time elapsed since the tick was armed. An animation re-arms by
+/// returning another `Tick` from its `TickMsg` case; when it stops re-arming,
+/// no more ticks arrive. Several ticks may be pending at once.
+///
+/// [id] addresses the tick like an async result: a focus router delivers the
+/// `TickMsg` to the widget registered under it, and an app-level animation
+/// picks an id no widget claims so the router declines it and the app's own
+/// `update` handles it. [key] is the owner's generation — bump it when the
+/// animation starts or restarts, and drop a `TickMsg` whose key is stale
+/// instead of re-arming, so a restart never runs two chains at once.
+///
+/// ```dart
+/// KeyMsg(key: 'space') => (model..running = true..chain++, Tick(step, id: 'clock', key: model.chain)),
+/// TickMsg(id: 'clock', :final key, :final elapsed) when key == model.chain && model.running =>
+///   (model..advance(elapsed), Tick(step, id: 'clock', key: model.chain)),
+/// TickMsg() => (model, null), // stale, or stopped: not re-armed
+/// ```
 class Tick extends Cmd {
-  /// Interval between ticks.
+  /// How long after arming the `TickMsg` arrives.
   final Duration interval;
 
-  /// Creates a Tick command.
-  const Tick(this.interval);
-}
+  /// The stable id of the owner the `TickMsg` is addressed to.
+  final String id;
 
-/// Stop receiving tick messages.
-class StopTick extends Cmd {
-  /// Creates a StopTick command.
-  const StopTick();
+  /// The owner's generation, carried back on the `TickMsg` unchanged.
+  final Object? key;
+
+  /// Creates a one-shot tick for the owner registered under [id].
+  const Tick(this.interval, {required this.id, this.key});
 }
 
 /// Run an async operation and send a message when complete.
@@ -88,16 +105,16 @@ class StopTick extends Cmd {
 /// Task(() => analytics.track('clicked'))
 /// ```
 ///
-/// Both `onSuccess` and `onError` are optional. If not provided, returns
-/// `NoneMsg` for that case.
+/// Both `onSuccess` and `onError` are optional. An outcome with no handler
+/// queues nothing.
 class Task<T> extends Cmd implements AsyncCmd {
   /// The async operation to run.
   final Future<T> Function() _run;
 
-  /// Converts the result to a message. If null, returns `NoneMsg`.
+  /// Converts the result to a message. Null queues nothing on success.
   final Msg Function(T result)? _onSuccess;
 
-  /// Converts error to a message. If null, returns `NoneMsg`.
+  /// Converts error to a message. Null queues nothing on failure.
   final Msg Function(Object error)? _onError;
 
   /// Creates a Task command.
@@ -109,12 +126,12 @@ class Task<T> extends Cmd implements AsyncCmd {
        _onError = onError;
 
   @override
-  Future<Msg> execute() async {
+  Future<Msg?> execute() async {
     try {
       final result = await _run();
-      return _onSuccess?.call(result) ?? const NoneMsg();
+      return _onSuccess?.call(result);
     } on Object catch (e) {
-      return _onError?.call(e) ?? const NoneMsg();
+      return _onError?.call(e);
     }
   }
 }

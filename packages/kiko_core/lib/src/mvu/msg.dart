@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../widgets/hit_map.dart';
+import 'addressed.dart';
 import 'pointer_msg.dart';
 
 /// Base class for all messages in MVU architecture.
@@ -10,12 +11,6 @@ import 'pointer_msg.dart';
 abstract class Msg {
   /// Creates a Msg.
   const Msg();
-
-  /// Whether this message can be dropped when stale.
-  ///
-  /// Droppable messages (e.g. FrameTickMsg) can be skipped when rendering
-  /// falls behind. Input events should never be droppable.
-  bool get droppable => false;
 
   /// Whether this message can be coalesced with others of the same key.
   ///
@@ -264,12 +259,6 @@ class PasteMsg extends Msg {
   String toString() => 'PasteMsg($text)';
 }
 
-/// Message sent when event polling times out (no input).
-class NoneMsg extends Msg {
-  /// Creates a NoneMsg.
-  const NoneMsg();
-}
-
 /// Message sent once at application startup before first render.
 ///
 /// Allows update function to return initial commands (fetch data, start timer).
@@ -285,39 +274,28 @@ class InitMsg extends Msg {
   final bool? hasDarkBackground;
 }
 
-/// Message sent on each tick interval.
-class TickMsg extends Msg {
-  /// Total time elapsed since Tick command was issued.
+/// The one message a `Tick` command delivers, after its interval.
+///
+/// Addressed to the owner that armed the tick: a focus router delivers it by
+/// [id], and the owner compares [key] to its current generation before
+/// re-arming. [elapsed] is the time since the tick was armed — the animation
+/// delta.
+class TickMsg extends Msg implements Addressed {
+  /// The stable id of the owner the tick was armed for.
+  @override
+  final String id;
+
+  /// The generation the owner armed the tick with.
+  final Object? key;
+
+  /// Time elapsed since the `Tick` command was armed.
   final Duration elapsed;
 
-  /// Creates a TickMsg.
-  const TickMsg(this.elapsed);
-}
+  /// Creates a TickMsg for the owner registered under [id].
+  const TickMsg(this.id, {required this.elapsed, this.key});
 
-/// Internal frame tick message for render loop.
-///
-/// Sent automatically at the configured fps rate.
-/// Unlike [TickMsg] (user-controlled), this drives the render cycle.
-class FrameTickMsg extends Msg {
-  /// Time since last frame.
-  final Duration delta;
-
-  /// Frame number since app start.
-  final int frameNumber;
-
-  /// Timestamp when this tick was created.
-  final DateTime timestamp;
-
-  /// Creates a FrameTickMsg.
-  const FrameTickMsg({
-    required this.delta,
-    required this.frameNumber,
-    required this.timestamp,
-  });
-
-  /// FrameTickMsg can be dropped when stale (rendering behind).
   @override
-  bool get droppable => true;
+  String toString() => 'TickMsg($id, key: $key, elapsed: $elapsed)';
 }
 
 /// Wrapper for terminal resize events.
@@ -386,10 +364,11 @@ class UnknownMsg extends Msg {
 
 /// Converts a termparser Event to a Msg.
 ///
-/// Returns null for the one event intake drops instead of delivering: the
+/// Returns null for the two events intake drops instead of delivering: the
 /// auto-repeat of a bare modifier key (see [ModifierKeyMsg]) carries no new
-/// information, so there is nothing for `update` to see. Every other event
-/// becomes exactly one message — nothing else is ever suppressed.
+/// information, and termparser's `NoneEvent` carries no event at all, so
+/// there is nothing for `update` to see. Every other event becomes exactly
+/// one message — nothing else is ever suppressed.
 ///
 /// A mouse event is stamped with [hits], the geometry of the frame it was aimed
 /// at. The runtime passes the map it last committed, so an event that waits in
@@ -402,7 +381,7 @@ Msg? eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
     final evt.MouseEvent e => RawPointerMsg(e, hits),
     final evt.FocusEvent e => FocusMsg(hasFocus: e.hasFocus),
     final evt.PasteEvent e => PasteMsg(e.text),
-    evt.NoneEvent() => const NoneMsg(),
+    evt.NoneEvent() => null,
     final evt.WindowResizeEvent e => ResizeMsg(
       width: e.widthChars,
       height: e.heightChars,

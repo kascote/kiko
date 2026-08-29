@@ -33,6 +33,11 @@ Frame _frame(int width, int height, {TextMeasurer measurer = const TermUnicodeMe
   return Frame(buffer.area, buffer, 0);
 }
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('TextInputModel', () {
     test('default empty state', () {
@@ -194,7 +199,7 @@ void main() {
 
     test('declines a message it does not know', () {
       final model = TextInputModel(initial: 'abc', focused: true);
-      final result = model.update(const NoneMsg());
+      final result = model.update(const _UnknownMsg());
       expect(result, isA<Declined>());
       expect(model.value, equals('abc')); // unchanged
     });

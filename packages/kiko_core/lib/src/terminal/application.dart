@@ -33,6 +33,12 @@ typedef CleanupCallback = FutureOr<void> Function(Terminal terminal);
 /// [Application.onFrame].
 typedef FrameCallback = void Function(CompletedFrame frame);
 
+/// The throttle timer's own message: the frame interval has passed, so a
+/// deferred frame is due. It never reaches `update`.
+class _DrawDue extends Msg {
+  const _DrawDue();
+}
+
 /// Update function for MVU: (model, msg, ctx) -> (model, cmd?)
 ///
 /// [UpdateContext] carries what the runtime knows and the model does not — the
@@ -140,13 +146,12 @@ class Application {
   /// terminal configured for a CJK locale.
   final TextMeasurer measurer;
 
-  /// Event polling timeout in milliseconds
-  final int eventTimeout;
-
-  /// Target frames per second for render loop.
+  /// The ceiling on the draw rate, in frames per second.
   ///
-  /// FrameTick timer fires at this rate to drive rendering.
-  /// Default is 60fps (~16ms between frames).
+  /// A frame follows every processed message; this never causes a frame. A
+  /// message that lands within one interval (`1 / fps`) of the last draw
+  /// waits for the remainder, so a burst of messages paints once. Default is
+  /// 60 (about 16 ms between frames).
   final int fps;
 
   /// Path to log file. If null, logging is disabled.
@@ -165,13 +170,6 @@ class Application {
   StreamSubscription<ProcessSignal>? _sigintSub;
   StreamSubscription<ProcessSignal>? _sigtermSub;
   bool _disposed = false;
-
-  // Set the instant a shutdown starts, from whichever path triggers it —
-  // possibly while the drain loop in _runLoop is still running concurrently
-  // (a signal, or a caller's dispose(code)). The loop checks this the moment
-  // it regains control (see _runLoop) and returns without touching the
-  // terminal again, since _shutdown may already be restoring or disposing it.
-  bool _stopped = false;
 
   // The resolved keyboard-enhancement decision: whether _initTerminal actually
   // enabled it. `keyboardEnhancement` alone cannot answer this — the auto
@@ -204,7 +202,6 @@ class Application {
     this.onFrame,
     @visibleForTesting this.backend,
     this.measurer = const TermUnicodeMeasurer(),
-    this.eventTimeout = 10,
     this.fps = 60,
     this.logPath,
     this.logLevel = LogLevel.info,
@@ -291,62 +288,77 @@ class Application {
       // has committed a frame to stamp it against. Hold it until it has.
       ..holdEventsForFirstFrame();
 
+    final interval = Duration(microseconds: (Duration.microsecondsPerSecond / fps).round());
+    final sinceDraw = Stopwatch()..start();
+    Timer? throttle;
+    var dirty = false;
+
     // The map a mouse event resolves against is the one that painted the cells
     // it was aimed at, so every draw hands its geometry back to the runtime
     // before anyone outside hears about the frame. Paint's reports enter the
     // queue right behind that geometry: a report's update reads the frame
     // that produced it.
     Future<void> draw(M model) async {
+      throttle?.cancel();
+      throttle = null;
+      dirty = false;
       final completed = await terminal.draw((frame) => view(model, frame));
-      runtime.lastHitMap = completed.hits;
-      completed.reports.forEach(runtime.queueMsg);
+      sinceDraw.reset();
+      runtime
+        ..lastHitMap = completed.hits
+        ..queueReports(completed.reports);
       onFrame?.call(completed);
     }
 
-    // 1. Send InitMsg, process, render immediately (before FrameTick starts)
+    // Send InitMsg, process, draw the first frame.
     final initCtx = UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
     var (model, initCmd) = update(init, InitMsg(hasDarkBackground: terminal.backend.hasDarkBackground), initCtx);
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
     await draw(model);
-    runtime
-      ..flushStartupEvents()
-      // 2. Start FrameTick timer
-      ..startFrameTick(fps);
+    runtime.flushStartupEvents();
 
-    // 3. Main loop
+    // The loop: a frame follows every processed message, at most fps a
+    // second. Nothing runs while the queue is empty.
     while (true) {
       // Coalesce pending messages (e.g. mouse moves) before processing
       runtime.coalesceQueue();
 
-      // Get next message
-      final msg = await runtime.nextMsg(timeout: eventTimeout);
+      // Waits until a message is queued. Null means the runtime was closed by
+      // a shutdown that started elsewhere (a signal, dispose(code)), which may
+      // already have restored or disposed the terminal: stop without touching
+      // it again.
+      final msg = await runtime.nextMsg();
+      if (msg == null) return runtime.exitCode;
 
-      // A concurrent _shutdown (signal, dispose(code)) may have started, and
-      // possibly already restored or disposed the terminal, while this await
-      // was pending — stop before touching it again. nextMsg always returns
-      // within eventTimeout, so this is checked promptly.
-      if (_stopped) return runtime.exitCode;
+      if (msg is! _DrawDue) {
+        // Resolve the message. A mouse event leaves the router as a routed
+        // event, sometimes behind a leave or a cancel for the widget it
+        // abandons — up to three messages, all reading the frame the pointer
+        // was over.
+        final (:msgs, :hits) = runtime.route(msg);
+        final ctx = UpdateContext(hits: hits, area: terminal.viewportArea);
 
-      // Drop stale frames to prevent backlog
-      if (runtime.isStale(msg, fps)) continue;
-
-      // Resolve the message. A mouse event leaves the router as a routed event,
-      // sometimes behind a leave or a cancel for the widget it abandons — up to
-      // three messages, all reading the frame the pointer was over.
-      final (:msgs, :hits) = runtime.route(msg);
-      final ctx = UpdateContext(hits: hits, area: terminal.viewportArea);
-
-      // Update model (all messages, including FrameTick)
-      for (final delivered in msgs) {
-        final (newModel, cmd) = update(model, delivered, ctx);
-        model = newModel;
-
-        // Process command
-        if (runtime.processCmd(cmd)) return runtime.exitCode;
+        for (final delivered in msgs) {
+          final (newModel, cmd) = update(model, delivered, ctx);
+          model = newModel;
+          if (runtime.processCmd(cmd)) return runtime.exitCode;
+        }
+        dirty = true;
       }
 
-      // Render only on FrameTick, and only for the message that was dequeued.
-      if (msg is FrameTickMsg) await draw(model);
+      if (!dirty) continue;
+      // Draw now if the interval has passed since the last draw. Otherwise
+      // keep draining while messages wait — a burst paints once, when it is
+      // through — and, once the queue is empty, arm one timer for the rest of
+      // the interval; its message is a draw point.
+      if (sinceDraw.elapsed >= interval) {
+        await draw(model);
+      } else if (!runtime.hasPending) {
+        throttle ??= Timer(interval - sinceDraw.elapsed, () {
+          throttle = null;
+          runtime.queueMsg(const _DrawDue());
+        });
+      }
     }
   }
 
@@ -418,16 +430,13 @@ class Application {
     Object? error,
     StackTrace? stack,
   }) async {
-    // Tell a concurrently running _runLoop to stop before it touches the
-    // terminal again, regardless of whether this call goes on to do the
-    // shutdown work itself (see the _disposed guard right below).
-    _stopped = true;
-
     if (_disposed) return exitCode;
     _disposed = true;
 
     Log.info('Application stopping (code: $exitCode)');
 
+    // Closes the queue, so a _runLoop still waiting on it wakes and returns
+    // before this call restores or disposes the terminal it would draw on.
     _runtime?.dispose();
 
     await _cancelSignalHandlers();

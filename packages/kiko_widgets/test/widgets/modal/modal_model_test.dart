@@ -46,7 +46,7 @@ void main() {
 
     test('declines a message it does not know', () {
       final modal = ModalModel(id: 'm');
-      expect(modal.update(const TickMsg(Duration.zero)), isA<Declined>());
+      expect(modal.update(const TickMsg('elsewhere', elapsed: Duration.zero)), isA<Declined>());
     });
   });
 

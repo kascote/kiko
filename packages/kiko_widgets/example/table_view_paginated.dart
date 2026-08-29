@@ -231,11 +231,9 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
         fetchFor(model, model.table.loadFirstPage()),
         // The count arrives as a benign one-shot; the table uses it to know how
         // far it can jump and which pages exist.
-        Task(
-          model.api.fetchCount,
-          onSuccess: (count) => CountLoadedMsg(model.table.id, count),
-          onError: (_) => const NoneMsg(),
-        ),
+        // A failed count queues nothing: the table simply never learns how
+        // far it can jump.
+        Task(model.api.fetchCount, onSuccess: (count) => CountLoadedMsg(model.table.id, count)),
       ]),
     );
   }

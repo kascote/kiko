@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
+import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -31,11 +32,19 @@ FrameCallback quitAfterFirstFrame(TestBackend backend) => (frame) {
 void tagWholeArea(int _, Frame frame) =>
     frame.render(Tagged('ok', Container(border: BorderType.plain, child: Line(''))));
 
-/// A report carrying one number: the shape a widget's own kind takes.
+/// A report carrying one number, with value equality: the shape a widget's
+/// own kind takes.
+@immutable
 class _Rows extends FrameReport {
   const _Rows(super.id, this.rows);
 
   final int rows;
+
+  @override
+  bool operator ==(Object other) => other is _Rows && other.id == id && other.rows == rows;
+
+  @override
+  int get hashCode => Object.hash(id, rows);
 }
 
 /// A leaf that fills its box and appends [reports] when painted.
@@ -385,25 +394,241 @@ void main() {
   });
 
   group('the drain loop', () {
-    test('renders on the init message and then on every frame tick', () async {
-      var frames = 0;
+    test('a static application draws once after InitMsg and then not at all while idle', () async {
+      var views = 0;
+
+      final rc = await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) => switch (msg) {
+          // A probe tick well past any frame interval: the loop had every
+          // chance to draw again before it lands.
+          InitMsg() => (model, const Tick(Duration(milliseconds: 60), id: 'probe')),
+          TickMsg(id: 'probe') => (model, const Quit()),
+          _ => (model, null),
+        },
+        view: (_, _) => views++,
+      );
+
+      expect(rc, 0);
+      expect(views, 1);
+      expect(backend.drawCount, 1, reason: 'no view, layout, or backend draw while idle');
+    });
+
+    test('one message causes exactly one frame', () async {
+      final frames = <int>[];
+
+      await runApp(
+        Application(
+          backend: backend,
+          onFrame: (frame) {
+            frames.add(frame.count);
+            if (frame.count == 0) backend.emitKey('n');
+            if (frame.count == 1) backend.emitKey(quitKey);
+          },
+        ),
+        update: quitOnKey(),
+      );
+
+      expect(frames, [0, 1], reason: 'the init draw, then the one frame the key caused');
+      expect(backend.drawCount, 2, reason: 'the quit is processed before its own frame would draw');
+    });
+
+    test('a burst queued before the loop drains is processed in FIFO order and yields one frame', () async {
+      final seen = <String>[];
       var views = 0;
 
       final rc = await runApp(
         Application(
           backend: backend,
-          onFrame: (_) {
-            frames++;
-            if (frames == 2) backend.emitKey(quitKey);
+          onFrame: (frame) {
+            if (frame.count == 1) backend.emitKey(quitKey);
           },
         ),
-        update: quitOnKey(),
-        view: (_, _) => views++,
+        update: (model, msg, _) {
+          if (msg case KeyMsg(:final key)) {
+            if (key == quitKey) return (model, const Quit());
+            seen.add(key);
+          }
+          return (model, null);
+        },
+        view: (_, _) {
+          views++;
+          // Emitted inside the startup hold: all three are queued together
+          // when the hold lifts after this first draw.
+          if (views == 1) backend.emitAll([for (final k in 'abc'.split('')) KeyEvent.fromString(k)]);
+        },
       );
 
       expect(rc, 0);
-      expect(views, 2, reason: 'the init draw, then one render for the first tick');
-      expect(backend.drawCount, 2, reason: 'the quit key arrives before the next tick renders');
+      expect(seen, ['a', 'b', 'c']);
+      expect(views, 2, reason: 'the init draw, then one frame for the whole burst');
+    });
+
+    test('a re-arming tick draws once per tick, and its elapsed reads about one interval', () async {
+      const step = Duration(milliseconds: 10);
+      final elapsed = <Duration>[];
+
+      await runApp(
+        // fps well above the tick rate: every tick lands after the interval
+        // and draws at once.
+        Application(backend: backend, fps: 1000),
+        update: (model, msg, _) => switch (msg) {
+          InitMsg() => (model, const Tick(step, id: 'anim')),
+          TickMsg(id: 'anim', elapsed: final e) => (
+            model,
+            elapsed.length < 5
+                ? (elapsed..add(e)).length < 5
+                      ? const Tick(step, id: 'anim')
+                      : const Quit()
+                : null,
+          ),
+          _ => (model, null),
+        },
+      );
+
+      expect(elapsed, hasLength(5));
+      for (final e in elapsed) {
+        expect(e, greaterThanOrEqualTo(step));
+        expect(e, lessThan(step * 5), reason: 'about one interval, measured from arming');
+      }
+      expect(backend.drawCount, 5, reason: 'the init draw, then one per tick until the fifth quits');
+    });
+
+    test('fps is a ceiling: messages inside one interval share a frame drawn when it ends', () async {
+      const step = Duration(milliseconds: 5);
+      final ticks = <int>[];
+      final frameTimes = <Duration>[];
+      final clock = Stopwatch()..start();
+
+      await runApp(
+        // A 50 ms interval; five ticks 5 ms apart all land inside it.
+        Application(
+          backend: backend,
+          fps: 20,
+          onFrame: (frame) {
+            frameTimes.add(clock.elapsed);
+            if (frame.count == 1) backend.emitKey(quitKey);
+          },
+        ),
+        update: (model, msg, _) => switch (msg) {
+          InitMsg() => (model, const Tick(step, id: 'anim')),
+          TickMsg(id: 'anim') => (
+            model,
+            (ticks..add(backend.drawCount)).length < 5 ? const Tick(step, id: 'anim') : null,
+          ),
+          KeyMsg(key: quitKey) => (model, const Quit()),
+          _ => (model, null),
+        },
+      );
+
+      expect(ticks, [1, 1, 1, 1, 1], reason: 'no tick saw a frame drawn since the init draw');
+      expect(backend.drawCount, 2, reason: 'one deferred frame for all five');
+      expect(frameTimes[1] - frameTimes[0], greaterThanOrEqualTo(const Duration(milliseconds: 50)));
+    });
+
+    test('stopping the re-arm stops frame production', () async {
+      var ticks = 0;
+
+      await runApp(
+        Application(backend: backend, fps: 1000),
+        update: (model, msg, _) => switch (msg) {
+          InitMsg() => (
+            model,
+            Batch([
+              const Tick(Duration(milliseconds: 5), id: 'anim'),
+              const Tick(Duration(milliseconds: 80), id: 'probe'),
+            ]),
+          ),
+          // Three ticks, then the chain is left to die.
+          TickMsg(id: 'anim') => (model, ++ticks < 3 ? const Tick(Duration(milliseconds: 5), id: 'anim') : null),
+          TickMsg(id: 'probe') => (model, const Quit()),
+          _ => (model, null),
+        },
+      );
+
+      expect(ticks, 3);
+      expect(backend.drawCount, 4, reason: 'the init draw and one per tick; nothing in the idle stretch after');
+    });
+
+    test('a TickMsg whose key is stale is delivered, and its owner does not re-arm it', () async {
+      const step = Duration(milliseconds: 5);
+      var live = 0;
+      var stale = 0;
+
+      await runApp(
+        Application(backend: backend),
+        update: (chain, msg, _) => switch (msg) {
+          // Generation 1 is current; a tick armed under generation 0 is
+          // already pending — a restart racing an older chain.
+          InitMsg() => (1, Batch([const Tick(step, id: 'anim', key: 0), const Tick(step, id: 'anim', key: 1)])),
+          TickMsg(id: 'anim', :final key) when key == chain => (
+            chain,
+            ++live < 3 ? const Tick(step, id: 'anim', key: 1) : const Quit(),
+          ),
+          TickMsg(id: 'anim') => (chain, (++stale, null).$2),
+          _ => (chain, null),
+        },
+      );
+
+      expect(stale, 1, reason: 'the stale tick arrived once and was dropped, never re-armed');
+      expect(live, 3);
+    });
+
+    test('a Task with no handler for its outcome queues nothing and causes no frame', () async {
+      final seen = <Type>[];
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) {
+          seen.add(msg.runtimeType);
+          return switch (msg) {
+            InitMsg() => (
+              model,
+              Batch([
+                Task<int>(() async => 42),
+                Task<int>(() async => throw StateError('boom')),
+                const Tick(Duration(milliseconds: 40), id: 'probe'),
+              ]),
+            ),
+            TickMsg(id: 'probe') => (model, const Quit()),
+            _ => (model, null),
+          };
+        },
+      );
+
+      expect(seen, [InitMsg, TickMsg]);
+      expect(backend.drawCount, 1);
+    });
+
+    test('a message queued during a draw is painted by a later frame', () async {
+      final seen = <String>[];
+      var views = 0;
+
+      await runApp(
+        Application(
+          backend: backend,
+          onFrame: (frame) {
+            if (frame.count == 0) backend.emitKey('a');
+            if (frame.count == 2) backend.emitKey(quitKey);
+          },
+        ),
+        update: (model, msg, _) {
+          if (msg case KeyMsg(:final key)) {
+            if (key == quitKey) return (model, const Quit());
+            seen.add(key);
+          }
+          return (model, null);
+        },
+        view: (_, _) {
+          views++;
+          // The second draw is live (past the startup hold): a key emitted
+          // from inside it lands after the frame commits.
+          if (views == 2) backend.emitKey('n');
+        },
+      );
+
+      expect(seen, ['a', 'n']);
+      expect(views, 3, reason: 'the frame for a, the frame for n');
     });
 
     test('an event emitted by the backend reaches update as a message', () async {
@@ -536,7 +761,8 @@ void main() {
           backend: backend,
           onFrame: (frame) {
             frames.add(frame);
-            if (frames.length == 3) backend.emitKey(quitKey);
+            // Each frame asks for the next with a key, until the third quits.
+            backend.emitKey(frames.length == 3 ? quitKey : 'n');
           },
         ),
         update: quitOnKey(),
@@ -546,7 +772,7 @@ void main() {
         },
       );
 
-      expect(frames.map((f) => f.count), [0, 1, 2], reason: 'the init draw, then one per tick until the quit');
+      expect(frames.map((f) => f.count), [0, 1, 2], reason: 'the init draw, then one per key until the quit');
       expect(views, 3);
       expect(backend.drawCount, 3);
       for (final frame in frames) {
@@ -630,6 +856,26 @@ void main() {
       expect(seen.single.rows, 1, reason: 'the first render reported');
       expect(drawsWhenSeen, 1, reason: "the first frame's report is processed before any second draw");
       expect(views, 1);
+    });
+
+    test('a report that repeats unchanged frame after frame is delivered once, and the app settles', () async {
+      var deliveries = 0;
+
+      await runApp(
+        Application(backend: backend),
+        update: (model, msg, _) => switch (msg) {
+          InitMsg() => (model, const Tick(Duration(milliseconds: 60), id: 'probe')),
+          _Rows() => (model, (++deliveries, null).$2),
+          TickMsg(id: 'probe') => (model, const Quit()),
+          _ => (model, null),
+        },
+        // The same fact every frame: a windowed widget's viewport on a
+        // static screen.
+        view: (_, frame) => frame.render(_Reporter([const _Rows('list', 4)])),
+      );
+
+      expect(deliveries, 1, reason: 'the fact did not change after the first frame');
+      expect(backend.drawCount, 2, reason: 'the init draw, the frame its report caused, then nothing');
     });
 
     test('two reports with the same id and type in one frame deliver only the last', () async {

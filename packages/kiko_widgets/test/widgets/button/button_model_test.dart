@@ -14,6 +14,11 @@ PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) => PointerMsg
   targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
 );
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('ButtonModel', () {
     test('default state', () {
@@ -92,7 +97,7 @@ void main() {
 
     test('declines a message it does not know', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'), focused: true);
-      expect(button.update(const NoneMsg()), isA<Declined>());
+      expect(button.update(const _UnknownMsg()), isA<Declined>());
     });
 
     test('custom key bindings work', () {

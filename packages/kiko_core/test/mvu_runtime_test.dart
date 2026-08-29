@@ -5,6 +5,7 @@ import 'package:kiko/kiko.dart';
 // part of the public library. The queue is what these tests are about.
 import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
 import 'package:kiko_log/kiko_log.dart';
+import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -30,6 +31,35 @@ class TestEventStream {
 class TestMsg extends Msg {
   final String value;
   const TestMsg(this.value);
+}
+
+/// A report carrying one number, with value equality: the shape a widget's
+/// own kind takes.
+@immutable
+class _Rows extends FrameReport {
+  const _Rows(super.id, this.rows);
+
+  final int rows;
+
+  @override
+  bool operator ==(Object other) => other is _Rows && other.id == id && other.rows == rows;
+
+  @override
+  int get hashCode => Object.hash(id, rows);
+}
+
+/// A second report kind under the same ids as [_Rows].
+@immutable
+class _Cols extends FrameReport {
+  const _Cols(super.id, this.cols);
+
+  final int cols;
+
+  @override
+  bool operator ==(Object other) => other is _Cols && other.id == id && other.cols == cols;
+
+  @override
+  int get hashCode => Object.hash(id, cols);
 }
 
 /// A widget→app event command — the kind that must be consumed in update()
@@ -80,54 +110,49 @@ void main() {
         expect(runtime.exitCode, equals(42));
       });
 
-      test('Quit stops tick from producing messages', () async {
-        // Start tick, then quit
+      test('Quit cancels a pending tick', () async {
         runtime
-          ..processCmd(const Tick(Duration(milliseconds: 20)))
+          ..processCmd(const Tick(Duration(milliseconds: 20), id: 'clock'))
           ..processCmd(const Quit());
 
-        // Wait enough time for tick to have fired if still active
+        // Long enough for the tick to have fired had it survived.
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        // After Quit, subscription is cancelled, so nextMsg returns NoneMsg on timeout.
-        // The key thing is that tick timer was stopped by Quit, so no TickMsg was queued.
-        final msg = await runtime.nextMsg(timeout: 10);
-        expect(msg, isA<NoneMsg>());
+        expect(runtime.hasPending, isFalse, reason: 'the tick timer was cancelled by Quit');
       });
 
-      test('Tick produces TickMsg periodically', () async {
-        runtime.processCmd(const Tick(Duration(milliseconds: 30)));
+      test('Tick delivers exactly one TickMsg, addressed and keyed as armed, after its interval', () async {
+        runtime.processCmd(const Tick(Duration(milliseconds: 20), id: 'clock', key: 3));
 
-        // Wait for tick to fire
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 70));
 
-        // Should get TickMsg from queue
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<TickMsg>());
+        final tick = msg as TickMsg;
+        expect(tick.id, 'clock');
+        expect(tick.key, 3);
+        expect(tick.elapsed, greaterThanOrEqualTo(const Duration(milliseconds: 20)), reason: 'measured from arming');
+        expect(runtime.hasPending, isFalse, reason: 'one-shot: three intervals passed, one tick arrived');
       });
 
-      test('StopTick prevents further TickMsg', () async {
-        // Start then stop tick
+      test('a TickMsg is Addressed by the id the Tick named', () {
+        const msg = TickMsg('clock', elapsed: Duration.zero);
+        expect(msg, isA<Addressed>());
+        expect((msg as Addressed).id, 'clock');
+      });
+
+      test('several ticks may be pending at once, each on its own timer', () async {
         runtime
-          ..processCmd(const Tick(Duration(milliseconds: 20)))
-          ..processCmd(const StopTick());
+          ..processCmd(const Tick(Duration(milliseconds: 10), id: 'fast'))
+          ..processCmd(const Tick(Duration(milliseconds: 30), id: 'slow'));
 
-        // Wait enough time for tick to have fired if still active
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 60));
 
-        // Emit an event so nextMsg can return
-        events.emit(const KeyEvent(KeyCode.char('x')));
-
-        // Allow stream to deliver event
-        await Future<void>.delayed(Duration.zero);
-
-        // Should get the key event, not a TickMsg
-        final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<KeyMsg>());
-      });
-
-      test('StopTick is safe when no timer active', () {
-        expect(() => runtime.processCmd(const StopTick()), returnsNormally);
+        final first = (await runtime.nextMsg())!;
+        final second = (await runtime.nextMsg())!;
+        expect((first as TickMsg).id, 'fast');
+        expect((second as TickMsg).id, 'slow');
+        expect(runtime.hasPending, isFalse);
       });
 
       test('Task queues result message on success', () async {
@@ -141,7 +166,7 @@ void main() {
         // Wait for task to complete
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<TestMsg>());
         expect((msg as TestMsg).value, equals('got 42'));
       });
@@ -155,19 +180,18 @@ void main() {
         runtime.processCmd(task);
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<TestMsg>());
         expect((msg as TestMsg).value, contains('error:'));
       });
 
-      test('Task queues NoneMsg when no handlers provided', () async {
-        final task = Task<int>(() async => 42);
-
-        runtime.processCmd(task);
+      test('a Task with no handler for its outcome queues nothing', () async {
+        runtime
+          ..processCmd(Task<int>(() async => 42))
+          ..processCmd(Task<int>(() async => throw Exception('oops')));
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<NoneMsg>());
+        expect(runtime.hasPending, isFalse);
       });
 
       test('Batch processes all commands', () async {
@@ -182,9 +206,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
         // All 3 tasks should have queued messages
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
+        final msg3 = (await runtime.nextMsg())!;
 
         expect((msg1 as TestMsg).value, equals('1'));
         expect((msg2 as TestMsg).value, equals('2'));
@@ -194,9 +218,9 @@ void main() {
       test('Batch stops on first Quit', () {
         final result = runtime.processCmd(
           Batch([
-            const Tick(Duration(milliseconds: 100)),
+            const Tick(Duration(milliseconds: 100), id: 'a'),
             const Quit(5),
-            const Tick(Duration(milliseconds: 200)),
+            const Tick(Duration(milliseconds: 200), id: 'b'),
           ]),
         );
 
@@ -206,7 +230,7 @@ void main() {
 
       test('Batch returns Quit exit code', () {
         runtime.processCmd(
-          Batch([const StopTick(), const Quit(99), const StopTick()]),
+          Batch([const Emit(TestMsg('a')), const Quit(99), const Emit(TestMsg('b'))]),
         );
         expect(runtime.exitCode, equals(99));
       });
@@ -230,18 +254,16 @@ void main() {
         // Give time for the task callback to run
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        // After Quit, subscription is cancelled and task result was discarded.
-        // nextMsg returns NoneMsg on timeout - the key thing is no TestMsg was queued.
-        final msg = await runtime.nextMsg(timeout: 10);
-        expect(msg, isA<NoneMsg>());
+        // After Quit the task's result is discarded: nothing was queued.
+        expect(runtime.hasPending, isFalse);
       });
 
       test('nested Batch works correctly', () {
         final result = runtime.processCmd(
           Batch([
-            const StopTick(),
-            Batch([const StopTick(), const Quit(7)]),
-            const StopTick(),
+            const Emit(TestMsg('a')),
+            Batch([const Emit(TestMsg('b')), const Quit(7)]),
+            const Emit(TestMsg('c')),
           ]),
         );
 
@@ -252,7 +274,7 @@ void main() {
       test('Emit queues message immediately', () async {
         runtime.processCmd(const Emit(TestMsg('emitted')));
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<TestMsg>());
         expect((msg as TestMsg).value, equals('emitted'));
       });
@@ -265,8 +287,8 @@ void main() {
           ]),
         );
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         expect((msg1 as TestMsg).value, equals('first'));
         expect((msg2 as TestMsg).value, equals('second'));
@@ -296,7 +318,7 @@ void main() {
           runtime
             ..processCmd(null)
             ..processCmd(const Emit(TestMsg('x')))
-            ..processCmd(const StopTick());
+            ..processCmd(const Tick(Duration(seconds: 1), id: 'clock'));
         });
 
         expect(output.records, isEmpty);
@@ -309,8 +331,8 @@ void main() {
           ..queueMsg(const TestMsg('a'))
           ..queueMsg(const TestMsg('b'));
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         expect((msg1 as TestMsg).value, equals('a'));
         expect((msg2 as TestMsg).value, equals('b'));
@@ -327,8 +349,8 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         // Queued message should come first (FIFO)
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         expect((msg1 as TestMsg).value, equals('queued'));
         expect(msg2, isA<KeyMsg>());
@@ -344,9 +366,9 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
+        final msg3 = (await runtime.nextMsg())!;
 
         expect((msg1 as KeyMsg).key, equals('a'));
         expect((msg2 as KeyMsg).key, equals('b'));
@@ -366,7 +388,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         // Should get the event, not the cleared message
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<KeyMsg>());
       });
 
@@ -378,9 +400,9 @@ void main() {
         expect(runtime.exitCode, equals(0));
       });
 
-      test('reset stops tick from producing messages', () async {
+      test('reset cancels a pending tick', () async {
         runtime
-          ..processCmd(const Tick(Duration(milliseconds: 20)))
+          ..processCmd(const Tick(Duration(milliseconds: 20), id: 'clock'))
           ..reset()
           ..subscribeToEvents(events.stream);
 
@@ -393,7 +415,7 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         // Should get the key event, not a TickMsg
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<KeyMsg>());
       });
     });
@@ -405,7 +427,7 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
 
         expect(msg, isA<KeyMsg>());
         expect((msg as KeyMsg).key, equals('z'));
@@ -417,7 +439,7 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
 
         expect(msg, isA<RawPointerMsg>());
         expect((msg as RawPointerMsg).mouse.x, equals(10));
@@ -431,7 +453,7 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
 
         expect(msg, isA<FocusMsg>());
         expect((msg as FocusMsg).hasFocus, isTrue);
@@ -449,35 +471,103 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
+        final msg3 = (await runtime.nextMsg())!;
 
         expect((msg1 as TestMsg).value, equals('first'));
         expect((msg2 as TestMsg).value, equals('second'));
         expect((msg3 as KeyMsg).key, equals('x'));
       });
 
-      test('returns NoneMsg on timeout (enables render cycle)', () async {
-        // No events - will timeout
-        final msg = await runtime.nextMsg(timeout: 10);
+      test('waits, without polling, until a message is queued', () async {
+        var answered = false;
+        final waiting = runtime.nextMsg().then((msg) {
+          answered = true;
+          return msg;
+        });
 
-        // Must return NoneMsg, not block forever
-        // This is critical for continuous rendering (animations, FPS counters)
-        expect(msg, isA<NoneMsg>());
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        expect(answered, isFalse, reason: 'nothing queued, nothing returned');
+
+        runtime.queueMsg(const TestMsg('late'));
+        expect(((await waiting)! as TestMsg).value, 'late');
+      });
+    });
+
+    group('close', () {
+      test('wakes a waiting nextMsg with null', () async {
+        final waiting = runtime.nextMsg();
+        await Future<void>.delayed(Duration.zero);
+
+        runtime.close();
+
+        expect(await waiting, isNull);
       });
 
-      test('returns NoneMsg on each timeout (render cycle continues)', () async {
-        // No events - multiple timeouts
-        // Simulate multiple render cycles with no input
-        final msg1 = await runtime.nextMsg(timeout: 10);
-        final msg2 = await runtime.nextMsg(timeout: 10);
-        final msg3 = await runtime.nextMsg(timeout: 10);
+      test('nextMsg answers null after close even while messages remain queued', () async {
+        runtime
+          ..queueMsg(const TestMsg('left behind'))
+          ..close();
 
-        // Each call must return NoneMsg, not block
-        expect(msg1, isA<NoneMsg>());
-        expect(msg2, isA<NoneMsg>());
-        expect(msg3, isA<NoneMsg>());
+        expect(await runtime.nextMsg(), isNull);
+        expect(await runtime.nextMsg(), isNull, reason: 'and on every later call');
+      });
+
+      test('reset reopens the queue', () async {
+        runtime
+          ..close()
+          ..reset()
+          ..queueMsg(const TestMsg('after reset'));
+
+        expect(((await runtime.nextMsg())! as TestMsg).value, 'after reset');
+      });
+    });
+
+    group('queueReports', () {
+      test('a report absent from the previous frame is queued', () async {
+        runtime.queueReports([const _Rows('list', 5)]);
+
+        expect(await runtime.nextMsg(), const _Rows('list', 5));
+      });
+
+      test("a report equal to the previous frame's is not queued", () async {
+        runtime
+          ..queueReports([const _Rows('list', 5)])
+          ..queueReports([const _Rows('list', 5)]);
+
+        expect(await runtime.nextMsg(), const _Rows('list', 5));
+        expect(runtime.hasPending, isFalse, reason: 'the fact did not change');
+      });
+
+      test('a report that changed is queued again', () async {
+        runtime
+          ..queueReports([const _Rows('list', 5)])
+          ..queueReports([const _Rows('list', 6)]);
+
+        expect(await runtime.nextMsg(), const _Rows('list', 5));
+        expect(await runtime.nextMsg(), const _Rows('list', 6));
+      });
+
+      test('a report that skipped a frame is queued when it returns, even unchanged', () async {
+        runtime
+          ..queueReports([const _Rows('popup', 3)])
+          ..queueReports(const [])
+          ..queueReports([const _Rows('popup', 3)]);
+
+        expect(await runtime.nextMsg(), const _Rows('popup', 3));
+        expect(await runtime.nextMsg(), const _Rows('popup', 3), reason: 'its owner may have forgotten it');
+      });
+
+      test('reports are compared per id and type', () async {
+        runtime
+          ..queueReports([const _Rows('a', 1), const _Rows('b', 1), const _Cols('a', 1)])
+          ..queueReports([const _Rows('a', 1), const _Rows('b', 2), const _Cols('a', 1)]);
+
+        final first = [await runtime.nextMsg(), await runtime.nextMsg(), await runtime.nextMsg()];
+        expect(first, [const _Rows('a', 1), const _Rows('b', 1), const _Cols('a', 1)]);
+        expect(await runtime.nextMsg(), const _Rows('b', 2));
+        expect(runtime.hasPending, isFalse);
       });
     });
 
@@ -487,24 +577,22 @@ void main() {
         expect(() => runtime.dispose(), returnsNormally);
       });
 
-      test('stops tick from producing messages', () async {
+      test('cancels a pending tick and closes the queue', () async {
         runtime
-          ..processCmd(const Tick(Duration(milliseconds: 20)))
+          ..processCmd(const Tick(Duration(milliseconds: 20), id: 'clock'))
           ..dispose();
 
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        // After dispose, tick timer is stopped and subscription is cancelled.
-        // nextMsg returns NoneMsg on timeout - the key thing is no TickMsg was queued.
-        final msg = await runtime.nextMsg(timeout: 10);
-        expect(msg, isA<NoneMsg>());
+        expect(runtime.hasPending, isFalse, reason: 'the tick timer was cancelled');
+        expect(await runtime.nextMsg(), isNull, reason: 'the queue is closed');
       });
     });
 
     group('unified FIFO ordering', () {
       test('interleaves ticks and stream events fairly', () async {
         // Start tick
-        runtime.processCmd(const Tick(Duration(milliseconds: 20)));
+        runtime.processCmd(const Tick(Duration(milliseconds: 20), id: 'clock'));
 
         // Wait for first tick
         await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -516,177 +604,13 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         // Get messages - should be in arrival order
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         // First should be TickMsg (arrived first)
         expect(msg1, isA<TickMsg>());
         // Second should be KeyMsg (arrived after)
         expect(msg2, isA<KeyMsg>());
-
-        runtime.processCmd(const StopTick());
-      });
-    });
-
-    group('FrameTick', () {
-      test('startFrameTick produces FrameTickMsg', () async {
-        runtime.startFrameTick(60);
-
-        // Wait for at least one frame tick (~17ms for 60fps)
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-
-        final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<FrameTickMsg>());
-
-        final frameTick = msg as FrameTickMsg;
-        expect(frameTick.frameNumber, equals(1));
-        expect(frameTick.delta.inMilliseconds, greaterThan(0));
-
-        runtime.stopFrameTick();
-      });
-
-      test('stopFrameTick stops the timer', () async {
-        runtime
-          ..startFrameTick(60)
-          ..stopFrameTick();
-
-        // Wait enough time for frame tick to have fired if still active
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        // Emit an event so nextMsg can return
-        events.emit(const KeyEvent(KeyCode.char('x')));
-        await Future<void>.delayed(Duration.zero);
-
-        // Should get the key event, not a FrameTickMsg
-        final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<KeyMsg>());
-      });
-
-      test('reset stops frame tick timer', () async {
-        runtime
-          ..startFrameTick(60)
-          ..reset()
-          ..subscribeToEvents(events.stream);
-
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        events.emit(const KeyEvent(KeyCode.char('x')));
-        await Future<void>.delayed(Duration.zero);
-
-        final msg = await runtime.nextMsg(timeout: 100);
-        expect(msg, isA<KeyMsg>());
-      });
-
-      test('Quit stops frame tick timer', () async {
-        runtime
-          ..startFrameTick(60)
-          ..processCmd(const Quit());
-
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        final msg = await runtime.nextMsg(timeout: 10);
-        expect(msg, isA<NoneMsg>());
-      });
-
-      test('FrameTickMsg has incrementing frame numbers', () async {
-        runtime.startFrameTick(100); // 10ms intervals
-
-        await Future<void>.delayed(const Duration(milliseconds: 35));
-
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
-
-        expect((msg1 as FrameTickMsg).frameNumber, equals(1));
-        expect((msg2 as FrameTickMsg).frameNumber, equals(2));
-        expect((msg3 as FrameTickMsg).frameNumber, equals(3));
-
-        runtime.stopFrameTick();
-      });
-
-      test('FrameTick separate from user Tick', () async {
-        // Start both timers
-        runtime
-          ..startFrameTick(50) // 20ms intervals
-          ..processCmd(const Tick(Duration(milliseconds: 30)));
-
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        // Should get both types of messages
-        final messages = <Msg>[];
-        for (var i = 0; i < 3; i++) {
-          messages.add(await runtime.nextMsg(timeout: 100));
-        }
-
-        expect(messages.whereType<FrameTickMsg>().length, greaterThan(0));
-        expect(messages.whereType<TickMsg>().length, greaterThan(0));
-
-        runtime
-          ..stopFrameTick()
-          ..processCmd(const StopTick());
-      });
-    });
-
-    group('isStale (frame dropping)', () {
-      test('non-droppable messages are never stale', () {
-        const keyMsg = KeyMsg('a');
-        expect(keyMsg.droppable, isFalse);
-        expect(runtime.isStale(keyMsg, 60), isFalse);
-      });
-
-      test('fresh FrameTickMsg is not stale', () {
-        final msg = FrameTickMsg(
-          delta: const Duration(milliseconds: 16),
-          frameNumber: 1,
-          timestamp: DateTime.now(),
-        );
-        expect(msg.droppable, isTrue);
-        expect(runtime.isStale(msg, 60), isFalse);
-      });
-
-      test('old FrameTickMsg is stale', () {
-        // At 60fps, stale threshold is ~33ms (2 * 16.67ms)
-        final msg = FrameTickMsg(
-          delta: const Duration(milliseconds: 16),
-          frameNumber: 1,
-          timestamp: DateTime.now().subtract(const Duration(milliseconds: 50)),
-        );
-        expect(runtime.isStale(msg, 60), isTrue);
-      });
-
-      test('FrameTickMsg at boundary is not stale', () {
-        // At 60fps, stale threshold is ~33ms
-        // A message 30ms old should NOT be stale
-        final msg = FrameTickMsg(
-          delta: const Duration(milliseconds: 16),
-          frameNumber: 1,
-          timestamp: DateTime.now().subtract(const Duration(milliseconds: 30)),
-        );
-        expect(runtime.isStale(msg, 60), isFalse);
-      });
-
-      test('stale threshold adjusts with fps', () {
-        // At 30fps, stale threshold is ~67ms (2 * 33.33ms)
-        final msg = FrameTickMsg(
-          delta: const Duration(milliseconds: 33),
-          frameNumber: 1,
-          timestamp: DateTime.now().subtract(const Duration(milliseconds: 50)),
-        );
-        // 50ms is stale at 60fps but not at 30fps
-        expect(runtime.isStale(msg, 60), isTrue);
-        expect(runtime.isStale(msg, 30), isFalse);
-      });
-
-      test('TickMsg is not droppable', () {
-        const msg = TickMsg(Duration(seconds: 1));
-        expect(msg.droppable, isFalse);
-        expect(runtime.isStale(msg, 60), isFalse);
-      });
-
-      test('custom Msg defaults to not droppable', () {
-        const msg = TestMsg('test');
-        expect(msg.droppable, isFalse);
-        expect(runtime.isStale(msg, 60), isFalse);
       });
     });
 
@@ -701,7 +625,7 @@ void main() {
           ..queueMsg(const KeyMsg('a'))
           ..coalesceQueue();
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect((msg as KeyMsg).key, equals('a'));
       });
 
@@ -712,9 +636,9 @@ void main() {
           ..queueMsg(const KeyMsg('c'))
           ..coalesceQueue();
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
+        final msg3 = (await runtime.nextMsg())!;
 
         expect((msg1 as KeyMsg).key, equals('a'));
         expect((msg2 as KeyMsg).key, equals('b'));
@@ -730,14 +654,12 @@ void main() {
           ..coalesceQueue();
 
         // Only the latest should remain
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<RawPointerMsg>());
         expect((msg as RawPointerMsg).mouse.x, equals(10));
         expect(msg.mouse.y, equals(10));
 
-        // Queue should be empty now (only timeout)
-        final next = await runtime.nextMsg(timeout: 10);
-        expect(next, isA<NoneMsg>());
+        expect(runtime.hasPending, isFalse, reason: 'only the latest remained');
       });
 
       test('mouse drags are coalesced to latest', () async {
@@ -747,7 +669,7 @@ void main() {
           ..queueMsg(_pointer(10, 10, MouseButton.drag(MouseButtonKind.left)))
           ..coalesceQueue();
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect((msg as RawPointerMsg).mouse.x, equals(10));
       });
 
@@ -758,8 +680,8 @@ void main() {
           ..coalesceQueue();
 
         // Both clicks should remain
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         expect((msg1 as RawPointerMsg).mouse.x, equals(0));
         expect((msg2 as RawPointerMsg).mouse.x, equals(5));
@@ -771,8 +693,8 @@ void main() {
           ..queueMsg(_pointer(0, 0, MouseButton.wheelDown()))
           ..coalesceQueue();
 
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
 
         expect(msg1, isA<RawPointerMsg>(), reason: 'merging two notches would eat one');
         expect(msg2, isA<RawPointerMsg>());
@@ -788,10 +710,10 @@ void main() {
           ..coalesceQueue();
 
         // Key messages preserved, mouse moves coalesced
-        final msg1 = await runtime.nextMsg(timeout: 100);
-        final msg2 = await runtime.nextMsg(timeout: 100);
-        final msg3 = await runtime.nextMsg(timeout: 100);
-        final msg4 = await runtime.nextMsg(timeout: 100);
+        final msg1 = (await runtime.nextMsg())!;
+        final msg2 = (await runtime.nextMsg())!;
+        final msg3 = (await runtime.nextMsg())!;
+        final msg4 = (await runtime.nextMsg())!;
 
         expect((msg1 as KeyMsg).key, equals('a'));
         expect((msg2 as KeyMsg).key, equals('b'));
@@ -827,14 +749,12 @@ void main() {
           ..coalesceQueue();
 
         // Only the latest should remain
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<ResizeMsg>());
         expect((msg as ResizeMsg).width, equals(120));
         expect(msg.height, equals(40));
 
-        // Queue should be empty now (only timeout)
-        final next = await runtime.nextMsg(timeout: 10);
-        expect(next, isA<NoneMsg>());
+        expect(runtime.hasPending, isFalse, reason: 'only the latest remained');
       });
 
       test('ResizeMsg is coalesceable under the resize key', () {
@@ -858,11 +778,10 @@ void main() {
         runtime.flushStartupEvents();
 
         // The key event flushed; the resize did not.
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<KeyMsg>());
 
-        final next = await runtime.nextMsg(timeout: 10);
-        expect(next, isA<NoneMsg>(), reason: 'the held resize should have been dropped, not queued');
+        expect(runtime.hasPending, isFalse, reason: 'the held resize should have been dropped, not queued');
       });
 
       test('a resize arriving after the flush is delivered normally', () async {
@@ -875,7 +794,7 @@ void main() {
         // Allow stream to deliver
         await Future<void>.delayed(Duration.zero);
 
-        final msg = await runtime.nextMsg(timeout: 100);
+        final msg = (await runtime.nextMsg())!;
         expect(msg, isA<ResizeMsg>());
       });
     });
@@ -915,9 +834,8 @@ void main() {
       expect((msg! as PasteMsg).text, equals('hello'));
     });
 
-    test('converts NoneEvent', () {
-      final msg = eventToMsg(const NoneEvent());
-      expect(msg, isA<NoneMsg>());
+    test('drops NoneEvent: there is no event to deliver', () {
+      expect(eventToMsg(const NoneEvent()), isNull);
     });
 
     test('converts unknown event to UnknownMsg', () {

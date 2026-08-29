@@ -19,6 +19,11 @@ PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
 PointerMsg pointerOnRow(PointerAction action, int row) =>
     PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused list without moving the cursor', () {
@@ -601,7 +606,7 @@ void main() {
           items: const ['a'],
           focused: true,
         );
-        final result = model.update(const NoneMsg());
+        final result = model.update(const _UnknownMsg());
         expect(result, isA<Declined>());
       });
     });

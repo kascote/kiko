@@ -113,9 +113,8 @@ Future<HitMap> _drive(
     init: model,
     update: (m, msg, ctx) {
       if (msg case KeyMsg(key: _quitKey)) return (m, const Quit());
-      // Anything but the idle beat and the render clock's own message is a
-      // step landing.
-      if (msg is! InitMsg && msg is! NoneMsg && !msg.droppable) pending = false;
+      // Anything after the init message is a step landing.
+      if (msg is! InitMsg) pending = false;
       return _update(m, msg, ctx);
     },
     view: _view,

@@ -53,6 +53,11 @@ List<int> pagesIn(Cmd? cmd) => requestsIn(cmd).map((r) => (r.key! as PageKey).pa
 /// The pages an update asked for, ascending.
 List<int> pagesAsked(UpdateResult result) => pagesIn(result is Handled ? result.cmd : null);
 
+/// A message no model understands: the probe for the decline path.
+class _UnknownMsg extends Msg {
+  const _UnknownMsg();
+}
+
 void main() {
   group('mouse wheel + scroll', () {
     test('a wheel notch scrolls an unfocused table without moving the cursor', () {
@@ -803,7 +808,7 @@ void main() {
           columns: sampleColumns(),
           focused: true,
         );
-        final result = model.update(const NoneMsg());
+        final result = model.update(const _UnknownMsg());
         expect(result, isA<Declined>());
       });
 

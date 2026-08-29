@@ -78,11 +78,6 @@ class PageLoader<T> {
   final PageWindow<T> _window;
   final _loads = LoadTracker<PageKey>();
 
-  /// The pages whose fetches are outstanding. The tracker holds their state;
-  /// this says which slots to count against [maxConcurrentLoads] and which to
-  /// clear on a [reset].
-  final Set<int> _inFlight = {};
-
   bool _shortPageWarned = false;
 
   int? _totalCount;
@@ -130,8 +125,8 @@ class PageLoader<T> {
     }
     final known = knownRowCount;
     if (known != null) return known > limit ? known : limit;
-    for (final page in _inFlight) {
-      final end = (page + 1) * pageSize;
+    for (final key in _loads.loading) {
+      final end = (key.page + 1) * pageSize;
       if (end > limit) limit = end;
     }
     return limit;
@@ -153,7 +148,7 @@ class PageLoader<T> {
 
   /// Whether a page fetch is in flight — for [key] if given, otherwise for any
   /// page.
-  bool isLoading([PageKey? key]) => key == null ? _inFlight.isNotEmpty : _inFlight.contains(key.page);
+  bool isLoading([PageKey? key]) => _loads.isLoading(key);
 
   /// The error from a failed load for [key], or null if it didn't fail.
   Object? errorFor(PageKey key) => _loads.errorFor(key);
@@ -246,9 +241,9 @@ class PageLoader<T> {
   /// fetch — after a policy gate that was refusing requests lifts, say — since
   /// a refusal deliberately never re-triggers demand on its own.
   Cmd? demand() {
-    final budget = maxConcurrentLoads - _inFlight.length;
+    final budget = maxConcurrentLoads - _loads.loading.length;
     if (budget <= 0) return null;
-    final pages = _window.missing(_demandSpan, pending: _inFlight.contains, limit: budget);
+    final pages = _window.missing(_demandSpan, pending: (page) => _loads.isLoading(PageKey(page)), limit: budget);
     if (pages.isEmpty) return null;
     final requests = <Cmd>[];
     for (final page in pages) {
@@ -289,7 +284,7 @@ class PageLoader<T> {
     if (key is! PageKey) return false;
     final page = key.page;
     // Staleness guard: only a page still in flight accepts a result.
-    if (!_inFlight.contains(page)) return false;
+    if (!_loads.isLoading(key)) return false;
     if (result.cancelled) {
       _finishLoad(page);
       return false;
@@ -363,10 +358,7 @@ class PageLoader<T> {
   /// the reset, as the wholesale-replace idiom does.
   void reset() {
     _window.clear();
-    for (final page in _inFlight) {
-      _loads.complete(PageKey(page));
-    }
-    _inFlight.clear();
+    _loads.loading.toList().forEach(_loads.complete);
     _totalCount = null;
   }
 
@@ -420,7 +412,7 @@ class PageLoader<T> {
   void _warnContradictoryShortPage(int page, int rowCount, int? resultCount) {
     if (_shortPageWarned) return;
     final laterHeld = _window.present.where((p) => p > page);
-    final laterInFlight = _inFlight.where((p) => p > page);
+    final laterInFlight = _loads.loading.map((k) => k.page).where((p) => p > page);
     final count = resultCount ?? _totalCount;
     final String evidence;
     if (laterHeld.isNotEmpty) {
@@ -441,17 +433,14 @@ class PageLoader<T> {
     );
   }
 
-  void _beginLoad(int page) {
-    _inFlight.add(page);
-    _loads.begin(PageKey(page));
-  }
+  void _beginLoad(int page) => _loads.begin(PageKey(page));
 
   void _finishLoad(int page, {Object? error}) {
-    _inFlight.remove(page);
+    final key = PageKey(page);
     if (error == null) {
-      _loads.complete(PageKey(page));
+      _loads.complete(key);
     } else {
-      _loads.fail(PageKey(page), error);
+      _loads.fail(key, error);
     }
   }
 }

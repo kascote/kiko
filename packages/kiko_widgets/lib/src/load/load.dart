@@ -76,7 +76,13 @@ class LoadTracker<K> {
   Object? errorFor(K key) => stateFor(key).error;
 
   /// Whether a fetch is in flight — for [key] if given, otherwise for any key.
-  bool isLoading([K? key]) => key == null ? _slots.values.any((s) => s.isLoading) : stateFor(key).isLoading;
+  bool isLoading([K? key]) => key == null ? loading.isNotEmpty : stateFor(key).isLoading;
+
+  /// The keys whose fetch is in flight, in no particular order.
+  ///
+  /// A lazy view over the tracker: snapshot it before calling [complete] or
+  /// [fail] while iterating.
+  Iterable<K> get loading => _slots.entries.where((e) => e.value.isLoading).map((e) => e.key);
 }
 
 // ═══════════════════════════════════════════════════════════

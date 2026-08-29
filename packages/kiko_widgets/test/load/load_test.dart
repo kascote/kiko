@@ -97,6 +97,18 @@ void main() {
       });
     });
 
+    test('loading lists the in-flight keys and nothing else', () {
+      final t = LoadTracker<PageKey>()
+        ..begin(PageKey(i(0)))
+        ..begin(PageKey(i(2)))
+        ..fail(PageKey(i(1)), 'e');
+      expect(t.loading, unorderedEquals([const PageKey(0), const PageKey(2)]));
+      t.complete(PageKey(i(0)));
+      expect(t.loading, [const PageKey(2)]);
+      t.complete(PageKey(i(2)));
+      expect(t.loading, isEmpty);
+    });
+
     test('per-key isLoading isolates concurrent slots', () {
       final t = LoadTracker<PageKey>()..begin(PageKey(i(0)));
       expect(t.isLoading(PageKey(i(0))), isTrue);

@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
@@ -61,7 +62,7 @@ void main() {
               keyField: 'id',
               columns: sampleColumns(),
             )
-            ..setVisibleDimensions(5, 3)
+            ..viewport(rows: 5, cols: 3)
             ..insertRows(sampleRows(20), 0);
 
       final result = model.update(pointer(PointerAction.wheelDown));
@@ -78,7 +79,7 @@ void main() {
               keyField: 'id',
               columns: sampleColumns(),
             )
-            ..setVisibleDimensions(4, 3)
+            ..viewport(rows: 4, cols: 3)
             ..insertRows(sampleRows(10), 0);
 
       expect((model..scrollBy(-5)).scrollRow, equals(0), reason: 'cannot scroll above the first row');
@@ -93,7 +94,7 @@ void main() {
               columns: sampleColumns(),
               focused: true,
             )
-            ..setVisibleDimensions(4, 3)
+            ..viewport(rows: 4, cols: 3)
             ..insertRows(sampleRows(10), 0);
 
       expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
@@ -110,7 +111,7 @@ void main() {
               pageSize: 10,
               loadThreshold: 3,
             )
-            ..setVisibleDimensions(5, 3)
+            ..viewport(rows: 5, cols: 3)
             ..insertRows(sampleRows(10), 0);
 
       // One notch carries the viewport's bottom edge within the threshold of
@@ -128,7 +129,7 @@ void main() {
               keyField: 'id',
               columns: sampleColumns(),
             )
-            ..setVisibleDimensions(visible, 3)
+            ..viewport(rows: visible, cols: 3)
             ..insertRows(sampleRows(rows), 0);
 
       test('at the top, wheel-up declines while wheel-down handles', () {
@@ -180,7 +181,7 @@ void main() {
             columns: sampleColumns(),
             focused: focused,
           )
-          ..setVisibleDimensions(6, 3)
+          ..viewport(rows: 6, cols: 3)
           ..insertRows(sampleRows(10), 0);
 
     test('a click on a data row moves the cursor there and emits TableActionCmd', () {
@@ -199,7 +200,7 @@ void main() {
         keyField: 'id',
         columns: sampleColumns(),
         focused: true,
-      )..setVisibleDimensions(6, 3);
+      )..viewport(rows: 6, cols: 3);
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
@@ -336,7 +337,7 @@ void main() {
                 loadThreshold: 0,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..insertRows(sampleRows(10), 0);
 
         // Jump to the end: the viewport now needs page 11, and asks for it.
@@ -359,7 +360,7 @@ void main() {
                 selectionEnabled: true,
                 focused: true,
               )
-              ..setVisibleDimensions(10, 3)
+              ..viewport(rows: 10, cols: 3)
               ..update(keyMsg('down'))
               ..update(keyMsg('space'));
 
@@ -388,7 +389,7 @@ void main() {
                 focused: true,
               )
               ..insertRows(sampleRows(), 0)
-              ..setVisibleDimensions(3, 3)
+              ..viewport(rows: 3, cols: 3)
               ..update(keyMsg('pageDown')) // cursor 3 — demand puts page 1 in flight
               ..update(keyMsg('pageDown')) // cursor 6, into the pending page
               ..update(keyMsg('pageDown')); // cursor 9, scroll 7
@@ -431,7 +432,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
       });
 
       test('down moves cursor', () {
@@ -505,7 +506,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(5, 2);
+        )..viewport(rows: 5, cols: 2);
       });
 
       test('right moves cursor', () {
@@ -567,7 +568,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(5, 2);
+        )..viewport(rows: 5, cols: 2);
       });
 
       test('scrollRow adjusts when cursor moves below visible', () {
@@ -615,7 +616,7 @@ void main() {
                 columns: sampleColumns(),
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), isEmpty);
@@ -630,7 +631,7 @@ void main() {
                 selectionEnabled: true,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..update(keyMsg('space'));
 
         expect(model.getSelectedKeys(), equals({'row0'}));
@@ -647,7 +648,7 @@ void main() {
                 selectionEnabled: true,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..update(keyMsg('space'))
               ..update(keyMsg('space'));
 
@@ -663,7 +664,7 @@ void main() {
                 selectionEnabled: true,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..update(keyMsg('space'))
               ..update(keyMsg('down'))
               ..update(keyMsg('space'))
@@ -685,7 +686,7 @@ void main() {
                 loadThreshold: 0,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               ..insertRows(sampleRows(10), 0)
               ..update(keyMsg('space')) // select row0
               ..update(keyMsg('end'));
@@ -709,7 +710,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
       });
 
       test('cursorRowKey returns key', () {
@@ -745,7 +746,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         final result = model.update(keyMsg('enter'));
         expect(
@@ -763,7 +764,7 @@ void main() {
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(4, 3);
+        )..viewport(rows: 4, cols: 3);
 
         final result = model.update(keyMsg('enter'));
 
@@ -818,7 +819,7 @@ void main() {
                 loadThreshold: 8,
                 focused: true,
               )
-              ..setVisibleDimensions(5, 2)
+              ..viewport(rows: 5, cols: 2)
               ..insertRows(sampleRows(10), 0);
 
         // Reach the end to start loading the pages there.
@@ -843,7 +844,7 @@ void main() {
           loadThreshold: 5,
           pageSize: 10,
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         // Walk down until the viewport, widened by the threshold, reaches into
         // page 1 — the fifth step, where the bottom edge is row 5.
@@ -868,7 +869,7 @@ void main() {
           loadThreshold: 5,
           pageSize: 10,
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         var result = const Handled() as UpdateResult;
         for (var i = 0; i < 5; i++) {
@@ -888,7 +889,7 @@ void main() {
           columns: sampleColumns(),
           loadThreshold: 3,
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         // Move to near end
         for (var i = 0; i < 8; i++) {
@@ -908,7 +909,7 @@ void main() {
                 columns: sampleColumns(),
                 focused: true,
               )
-              ..setVisibleDimensions(20, 3)
+              ..viewport(rows: 20, cols: 3)
               ..insertRows(sampleRows(50), 0);
 
         // Row 0 → row 499 in one step. Demand follows the viewport, so the
@@ -922,7 +923,68 @@ void main() {
       });
     });
 
+    group('viewport reports', () {
+      // One page of ten held out of forty; a viewport of five reaches nothing
+      // more, a viewport of twenty reaches page 1.
+      TableViewModel paged() => TableViewModel(
+        id: 'grid',
+        rows: sampleRows(10),
+        totalCount: 40,
+        keyField: 'id',
+        columns: sampleColumns(),
+        pageSize: 10,
+        loadThreshold: 0,
+      );
+
+      test('a report equal to the stored rows and columns is consumed with no command', () {
+        final model = paged()..viewport(rows: 5, cols: 3);
+
+        final verdict = model.update(const ViewportChanged('grid', rows: 5, cols: 3));
+
+        expect(verdict, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(model.visibleRows, equals(5));
+        expect(model.visibleCols, equals(3));
+      });
+
+      test('changed rows are stored and return the demand for the pages they reveal', () {
+        final model = paged()..viewport(rows: 5, cols: 3);
+
+        final verdict = model.update(const ViewportChanged('grid', rows: 20, cols: 3));
+
+        expect(model.visibleRows, equals(20));
+        expect(pagesAsked(verdict), equals([1]));
+      });
+
+      test('changed columns are stored; a report with no column count keeps the stored one', () {
+        final model = paged()..viewport(rows: 5, cols: 3);
+
+        expect(model.update(const ViewportChanged('grid', rows: 5, cols: 2)), isA<Handled>());
+        expect(model.visibleCols, equals(2));
+
+        expect(model.update(const ViewportChanged('grid', rows: 5)), isA<Handled>());
+        expect(model.visibleCols, equals(2), reason: 'a rows-only report says nothing about columns');
+      });
+
+      test('a report addressed to another id is declined', () {
+        final model = paged();
+
+        expect(model.update(const ViewportChanged('other', rows: 20, cols: 3)), isA<Declined>());
+        expect(model.visibleRows, equals(0));
+      });
+
+      test("a report carrying this id's path under a scope is the table's own", () {
+        final model = paged();
+
+        expect(model.update(const ViewportChanged('form/grid', rows: 5, cols: 3)), isA<Handled>());
+        expect(model.visibleRows, equals(5));
+      });
+    });
+
     group('load lifecycle', () {
+      // A cold table before its first frame: the app's init fetch precedes any
+      // viewport report, so nothing but what a test asks for is in flight. A
+      // test that navigates reports the viewport first, as the first frame
+      // would.
       TableViewModel paginated({int loadThreshold = 8}) => TableViewModel(
         totalCount: 120,
         keyField: 'id',
@@ -930,7 +992,7 @@ void main() {
         pageSize: 10,
         loadThreshold: loadThreshold,
         focused: true,
-      )..setVisibleDimensions(5, 2);
+      );
 
       test('loadFirstPage begins page 0 and requests it', () {
         final model = paginated();
@@ -948,7 +1010,9 @@ void main() {
       });
 
       test('update(LoadResult) installs a page at the offset its key names', () {
-        final model = paginated()..insertRows(sampleRows(10), 0);
+        final model = paginated()
+          ..insertRows(sampleRows(10), 0)
+          ..viewport(rows: 5, cols: 2);
 
         model.update(
           LoadResult<List<Map<String, Object?>>>(
@@ -985,8 +1049,10 @@ void main() {
         expect(model.cachedPages, equals([0]));
         expect(model.totalCount, equals(20), reason: 'the envelope carried the count');
 
-        // The next page says the data stops there, even though it is full.
-        expect(pagesIn(model.demand()), equals([1]));
+        // The first frame reports five rows; with the threshold that reaches
+        // page 1. The next page says the data stops there, even though it is
+        // full.
+        expect(pagesAsked(model.viewport(rows: 5, cols: 2)), equals([1]));
         model.update(
           LoadResult<PageResult<Map<String, Object?>>>(
             model.id,
@@ -998,7 +1064,9 @@ void main() {
       });
 
       test('update(LoadResult) records an error, leaving the page retryable', () {
-        final model = paginated()..insertRows(sampleRows(10), 0);
+        final model = paginated()
+          ..insertRows(sampleRows(10), 0)
+          ..viewport(rows: 5, cols: 2);
 
         final req = requestsOf(model.update(keyMsg('end'))).first;
         final key = req.key! as PageKey;
@@ -1015,6 +1083,23 @@ void main() {
         expect(model.errorFor(key), isNull, reason: 'retry clears the error');
       });
 
+      test('update(LoadResult) returns no demand pass after a refusal or a failure', () {
+        final model = paginated();
+        final req = model.loadFirstPage();
+
+        expect(
+          model.update(LoadResult<List<Map<String, Object?>>>.cancelled(req.id, key: req.key)),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a standing refusal must never become a request storm',
+        );
+        model.loadFirstPage();
+        expect(
+          model.update(LoadResult<List<Map<String, Object?>>>(req.id, key: req.key, error: StateError('boom'))),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a failure is retried by the next pass the app runs, not by itself',
+        );
+      });
+
       test('update(LoadResult) drops a result for a page that is not loading', () {
         final model = paginated()..insertRows(sampleRows(10), 0);
 
@@ -1028,7 +1113,9 @@ void main() {
       });
 
       test('update(LoadResult) declines a result for another model', () {
-        final model = paginated()..insertRows(sampleRows(10), 0);
+        final model = paginated()
+          ..insertRows(sampleRows(10), 0)
+          ..viewport(rows: 5, cols: 2);
         final key = requestsOf(model.update(keyMsg('end'))).first.key! as PageKey;
         final verdict = model.update(LoadResult<List<Map<String, Object?>>>('other', key: key, data: sampleRows(10)));
 
@@ -1060,7 +1147,11 @@ void main() {
           ..insertRows(sampleRows(10), 2)
           ..scrollBy(15);
 
-        expect(pagesIn(model.demand()), equals([0, 3]), reason: 'one pass asks for both, as a batch');
+        expect(
+          pagesAsked(model.viewport(rows: 5, cols: 2)),
+          equals([0, 3]),
+          reason: 'one pass asks for both, as a batch',
+        );
         expect(model.isLoading(), isTrue);
         expect(model.isLoadingAbove, isTrue, reason: 'page 0 sits above the viewport');
         expect(model.isLoadingBelow, isTrue, reason: 'page 3 sits below it');
@@ -1069,6 +1160,7 @@ void main() {
       test('reset clears in-flight load slots', () {
         final model = paginated()
           ..insertRows(sampleRows(10), 0)
+          ..viewport(rows: 5, cols: 2)
           ..update(keyMsg('end'));
         expect(model.isLoading(), isTrue);
 
@@ -1095,7 +1187,7 @@ void main() {
         keepPages: keepPages,
         loadThreshold: loadThreshold,
         focused: true,
-      )..setVisibleDimensions(visible, 3);
+      )..viewport(rows: visible, cols: 3);
 
       test('bottom, top and back down leaves no permanently blank tail', () {
         final model = held();
@@ -1145,7 +1237,7 @@ void main() {
         expect(model.demand(), isNull, reason: 'nothing is left to ask for');
       });
 
-      test('a refused page is asked for again once something marks demand dirty — and not before', () {
+      test('a refused page is asked for again once the app runs demand — and not before', () {
         final model = held();
         _Ferry(model, totalRows, size)
           ..take(model.loadFirstPage())
@@ -1162,29 +1254,34 @@ void main() {
 
         expect(model.isLoading(PageKey(refused)), isFalse, reason: 'the slot is idle again');
         expect(model.errorFor(PageKey(refused)), isNull, reason: 'a refusal is not a failure');
-        expect(model.demandIfDirty(), isNull, reason: 'a refusal must never re-request on its own');
+        expect(
+          model.viewport(rows: visible, cols: 3),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'an unchanged viewport report runs no pass: a refusal never re-requests on its own',
+        );
 
-        // The app's gate lifts and pokes the model: the page is asked for again.
-        model.markDemandDirty();
-        expect(pagesIn(model.demandIfDirty()), contains(refused));
+        // The app's gate lifts and it runs the pass itself: the page is asked for again.
+        expect(pagesIn(model.demand()), contains(refused));
       });
 
-      test('a taller terminal demands the revealed pages on the next pump', () {
+      test('a taller terminal demands the revealed pages from its viewport report', () {
         final model = held();
         _Ferry(model, totalRows, size)
           ..take(model.loadFirstPage())
           ..drain();
         expect(model.demand(), isNull, reason: 'the short viewport is fully loaded');
 
-        // A resize reaches the model through the paint path, where it cannot
-        // return a command. Nothing else happens — no key, no pointer.
-        model.setVisibleDimensions(40, 3);
-        expect(model.viewportStatus, SliceStatus.stalled, reason: 'the revealed rows have nothing coming yet');
+        // The view paints the taller viewport and reports it. Nothing else
+        // happens — no key, no pointer.
+        final revealed = pagesAsked(model.viewport(rows: 40, cols: 3));
 
-        final revealed = pagesIn(model.demandIfDirty());
         expect(revealed, isNotEmpty, reason: 'the rows a taller terminal revealed are demanded');
-        expect(model.viewportStatus, SliceStatus.filling, reason: 'one frame-tick pump leaves the stall');
-        expect(model.demandIfDirty(), isNull, reason: 'the flag is spent by the pass it triggered');
+        expect(model.viewportStatus, SliceStatus.filling, reason: 'the report leaves nothing stalled');
+        expect(
+          model.viewport(rows: 40, cols: 3),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'the same viewport reported again runs no pass',
+        );
       });
 
       test('the in-flight cap bounds requests, and the rest drain on later passes', () {
@@ -1196,18 +1293,24 @@ void main() {
           loadThreshold: 30,
           maxConcurrentLoads: 1,
           focused: true,
-        )..setVisibleDimensions(visible, 3);
+        );
         final ferry = _Ferry(model, totalRows, size);
 
-        expect(pagesIn(model.demand()), hasLength(1), reason: 'one at a time, as configured');
+        // The first frame's report reaches three pages; the cap lets one out.
+        expect(
+          pagesAsked(model.viewport(rows: visible, cols: 3)),
+          hasLength(1),
+          reason: 'one at a time, as configured',
+        );
         expect(model.demand(), isNull, reason: 'the cap is spent');
 
-        // Answering one frees the slot and marks demand dirty, so the window drains
-        // frame by frame with no input at all.
-        ferry
-          ..take(LoadRequest(model.id, key: const PageKey(0)))
-          ..deliverOne();
-        expect(pagesIn(model.demandIfDirty()), hasLength(1));
+        // Answering one frees the slot, and the landing page's update returns
+        // the next pass, so the window drains with no input at all.
+        final landed = model.update(
+          LoadResult<List<Map<String, Object?>>>(model.id, key: const PageKey(0), data: sampleRows(size)),
+        );
+        expect(pagesAsked(landed), hasLength(1));
+        ferry.take(landed);
       });
     });
 
@@ -1228,7 +1331,7 @@ void main() {
           keyField: 'id',
           columns: columns,
           focused: true,
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         expect(model.totalColumns, equals(2)); // id and name only
         expect(model.cursorColField, equals('id'));
@@ -1258,7 +1361,7 @@ void main() {
                 columns: sampleColumns(),
                 focused: true,
               )
-              ..setVisibleDimensions(5, 3)
+              ..viewport(rows: 5, cols: 3)
               // Should not throw
               ..update(keyMsg('down'))
               ..update(keyMsg('up'))
@@ -1339,7 +1442,8 @@ class _Ferry {
     final rows = start >= totalRows
         ? const <Map<String, Object?>>[]
         : sampleRows(totalRows).sublist(start, (start + pageSize).clamp(0, totalRows));
-    model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: PageKey(page), data: rows));
+    // A page that lands returns the next demand pass; the app fetches it.
+    take(model.update(LoadResult<List<Map<String, Object?>>>(model.id, key: PageKey(page), data: rows)));
   }
 
   /// Answers everything outstanding, then keeps running demand passes until the

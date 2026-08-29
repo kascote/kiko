@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
 import '../../load/page_loader.dart';
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'table_column.dart';
@@ -25,17 +26,15 @@ import 'types.dart';
 /// [LoadResult] carrying the table's id, which the router delivers to
 /// [update].
 ///
-/// Two obligations sit on the app, and both are one line:
+/// One obligation sits on the app: answer **every** request — with rows, with
+/// an error, or with a refusal built by `declineLoad`. A request left
+/// unanswered leaves its page painting a placeholder forever, because the
+/// model will not ask again while it believes the page is loading.
 ///
-/// - Answer **every** request — with rows, with an error, or with a refusal
-///   built by `declineLoad`. A request left unanswered leaves its page painting
-///   a placeholder forever, because the model will not ask again while it
-///   believes the page is loading.
-/// - Run demand on the frame tick: `FrameTickMsg() => (model, model.table
-///   .demandIfDirty())`. A terminal resize reveals rows through the paint path,
-///   where a widget cannot return a command, so without that case the rows a
-///   taller terminal reveals are demanded by nobody. The model says so in the
-///   log if it notices the case missing.
+/// The viewport needs no app code. The view reports the rows and columns it
+/// painted as a [ViewportChanged] message, the router delivers it here, and
+/// [update] runs the demand pass for the rows a taller terminal reveals. A
+/// page that lands and frees a slot returns the next demand pass the same way.
 ///
 /// A table over rows already in memory is one constructor call, and never meets
 /// any of the loading machinery:
@@ -325,10 +324,10 @@ class TableViewModel with ScrollableModel implements Component {
   /// Visible columns (filtered by visible flag).
   List<TableColumn> get _visibleColumns => columns.where((c) => c.visible).toList();
 
-  /// Number of visible rows (set by widget).
+  /// Rows the viewport shows, as the view last reported them.
   int get visibleRows => _visibleRows;
 
-  /// Number of visible columns (set by widget).
+  /// Columns the viewport shows, as the view last reported them.
   int get visibleCols => _visibleCols;
 
   // ─────────────────────────────────────────────
@@ -396,62 +395,43 @@ class TableViewModel with ScrollableModel implements Component {
   /// deliberately never re-triggers demand on its own.
   Cmd? demand() => _loader.demand();
 
-  /// Runs a [demand] pass only if something has changed what is missing, and
-  /// returns whatever it asks for.
-  ///
-  /// This is the app's frame-tick demand case: `FrameTickMsg() => (model,
-  /// model.table.demandIfDirty())`. Three things mark demand dirty — the
-  /// visible row count changing (a resize, which reaches the model through the
-  /// paint path where no command can be returned), a page installing
-  /// successfully (which frees a slot the in-flight cap may have truncated),
-  /// and [markDemandDirty]. A refused or failed request leaves demand clean,
-  /// which is what keeps a standing refusal from becoming a request every
-  /// frame.
-  Cmd? demandIfDirty() => _loader.demandIfDirty();
-
-  /// Marks demand dirty, so the next [demandIfDirty] call runs a pass.
-  ///
-  /// Call it from wherever an app's own gate lifts — a sync finishing, a filter
-  /// clearing — when the pages it was refusing should now be fetched. It is the
-  /// same recovery as calling [demand] directly, without a command to thread out
-  /// of wherever that state lives.
-  void markDemandDirty() => _loader.markDemandDirty();
-
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
-  /// A result addressed to another id is declined: it is not a message this
-  /// table understands. Every result addressed to this table is consumed,
-  /// keyed by page number ([PageKey]); a non-page key, or a page that is no
-  /// longer in flight (e.g. after a [reset]), is dropped rather than
-  /// corrupting the window.
+  /// A result whose id's leaf is not this table's id is declined: it is not a
+  /// message this table understands. Every result that is the table's own is
+  /// consumed, keyed by page number ([PageKey]); a non-page key, or a page
+  /// that is no longer in flight (e.g. after a [reset]), is dropped rather
+  /// than corrupting the window.
   ///
-  /// On success the rows install as that page — a short page recording where the
-  /// data ends — and pages the viewport no longer needs are evicted. A refusal
-  /// clears the slot and installs nothing, so the page keeps its placeholders and
-  /// is asked for again by the next demand pass. A failure records the error, and
-  /// a later demand pass retries the page.
+  /// On success the rows install as that page — a short page recording where
+  /// the data ends — and pages the viewport no longer needs are evicted. The
+  /// install frees a slot, so the next [demand] pass runs and comes back as
+  /// the command: that is what drains a window the in-flight cap truncated. A
+  /// refusal clears the slot and installs nothing, so the page keeps its
+  /// placeholders and is asked for again by the next demand pass. A failure
+  /// records the error, and a later demand pass retries the page. Neither
+  /// runs demand.
   UpdateResult _applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return const Declined();
-    if (_loader.apply(result)) _clampToKnownEnd();
-    return const Handled();
+    if (HitTag.leafOf(result.id) != id) return const Declined();
+    if (!_loader.apply(result)) return const Handled();
+    _clampToKnownEnd();
+    return Handled(demand());
   }
 
-  // ─────────────────────────────────────────────
-  // Setters for widget
-  // ─────────────────────────────────────────────
-
-  /// Called by widget during render to update visible dimensions.
+  /// Takes the viewport the view painted and asks for the rows it reveals.
   ///
-  /// A change in the visible row count marks demand dirty: a taller terminal
-  /// reveals rows nobody has asked for, and this is where the model finds out —
-  /// during paint, where it cannot return a command. The app's frame-tick
-  /// demand case picks it up on the next frame. If demand stays dirty across
-  /// many paints, the model says once, in the log, that the case is probably
-  /// missing.
-  void setVisibleDimensions(int rows, int cols) {
-    _visibleRows = rows;
+  /// A report whose id's leaf is not this table's id is declined. A report
+  /// equal to the stored rows and columns changes nothing and returns no
+  /// command; a changed one is stored, and the [demand] pass for the pages the
+  /// viewport now needs comes back as the command. A report with no column
+  /// count keeps the stored one.
+  UpdateResult _applyViewport(ViewportChanged report) {
+    if (HitTag.leafOf(report.id) != id) return const Declined();
+    final cols = report.cols ?? _visibleCols;
+    if (report.rows == _visibleRows && cols == _visibleCols) return const Handled();
+    _visibleRows = report.rows;
     _visibleCols = cols;
-    _loader.notePaint();
+    return Handled(demand());
   }
 
   // ─────────────────────────────────────────────
@@ -551,6 +531,7 @@ class TableViewModel with ScrollableModel implements Component {
     }
     if (msg is PointerCancelMsg) return const Declined();
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
+    if (msg case final ViewportChanged report) return _applyViewport(report);
 
     if (!focused) return const Declined();
 

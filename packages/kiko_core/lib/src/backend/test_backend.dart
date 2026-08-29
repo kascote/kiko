@@ -23,10 +23,10 @@ import 'backend.dart';
 /// against [lastDiff] to check the double buffer only redrew what changed.
 ///
 /// Feed the event loop with [emitKey], [emitClick], [emitMove], [emitDrag],
-/// [emitWheel], [emitPaste] and [emitFocus] — kiko-vocabulary helpers that
-/// build the matching raw event and hand it to [emit]. [emit] itself stays
-/// available for full-fidelity cases the helpers don't cover (a split
-/// press/release gesture, a key repeat or release). Coordinates are 0-based
+/// [emitWheel], [emitPaste], [emitFocus] and [emitResize] — kiko-vocabulary
+/// helpers that build the matching raw event and hand it to [emit]. [emit]
+/// itself stays available for full-fidelity cases the helpers don't cover (a
+/// split press/release gesture, a key repeat or release). Coordinates are 0-based
 /// buffer cells, the same space as [Rect] and [Position] — a [TestBackend]
 /// has no terminal, so it has nothing to translate.
 ///
@@ -300,6 +300,16 @@ class TestBackend implements Backend {
   /// Emits a change in terminal focus: [hasFocus] true when it was gained,
   /// false when it was lost.
   void emitFocus({required bool hasFocus}) => emit(evt.FocusEvent(hasFocus: hasFocus));
+
+  /// Resizes the terminal to [size] and emits the resize event a terminal
+  /// sends with it, so the runtime queues a `ResizeMsg`.
+  ///
+  /// [resizeTo] alone changes only what the next draw measures. The pixel
+  /// size reported is eight by sixteen pixels per cell.
+  void emitResize(TermSize size) {
+    resizeTo(size);
+    emit(evt.WindowResizeEvent(size.height, size.width, size.height * 16, size.width * 8));
+  }
 
   /// Maps kiko's [PointerButton] to termparser's button kind — the same
   /// vocabulary [PointerButton.none] carries a bare `MouseButton.down()`

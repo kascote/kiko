@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'tree_node.dart';
@@ -133,7 +134,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   @override
   int get scrollOffset => _scrollOffset;
 
-  /// Rows the viewport shows, as last pushed in by the view.
+  /// Rows the viewport shows, as the view last reported them.
   @override
   int get visibleCount => _visibleCount;
 
@@ -189,10 +190,6 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     total: _flatNodes.length,
   );
 
-  /// Called by widget during render to update visible count.
-  // ignore: use_setters_to_change_properties
-  void setVisibleCount(int count) => _visibleCount = count;
-
   // ─────────────────────────────────────────────
   // Public API - Programmatic control
   // ─────────────────────────────────────────────
@@ -210,10 +207,10 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
   /// Installs the outcome of a load and clears (or fails) its slot.
   ///
-  /// A result addressed to another id is declined: it is not a message this
-  /// tree understands. Every result addressed to this tree is consumed, keyed
-  /// by [LoadResult.key]: [RootsKey] installs roots, [PathKey] installs one
-  /// node's children, and an unknown key installs nothing.
+  /// A result whose id's leaf is not this tree's id is declined: it is not a
+  /// message this tree understands. Every result that is the tree's own is
+  /// consumed, keyed by [LoadResult.key]: [RootsKey] installs roots, [PathKey]
+  /// installs one node's children, and an unknown key installs nothing.
   ///
   /// Child results are guarded: only a node whose load is still in flight accepts
   /// one, so a late reply for a collapsed or already-loaded node is dropped rather
@@ -224,7 +221,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// nodes, so the branch shows the wiring error where a fetch failure would
   /// show.
   UpdateResult _applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return const Declined();
+    if (HitTag.leafOf(result.id) != id) return const Declined();
     switch (result.key) {
       case RootsKey():
         _installRoots(result);
@@ -234,6 +231,17 @@ class TreeViewModel<T> with ScrollableModel implements Component {
         // Unknown key — nothing to install.
         break;
     }
+    return const Handled();
+  }
+
+  /// Takes the viewport the view painted.
+  ///
+  /// A report whose id's leaf is not this tree's id is declined. The count is
+  /// stored and nothing is requested: a tree pages children in on expand, not
+  /// on what the viewport shows.
+  UpdateResult _applyViewport(ViewportChanged report) {
+    if (HitTag.leafOf(report.id) != id) return const Declined();
+    _visibleCount = report.rows;
     return const Handled();
   }
 
@@ -501,6 +509,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     }
     if (msg is PointerCancelMsg) return const Declined();
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
+    if (msg case final ViewportChanged report) return _applyViewport(report);
 
     if (!focused) return const Declined();
 

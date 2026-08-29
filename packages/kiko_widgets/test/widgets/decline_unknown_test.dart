@@ -61,6 +61,7 @@ void main() {
     'an unknown message class': const _UnknownMsg(),
     'a key release': const KeyReleaseMsg('a'),
     'a bare modifier key going down': const ModifierKeyMsg(ModifierKey.shift, ModifierSide.left, down: true),
+    'a viewport report for another widget': const ViewportChanged('someone-else', rows: 3),
   };
 
   group('unknown-message decline discipline', () {

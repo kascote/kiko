@@ -83,16 +83,7 @@ class PageLoader<T> {
   /// clear on a [reset].
   final Set<int> _inFlight = {};
 
-  bool _demandDirty = false;
-  int _paintsWhileDirty = 0;
-  bool _pumpWarned = false;
   bool _shortPageWarned = false;
-  int _lastPaintedRows = 0;
-
-  /// Paints with demand outstanding before the loader suspects the app is
-  /// missing its frame-tick demand case. Half a second at 60fps — long enough that a
-  /// fetch in progress never trips it.
-  static const _pumpWarningPaints = 30;
 
   int? _totalCount;
 
@@ -249,13 +240,12 @@ class PageLoader<T> {
   /// page, and what re-requests a page missing in the middle of the window
   /// instead of leaving it a permanent hole.
   ///
-  /// The owner calls this on every message that moves its viewport. An app
-  /// calls it when its own state changes what it is willing to fetch — after a
-  /// policy gate that was refusing requests lifts, say — since a refusal
-  /// deliberately never re-triggers demand on its own.
+  /// The owner calls this on every message that moves its viewport, on the
+  /// viewport report that reveals rows, and after a page installs and frees a
+  /// slot. An app calls it when its own state changes what it is willing to
+  /// fetch — after a policy gate that was refusing requests lifts, say — since
+  /// a refusal deliberately never re-triggers demand on its own.
   Cmd? demand() {
-    _demandDirty = false;
-    _paintsWhileDirty = 0;
     final budget = maxConcurrentLoads - _inFlight.length;
     if (budget <= 0) return null;
     final pages = _window.missing(_demandSpan, pending: _inFlight.contains, limit: budget);
@@ -268,57 +258,6 @@ class PageLoader<T> {
     return requests.length == 1 ? requests.first : Batch(requests);
   }
 
-  /// Runs a [demand] pass only if something has changed what is missing, and
-  /// returns whatever it asks for.
-  ///
-  /// This backs the app's frame-tick demand case. Three things mark demand
-  /// dirty — the visible row count changing (a resize, which reaches the owner
-  /// through the paint path where no command can be returned), a page
-  /// installing successfully (which frees a slot the in-flight cap may have
-  /// truncated), and [markDemandDirty]. A refused or failed request leaves
-  /// demand clean, which is what keeps a standing refusal from becoming a
-  /// request every frame.
-  Cmd? demandIfDirty() => _demandDirty ? demand() : null;
-
-  /// Marks demand dirty, so the next [demandIfDirty] call runs a pass.
-  ///
-  /// Call it from wherever an app's own gate lifts — a sync finishing, a
-  /// filter clearing — when the pages it was refusing should now be fetched.
-  /// It is the same recovery as calling [demand] directly, without a command
-  /// to thread out of wherever that state lives.
-  void markDemandDirty() => _demandDirty = true;
-
-  /// Notes that the owner painted; call it once per paint, after the owner has
-  /// updated its visible row count.
-  ///
-  /// A change in the visible row count marks demand dirty: a taller terminal
-  /// reveals rows nobody has asked for, and the paint path — where a widget
-  /// cannot return a command — is where the owner finds out. The app's
-  /// frame-tick demand case picks it up on the next frame. If demand stays
-  /// dirty across many paints while a page is actually requestable, the loader
-  /// says once, in the log, that the case is probably missing. A widget with
-  /// nothing to request — a
-  /// static one, or one whose fetches are all in flight — never counts toward
-  /// the warning.
-  void notePaint() {
-    final rows = _visibleRows();
-    if (rows != _lastPaintedRows) _demandDirty = true;
-    _lastPaintedRows = rows;
-    if (!_demandDirty || !_hasDemandableWork) {
-      _paintsWhileDirty = 0;
-      return;
-    }
-    _paintsWhileDirty++;
-    if (_paintsWhileDirty > _pumpWarningPaints && !_pumpWarned) {
-      _pumpWarned = true;
-      Log.warn(
-        '$widgetName "$id" has had pages to demand for $_paintsWhileDirty frames '
-        'without a demand pass. Add the frame-tick demand case to your update: '
-        'FrameTickMsg() => (model, model.demandIfDirty())',
-      );
-    }
-  }
-
   // ─────────────────────────────────────────────
   // Writing
   // ─────────────────────────────────────────────
@@ -327,9 +266,9 @@ class PageLoader<T> {
   /// Returns true only when rows were installed.
   ///
   /// This backs the owner's `LoadResult` case in `update`, keyed by page
-  /// number ([PageKey]). A result for another widget (by id), a non-page key,
-  /// or a page that is no longer in flight (e.g. after a [reset]) is dropped
-  /// rather than corrupting the window.
+  /// number ([PageKey]). A result for another widget (its id's leaf is not
+  /// [id]), a non-page key, or a page that is no longer in flight (e.g. after
+  /// a [reset]) is dropped rather than corrupting the window.
   ///
   /// On success the rows install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. A
@@ -345,7 +284,7 @@ class PageLoader<T> {
   /// and touches neither the window nor the count: a mismatch is a wiring
   /// error, not an empty page, so it never records where the data ends.
   bool apply(LoadResult<Object?> result) {
-    if (result.id != id) return false;
+    if (HitTag.leafOf(result.id) != id) return false;
     final key = result.key;
     if (key is! PageKey) return false;
     final page = key.page;
@@ -400,10 +339,6 @@ class PageLoader<T> {
     _normalizeCount();
     if (data is PageResult<T> && data.totalCount != null) totalCount = data.totalCount;
     _finishLoad(page);
-    // Progress: a slot is free and the window changed, so re-derive what is
-    // still missing on the next tick. This is what drains a demand window the
-    // in-flight cap truncated, with no input at all.
-    markDemandDirty();
     return true;
   }
 
@@ -432,8 +367,6 @@ class PageLoader<T> {
       _loads.complete(PageKey(page));
     }
     _inFlight.clear();
-    _demandDirty = false;
-    _paintsWhileDirty = 0;
     _totalCount = null;
   }
 
@@ -470,11 +403,6 @@ class PageLoader<T> {
     final derived = _countFromWindow;
     if (derived != null && derived < count) _totalCount = derived;
   }
-
-  /// Whether a demand pass right now would request at least one page.
-  bool get _hasDemandableWork =>
-      _inFlight.length < maxConcurrentLoads &&
-      _window.missing(_demandSpan, pending: _inFlight.contains, limit: 1).isNotEmpty;
 
   /// What [pages] amount to, as the shared load machinery sees them.
   SliceStatus _statusOf(Iterable<int> pages) =>

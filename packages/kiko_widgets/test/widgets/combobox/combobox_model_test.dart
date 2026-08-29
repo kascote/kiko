@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg for a named key.
 KeyMsg keyMsg(String key) => KeyMsg(key);
@@ -185,7 +186,7 @@ void main() {
       test('pageDown moves the cursor by the seeded visible count', () {
         final combo = fruitBox()
           ..update(keyMsg('down'))
-          ..internalList.setVisibleCount(2)
+          ..internalList.viewport(rows: 2)
           ..update(keyMsg('pageDown')) // cursor row 0 + 2 = row 2 (Cherry)
           ..update(keyMsg('enter'));
 
@@ -195,7 +196,7 @@ void main() {
       test('pageUp moves the cursor back by the seeded visible count', () {
         final combo = fruitBox()
           ..update(keyMsg('down'))
-          ..internalList.setVisibleCount(2)
+          ..internalList.viewport(rows: 2)
           ..update(keyMsg('pageDown')) // row 2
           ..update(keyMsg('pageUp')) // row 0
           ..update(keyMsg('enter'));
@@ -471,7 +472,7 @@ void main() {
       test('a wheel over the popup scrolls it without committing or closing', () {
         final combo = fruitBox(options: List.generate(10, (i) => 'item$i'))
           ..update(keyMsg('down'))
-          ..internalList.setVisibleCount(3);
+          ..internalList.viewport(rows: 3);
 
         final result = combo.update(onList(combo, PointerAction.wheelDown));
 
@@ -765,6 +766,30 @@ void main() {
         expect(verdict, isA<Handled>(), reason: 'the list installed the page; the combobox never applied the guard');
         expect(list.cachedItemCount, equals(2));
         expect(combo.queryStatus, SliceStatus.ready, reason: 'no combobox query slot was touched');
+      });
+
+      test('a viewport report addressed to the popup list by its scoped path reaches the list', () {
+        final combo = fruitBox();
+        final list = combo.internalList;
+
+        final verdict = combo.update(ViewportChanged('combo/${list.id}', rows: 2));
+
+        expect(verdict, isA<Handled>());
+        expect(list.visibleCount, equals(2), reason: 'the list recognised its own id as the leaf of the path');
+        expect(combo.update(ViewportChanged('combo/${list.id}', rows: 2)), isA<Handled>());
+      });
+
+      test('a result addressed to the popup list by its scoped path is installed by the list', () {
+        final combo = remoteBox();
+        final list = combo.internalList;
+        final req = list.loadFirstPage();
+
+        final verdict = combo.update(
+          LoadResult<List<String>>('combo/${req.id}', key: req.key, data: const ['Apple', 'Avocado']),
+        );
+
+        expect(verdict, isA<Handled>());
+        expect(list.cachedItemCount, equals(2), reason: "the path form the composite forwards is the list's own");
       });
 
       test('commit with no cursor row commits nothing', () {

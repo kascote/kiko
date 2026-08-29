@@ -25,6 +25,14 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+/// Renders [node] into a fresh frame and delivers the frame's reports to
+/// [model], as the runtime does once the frame commits.
+Frame _commit(int width, int height, View node, Component model) {
+  final frame = _frame(width, height)..render(node);
+  frame.reports.forEach(model.update);
+  return frame;
+}
+
 ListViewModel<String, String> _list(List<String> items) => ListViewModel<String, String>(items: items, focused: true);
 
 List<Line> _row(String item, int index, ItemState state) => [Line(item)];
@@ -51,12 +59,39 @@ void main() {
 ''');
     });
 
+    test('reports the rows it painted, addressed to the model id', () {
+      final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
+      final frame = _frame(5, 3)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
+
+      final report = frame.reports.single as ViewportChanged;
+      expect(report.id, model.id);
+      expect(report.rows, 3);
+      expect(report.cols, isNull);
+      expect(model.visibleCount, 0, reason: 'paint reports; it never writes into the model');
+    });
+
+    test('under a scope, the report carries the scoped path', () {
+      final model = _list(<String>['a', 'b', 'c']);
+      final frame = _frame(5, 3)
+        ..render(
+          Tagged.scope(
+            'combo',
+            Container(
+              child: ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row, scope: 'combo'),
+            ),
+          ),
+        );
+
+      expect((frame.reports.single as ViewportChanged).id, 'combo/${model.id}');
+      expect(frame.hits.hitId(0, 0), 'combo/${model.id}', reason: 'the same path the hit map records');
+    });
+
     test('windows the rows to the scroll offset', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
       final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
 
-      // First frame fixes the visible count (3 rows) the model scrolls against.
-      expect(_dump((_frame(5, 3)..render(node)).buffer), 'a\nb\nc\n');
+      // The first frame reports the visible count (3 rows) the model scrolls against.
+      expect(_dump(_commit(5, 3, node, model).buffer), 'a\nb\nc\n');
 
       // Move the cursor to the end; the window slides down.
       for (var i = 0; i < 4; i++) {
@@ -115,9 +150,10 @@ void main() {
       final model = paged();
       final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
 
-      // First frame fixes the visible count (3 rows) the model scrolls against.
-      _frame(5, 3).render(node);
-      // One notch lands the viewport fully on page 1, which is now in flight.
+      // The first frame reports the visible count (3 rows) the model scrolls
+      // against, and its demand pass puts page 1 in flight.
+      _commit(5, 3, node, model);
+      // One notch lands the viewport fully on page 1.
       model.update(const PointerMsg(global: Position.origin, action: PointerAction.wheelDown, local: Position.origin));
       expect(model.scrollOffset, equals(3));
       expect(model.viewportStatus, SliceStatus.filling);
@@ -132,7 +168,7 @@ void main() {
       final model = paged();
       final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
 
-      _frame(5, 3).render(node);
+      _commit(5, 3, node, model);
       for (var i = 0; i < 3; i++) {
         model.update(const KeyMsg('down'));
       }
@@ -172,7 +208,7 @@ void main() {
         loadingItemBuilder: (index) => [Line('#$index')],
       );
 
-      _frame(5, 3).render(node);
+      _commit(5, 3, node, model);
       for (var i = 0; i < 3; i++) {
         model.update(const KeyMsg('down'));
       }

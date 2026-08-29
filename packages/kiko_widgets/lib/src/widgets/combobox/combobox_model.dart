@@ -523,8 +523,9 @@ class ComboboxModel<T> implements Component {
 
   /// Installs a remote query's answer, or records its failure.
   ///
-  /// A result addressed to another id is declined: it is not a message this
-  /// combobox understands. Every result addressed to this one is consumed.
+  /// A result whose id's leaf is not this combobox's id is declined: it is
+  /// not a message this combobox understands. Every result that is its own is
+  /// consumed.
   /// Only an answer for the newest query the model asked — [_newestKey] —
   /// installs, so a superseded query landing after a newer one was asked is
   /// dropped once its own slot resolves; a query no longer in flight (e.g.
@@ -538,7 +539,7 @@ class ComboboxModel<T> implements Component {
   /// installs nothing, so [queryError] reports the wiring error where a fetch
   /// failure would show.
   UpdateResult _applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return const Declined();
+    if (HitTag.leafOf(result.id) != id) return const Declined();
     final key = result.key;
     if (key is! QueryKey) return const Handled();
     if (!_loads.isLoading(key)) return const Handled();

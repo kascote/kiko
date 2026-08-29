@@ -5,7 +5,7 @@
 // - LoadRequest → fetch, keyed by page number; the LoadResult routes itself
 //   home to the table, which installs it in its own update
 // - A demand pass that may ask for several pages at once (flattened by the app)
-// - The frame-tick demand case that picks up what a resize reveals
+// - The viewport report the view paints, which asks for what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Loading state indicator
 // - Total count as a deliberate one-shot
@@ -247,16 +247,11 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     return (model, null);
   }
 
-  // A resize reveals rows through the paint path, where the table cannot return
-  // a command, and a page landing can free a slot the in-flight cap truncated.
-  // One case on the frame tick covers both.
-  if (msg is FrameTickMsg) {
-    return (model, fetchAll(model, model.table.demandIfDirty()));
-  }
-
   // Navigation runs a demand pass, which may ask for one page or several. A
   // page's LoadResult takes the same path: it carries the table's id, and the
-  // table installs it, or records its failure, in this one call.
+  // table installs it, or records its failure, in this one call. So does the
+  // viewport report the view paints: the table asks for the rows a taller
+  // terminal reveals from the same update.
   final result = model.table.update(msg);
 
   switch (result) {
@@ -270,12 +265,10 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     // Open and close the policy gate. Closing it needs nothing: the next
     // request is simply refused. Opening it does — a refusal deliberately never
     // re-triggers demand, or a standing refusal would become a request storm —
-    // so the app pokes the model, and the frame-tick demand case above picks
-    // it up.
+    // so the app runs the demand pass itself and fetches what it asks for.
     if (key == 'p') {
       model.paused = !model.paused;
-      if (!model.paused) model.table.markDemandDirty();
-      return (model, null);
+      return (model, model.paused ? null : fetchAll(model, model.table.demand()));
     }
     if (key == 'escape' || key == 'ctrl+q') {
       return (model, const Quit());

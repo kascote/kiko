@@ -128,6 +128,23 @@ void main() {
       expect(frame.hits.hitId(9, 1), listPath);
     });
 
+    test('the popup list reports its viewport under the combobox scope', () {
+      final combo = _fruitBox()..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(10, 6);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      // Four options, three visible rows: the popup shows three.
+      final report = frame.reports.whereType<ViewportChanged>().single;
+      expect(report.id, 'combo/${combo.internalList.id}', reason: 'the path the router resolves to the combobox');
+      expect(report.rows, 3);
+      expect(combo.internalList.visibleCount, 0, reason: 'paint reports; the list learns the count from update');
+      expect(combo.update(report), isA<Handled>());
+      expect(combo.internalList.visibleCount, 3);
+    });
+
     test('shows a row per match, painted through the default item builder', () {
       final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
       final view = Combobox(model: combo, theme: _theme);

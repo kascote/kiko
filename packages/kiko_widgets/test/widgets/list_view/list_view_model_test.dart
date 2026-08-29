@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
@@ -23,7 +24,7 @@ void main() {
     test('a wheel notch scrolls an unfocused list without moving the cursor', () {
       final model = ListViewModel<String, String>(
         items: List.generate(20, (i) => 'item$i'),
-      )..setVisibleCount(5);
+      )..viewport(rows: 5);
 
       final result = model.update(pointer(PointerAction.wheelDown));
 
@@ -35,7 +36,7 @@ void main() {
     test('scrollBy clamps at both ends', () {
       final model = ListViewModel<String, String>(
         items: List.generate(10, (i) => 'item$i'),
-      )..setVisibleCount(4);
+      )..viewport(rows: 4);
 
       expect((model..scrollBy(-5)).scrollOffset, equals(0), reason: 'cannot scroll above the first row');
       expect((model..scrollBy(100)).scrollOffset, equals(6), reason: 'stops at length - visibleCount (10 - 4)');
@@ -46,7 +47,7 @@ void main() {
       final model = ListViewModel<String, String>(
         items: const ['a', 'b', 'c'],
         focused: true,
-      )..setVisibleCount(2);
+      )..viewport(rows: 2);
 
       expect(model.update(pointer(PointerAction.wheelLeft)), isA<Declined>());
       expect(model.update(pointerAt(PointerAction.down, y: 9)), isA<Declined>(), reason: 'no item under the click');
@@ -54,12 +55,14 @@ void main() {
     });
 
     test('a wheel toward a missing page returns a LoadRequest (unfocused)', () {
+      // No threshold: the reported viewport covers page 0 exactly, so only the
+      // wheel notch carries the viewport into page 1.
       final model = ListViewModel<String, String>(
         items: List.generate(5, (i) => 'item$i'),
         totalCount: 15,
         pageSize: 5,
-        loadThreshold: 2,
-      )..setVisibleCount(5);
+        loadThreshold: 0,
+      )..viewport(rows: 5);
 
       final result = model.update(pointer(PointerAction.wheelDown));
 
@@ -70,7 +73,7 @@ void main() {
     group('wheel decline at the scroll limit (mikos 0175 / G2)', () {
       ListViewModel<String, String> scrollable({int items = 10, int visible = 5}) => ListViewModel<String, String>(
         items: List.generate(items, (i) => 'item$i'),
-      )..setVisibleCount(visible);
+      )..viewport(rows: visible);
 
       test('at the top, wheel-up declines while wheel-down handles', () {
         final model = scrollable();
@@ -117,7 +120,7 @@ void main() {
       id: 'menu',
       items: List.generate(6, (i) => 'item$i'),
       focused: focused,
-    )..setVisibleCount(6);
+    )..viewport(rows: 6);
 
     test('a click on row N moves the cursor there and emits ListActionCmd', () {
       final model = menu();
@@ -137,7 +140,7 @@ void main() {
         id: 'menu',
         totalCount: 6,
         focused: true,
-      )..setVisibleCount(6);
+      )..viewport(rows: 6);
 
       final down = model.update(pointerOnRow(PointerAction.down, 3));
 
@@ -220,7 +223,7 @@ void main() {
                 multiSelect: true,
                 focused: true,
               )
-              ..setVisibleCount(10)
+              ..viewport(rows: 10)
               // Select first item
               ..update(keyMsg('space'));
 
@@ -235,7 +238,7 @@ void main() {
         model = ListViewModel<String, String>(
           items: const ['a', 'b', 'c', 'd', 'e'],
           focused: true,
-        )..setVisibleCount(3);
+        )..viewport(rows: 3);
       });
 
       test('down moves cursor', () {
@@ -311,7 +314,7 @@ void main() {
           totalCount: 15,
           pageSize: 5,
           focused: true,
-        )..setVisibleCount(3);
+        )..viewport(rows: 3);
 
         final result = paged.update(keyMsg('end'));
 
@@ -332,7 +335,7 @@ void main() {
         model = ListViewModel<String, String>(
           items: List.generate(20, (i) => 'item$i'),
           focused: true,
-        )..setVisibleCount(5);
+        )..viewport(rows: 5);
       });
 
       test('scrollOffset adjusts when cursor moves below visible', () {
@@ -382,7 +385,7 @@ void main() {
             items: const ['a', 'b', 'c', 'd', 'e'],
             multiSelect: true,
             focused: true,
-          )..setVisibleCount(5);
+          )..viewport(rows: 5);
         });
 
         test('space toggles check', () {
@@ -418,7 +421,7 @@ void main() {
             items: const ['a', 'b', 'c', 'd', 'e'],
             multiSelect: true,
             focused: true,
-          )..setVisibleCount(5);
+          )..viewport(rows: 5);
         });
 
         test('shift+down extends check range', () {
@@ -483,7 +486,7 @@ void main() {
           loadThreshold: 0,
           multiSelect: true,
           focused: true,
-        )..setVisibleCount(2);
+        )..viewport(rows: 2);
 
         test('a page landing inside an active range contributes its keys', () {
           final model = paged()
@@ -523,7 +526,7 @@ void main() {
                   isDisabled: (i) => i == 1,
                   focused: true,
                 )
-                ..setVisibleCount(5)
+                ..viewport(rows: 5)
                 ..update(keyMsg('down')) // cursor at b (disabled)
                 ..update(keyMsg('space')); // should not check
           expect(model.getSelectedKeys(), isEmpty);
@@ -537,7 +540,7 @@ void main() {
                   isDisabled: (i) => i == 1,
                   focused: true,
                 )
-                ..setVisibleCount(5)
+                ..viewport(rows: 5)
                 ..update(keyMsg('shift+down'))
                 ..update(keyMsg('shift+down'))
                 ..update(keyMsg('shift+down'));
@@ -565,7 +568,7 @@ void main() {
         final model = ListViewModel<String, String>(
           totalCount: 4,
           focused: true,
-        )..setVisibleCount(4);
+        )..viewport(rows: 4);
 
         final result = model.update(keyMsg('enter'));
 
@@ -613,7 +616,7 @@ void main() {
         pageSize: 5,
         loadThreshold: 2,
         focused: true,
-      )..setVisibleCount(2);
+      )..viewport(rows: 2);
 
       test('returns a LoadRequest when the viewport nears a missing page', () {
         final model = paginated()
@@ -653,7 +656,7 @@ void main() {
                 loadThreshold: 2,
                 focused: true,
               )
-              ..setVisibleCount(5)
+              ..viewport(rows: 5)
               ..update(keyMsg('down'))
               ..update(keyMsg('down'));
 
@@ -663,11 +666,62 @@ void main() {
       });
     });
 
+    group('viewport reports', () {
+      // Five of fifteen items held; a viewport of two reaches nothing more,
+      // a viewport of ten reaches page 1.
+      ListViewModel<String, String> paged() => ListViewModel<String, String>(
+        id: 'list',
+        items: const ['a', 'b', 'c', 'd', 'e'],
+        totalCount: 15,
+        pageSize: 5,
+        loadThreshold: 0,
+      );
+
+      test('a report equal to the stored count is consumed with no command', () {
+        final model = paged()..viewport(rows: 2);
+
+        final verdict = model.update(const ViewportChanged('list', rows: 2));
+
+        expect(verdict, isA<Handled>().having((h) => h.cmd, 'cmd', isNull));
+        expect(model.visibleCount, equals(2));
+      });
+
+      test('a changed count is stored and returns the demand for the pages it reveals', () {
+        final model = paged()..viewport(rows: 2);
+
+        final verdict = model.update(const ViewportChanged('list', rows: 10));
+
+        expect(model.visibleCount, equals(10));
+        expect(
+          verdict,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isA<LoadRequest>().having((r) => r.key, 'key', const PageKey(1))),
+          reason: 'the taller viewport reaches page 1',
+        );
+        expect(model.isLoading(const PageKey(1)), isTrue);
+      });
+
+      test('a report addressed to another id is declined', () {
+        final model = paged();
+
+        expect(model.update(const ViewportChanged('other', rows: 10)), isA<Declined>());
+        expect(model.visibleCount, equals(0));
+      });
+
+      test("a report carrying this id's path under a scope is the list's own", () {
+        final model = paged();
+
+        expect(model.update(const ViewportChanged('combo/list', rows: 2)), isA<Handled>());
+        expect(model.visibleCount, equals(2));
+      });
+    });
+
     group('load lifecycle', () {
+      // A cold list before its first frame: the app's init fetch precedes any
+      // viewport report, so nothing but what a test asks for is in flight.
       ListViewModel<String, String> paged() => ListViewModel<String, String>(
         pageSize: 2,
         focused: true,
-      )..setVisibleCount(5);
+      );
 
       test('loadFirstPage marks page 0 loading and returns a request', () {
         final model = paged();
@@ -677,15 +731,21 @@ void main() {
         expect(model.isLoading(const PageKey(0)), isTrue);
       });
 
-      test('update(LoadResult) installs the page and clears the slot', () {
+      test('update(LoadResult) installs the page, clears the slot, and returns the next demand pass', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
+        final verdict = model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
 
         expect(model.getItem(0), equals('a'));
         expect(model.cursorItem, equals('a'));
-        expect(model.isLoading(), isFalse);
+        expect(model.isLoading(const PageKey(0)), isFalse, reason: 'the slot is cleared');
         expect(model.knownItemCount, isNull, reason: 'a full page says nothing about where the data ends');
+        expect(
+          verdict,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNotNull),
+          reason: 'the install freed a slot: the pass asks for the pages past the one that landed',
+        );
+        expect(model.isLoading(const PageKey(1)), isTrue);
       });
 
       test('a short page records where the data ends', () {
@@ -717,6 +777,23 @@ void main() {
         expect(model.errorFor(const PageKey(0)), isNull, reason: 'nothing failed');
         expect(model.cachedItemCount, equals(0), reason: 'no items were installed');
         expect(model.knownItemCount, isNull, reason: 'a refusal teaches the list nothing about where data ends');
+      });
+
+      test('a refusal or a failure returns no demand pass', () {
+        final model = paged();
+        final req = model.loadFirstPage();
+
+        expect(
+          model.update(LoadResult<List<String>>.cancelled(req.id, key: req.key)),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a standing refusal must never become a request storm',
+        );
+        model.loadFirstPage();
+        expect(
+          model.update(LoadResult<List<String>>(req.id, key: req.key, error: 'boom')),
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a failure is retried by the next pass the app runs, not by itself',
+        );
       });
 
       test('a result for a page not in flight is dropped (staleness guard)', () {
@@ -762,7 +839,7 @@ void main() {
                 focused: true,
               )
               ..insertItems(const ['a', 'b', 'c', 'd', 'e'], 0)
-              ..setVisibleCount(3)
+              ..viewport(rows: 3)
               ..update(keyMsg('pageDown')) // cursor 3 — demand puts page 1 in flight
               ..update(keyMsg('pageDown')) // cursor 6, into the pending page
               ..update(keyMsg('pageDown')); // cursor 9, scroll 7
@@ -798,7 +875,7 @@ void main() {
                 multiSelect: true,
                 focused: true,
               )
-              ..setVisibleCount(3)
+              ..viewport(rows: 3)
               ..update(keyMsg('space'))
               ..update(keyMsg('end'));
         expect(model.getSelectedKeys(), isNotEmpty);
@@ -837,7 +914,7 @@ void main() {
                 items: const [],
                 focused: true,
               )
-              ..setVisibleCount(5)
+              ..viewport(rows: 5)
               // Should not throw
               ..update(keyMsg('down'))
               ..update(keyMsg('up'))

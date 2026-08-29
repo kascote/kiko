@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 const _ctx = plume.LayoutContext(measurer: plume.MonospaceMeasurer());
 
@@ -29,7 +30,7 @@ void main() {
   group('tree view render', () {
     test('draws an expanded tree with depth indentation', () {
       final model = TreeViewModel<String>()
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Parent'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -50,7 +51,7 @@ void main() {
 
     test('draws three levels of nested expansion', () {
       final model = TreeViewModel<String>()
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[TreeNode(path: '/a/b', label: Line('Level1'))])
@@ -65,7 +66,7 @@ void main() {
 
     test('shows icons before labels when showIcons is enabled', () {
       final model = TreeViewModel<String>(showIcons: true)
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Folder'), icon: '📁')])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -78,7 +79,7 @@ void main() {
 
     test('aligns leaf and branch children at the same indent', () {
       final model = TreeViewModel<String>()
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Parent'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -96,7 +97,7 @@ void main() {
       // else. Rows now paint through the plume Surface protocol directly, so
       // the focused row's fill and its text both land here too.
       final model = TreeViewModel<String>(focused: true)
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'), isLeaf: true)]);
       final node = TreeView<String>(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(6, 1)), _ctx)
@@ -119,7 +120,7 @@ void main() {
       // not re-anchored at the clip's origin — that would pin node0 to the top
       // of the visible window instead of scrolling it off.
       final model = TreeViewModel<String>()
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[
           for (var i = 0; i < 5; i++) TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true),
         ]);
@@ -137,10 +138,23 @@ void main() {
     });
   });
 
+  group('tree view viewport report', () {
+    test('reports the rows it painted, addressed to the model id', () {
+      final model = TreeViewModel<String>(id: 'nav')
+        ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
+      final frame = _frame(8, 4)..render(TreeView<String>(model: model, theme: Theme.dark));
+
+      final report = frame.reports.single as ViewportChanged;
+      expect(report.id, 'nav');
+      expect(report.rows, 4);
+      expect(model.visibleCount, 0, reason: 'paint reports; it never writes into the model');
+    });
+  });
+
   group('tree view click routing', () {
     test('a click in the tree resolves to its id', () {
       final model = TreeViewModel<String>(id: 'files')
-        ..setVisibleCount(10)
+        ..viewport(rows: 10)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))]);
       final frame = _frame(10, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
 
@@ -153,7 +167,7 @@ void main() {
     // A branch root at depth 0 (its expand indicator sits at columns 0-1),
     // followed by a leaf (which paints no indicator).
     TreeViewModel<String> branchTree() => TreeViewModel<String>(id: 'nav')
-      ..setVisibleCount(10)
+      ..viewport(rows: 10)
       ..applyRoots(<TreeNode<String>>[
         TreeNode(path: '/A', label: Line('Alpha')),
         TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),

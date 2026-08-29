@@ -59,9 +59,9 @@ a placeholder no one will fill.
 
 **Recovery after a refusal is the app's move.** A refusal deliberately never
 re-triggers demand — a standing refusal would otherwise become a request
-every frame. When the app is ready to load again, it either runs the widget's
-demand pass itself or marks it dirty (`table.markDemandDirty()`) and lets the
-frame-tick demand case run it.
+storm. When the app is ready to load again, it runs the widget's demand pass
+from the message that lifted its gate and fetches what comes back:
+`return (model, fetchAll(model, model.table.demand()))`.
 
 ## Shared primitives (`packages/kiko_widgets/lib/src/load/`)
 
@@ -96,7 +96,12 @@ frame-tick demand case run it.
 - `PageLoader<T>` — the loading half of a windowed widget: the page window, a
   load slot per page, and the demand pass, in one object the widget model
   embeds and delegates to. It performs no I/O. Apps meet it only through the
-  model's own members (`demand`, `demandIfDirty`, `update`, `reset`, …).
+  model's own members (`demand`, `update`, `reset`, …).
+- `ViewportChanged` — the report a windowed widget's view paints: the rows it
+  showed and, for a table, the columns. The runtime queues it after the frame
+  commits and the router delivers it to the model (`docs/architecture.md`,
+  frame reports). A part painted under a composite's scope reports the scoped
+  path (`combo/list`); the composite forwards it by leaf.
 - `PageSource<T>` + `PageResult<T>` — the app-side source interface: index
   addressed, owning the page size, `Future<PageResult<T>> read(int page)`.
   `PageSource.offset(...)` wraps an offset/limit query. `PageSource.cursor(...)`
@@ -189,21 +194,18 @@ one storage type.
   the window does not hold is consumed and emits nothing, on the key and the
   click alike — the widget understands the input and has nothing to act on.
 
-  Two app-side obligations, both one line:
-
-  ```dart
-  // 1. Run demand on the frame tick. A resize reveals rows through the paint
-  //    path, where a widget cannot return a command; a page landing frees a
-  //    slot the in-flight cap truncated. This case covers both, and the model
-  //    logs a warning if it notices the case missing.
-  if (msg is FrameTickMsg) return (model, fetchAll(model, model.table.demandIfDirty()));
-
-  // 2. Answer every request (above) — with rows, an error, or declineLoad.
-  ```
+  One app-side obligation: answer every request (above) — with rows, an
+  error, or `declineLoad`. The viewport needs no app code. The view reports
+  the rows it painted as a `ViewportChanged` message, the router delivers it
+  to the table, and the table's `update` compares it to the rows it holds: an
+  unchanged report returns nothing; a changed one is stored and returns the
+  demand pass for the rows a taller terminal reveals. A page that lands and
+  frees a slot the in-flight cap truncated returns the next demand pass from
+  the same `update`. A refusal or a failure returns no pass.
 - **ListView** — `PageKey(page)`, exactly the table's shape: one slot per
   page, demand-driven loading, eviction by distance from the viewport, the
-  same frame-tick demand case (`model.list.demandIfDirty()`), and the same
-  consumed confirm on a row the window does not hold. Generic over the item
+  same viewport report, and the same consumed confirm on a row the window
+  does not hold. Generic over the item
   type, so `fetchInto` works with any `PageSource<T>`. Its `pageSize`
   defaults to 20 (an item may be several lines tall) against the table's 50.
   Three list-specific rules sit on top:
@@ -282,14 +284,16 @@ Each model handles the result as one case of `update`, above its focus gate:
 if (msg case final LoadResult<Object?> result) return _applyLoad(result);
 
 UpdateResult _applyLoad(LoadResult<Object?> result) {
-  if (result.id != id) return const Declined(); // not this widget's message
+  if (HitTag.leafOf(result.id) != id) return const Declined(); // not this widget's message
   // install the data, or record the error, or resolve a refusal …
   return const Handled();
 }
 ```
 
-The id guard stays: a result addressed to another id is declined, so an app
-that calls `update` without a router still gets the same answer. A result
+The id guard stays, and it compares the leaf: a result whose id's leaf is
+another widget's is declined, so an app that calls `update` without a router
+still gets the same answer, and a composite's part accepts the scoped path
+its composite forwards (`docs/components.md`). A result
 nothing registers comes back from the router as `Declined`, into the app's
 fall-through, where it logs what nothing consumed. A widget that receives
 results but is never focused or clicked goes in the router's `extras`.

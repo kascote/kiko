@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import 'list_view_model.dart';
 import 'types.dart';
@@ -30,10 +31,20 @@ final class ListView<T, K> implements View {
     this.separatorBuilder,
     this.emptyPlaceholder,
     this.loadingItemBuilder,
+    this.scope,
   });
 
   /// The model whose rows, cursor, and selection this view renders.
   final ListViewModel<T, K> model;
+
+  /// The scope this list is painted under, or null for a list at the top
+  /// level.
+  ///
+  /// A composite that embeds the list under `Tagged.scope(id, …)` passes that
+  /// id, so the list's [ViewportChanged] report carries the same path the hit
+  /// map records for it (`combo/list`) and the router delivers it to the
+  /// composite.
+  final String? scope;
 
   /// The theme that resolves row styles.
   final Theme theme;
@@ -63,6 +74,7 @@ final class ListView<T, K> implements View {
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
     loadingItemBuilder: loadingItemBuilder,
+    reportId: HitTag.join(scope ?? '', model.id),
   )..tag = IdTag(model.id);
 }
 
@@ -73,6 +85,7 @@ class _ListViewport<T, K> extends Node {
     required this.model,
     required this.theme,
     required this.itemBuilder,
+    required this.reportId,
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
@@ -81,6 +94,9 @@ class _ListViewport<T, K> extends Node {
 
   final ListViewModel<T, K> model;
   final Theme theme;
+
+  /// The id the viewport report is addressed to: the model id under its scope.
+  final String reportId;
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
   final Map<WidgetState, Style>? styleOverrides;
   final Line Function()? separatorBuilder;
@@ -120,7 +136,7 @@ class _ListViewport<T, K> extends Node {
     // The last item needs no trailing separator, so one more can fit.
     final visibleCount = hasSeparator ? (area.height + 1) ~/ effectiveRowHeight : area.height ~/ effectiveRowHeight;
     if (visibleCount <= 0) return;
-    m.setVisibleCount(visibleCount);
+    if (surface is BufferSurface) surface.report(ViewportChanged(reportId, rows: visibleCount));
 
     // Empty state — the data itself is empty, not merely unloaded. A list that
     // knows its size (or has a page on its way) has items to draw, even before

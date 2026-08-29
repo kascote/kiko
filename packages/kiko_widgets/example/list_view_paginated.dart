@@ -5,7 +5,7 @@
 // - LoadRequest → fetch, keyed by page number; the LoadResult routes itself
 //   home to the list, which installs it in its own update
 // - A demand pass that may ask for several pages at once (flattened by the app)
-// - The frame-tick demand case that picks up what a resize reveals
+// - The viewport report the view paints, which asks for what a resize reveals
 // - Sliding window (keeps the pages around the viewport, plus keepPages more)
 // - Placeholder items while a page is on its way
 // - Click-to-select, wheel-scroll, per-row hover; scrolling near the edge
@@ -124,16 +124,11 @@ Cmd? fetchAll(AppModel model, Cmd? cmd) {
     return (model, null);
   }
 
-  // A resize reveals items through the paint path, where the list cannot
-  // return a command, and a page landing can free a slot the in-flight cap
-  // truncated. One case on the frame tick covers both.
-  if (msg is FrameTickMsg) {
-    return (model, fetchAll(model, model.list.demandIfDirty()));
-  }
-
   // Navigation runs a demand pass, which may ask for one page or several. A
   // page's LoadResult takes the same path: it carries the list's id, and the
-  // list installs it, or records its failure, in this one call.
+  // list installs it, or records its failure, in this one call. So does the
+  // viewport report the view paints: the list asks for the items a taller
+  // terminal reveals from the same update.
   final result = model.list.update(msg);
 
   switch (result) {

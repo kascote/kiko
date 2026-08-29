@@ -188,7 +188,6 @@ final class Combobox<T> implements View {
       final rows = list.itemLimit == 0 ? 1 : list.itemLimit;
       contentHeight = rows.clamp(0, innerHeight);
     }
-    list.setVisibleCount(contentHeight);
 
     return Tagged.scope(
       model.id,
@@ -205,6 +204,7 @@ final class Combobox<T> implements View {
                 theme: theme,
                 itemBuilder: rowBuilder,
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
+                scope: model.id,
               ),
             ),
             if (status != null && innerHeight > 0) status,

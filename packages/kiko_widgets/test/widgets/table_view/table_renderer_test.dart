@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Sample rows for testing.
 List<Map<String, Object?>> sampleRows([int count = 5]) => List.generate(
@@ -31,7 +32,11 @@ String render(
     Rect.create(x: 0, y: 0, width: width, height: height),
     measurer: measurer,
   );
-  TableRenderer(model, Theme.dark, styleOverrides, measurer: measurer).paint(buffer.area, BufferSurface(buffer));
+  final surface = BufferSurface(buffer);
+  TableRenderer(model, Theme.dark, styleOverrides, measurer: measurer).paint(buffer.area, surface);
+  // Paint reports the viewport it showed; the runtime delivers the report to
+  // the model once the frame commits. Do the same here.
+  surface.reports.forEach(model.update);
   return _dump(buffer, showEmptyCells: showEmptyCells);
 }
 
@@ -85,17 +90,26 @@ r2   Name 2    20''',
         );
       });
 
-      test('updates visibleDimensions', () async {
+      test('reports the visible dimensions', () async {
         final model = TableViewModel(
           rows: sampleRows(),
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
         );
+        final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 23, height: 4));
+        final surface = BufferSurface(buffer);
 
-        render(model, width: 23, height: 4);
+        TableRenderer(model, Theme.dark, null).paint(buffer.area, surface);
 
         // 4 total - 1 header = 3 visible rows
+        final report = surface.reports.single as ViewportChanged;
+        expect(report.id, model.id);
+        expect(report.rows, equals(3));
+        expect(report.cols, equals(3));
+        expect(model.visibleRows, equals(0), reason: 'paint reports; it never writes into the model');
+
+        model.update(report);
         expect(model.visibleRows, equals(3));
         expect(model.visibleCols, equals(3));
       });
@@ -169,7 +183,7 @@ r0   0''',
                 columns: sampleColumns(),
                 focused: true,
               )
-              ..setVisibleDimensions(3, 1)
+              ..viewport(rows: 3, cols: 1)
               ..update(const KeyMsg('right'))
               ..update(const KeyMsg('right'));
 
@@ -298,7 +312,7 @@ X    Y''',
           columns: columns,
           columnSeparator: const Text(' | '),
           focused: true,
-        )..setVisibleDimensions(1, 2);
+        )..viewport(rows: 1, cols: 2);
 
         // Initial: shows ColA and ColB
         var result = render(model, width: 14, height: 2);
@@ -652,7 +666,7 @@ ID
           columns: columns,
           columnSeparator: const Text(''),
           focused: true,
-        )..setVisibleDimensions(2, 2);
+        )..viewport(rows: 2, cols: 2);
 
         // Cursor at row 0, col 0 (default)
         contexts.clear();
@@ -710,7 +724,7 @@ ID
                 focused: true,
               )
               // Select row 0
-              ..setVisibleDimensions(2, 1)
+              ..viewport(rows: 2, cols: 1)
               ..update(const KeyMsg('space'));
         contexts.clear();
         render(model, width: 10, height: 3);
@@ -829,7 +843,7 @@ No data''',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
           loadingIndicator: Line('...'),
-        )..setVisibleDimensions(5, 3);
+        )..viewport(rows: 5, cols: 3);
 
         expect(
           render(model, width: 23, height: 4),
@@ -856,7 +870,7 @@ r1   Name 1    10
               pageSize: 10,
             )
             ..insertRows(sampleRows(10), 0)
-            ..setVisibleDimensions(3, 3)
+            ..viewport(rows: 3, cols: 3)
             ..scrollBy(20);
 
       test('while a fetch is in flight the nearest held rows paint, not skeletons', () {
@@ -915,7 +929,7 @@ r9   Name 9    90'''),
           keyField: 'id',
           columns: sampleColumns(),
           focused: true,
-        )..setVisibleDimensions(3, 3);
+        )..viewport(rows: 3, cols: 3);
 
         // Move cursor down past visible area
         for (var i = 0; i < 5; i++) {

@@ -36,54 +36,6 @@ LoadResult<PageResult<String>> _result(int page, List<String> rows, {int? totalC
 );
 
 void main() {
-  group('PageLoader pump warning', () {
-    test('a widget with nothing to request never counts toward the warning', () {
-      final output = _CapturingOutput();
-      Log(output: output, level: LogLevel.warn).runZoned(() {
-        var rows = 0;
-        final loader = _loader(firstRow: () => 0, visibleRows: () => rows)
-          ..seed(_page(0) + _page(1, size: 3)); // short tail records the end
-        rows = 8;
-        for (var i = 0; i < 80; i++) {
-          loader.notePaint();
-        }
-      });
-
-      expect(output.records, isEmpty, reason: 'every page that exists is held, so no demand pass is owed');
-    });
-
-    test('demand left dirty over a requestable page warns once', () {
-      final output = _CapturingOutput();
-      Log(output: output, level: LogLevel.warn).runZoned(() {
-        var rows = 0;
-        final loader = _loader(firstRow: () => 0, visibleRows: () => rows)..totalCount = 100;
-        rows = 8;
-        for (var i = 0; i < 80; i++) {
-          loader.notePaint();
-        }
-      });
-
-      expect(output.records, hasLength(1), reason: 'said once, not once per paint');
-      expect(output.records.single.message, contains('TestWidget "w"'));
-      expect(output.records.single.message, contains('demandIfDirty'));
-    });
-
-    test('a fetch in flight against the cap does not count as a missing demand pass', () {
-      final output = _CapturingOutput();
-      Log(output: output, level: LogLevel.warn).runZoned(() {
-        var rows = 0;
-        final loader = _loader(firstRow: () => 0, visibleRows: () => rows, maxConcurrentLoads: 1)..totalCount = 100;
-        rows = 8;
-        loader.demand(); // takes the one slot; the visible page is on its way
-        for (var i = 0; i < 80; i++) {
-          loader.notePaint();
-        }
-      });
-
-      expect(output.records, isEmpty, reason: 'nothing is requestable while the cap is spent');
-    });
-  });
-
   group('PageLoader short page vs end-of-data flag', () {
     test('a short page ends the data even when hasMore says more rows follow', () {
       final loader = _loader(firstRow: () => 0, visibleRows: () => 8)

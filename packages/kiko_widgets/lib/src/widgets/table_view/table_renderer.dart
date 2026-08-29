@@ -2,6 +2,7 @@ import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import 'table_column.dart';
 import 'table_view_model.dart';
@@ -58,8 +59,9 @@ class TableRenderer {
     final dataHeight = area.height - headerHeight;
     if (dataHeight <= 0) return;
 
-    // Update model's visible dimensions
-    model.setVisibleDimensions(dataHeight, visibleCols.length);
+    if (surface is BufferSurface) {
+      surface.report(ViewportChanged(model.id, rows: dataHeight, cols: visibleCols.length));
+    }
 
     // 1. Render header (if sticky)
     if (model.stickyHeader) {

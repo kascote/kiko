@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Renders [model] into a fresh buffer so tests can inspect cell fg/bg/modifier
 /// directly. The tree is [width] wide so trailing cells past the short labels
@@ -81,7 +82,7 @@ void main() {
       // the loading state (warning ink + slow blink) from the state matrix.
       final model = TreeViewModel<String>(focused: true)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Branch'))])
-        ..setVisibleCount(3)
+        ..viewport(rows: 3)
         ..expand('/a'); // no children cached → slot begins loading
       final buffer = _render(model);
 

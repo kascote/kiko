@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import 'tree_node.dart';
 import 'tree_view_model.dart';
@@ -117,7 +118,7 @@ class _TreeViewport<T> extends Node {
 
     final visibleCount = area.height;
     if (visibleCount <= 0) return;
-    m.setVisibleCount(visibleCount);
+    if (surface is BufferSurface) surface.report(ViewportChanged(m.id, rows: visibleCount));
 
     final startIndex = m.scrollOffset;
     final endIndex = (startIndex + visibleCount).clamp(0, nodes.length);

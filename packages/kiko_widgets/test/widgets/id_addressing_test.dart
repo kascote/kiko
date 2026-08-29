@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../support/viewport.dart';
 
 /// These tests exercise the *guarantee* id-addressing exists to provide and
 /// that reference-addressing could not (a2.1 §3): with two instances of the
@@ -26,7 +27,7 @@ TableViewModel table({String? id, int n = 5, bool focused = true, int loadThresh
   loadThreshold: loadThreshold,
   id: id,
   focused: focused,
-)..setVisibleDimensions(5, 2);
+)..viewport(rows: 5, cols: 2);
 
 /// A two-instance app that resolves commands/results to their owner by id.
 /// A miss is **logged and dropped** — the observable failure references could
@@ -108,15 +109,18 @@ void main() {
         loadThreshold: 5,
         id: 'A',
         focused: true,
-      )..setVisibleDimensions(5, 2);
+      )..viewport(rows: 5, cols: 2);
+      // No threshold, so B's own viewport report asks for nothing: anything
+      // B loads below can only have come from a result aimed at it.
       final b = TableViewModel(
         rows: rows(10),
         totalCount: 40,
         keyField: 'id',
         columns: columns(),
         pageSize: 10,
+        loadThreshold: 0,
         id: 'B',
-      )..setVisibleDimensions(5, 2);
+      )..viewport(rows: 5, cols: 2);
       final app = _TwoTables(a, b);
 
       // Drive A's cursor toward the end until it requests more data. The widget

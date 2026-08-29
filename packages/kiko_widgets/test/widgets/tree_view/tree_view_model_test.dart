@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg.
 KeyMsg keyMsg(String key) => KeyMsg(key);
@@ -33,7 +34,7 @@ TreeViewModel<String> modelWith(
   bool focused = true,
   int visibleCount = 10,
 }) => TreeViewModel<String>(focused: focused)
-  ..setVisibleCount(visibleCount)
+  ..viewport(rows: visibleCount)
   ..applyRoots(roots);
 
 /// Expands [path] and immediately resolves the child load with [children] —
@@ -126,7 +127,7 @@ void main() {
     // A branch root followed by two leaves; the branch's expand indicator sits
     // at local columns 0-1 (depth 0), its body from column 2 on.
     TreeViewModel<String> tree({bool focused = true}) => TreeViewModel<String>(id: 'nav', focused: focused)
-      ..setVisibleCount(10)
+      ..viewport(rows: 10)
       ..applyRoots(<TreeNode<String>>[
         TreeNode(path: '/A', label: Line('Alpha')),
         TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
@@ -354,6 +355,30 @@ void main() {
 
         expect(model.isExpanded('/a'), isFalse);
         expect(model.flatNodes.length, equals(2));
+      });
+    });
+
+    group('viewport reports', () {
+      test('stores the count and returns no command', () {
+        final model = TreeViewModel<String>(id: 'nav')..applyRoots(leaves(30));
+
+        final verdict = model.update(const ViewportChanged('nav', rows: 7));
+
+        expect(
+          verdict,
+          isA<Handled>().having((h) => h.cmd, 'cmd', isNull),
+          reason: 'a tree pages on expand, never on its viewport',
+        );
+        expect(model.visibleCount, equals(7));
+      });
+
+      test('a report addressed to another id is declined; the scoped path of its own id is accepted', () {
+        final model = TreeViewModel<String>(id: 'nav');
+
+        expect(model.update(const ViewportChanged('other', rows: 7)), isA<Declined>());
+        expect(model.visibleCount, equals(0));
+        expect(model.update(const ViewportChanged('side/nav', rows: 7)), isA<Handled>());
+        expect(model.visibleCount, equals(7));
       });
     });
 

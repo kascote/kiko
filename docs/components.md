@@ -117,11 +117,14 @@ never null: whoever built the message chose the widget.
 
 Rules for the receiving model:
 
-- **A model declines a message addressed to another id.** It is not a
-  message this model understands, whoever routed it. The router makes a
-  foreign result unreachable in practice; an app that calls `update` without
-  a router relies on the guard. A message addressed to the model's own id is
-  consumed, installed or not.
+- **A model owns a message whose id's leaf is its own id, and declines every
+  other.** The guard compares the leaf (`HitTag.leafOf`), not the whole id. A
+  composite forwards a part's message with the path it arrived under
+  (`combo/list`), and the part recognizes itself in it, as it does for
+  pointer traffic. A foreign message is not one this model understands,
+  whoever routed it. The router makes a foreign result unreachable in
+  practice; an app that calls `update` without a router relies on the guard.
+  A message that is the model's own is consumed, installed or not.
 - **A composite forwards by leaf first.** Before applying the guard to
   itself, a composite forwards a message whose id's leaf (`HitTag.leafOf`)
   names one of its parts to that part, as it forwards pointer traffic.

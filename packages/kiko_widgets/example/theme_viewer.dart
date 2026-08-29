@@ -387,12 +387,6 @@ Cmd? handleCmds(Model model, Cmd? cmd) {
     }
   }
 
-  // A resize reveals table rows through the paint path, where the table
-  // cannot return a command. The frame-tick demand case picks that up.
-  if (msg is FrameTickMsg) {
-    return (model, handleCmds(model, model.table.demandIfDirty()));
-  }
-
   // The one routing line: keys to the focused widget (tab/shift+tab reserved
   // for traversal), a pointer to the widget it is addressed to — moving focus
   // there on a down-press — and a load result to the widget whose id it

@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 
 import '../../load/load.dart';
 import '../../load/page_loader.dart';
+import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import '../scrollable_model.dart';
 import 'types.dart';
@@ -26,17 +27,15 @@ import 'types.dart';
 /// as a [LoadResult] carrying the list's id, which the router delivers to
 /// [update].
 ///
-/// Two obligations sit on the app, and both are one line:
+/// One obligation sits on the app: answer **every** request — with items,
+/// with an error, or with a refusal built by `declineLoad`. A request left
+/// unanswered leaves its page painting a placeholder forever, because the
+/// model will not ask again while it believes the page is loading.
 ///
-/// - Answer **every** request — with items, with an error, or with a refusal
-///   built by `declineLoad`. A request left unanswered leaves its page painting
-///   a placeholder forever, because the model will not ask again while it
-///   believes the page is loading.
-/// - Run demand on the frame tick: `FrameTickMsg() => (model, model.list
-///   .demandIfDirty())`. A terminal resize reveals items through the paint
-///   path, where a widget cannot return a command, so without that case the
-///   items a taller terminal reveals are demanded by nobody. The model says so
-///   in the log if it notices the case missing.
+/// The viewport needs no app code. The view reports the rows it painted as a
+/// [ViewportChanged] message, the router delivers it here, and [update] runs
+/// the demand pass for the items a taller terminal reveals. A page that lands
+/// and frees a slot returns the next demand pass the same way.
 ///
 /// A list over items already in memory is one constructor call, and never meets
 /// any of the loading machinery:
@@ -203,7 +202,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   @override
   int get scrollOffset => _scrollOffset;
 
-  /// Rows the viewport shows, as last pushed in by the view.
+  /// Rows the viewport shows, as the view last reported them.
   @override
   int get visibleCount => _visibleCount;
 
@@ -231,17 +230,6 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   bool isSelected(int index) {
     final item = getItem(index);
     return item != null && _selectedKeys.contains(itemKey(item));
-  }
-
-  /// Called by widget during render to update visible count.
-  ///
-  /// A change marks demand dirty: a taller terminal reveals items nobody has
-  /// asked for, and this is where the model finds out — during paint, where it
-  /// cannot return a command. The app's frame-tick demand case picks it up on
-  /// the next frame.
-  void setVisibleCount(int count) {
-    _visibleCount = count;
-    _loader.notePaint();
   }
 
   /// Moves the cursor directly to [index], clamped to the addressable range,
@@ -355,44 +343,43 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   /// a refusal deliberately never re-triggers demand on its own.
   Cmd? demand() => _loader.demand();
 
-  /// Runs a [demand] pass only if something has changed what is missing, and
-  /// returns whatever it asks for.
-  ///
-  /// This is the app's frame-tick demand case: `FrameTickMsg() => (model,
-  /// model.list.demandIfDirty())`. Three things mark demand dirty — the visible
-  /// item count changing, a page installing successfully, and
-  /// [markDemandDirty]. A refused or failed request leaves demand clean, which
-  /// is what keeps a standing refusal from becoming a request every frame.
-  Cmd? demandIfDirty() => _loader.demandIfDirty();
-
-  /// Marks demand dirty, so the next [demandIfDirty] call runs a pass.
-  ///
-  /// Call it from wherever an app's own gate lifts — a sync finishing, a filter
-  /// clearing — when the pages it was refusing should now be fetched.
-  void markDemandDirty() => _loader.markDemandDirty();
-
   /// Installs the outcome of a page load and clears (or fails) its slot.
   ///
-  /// A result addressed to another id is declined: it is not a message this
-  /// list understands. Every result addressed to this list is consumed, keyed
-  /// by page number ([PageKey]); a non-page key, or a page that is no longer
-  /// in flight (e.g. after a [reset]), is dropped rather than corrupting the
-  /// window.
+  /// A result whose id's leaf is not this list's id is declined: it is not a
+  /// message this list understands. Every result that is the list's own is
+  /// consumed, keyed by page number ([PageKey]); a non-page key, or a page
+  /// that is no longer in flight (e.g. after a [reset]), is dropped rather
+  /// than corrupting the window.
   ///
   /// On success the items install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. While
   /// a range anchor is active, the installed items that fall inside the
   /// anchor-to-cursor span join the selection, so a range swept over items
-  /// still being fetched completes itself when they arrive. A refusal clears
-  /// the slot and installs nothing, so the page keeps its placeholders and is
-  /// asked for again by the next demand pass. A failure records the error, and
-  /// a later demand pass retries the page.
+  /// still being fetched completes itself when they arrive. The install frees
+  /// a slot, so the next [demand] pass runs and comes back as the command:
+  /// that is what drains a window the in-flight cap truncated. A refusal
+  /// clears the slot and installs nothing, so the page keeps its placeholders
+  /// and is asked for again by the next demand pass. A failure records the
+  /// error, and a later demand pass retries the page. Neither runs demand.
   UpdateResult _applyLoad(LoadResult<Object?> result) {
-    if (result.id != id) return const Declined();
+    if (HitTag.leafOf(result.id) != id) return const Declined();
     if (!_loader.apply(result)) return const Handled();
     _clampToKnownEnd();
     if (result.key case final PageKey key) _completeRangeFor(key.page);
-    return const Handled();
+    return Handled(demand());
+  }
+
+  /// Takes the viewport the view painted and asks for the items it reveals.
+  ///
+  /// A report whose id's leaf is not this list's id is declined. A report
+  /// equal to the stored count changes nothing and returns no command; a
+  /// changed count is stored, and the [demand] pass for the pages the
+  /// viewport now needs comes back as the command.
+  UpdateResult _applyViewport(ViewportChanged report) {
+    if (HitTag.leafOf(report.id) != id) return const Declined();
+    if (report.rows == _visibleCount) return const Handled();
+    _visibleCount = report.rows;
+    return Handled(demand());
   }
 
   // ─────────────────────────────────────────────
@@ -488,6 +475,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
     }
     if (msg is PointerCancelMsg) return const Declined();
     if (msg case final LoadResult<Object?> result) return _applyLoad(result);
+    if (msg case final ViewportChanged report) return _applyViewport(report);
 
     if (!focused) return const Declined();
 

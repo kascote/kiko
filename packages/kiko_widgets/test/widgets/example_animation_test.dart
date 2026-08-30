@@ -151,7 +151,7 @@ void main() {
       expect(record.armed.map((a) => a.id), everyElement('clock'));
     });
 
-    test('member and extras spinners: the frame index advances after a wait, ids stay bare', () async {
+    test('member and extra: the frame index advances after a wait, ids stay bare', () async {
       final backend = TestBackend(size: const TermSize(160, 40));
       final model = anim.AppModel(step: _step, loadDelay: _loadDelay);
 
@@ -187,7 +187,7 @@ void main() {
       expect(cell.symbol, isNot('·'), reason: 'a running spinner paints a moving glyph, not the idle dot');
     });
 
-    test('nested: outer/inner/spinner advances the spinner, outer/inner blinks the panel', () async {
+    test('nested: outer/inner/marquee advances the marquee, outer/inner blinks the panel', () async {
       final backend = TestBackend(size: const TermSize(160, 40));
       final model = anim.AppModel(step: _step, loadDelay: _loadDelay);
 
@@ -198,14 +198,14 @@ void main() {
         steps: (_) => [(b) => b.emitKey('n'), _wait(_step * 14)],
       );
 
-      expect(record.ticks.map((t) => t.id).toSet(), {'outer/inner', 'outer/inner/spinner'});
+      expect(record.ticks.map((t) => t.id).toSet(), {'outer/inner', 'outer/inner/marquee'});
       final inner = model.outer.parts.single as anim.PanelModel;
-      expect((inner.parts.single as anim.SpinnerModel).frameIndex, greaterThan(0));
+      expect((inner.parts.single as anim.MarqueeModel).frameIndex, greaterThan(0));
       expect(inner.ownTicks, greaterThan(0), reason: "the blink is the inner panel's own tick");
       expect(model.outer.ownTicks, 0, reason: 'the outer panel forwards every tick under it');
     });
 
-    test('twins: a/spinner outpaces b/spinner, and stopping a leaves b running', () async {
+    test('twins: a/bars outpaces b/bars, and stopping a leaves b running', () async {
       final backend = TestBackend(size: const TermSize(160, 40));
       final model = anim.AppModel(step: _step, loadDelay: _loadDelay);
 
@@ -236,12 +236,12 @@ void main() {
       );
       expect(stopAt, greaterThanOrEqualTo(0));
 
-      final aBefore = record.ticks.where((t) => t.id == 'a/spinner' && t.landing < stopAt).length;
-      final bBefore = record.ticks.where((t) => t.id == 'b/spinner' && t.landing < stopAt).length;
+      final aBefore = record.ticks.where((t) => t.id == 'a/bars' && t.landing < stopAt).length;
+      final bBefore = record.ticks.where((t) => t.id == 'b/bars' && t.landing < stopAt).length;
       expect(aBefore, greaterThan(bBefore), reason: 'a runs at 1x, b at 2x, so a ticks more before either stops');
 
-      final aAfter = record.ticks.where((t) => t.id == 'a/spinner' && t.landing > stopAt).length;
-      final bAfter = record.ticks.where((t) => t.id == 'b/spinner' && t.landing > stopAt).length;
+      final aAfter = record.ticks.where((t) => t.id == 'a/bars' && t.landing > stopAt).length;
+      final bAfter = record.ticks.where((t) => t.id == 'b/bars' && t.landing > stopAt).length;
       expect(aAfter, lessThanOrEqualTo(1), reason: 'at most one tick already in flight when Enter landed');
       expect(bAfter, greaterThan(0), reason: 'b keeps running after a alone is stopped');
     });
@@ -326,7 +326,7 @@ void main() {
       expect(after.where((t) => t.key == newKey).length, lessThanOrEqualTo(wait + 2));
     });
 
-    test('loader: the spinner runs in flight, the result arrives addressed loader, then it stops', () async {
+    test('loader: the bar fills in flight, the result arrives addressed loader, then it stops', () async {
       final backend = TestBackend(size: const TermSize(160, 40));
       final model = anim.AppModel(step: _step, loadDelay: _loadDelay);
 
@@ -344,12 +344,12 @@ void main() {
       );
       expect(loadResultAt, greaterThanOrEqualTo(0), reason: 'the LoadResult must land, addressed to the panel');
 
-      final spinnerTicks = record.ticks.where((t) => t.id == 'loader/spinner').toList();
-      expect(spinnerTicks, isNotEmpty);
-      expect(spinnerTicks.any((t) => t.landing < loadResultAt), isTrue, reason: 'ticked while the load was in flight');
+      final barTicks = record.ticks.where((t) => t.id == 'loader/progress').toList();
+      expect(barTicks, isNotEmpty);
+      expect(barTicks.any((t) => t.landing < loadResultAt), isTrue, reason: 'ticked while the load was in flight');
 
       expect(model.loader.loading, isFalse);
-      expect(model.loader.running, isFalse, reason: 'the spinner stops once the result lands');
+      expect(model.loader.running, isFalse, reason: 'the bar stops once the result lands');
     });
 
     test('events: a click and Enter on an embedded spinner reach the app as PanelToggleEvent', () async {
@@ -486,13 +486,13 @@ void main() {
         'extra',
         'panel/spinner',
         'outer/inner',
-        'outer/inner/spinner',
-        'a/spinner',
-        'b/spinner',
+        'outer/inner/marquee',
+        'a/bars',
+        'b/bars',
         'echo/echo',
         'duo/left',
         'duo/right',
-        'loader/spinner',
+        'loader/progress',
       });
     });
 

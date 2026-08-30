@@ -509,6 +509,11 @@ doc comment; that copy is the widget's contract.
 | TextArea  | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 |           | `selection`       | `resolver.fill(selection)`          | anatomy-specific |
 |           | `lineNumber`      | `resolver.ink(muted)`               | anatomy-specific |
+| Checkbox  | `open`            | `resolver.ink(border)`              | resting chrome   |
+|           | `close`           | `resolver.ink(border)`              | resting chrome   |
+|           | `mark`            | none (inherits the ground)          | —                |
+|           | `checkedMark`     | `resolver.ink(selection)`           | selected × ink   |
+|           | `label`           | none (inherits the ground)          | —                |
 
 Notes the table cannot carry:
 
@@ -532,6 +537,11 @@ Notes the table cannot carry:
 - **Combobox** — the field's own look stays `TextInputModel`'s business,
   and the popup's match rows style through the embedded `ListViewStyle`,
   not through `ComboboxStyle` (`docs/combobox.md`).
+- **Checkbox** — hover washes the whole row: the box, the gap, the label,
+  and any spare cells, as the row's ground. Focused puts focus ink and bold
+  on `open`, `mark`, and `close`. Error puts error ink on `open` and `close`
+  only. Disabled dims every part. A set `checkedMark` slot keeps its own
+  color; the `selected` state fills in only a null slot.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
 expose `cursor` (not `focused`): the current-item flag.

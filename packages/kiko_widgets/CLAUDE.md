@@ -10,6 +10,7 @@ Guidance for Claude Code in `kiko_widgets` — higher-level widgets over
 - `TextArea` / `TextAreaModel` — multi-line editor (wrap-aware caret, selection)
 - `ListView`, `TableView`, `TreeView` — windowed data widgets (lazy; see `docs/async-loading.md`)
 - `Button` / `ButtonModel` — emits `ButtonPressEvent`
+- `Checkbox` / `CheckboxModel` — emits `CheckboxChangeEvent`; glyph presets on `CheckGlyphs`
 - `ScrollView` / `ScrollViewModel` — scrolls composed content (`docs/scroll-view.md`)
 - `Combobox` / `ComboboxModel` — text field with a filterable popup list, in-memory or remote (`docs/combobox.md`)
 - `ModalModel` + `modalDialog(...)` — `modalDialog` frames any content as a bordered, tagged dialog; `ModalModel` exists only for the static confirm/cancel shape. The app owns whether a modal is open.

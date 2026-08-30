@@ -328,9 +328,11 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
 end-to-end test: several events, each aimed at what the previous one painted.
 It sends one step per committed frame. A step goes out from the first frame
 committed after the previous step landed, so the hit map a step reads shows
-the previous step's effect. A step has landed when the message its event
-became reaches `update`. A report, a tick, or a message the app emits itself
-never releases the next step. `script.onFrame` wires into
+the previous step's effect. A step has landed when every event it emitted
+has reached `update` as its own message: a click lands with its release, and
+a step that emits from a timer lands when the timer's events do. A report, a
+tick, or a message the app emits itself never releases the next step.
+`script.onFrame` wires into
 `Application.onFrame`. `script.wrap(update)` answers the script's quit key
 with `Quit` before the app's update sees it. With a `readyId`, the steps are
 built from the first frame in which that hit path is live:

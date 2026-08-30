@@ -34,9 +34,18 @@ typedef ScriptStep = void Function(TestBackend backend);
 ///
 /// A step goes out from the first frame committed after the previous step
 /// landed, so the hit map in force when a step goes out shows the previous
-/// step's effect. A step has landed when the message its event became
-/// reaches `update`; a report, a tick, or a message the app emits itself
-/// never releases the next step.
+/// step's effect. A step has landed when every event emitted through
+/// [backend] so far has reached `update` as its own message, and at least
+/// one went out since the step was sent. So a click lands with its release,
+/// not its press, and a step that emits from a timer lands when the timer's
+/// events do. A report, a tick, a message the app emits itself, or the leave
+/// or cancel the router delivers ahead of a pointer event never releases the
+/// next step.
+///
+/// Every event a step emits must reach `update`. Two moves waiting in the
+/// queue together coalesce into one message, and an event the runtime drops
+/// becomes none; a step whose events do not all land holds the run idle until
+/// the test times out. Emit one move or drag per step.
 class FrameScript {
   /// Creates a script over [backend]; see [steps], [readyId] and [quitKey].
   FrameScript(this.backend, {required this.steps, this.readyId, this.quitKey = 'ctrl+q'});
@@ -62,6 +71,8 @@ class FrameScript {
   List<ScriptStep>? _queue;
   int _sent = 0;
   bool _pending = false;
+  int _sentAt = 0; // backend.emitCount when the pending step went out
+  int _landed = 0; // events that reached update as their own message
   bool _quitSent = false;
   CompletedFrame? _lastFrame;
 
@@ -88,6 +99,7 @@ class FrameScript {
     final queue = _queue!;
     if (_sent < queue.length) {
       _pending = true;
+      _sentAt = backend.emitCount;
       queue[_sent++](backend);
       return;
     }
@@ -97,21 +109,28 @@ class FrameScript {
     }
   }
 
-  /// Returns an update that answers [quitKey] with [Quit], notes a landed
-  /// step, and hands every other message to [update].
+  /// Returns an update that answers [quitKey] with [Quit], counts a landed
+  /// event, and hands every other message to [update].
   Update<M> wrap<M>(Update<M> update) => (model, msg, ctx) {
     if (msg case KeyMsg(:final key) when key == quitKey) return (model, const Quit());
-    if (_fromTerminal(msg)) _pending = false;
+    if (_isEvent(msg)) {
+      _landed++;
+      // The step is out until its last event lands: after a click's press,
+      // the release is still in the queue.
+      if (backend.emitCount > _sentAt && _landed >= backend.emitCount) _pending = false;
+    }
     return update(model, msg, ctx);
   };
 
-  /// Whether the runtime made [msg] from a terminal event — the only messages
-  /// a step lands as.
-  static bool _fromTerminal(Msg msg) => switch (msg) {
+  /// Whether [msg] is the message the runtime made from one terminal event.
+  ///
+  /// The leave or cancel the router delivers ahead of a pointer event is not
+  /// one: it is a side effect of the event, not the event itself.
+  static bool _isEvent(Msg msg) => switch (msg) {
     KeyMsg() ||
     KeyReleaseMsg() ||
     ModifierKeyMsg() ||
-    Routed() ||
+    PointerMsg() ||
     FocusMsg() ||
     PasteMsg() ||
     ResizeMsg() ||

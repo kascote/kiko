@@ -1,3 +1,5 @@
+import 'dart:io' show sleep;
+
 import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
 import 'package:plume/plume.dart' as plume;
@@ -153,5 +155,79 @@ void main() {
     expect(rc, 7, reason: 'the app ended the run itself');
     expect(seen, isEmpty, reason: 'five ticks and their frames released no step');
     expect(script.completed, isFalse);
+  });
+
+  test('a click lands with its release, so a timed step after it goes out only then', () async {
+    final seen = <String>[]; // every landing, in order
+    final script = FrameScript(
+      backend,
+      steps: (_) => [
+        (b) => b.emitClick(1, 1),
+        // A timed step: nothing goes out now, one focus probe does later.
+        (b) => Future<void>.delayed(const Duration(milliseconds: 20), () => b.emitFocus(hasFocus: true)),
+        (b) => b.emitKey('n'),
+      ],
+    );
+
+    await Application(backend: backend, fps: 1000, onFrame: script.onFrame).run<int>(
+      init: 0,
+      update: script.wrap((model, msg, _) {
+        switch (msg) {
+          case PointerMsg(:final action):
+            seen.add(action.name);
+            // Outlast the frame interval, so the loop paints between the press
+            // and the release still waiting in the queue.
+            if (action == PointerAction.down) sleep(const Duration(milliseconds: 2));
+          case FocusMsg():
+            seen.add('focus');
+          case KeyMsg(:final key):
+            seen.add(key);
+        }
+        return (model, null);
+      }),
+      view: (_, frame) => frame.render(_box(0)),
+    );
+
+    expect(seen, ['down', 'up', 'focus', 'n'], reason: 'the key went out only after the timed step landed');
+    expect(script.completed, isTrue);
+  });
+
+  test('the leave the router delivers ahead of a pointer event is not a landing of its own', () async {
+    final seen = <String>[]; // every landing, in order
+    late final int seenWhenKeySent;
+    final script = FrameScript(
+      backend,
+      steps: (_) => [
+        (b) => b.emitMove(1, 1), // hover onto the box
+        (b) => b.emitClick(8, 1), // off the box: a leave, then a press and a release
+        (b) {
+          seenWhenKeySent = seen.length;
+          b.emitKey('n');
+        },
+      ],
+    );
+
+    await Application(backend: backend, fps: 1000, onFrame: script.onFrame).run<int>(
+      init: 0,
+      update: script.wrap((model, msg, _) {
+        switch (msg) {
+          case PointerLeaveMsg():
+            seen.add('leave');
+          case PointerMsg(:final action):
+            seen.add(action.name);
+            // Outlast the frame interval, so the loop paints between the press
+            // and the release still waiting in the queue.
+            if (action == PointerAction.down) sleep(const Duration(milliseconds: 2));
+          case KeyMsg(:final key):
+            seen.add(key);
+        }
+        return (model, null);
+      }),
+      view: (_, frame) => frame.render(_box(0)),
+    );
+
+    expect(seen, ['move', 'leave', 'down', 'up', 'n']);
+    expect(seenWhenKeySent, 4, reason: 'the key went out after the release landed, not after the press');
+    expect(script.completed, isTrue);
   });
 }

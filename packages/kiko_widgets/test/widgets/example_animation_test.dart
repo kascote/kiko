@@ -210,10 +210,7 @@ void main() {
       final model = anim.AppModel(step: _step, loadDelay: _loadDelay);
 
       // Tab three times to reach twinA (member, panel, outer, a, ...), then
-      // Enter to stop it — every step here is one plain KeyMsg. A press on
-      // the spinner's own cell would work too, but its paired release can
-      // land in the same committed frame as the press with nothing left to
-      // release the step after it; a single key has no such pairing.
+      // Enter to stop it.
       final record = await _run(
         backend: backend,
         model: model,

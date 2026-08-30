@@ -57,6 +57,12 @@ class TestBackend implements Backend {
   /// How many times [draw] has been called.
   int drawCount = 0;
 
+  /// How many events [emit] has pushed so far, the helpers included.
+  ///
+  /// A `FrameScript` reads it to tell when every event a step emitted has
+  /// reached `update`.
+  int emitCount = 0;
+
   /// How many times [flush] has been called.
   int flushCount = 0;
 
@@ -224,6 +230,7 @@ class TestBackend implements Backend {
   ///
   /// Positions are 0-based buffer cells.
   void emit(evt.Event event) {
+    emitCount++;
     _pending.add(event);
     _events.add(event);
   }

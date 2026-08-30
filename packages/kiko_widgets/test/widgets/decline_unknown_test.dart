@@ -26,6 +26,7 @@ void main() {
     'TextInputModel': (msg) => TextInputModel(focused: true).update(msg),
     'TextAreaModel': (msg) => TextAreaModel(id: 'ta', focused: true).update(msg),
     'ButtonModel': (msg) => ButtonModel(id: 'b', label: Line('OK'), focused: true).update(msg),
+    'CheckboxModel': (msg) => CheckboxModel(id: 'c', label: Line('OK'), focused: true).update(msg),
     'ButtonGroupModel': (msg) => ButtonGroupModel(
       buttons: [ButtonModel(id: 'b', label: Line('OK'))],
       focused: true,

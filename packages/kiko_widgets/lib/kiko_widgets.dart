@@ -7,6 +7,8 @@ export 'src/widgets/button/button_group_model.dart';
 export 'src/widgets/button/button_model.dart';
 export 'src/widgets/button/button_view.dart';
 export 'src/widgets/button/types.dart';
+export 'src/widgets/checkbox/checkbox_model.dart';
+export 'src/widgets/checkbox/types.dart';
 export 'src/widgets/combobox/combobox_model.dart';
 export 'src/widgets/combobox/combobox_view.dart';
 export 'src/widgets/combobox/types.dart';

@@ -181,7 +181,9 @@ cancels them.
 `TickMsg` implements `Addressed`, so a focus router delivers it to the
 widget registered under `id`, never to the focused widget
 (`docs/focus-router.md`). An app-level animation picks an id no widget
-claims; the router declines it and the app's own `update` handles it.
+claims; the router declines it and the app's own `update` handles it. A
+composite scopes the ticks its parts arm, so the router resolves them to
+the composite by prefix (`docs/components.md`).
 
 `key` is the owner's generation. Bump it when the animation starts or
 restarts. Drop a `TickMsg` whose key is stale instead of re-arming it, so a
@@ -197,6 +199,8 @@ TickMsg() => (model, null), // stopped, or a stale generation: not re-armed
 Worked examples: `packages/kiko_core/example/engine_hud.dart` (a sprite
 animated from a re-armed tick) and `packages/kiko_core/example/timer.dart`
 (a one-second chain with a generation key).
+`packages/kiko_widgets/example/animation.dart` scopes ticks across a
+composite's parts.
 
 ### Shutdown
 

@@ -649,9 +649,12 @@ class AppModel with ThemeSwitcher {
   /// every id-addressing rule holds.
   int dropped = 0;
 
+  /// Every widget event the app read, in order.
+  final List<WidgetEvent> events = [];
+
   /// The id of the last widget event this app read, or null before the
   /// first one.
-  String? lastEventId;
+  String? get lastEventId => events.isEmpty ? null : events.last.id;
 
   /// The id of the last panel a [PanelStartedMsg] named, or null before the
   /// first one.
@@ -704,7 +707,7 @@ Cmd? _driveAll(AppModel model, List<UpdateResult> results) {
     if (result is! Handled) continue;
     cmds.add(result.cmd);
     for (final event in result.events) {
-      model.lastEventId = event.id;
+      model.events.add(event);
       cmds.add(onEvent(model, event));
     }
   }

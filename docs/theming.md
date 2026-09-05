@@ -247,12 +247,7 @@ class StyleResolver {
   StyleResolver(this.theme); // adopts StyleResolver.defaultPolicy
 
   /// Resolves [base] under [states] for one paint class.
-  Style resolve(
-    Style? base,
-    Set<WidgetState> states, {
-    PaintClass cls = PaintClass.fill,
-    Map<WidgetState, Style>? overrides, // per-instance escape hatch
-  });
+  Style resolve(Style? base, Set<WidgetState> states, {required PaintClass cls});
 
   /// Border style for a set of states.
   Style border(Set<WidgetState> states);
@@ -398,14 +393,15 @@ For each part, fall back from the slot to the resolver:
 late final _resolver = StyleResolver(theme);
 
 Style _selectedItemStyle() =>
-    style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+    style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
 
 Style _cursorItemStyle() =>
-    style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+    style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
 ```
 
-`resolve` defaults to `PaintClass.fill`, the surface case. Pass
-`cls: PaintClass.wash` for a tint and `cls: PaintClass.ink` for chrome.
+`cls` is required: the part picks the projection, so every call names its
+class. Pass `cls: PaintClass.wash` for a tint and `cls: PaintClass.ink` for
+chrome.
 
 Layer parts by patching in the matrix's priority order — base → selected →
 cursor → disabled — each `Style.patch` over the last. The cursor then stays
@@ -415,7 +411,7 @@ visible over a selected run, and disabled dims everything:
 var s = style.item ?? const Style();
 if (isSelected) s = s.patch(_selectedItemStyle());
 if (isCursor)   s = s.patch(_cursorItemStyle());
-if (isDisabled) s = s.patch(_resolver.resolve(null, const {WidgetState.disabled}));
+if (isDisabled) s = s.patch(_resolver.resolve(null, const {WidgetState.disabled}, cls: PaintClass.fill));
 ```
 
 For borders, use the `border` helper:
@@ -424,12 +420,15 @@ For borders, use the `border` helper:
 borderStyle: resolver.border({if (model.focused) WidgetState.focused})
 ```
 
-### 4. Expose per-state `styleOverrides`
+### 4. A per-instance state look is a theme variant
 
-Take an optional `Map<WidgetState, Style>? styleOverrides` and thread it
-into every `resolve` call. It is the per-instance escape hatch for
-state-dependent bits — one row blinks on the app's signal — without a whole
-custom `XStyle`.
+A per-instance state look is a theme variant passed to that view. The variant
+goes through the same derivation as everything else, so it degrades under
+ANSI-16 and NO_COLOR like any other theme:
+
+```dart
+Button(model: model.delete, theme: theme.copyWith(focus: theme.error))
+```
 
 ## Degradation: three tiers of color fidelity
 
@@ -492,9 +491,10 @@ first `InitMsg`, and picks its starting theme.
 | "this table gets an orange crosshair" | `XStyle(...)` passed to the view                                         |
 | "every table in my app is custom"     | a shared `const appTableStyle = TableViewStyle(…)`, passed to every view |
 | "this column is green"                | `TableColumn.style`                                                      |
-| "one row blinks on my signal"         | per-state `styleOverrides` / a custom `render`                           |
+| "one row blinks on my signal"         | an item builder                                                          |
+| "this button focuses red"             | a theme variant on that view                                             |
 
-A widget that serves all six rows without the author fighting the
+A widget that serves all seven rows without the author fighting the
 framework is themed correctly by construction.
 
 ## Shipped widget anatomies

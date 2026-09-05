@@ -87,6 +87,20 @@ void main() {
       expect(identical(first, second), isTrue);
       expect(first.error.color, isNotNull);
     });
+
+    test('two equal themes built separately share one derived table', () {
+      // A theme variant built fresh each frame (e.g. Theme.dark.copyWith(...))
+      // is a new instance every time, never identical to a prior one. The
+      // memo must key by value so it still hits the cached entry.
+      final a = Theme.dark.copyWith(focus: Theme.dark.success);
+      final b = Theme.dark.copyWith(focus: Theme.dark.success);
+      expect(identical(a, b), isFalse);
+      expect(a, equals(b));
+
+      final first = Ansi16Tones.derive(a);
+      final second = Ansi16Tones.derive(b);
+      expect(identical(first, second), isTrue);
+    });
   });
 
   group('Ansi16Tones value semantics', () {

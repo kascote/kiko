@@ -19,14 +19,13 @@ typedef RegionMark = void Function(Region region, Rect rect);
 /// truncation, alignment, and state styling — lives here so both the plume
 /// `tableView` viewport and any other caller draw a table the same way.
 class TableRenderer {
-  /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
+  /// Creates a renderer for [model], styled by [theme].
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes cells like it draws them.
   TableRenderer(
     this.model,
-    this.theme,
-    this.styleOverrides, {
+    this.theme, {
     this.measurer = const TermUnicodeMeasurer(),
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
@@ -39,9 +38,6 @@ class TableRenderer {
 
   /// Theme for deriving styles.
   final Theme theme;
-
-  /// Optional per-state style overrides.
-  final Map<WidgetState, Style>? styleOverrides;
 
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
@@ -360,11 +356,11 @@ class TableRenderer {
   /// background, or, on a row with none, patches the hover wash — the case
   /// here, since the base is always null. No anatomy slot: hover is a
   /// generic state, not a TableView-specific part.
-  Style _hoverRowStyle() => _resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides);
+  Style _hoverRowStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedRowStyle() =>
-      style.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+      style.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
 
   /// Crosshair row wash — `cursor` × `wash`.
   Style _cursorRowStyle() => style.cursorRow ?? _resolveCursor(PaintClass.wash);
@@ -375,8 +371,7 @@ class TableRenderer {
   /// The cursor cell fill — `cursor` × `fill`.
   Style _cursorCellStyle() => style.cursorCell ?? _resolveCursor(PaintClass.fill);
 
-  Style _resolveCursor(PaintClass cls) =>
-      _resolver.resolve(null, const {WidgetState.cursor}, cls: cls, overrides: styleOverrides);
+  Style _resolveCursor(PaintClass cls) => _resolver.resolve(null, const {WidgetState.cursor}, cls: cls);
 
   /// Default cell rendering: converts value to string.
   Line _defaultRender(Object? value, TableColumn col) {

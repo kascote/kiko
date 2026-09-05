@@ -16,10 +16,11 @@ import 'types.dart';
 /// there are no items. An item whose page has not arrived paints as a dim run,
 /// or through [pendingBuilder] when given. Row backgrounds come from the item's honest state
 /// (selected / cursor / disabled) painted through [style]'s [ListViewStyle]
-/// anatomy — each `null` slot deriving from the theme's tones — and overridable
-/// per state with [styleOverrides]. Wrap it in a [Container] for a border or edge
-/// titles. The node is stamped with the model id so a click routes back through
-/// [HitMap.hitId], and its viewport report carries that same hit path.
+/// anatomy, each `null` slot deriving from the theme's tones. A per-instance
+/// state look is a theme variant passed to [theme]. Wrap it in a [Container]
+/// for a border or edge titles. The node is stamped with the model id so a
+/// click routes back through [HitMap.hitId], and its viewport report carries
+/// that same hit path.
 final class ListView<T, K> implements View {
   /// Creates a list view over [model], styled by [theme] and built row by row
   /// through [itemBuilder].
@@ -28,7 +29,6 @@ final class ListView<T, K> implements View {
     required this.theme,
     required this.itemBuilder,
     this.style = const ListViewStyle(),
-    this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
     this.pendingBuilder,
@@ -50,9 +50,6 @@ final class ListView<T, K> implements View {
   /// Row anatomy overrides. See [ListViewStyle].
   final ListViewStyle style;
 
-  /// Per-state style overrides applied on top of the theme's row styles.
-  final Map<WidgetState, Style>? styleOverrides;
-
   /// Builds the separator line drawn between items, or `null` for none.
   final Line Function()? separatorBuilder;
 
@@ -65,7 +62,6 @@ final class ListView<T, K> implements View {
     theme: theme,
     itemBuilder: itemBuilder,
     style: style,
-    styleOverrides: styleOverrides,
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
     pendingBuilder: pendingBuilder,
@@ -80,7 +76,6 @@ class _ListViewport<T, K> extends Node {
     required this.theme,
     required this.itemBuilder,
     required this.style,
-    this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
     this.pendingBuilder,
@@ -90,7 +85,6 @@ class _ListViewport<T, K> extends Node {
   final Theme theme;
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
   final ListViewStyle style;
-  final Map<WidgetState, Style>? styleOverrides;
   final Line Function()? separatorBuilder;
   final Line? emptyPlaceholder;
   final List<Line> Function(int index)? pendingBuilder;
@@ -249,19 +243,19 @@ class _ListViewport<T, K> extends Node {
   /// background, or, on a row with none, patches the hover wash — the case
   /// here, since the base is always null. No anatomy slot: hover is a
   /// generic state, not a ListView-specific part.
-  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides);
+  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedItemStyle() =>
-      style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+      style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
 
   /// The current item — `cursor` × `fill`.
   Style _cursorItemStyle() =>
-      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
 
   /// Disabled rows — `disabled` × `fill` (dim). No anatomy slot: disabled is a
   /// generic state, not a ListView-specific part.
-  Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
+  Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, cls: PaintClass.fill);
 
   /// The built-in dim run for items whose page isn't held.
   Style _pendingStyle() => style.pending ?? _resolver.ink(_resolver.tones.muted);

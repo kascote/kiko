@@ -65,7 +65,7 @@ enum RenderPolicy {
 ///
 /// ```dart
 /// final resolver = StyleResolver(theme);
-/// final rowStyle = resolver.resolve(base, {WidgetState.selected});
+/// final rowStyle = resolver.resolve(base, {WidgetState.selected}, cls: PaintClass.fill);
 /// final borderStyle = resolver.border({if (m.focused) WidgetState.focused});
 /// ```
 @immutable
@@ -113,66 +113,45 @@ class StyleResolver {
   /// 1. Starts with [base] (or an empty style if null).
   /// 2. Walks the tone states — every value but [WidgetState.hover] and
   ///    [WidgetState.pressed] — in priority order ([WidgetState.values]
-  ///    declaration order). For each active one, uses the [overrides] entry
-  ///    if present, else the built-in default for that state and [cls].
-  ///    States whose row is empty for [cls] contribute nothing (unless
-  ///    overridden). Patches each contribution via [Style.patch], so later
-  ///    (higher-priority) states win.
-  /// 3. If [WidgetState.hover] is active: patches its [overrides] entry if
-  ///    present; otherwise, under [RenderPolicy.color], lifts a background by
-  ///    [Theme.hoverLift] or, on a result with none, patches the hover wash.
-  /// 4. If [WidgetState.pressed] is active: patches its [overrides] entry if
-  ///    present; otherwise inverts the result, or, under
+  ///    declaration order). For each active one, patches in the built-in
+  ///    default for that state and [cls]. States whose row is empty for
+  ///    [cls] contribute nothing. Patches each contribution via
+  ///    [Style.patch], so later (higher-priority) states win.
+  /// 3. If [WidgetState.hover] is active: under [RenderPolicy.color], lifts
+  ///    a background by [Theme.hoverLift] or, on a result with none,
+  ///    patches the hover wash.
+  /// 4. If [WidgetState.pressed] is active: inverts the result, or, under
   ///    [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
   ///
-  /// [cls] defaults to [PaintClass.fill] — the surface case most callers want.
-  Style resolve(
-    Style? base,
-    Set<WidgetState> states, {
-    PaintClass cls = PaintClass.fill,
-    Map<WidgetState, Style>? overrides,
-  }) {
+  /// [cls] names the paint class the call site paints — the part picks the
+  /// projection, so there is no default.
+  Style resolve(Style? base, Set<WidgetState> states, {required PaintClass cls}) {
     var result = base ?? const Style();
-    if (states.isEmpty && (overrides == null || overrides.isEmpty)) return result;
+    if (states.isEmpty) return result;
 
     for (final state in WidgetState.values) {
       if (!states.contains(state)) continue;
       if (state == WidgetState.hover || state == WidgetState.pressed) continue;
 
-      final Style? contribution;
-      if (overrides != null && overrides.containsKey(state)) {
-        contribution = overrides[state];
-      } else {
-        contribution = _cell(state, cls);
-      }
+      final contribution = _cell(state, cls);
       if (contribution != null) result = result.patch(contribution);
     }
 
-    if (states.contains(WidgetState.hover)) {
-      final hoverOverride = overrides?[WidgetState.hover];
-      if (hoverOverride != null) {
-        result = result.patch(hoverOverride);
-      } else if (policy == RenderPolicy.color) {
-        final bg = result.bg;
-        result = bg != null && bg != Color.reset
-            ? result.copyWith(bg: bg.lift(Theme.hoverLift))
-            : result.patch(wash(theme.hover));
-      }
+    if (states.contains(WidgetState.hover) && policy == RenderPolicy.color) {
+      final bg = result.bg;
+      result = bg != null && bg != Color.reset
+          ? result.copyWith(bg: bg.lift(Theme.hoverLift))
+          : result.patch(wash(theme.hover));
     }
 
     if (states.contains(WidgetState.pressed)) {
-      final pressedOverride = overrides?[WidgetState.pressed];
-      if (pressedOverride != null) {
-        result = result.patch(pressedOverride);
-      } else {
-        result = switch (policy) {
-          RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
-          RenderPolicy.noColor =>
-            result.addModifier.has(Modifier.reversed)
-                ? result.removeModifier(Modifier.reversed)
-                : result.incModifier(Modifier.reversed),
-        };
-      }
+      result = switch (policy) {
+        RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
+        RenderPolicy.noColor =>
+          result.addModifier.has(Modifier.reversed)
+              ? result.removeModifier(Modifier.reversed)
+              : result.incModifier(Modifier.reversed),
+      };
     }
 
     return result;

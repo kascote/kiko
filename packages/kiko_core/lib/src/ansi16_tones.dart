@@ -144,11 +144,11 @@ class Ansi16Tones implements ToneSet {
     cursor,
   );
 
-  // Auto-derived tables, keyed by the exact Theme instance they came from.
-  // An identity-keyed map: two structurally-equal themes still get their own
-  // entries, and a theme's derived table is stable for as long as the Theme
-  // instance is (built-in themes are static consts, so this is forever).
-  static final Map<Theme, Ansi16Tones> _memo = Map<Theme, Ansi16Tones>.identity();
+  // Auto-derived tables, keyed by value. Theme has value equality, so a
+  // theme variant built fresh each frame still hits the entry of any equal
+  // theme built before it; built-in themes are consts, so their entries
+  // stay stable for the life of the process.
+  static final Map<Theme, Ansi16Tones> _memo = {};
 
   /// Derives an [Ansi16Tones] table from [theme]'s RGB tones.
   ///

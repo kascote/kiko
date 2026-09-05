@@ -32,7 +32,6 @@ final class Combobox<T> implements View {
     this.stalledLabel,
     this.popupBorder = BorderType.none,
     this.style = const ComboboxStyle(),
-    this.styleOverrides,
   });
 
   /// The model whose field, toggle, and popup this view renders.
@@ -86,9 +85,6 @@ final class Combobox<T> implements View {
   /// rows. See [ComboboxStyle].
   final ComboboxStyle style;
 
-  /// Per-state style overrides applied on top of the theme's derived styles.
-  final Map<WidgetState, Style>? styleOverrides;
-
   /// Resolves the anatomy slots that derive from theme tones + state.
   StyleResolver get _resolver => StyleResolver(theme);
 
@@ -110,13 +106,7 @@ final class Combobox<T> implements View {
   View _toggle() {
     final glyph = model.isOpen ? openGlyph : closedGlyph;
     final toggleStyle =
-        style.toggle ??
-        _resolver.resolve(
-          null,
-          {if (model.focused) WidgetState.focused},
-          cls: PaintClass.ink,
-          overrides: styleOverrides,
-        );
+        style.toggle ?? _resolver.resolve(null, {if (model.focused) WidgetState.focused}, cls: PaintClass.ink);
     return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: toggleStyle)));
   }
 
@@ -234,9 +224,7 @@ final class Combobox<T> implements View {
   Line _statusRow(Line? label, String fallback, {bool failed = false}) {
     var base = style.placeholder ?? _resolver.ink(_resolver.tones.muted);
     if (failed) {
-      base = base.patch(
-        _resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink, overrides: styleOverrides),
-      );
+      base = base.patch(_resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
     }
     if (label == null) return Line(fallback, style: base);
     return Line.fromTexts(label.texts.toList(), style: base.patch(label.style));

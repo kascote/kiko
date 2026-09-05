@@ -29,7 +29,7 @@ void main() {
     });
 
     test('a fill resolves to the named pair from the ANSI-16 table', () {
-      final s = resolver.resolve(null, {WidgetState.selected});
+      final s = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       expect(s.fg, equals(derived.selection.on));
       expect(s.bg, equals(derived.selection.color));
     });
@@ -47,19 +47,19 @@ void main() {
     });
 
     test('hover leaves a fill unchanged under ansi16', () {
-      final fill = resolver.resolve(null, {WidgetState.selected});
-      final result = resolver.resolve(fill, {WidgetState.hover});
+      final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
+      final result = resolver.resolve(fill, {WidgetState.hover}, cls: PaintClass.fill);
       expect(result, fill);
     });
 
     test('pressed inverts the named pair under ansi16', () {
-      final fill = resolver.resolve(null, {WidgetState.selected});
-      final result = resolver.resolve(fill, {WidgetState.pressed});
+      final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
+      final result = resolver.resolve(fill, {WidgetState.pressed}, cls: PaintClass.fill);
       expect(result, fill.inverted);
     });
 
     test('the cursor fill still carries its bold modifier', () {
-      final s = resolver.resolve(null, {WidgetState.cursor});
+      final s = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
       expect(s.fg, equals(derived.cursor.on));
       expect(s.bg, equals(derived.cursor.color));
       expect(s.addModifier.has(Modifier.bold), isTrue);
@@ -93,7 +93,7 @@ void main() {
 
       expect(resolverWithTable.tones, same(handAuthored));
 
-      final s = resolverWithTable.resolve(null, {WidgetState.selected});
+      final s = resolverWithTable.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       expect(s.fg, equals(Color.black));
       expect(s.bg, equals(Color.brightMagenta));
       // Distinct from what plain derivation would have produced.
@@ -102,7 +102,7 @@ void main() {
 
     test('the color policy is unaffected by ansi16 — fills still carry full RGB', () {
       final colorResolver = StyleResolver(theme, policy: RenderPolicy.color);
-      final s = colorResolver.resolve(null, const {WidgetState.selected});
+      final s = colorResolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
       expect(s.bg, equals(theme.selection.color));
     });
 
@@ -122,7 +122,7 @@ void main() {
     ];
     test('selected/cursor/focused/error/disabled/loading resolve to distinct fills', () {
       final resolved = {
-        for (final state in fillStates) state: resolver.resolve(null, {state}),
+        for (final state in fillStates) state: resolver.resolve(null, {state}, cls: PaintClass.fill),
       };
 
       expect(resolved.values, everyElement(isNot(equals(const Style()))), reason: 'every state must paint something');
@@ -139,14 +139,14 @@ void main() {
     });
 
     test('disabled keeps its dim modifier even though _cell projects it through ink, not fill', () {
-      final s = resolver.resolve(null, {WidgetState.disabled});
+      final s = resolver.resolve(null, {WidgetState.disabled}, cls: PaintClass.fill);
       expect(s.fg, equals(derived.disabled.color));
       expect(s.bg, isNull, reason: 'disabled projects through ink even under PaintClass.fill');
       expect(s.addModifier.has(Modifier.dim), isTrue);
     });
 
     test('loading keeps its slow blink modifier alongside the named warning color', () {
-      final s = resolver.resolve(null, {WidgetState.loading});
+      final s = resolver.resolve(null, {WidgetState.loading}, cls: PaintClass.fill);
       expect(s.fg, equals(derived.warning.color));
       expect(s.bg, isNull, reason: 'loading projects through ink even under PaintClass.fill');
       expect(s.addModifier.has(Modifier.slowBlink), isTrue);
@@ -161,7 +161,7 @@ void main() {
       // constructed one.
       final ansiDarkResolver = StyleResolver(Theme.ansiDark, policy: RenderPolicy.ansi16);
       final muted = ansiDarkResolver.ink(ansiDarkResolver.tones.muted);
-      final disabled = ansiDarkResolver.resolve(null, {WidgetState.disabled});
+      final disabled = ansiDarkResolver.resolve(null, {WidgetState.disabled}, cls: PaintClass.fill);
 
       expect(muted.fg, equals(disabled.fg), reason: 'ansiDark hand-authors both as darkGray');
       expect(muted.addModifier.has(Modifier.dim), isFalse);

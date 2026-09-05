@@ -10,8 +10,8 @@ import 'types.dart';
 /// built subtree is stamped with the model's id so a click resolves back to it
 /// through [HitMap.hitId]. Styles come from the [theme], [style], and the
 /// model's state (hover / focused / disabled / loading / pressed) through the
-/// built-in matrix; [styleOverrides] fully replaces the style for a given
-/// state.
+/// built-in matrix. A per-instance state look is a theme variant passed to
+/// [theme].
 ///
 /// The content area is sized to the larger of [ButtonModel.label] and
 /// [ButtonModel.loadingText]: both are laid out every frame, but only the
@@ -22,13 +22,12 @@ import 'types.dart';
 ///
 /// The resting face is [ButtonStyle.face]. A null face derives
 /// `resolver.fill(primary)` — a button is a primary action by default. Its
-/// states then ride the built-in state × class matrix (via [StyleResolver])
-/// rather than per-widget overrides: focused → `resolver.fill(focus)` + bold,
-/// loading → warning ink + slow blink, disabled → dim. Passing a
-/// [styleOverrides] entry for a state replaces that state's contribution.
+/// states then ride the built-in state × class matrix (via [StyleResolver]):
+/// focused → `resolver.fill(focus)` + bold, loading → warning ink + slow
+/// blink, disabled → dim.
 final class Button implements View {
   /// Creates a button over [model], styled by [theme].
-  const Button({required this.model, required this.theme, this.style = const ButtonStyle(), this.styleOverrides});
+  const Button({required this.model, required this.theme, this.style = const ButtonStyle()});
 
   /// The model whose label, state, and padding this view renders.
   final ButtonModel model;
@@ -39,12 +38,9 @@ final class Button implements View {
   /// Per-part style overrides. See [ButtonStyle].
   final ButtonStyle style;
 
-  /// Per-state style overrides that fully replace the resolved style for a state.
-  final Map<WidgetState, Style>? styleOverrides;
-
   @override
   Node build() {
-    final resolvedStyle = _resolveStyle(model, theme, style, styleOverrides);
+    final resolvedStyle = _resolveStyle(model, theme, style);
     final label = model.label.patchStyle(resolvedStyle);
     final loadingText = model.loadingText.patchStyle(resolvedStyle);
     // Both are laid out every frame, so the stack always sizes to the larger
@@ -66,12 +62,12 @@ final class Button implements View {
   }
 }
 
-/// Resolves the button style from the theme, [style]'s face, the model's
-/// active states, and any overrides: [ButtonStyle.face] is the resting face,
+/// Resolves the button style from the theme, [style]'s face, and the model's
+/// active states: [ButtonStyle.face] is the resting face,
 /// `resolver.fill(primary)` when null, with the state contributions coming
 /// straight from the built-in matrix, so a focused button lights up in the
 /// focus tone and a loading one blinks over any face.
-Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style, Map<WidgetState, Style>? styleOverrides) {
+Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{
     if (model.hovered) WidgetState.hover,
@@ -81,5 +77,5 @@ Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style, Map<Widge
     if (model.pressed) WidgetState.pressed,
   };
   final face = style.face ?? resolver.fill(resolver.tones.primary);
-  return resolver.resolve(face, states, overrides: styleOverrides);
+  return resolver.resolve(face, states, cls: PaintClass.fill);
 }

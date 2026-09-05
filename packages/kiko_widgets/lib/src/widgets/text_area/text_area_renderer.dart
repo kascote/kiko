@@ -14,14 +14,13 @@ import 'types.dart';
 /// focused, or `null` — plume's `Surface` has no cursor concept of its own (no
 /// terminal to blink one in), so reporting it back is the caller's job.
 class TextAreaRenderer {
-  /// Creates a renderer for [model], styled by [theme] and [styleOverrides].
+  /// Creates a renderer for [model], styled by [theme].
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes content like it draws it.
   TextAreaRenderer(
     this.model,
-    this.theme,
-    this.styleOverrides, {
+    this.theme, {
     this.measurer = const TermUnicodeMeasurer(),
     this.style = const TextAreaStyle(),
   });
@@ -31,9 +30,6 @@ class TextAreaRenderer {
 
   /// Theme for deriving styles.
   final Theme theme;
-
-  /// Optional per-state style overrides.
-  final Map<WidgetState, Style>? styleOverrides;
 
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
@@ -63,12 +59,7 @@ class TextAreaRenderer {
     final states = <WidgetState>{
       if (model.focused) WidgetState.focused,
     };
-    return _resolver.resolve(
-      null,
-      states,
-      cls: PaintClass.ink,
-      overrides: {...?styleOverrides},
-    );
+    return _resolver.resolve(null, states, cls: PaintClass.ink);
   }
 
   /// Paints the editor into [area] of [surface], returning where the

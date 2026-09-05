@@ -22,11 +22,11 @@ import 'types.dart';
 ///
 /// Styles come from [theme] and the model's state (focused / error / disabled
 /// / hovered / pressed) through [StyleResolver], with [style] slots taken
-/// verbatim where set; [styleOverrides] replaces a state's contribution on
-/// every part that state touches.
+/// verbatim where set. A per-instance state look is a theme variant passed to
+/// [theme].
 final class Checkbox implements View {
   /// Creates a checkbox over [model], styled by [theme].
-  const Checkbox({required this.model, required this.theme, this.style = const CheckboxStyle(), this.styleOverrides});
+  const Checkbox({required this.model, required this.theme, this.style = const CheckboxStyle()});
 
   /// The model whose value, glyphs, and layout this view renders.
   final CheckboxModel model;
@@ -37,12 +37,9 @@ final class Checkbox implements View {
   /// Per-part style overrides. See [CheckboxStyle].
   final CheckboxStyle style;
 
-  /// Per-state style overrides that fully replace the resolved style for a state.
-  final Map<WidgetState, Style>? styleOverrides;
-
   @override
   Node build() {
-    final styles = _resolveStyles(model, theme, style, styleOverrides);
+    final styles = _resolveStyles(model, theme, style);
 
     final open = Text(model.glyphs.open, style: styles.open);
     final close = Text(model.glyphs.close, style: styles.close);
@@ -103,7 +100,6 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
   CheckboxModel model,
   Theme theme,
   CheckboxStyle style,
-  Map<WidgetState, Style>? styleOverrides,
 ) {
   final resolver = StyleResolver(theme);
 
@@ -113,17 +109,11 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
     if (model.disabled) WidgetState.disabled,
     if (model.pressed) WidgetState.pressed,
   };
-  final open = resolver.resolve(
-    style.open ?? resolver.ink(resolver.tones.border),
-    bracketStates,
-    cls: PaintClass.ink,
-    overrides: styleOverrides,
-  );
+  final open = resolver.resolve(style.open ?? resolver.ink(resolver.tones.border), bracketStates, cls: PaintClass.ink);
   final close = resolver.resolve(
     style.close ?? resolver.ink(resolver.tones.border),
     bracketStates,
     cls: PaintClass.ink,
-    overrides: styleOverrides,
   );
 
   final markStates = <WidgetState>{
@@ -131,22 +121,16 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
     if (model.disabled) WidgetState.disabled,
     if (model.pressed) WidgetState.pressed,
   };
-  final mark = resolver.resolve(style.mark, markStates, cls: PaintClass.ink, overrides: styleOverrides);
+  final mark = resolver.resolve(style.mark, markStates, cls: PaintClass.ink);
 
   final checkedMarkBase =
-      style.checkedMark ??
-      resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.ink, overrides: styleOverrides);
-  final checkedMark = resolver.resolve(checkedMarkBase, markStates, cls: PaintClass.ink, overrides: styleOverrides);
+      style.checkedMark ?? resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.ink);
+  final checkedMark = resolver.resolve(checkedMarkBase, markStates, cls: PaintClass.ink);
 
-  final label = resolver.resolve(
-    style.label,
-    {if (model.disabled) WidgetState.disabled},
-    cls: PaintClass.ink,
-    overrides: styleOverrides,
-  );
+  final label = resolver.resolve(style.label, {if (model.disabled) WidgetState.disabled}, cls: PaintClass.ink);
 
   final rowGround = model.hovered
-      ? resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides)
+      ? resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash)
       : const Style();
 
   return (open: open, close: close, mark: mark, checkedMark: checkedMark, label: label, rowGround: rowGround);

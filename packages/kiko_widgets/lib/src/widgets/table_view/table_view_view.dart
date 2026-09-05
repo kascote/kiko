@@ -23,7 +23,6 @@ final class TableView implements View {
     required this.theme,
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
-    this.styleOverrides,
     this.emptyPlaceholder,
     this.pendingBuilder,
   });
@@ -44,9 +43,6 @@ final class TableView implements View {
   /// only the cursor row and the cursor cell are highlighted.
   final bool showCrosshair;
 
-  /// Per-state style overrides applied on top of the theme's row styles.
-  final Map<WidgetState, Style>? styleOverrides;
-
   /// The line shown when the table holds zero rows, or `null` for a blank body.
   final Line? emptyPlaceholder;
 
@@ -60,7 +56,6 @@ final class TableView implements View {
     theme: theme,
     style: style,
     showCrosshair: showCrosshair,
-    styleOverrides: styleOverrides,
     emptyPlaceholder: emptyPlaceholder,
     pendingBuilder: pendingBuilder,
   )..tag = IdTag(model.id);
@@ -74,7 +69,6 @@ class _TableViewport extends Node {
     required this.theme,
     required this.style,
     required this.showCrosshair,
-    this.styleOverrides,
     this.emptyPlaceholder,
     this.pendingBuilder,
   });
@@ -83,7 +77,6 @@ class _TableViewport extends Node {
   final Theme theme;
   final TableViewStyle style;
   final bool showCrosshair;
-  final Map<WidgetState, Style>? styleOverrides;
   final Line? emptyPlaceholder;
   final Line Function(int index)? pendingBuilder;
 
@@ -109,7 +102,6 @@ class _TableViewport extends Node {
     TableRenderer(
       model,
       theme,
-      styleOverrides,
       measurer: _measurer,
       style: style,
       showCrosshair: showCrosshair,

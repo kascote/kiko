@@ -16,12 +16,7 @@ import 'types.dart';
 /// routes back through [HitMap.hitId].
 final class TextArea implements View {
   /// Creates a text area over [model], styled by [theme].
-  const TextArea({
-    required this.model,
-    required this.theme,
-    this.style = const TextAreaStyle(),
-    this.styleOverrides,
-  });
+  const TextArea({required this.model, required this.theme, this.style = const TextAreaStyle()});
 
   /// The model whose text, cursor, selection, and scroll this view renders.
   final TextAreaModel model;
@@ -32,24 +27,18 @@ final class TextArea implements View {
   /// Region anatomy overrides. See [TextAreaStyle].
   final TextAreaStyle style;
 
-  /// Per-state style overrides applied on top of the theme's editor styles.
-  final Map<WidgetState, Style>? styleOverrides;
-
   @override
-  Node build() =>
-      _TextAreaViewport(model: model, theme: theme, style: style, styleOverrides: styleOverrides)
-        ..tag = IdTag(model.id);
+  Node build() => _TextAreaViewport(model: model, theme: theme, style: style)..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TextArea]: fills the space the box gives it,
 /// paints the editor through the plume `Surface`, and reports the cursor.
 class _TextAreaViewport extends Node {
-  _TextAreaViewport({required this.model, required this.theme, required this.style, this.styleOverrides});
+  _TextAreaViewport({required this.model, required this.theme, required this.style});
 
   final TextAreaModel model;
   final Theme theme;
   final TextAreaStyle style;
-  final Map<WidgetState, Style>? styleOverrides;
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the content, not just the box chrome.
@@ -75,13 +64,7 @@ class _TextAreaViewport extends Node {
     // scrolled-off editor pins its content to the viewport edge.
     final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
 
-    final cursor = TextAreaRenderer(
-      model,
-      theme,
-      styleOverrides,
-      measurer: _measurer,
-      style: style,
-    ).paint(area, surface);
+    final cursor = TextAreaRenderer(model, theme, measurer: _measurer, style: style).paint(area, surface);
     // Only the real BufferSurface has a terminal cursor to report — a
     // RecordingSurface (goldens) has nothing to carry it to. Report only when
     // this editor owns the cursor (it is focused); an unfocused editor must not

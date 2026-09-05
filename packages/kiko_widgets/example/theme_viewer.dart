@@ -548,8 +548,8 @@ View _anatomyBand(StyleResolver resolver) {
   final t = resolver.tones;
   final text = resolver.ink(Tone(color: t.background.on));
   final mutedInk = resolver.ink(t.muted);
-  final selectedFill = resolver.resolve(null, const {WidgetState.selected});
-  final cursorFill = resolver.resolve(null, const {WidgetState.cursor});
+  final selectedFill = resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
+  final cursorFill = resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
   final cursorWash = text.patch(resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.wash));
 
   final rows = <(String, List<(String, Style)>)>[

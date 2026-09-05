@@ -21,7 +21,7 @@ import 'types.dart';
 /// viewport does.
 final class TextInput implements View {
   /// Creates a text input over [model], styled by [theme].
-  const TextInput({required this.model, required this.theme, this.style = const TextInputStyle(), this.styleOverrides});
+  const TextInput({required this.model, required this.theme, this.style = const TextInputStyle()});
 
   /// The model whose text, cursor, and scroll this view renders.
   final TextInputModel model;
@@ -32,24 +32,18 @@ final class TextInput implements View {
   /// Region anatomy overrides. See [TextInputStyle].
   final TextInputStyle style;
 
-  /// Per-state style overrides applied on top of the theme's field styles.
-  final Map<WidgetState, Style>? styleOverrides;
-
   @override
-  Node build() =>
-      _TextInputViewport(model: model, theme: theme, style: style, styleOverrides: styleOverrides)
-        ..tag = IdTag(model.id);
+  Node build() => _TextInputViewport(model: model, theme: theme, style: style)..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
-  _TextInputViewport({required this.model, required this.theme, required this.style, this.styleOverrides});
+  _TextInputViewport({required this.model, required this.theme, required this.style});
 
   final TextInputModel model;
   final Theme theme;
   final TextInputStyle style;
-  final Map<WidgetState, Style>? styleOverrides;
 
   /// Resolves the anatomy slots that derive from theme tones + state.
   late final _resolver = StyleResolver(theme);
@@ -170,11 +164,6 @@ class _TextInputViewport extends Node {
   /// field's border, resolved by the caller.
   Style _resolveStyle() {
     final states = <WidgetState>{if (model.focused) WidgetState.focused};
-    return _resolver.resolve(
-      null,
-      states,
-      cls: PaintClass.ink,
-      overrides: <WidgetState, Style>{...?styleOverrides},
-    );
+    return _resolver.resolve(null, states, cls: PaintClass.ink);
   }
 }

@@ -227,16 +227,12 @@ void main() {
       expect(pressedLabel.bg, restingLabel.bg);
     });
 
-    test('a styleOverrides entry for selected replaces the checked mark style', () {
+    test('a theme variant paints the checked mark in that tone', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
-      final frame = _frame(10, 1)
-        ..render(
-          Checkbox(
-            model: model,
-            theme: Theme.dark,
-            styleOverrides: const {WidgetState.selected: Style(fg: Color.yellow)},
-          ),
-        );
+      final theme = Theme.dark.copyWith(
+        selection: const SurfaceTone(color: Color.yellow, on: Color.black),
+      );
+      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: theme));
       expect(frame.buffer[(x: 1, y: 0)].fg, Color.yellow);
     });
 

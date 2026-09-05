@@ -116,10 +116,10 @@ void main() {
         final resolver = StyleResolver(theme, policy: RenderPolicy.ansi16);
 
         final resolved = <String, Style>{
-          'selection': resolver.resolve(null, {WidgetState.selected}),
-          'cursor': resolver.resolve(null, {WidgetState.cursor}),
-          'focus': resolver.resolve(null, {WidgetState.focused}),
-          'error': resolver.resolve(null, {WidgetState.error}),
+          'selection': resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill),
+          'cursor': resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill),
+          'focus': resolver.resolve(null, {WidgetState.focused}, cls: PaintClass.fill),
+          'error': resolver.resolve(null, {WidgetState.error}, cls: PaintClass.fill),
         };
 
         final keys = resolved.keys.toList();
@@ -136,8 +136,8 @@ void main() {
 
       test('$name: cursor and focus fills still carry bold', () {
         final resolver = StyleResolver(theme, policy: RenderPolicy.ansi16);
-        final cursor = resolver.resolve(null, {WidgetState.cursor});
-        final focus = resolver.resolve(null, {WidgetState.focused});
+        final cursor = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
+        final focus = resolver.resolve(null, {WidgetState.focused}, cls: PaintClass.fill);
 
         expect(cursor.addModifier.has(Modifier.bold), isTrue);
         expect(focus.addModifier.has(Modifier.bold), isTrue);

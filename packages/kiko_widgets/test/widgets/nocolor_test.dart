@@ -85,7 +85,7 @@ void main() {
         focused: true,
       );
       final buffer = canvas(5, 3);
-      TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
       expect(cell.modifier.has(Modifier.reversed), isTrue);
       expect(cell.modifier.has(Modifier.bold), isTrue);

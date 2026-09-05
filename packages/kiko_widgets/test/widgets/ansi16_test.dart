@@ -69,7 +69,7 @@ void main() {
         focused: true,
       );
       final buffer = canvas(5, 3);
-      TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
       expect(cell.fg, equals(tones.cursor.on));
       expect(cell.bg, equals(tones.cursor.color));
@@ -90,7 +90,7 @@ void main() {
       );
       // cursorRow == 0, cursorCol == 0 on a fresh model.
       final buffer = canvas(7, 4); // header + 3 rows; col a (0-2), sep (3), col b (4-6)
-      TableRenderer(model, Theme.dark, null, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, Theme.dark, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
 
       final cursorCell = buffer[(x: 0, y: 1)]; // row 0, col a — the exact cursor cell
       expect(cursorCell.fg, equals(tones.cursor.on));

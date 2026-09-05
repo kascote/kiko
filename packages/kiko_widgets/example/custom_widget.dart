@@ -229,7 +229,7 @@ class _PaletteViewport extends Node {
         style = style.patch(_resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
       }
       if (i == m.cursor) {
-        style = style.patch(_resolver.resolve(null, const {WidgetState.cursor}));
+        style = style.patch(_resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill));
       }
 
       fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);

@@ -18,10 +18,10 @@ import 'types.dart';
 /// [loadingLabel], [errorLabel], or [stalledLabel]; it never passes that row
 /// to [nodeBuilder]. Row
 /// backgrounds come from the node's honest state (cursor / loading) painted
-/// through [style]'s [TreeViewStyle] anatomy — each `null` slot deriving from
-/// the theme's tones — and overridable with [styleOverrides]. Wrap it in a
-/// [Container] for a border or edge titles. The node is stamped with the model
-/// id so a click routes back through [HitMap.hitId].
+/// through [style]'s [TreeViewStyle] anatomy, each `null` slot deriving from
+/// the theme's tones. A per-instance state look is a theme variant passed to
+/// [theme]. Wrap it in a [Container] for a border or edge titles. The node is
+/// stamped with the model id so a click routes back through [HitMap.hitId].
 final class TreeView<T> implements View {
   /// Creates a tree view over [model], styled by [theme] and built row by row
   /// through [nodeBuilder].
@@ -30,7 +30,6 @@ final class TreeView<T> implements View {
     required this.theme,
     this.nodeBuilder,
     this.style = const TreeViewStyle(),
-    this.styleOverrides,
     this.emptyPlaceholder,
     this.loadingLabel,
     this.errorLabel,
@@ -49,9 +48,6 @@ final class TreeView<T> implements View {
 
   /// Row anatomy overrides. See [TreeViewStyle].
   final TreeViewStyle style;
-
-  /// Per-state style overrides applied on top of the theme's row styles.
-  final Map<WidgetState, Style>? styleOverrides;
 
   /// The line shown until the roots load, or `null` for a blank body.
   final Line? emptyPlaceholder;
@@ -80,7 +76,6 @@ final class TreeView<T> implements View {
     theme: theme,
     nodeBuilder: nodeBuilder,
     style: style,
-    styleOverrides: styleOverrides,
     emptyPlaceholder: emptyPlaceholder,
     loadingLabel: loadingLabel,
     errorLabel: errorLabel,
@@ -96,7 +91,6 @@ class _TreeViewport<T> extends Node {
     required this.theme,
     required this.style,
     this.nodeBuilder,
-    this.styleOverrides,
     this.emptyPlaceholder,
     this.loadingLabel,
     this.errorLabel,
@@ -107,7 +101,6 @@ class _TreeViewport<T> extends Node {
   final Theme theme;
   final Line Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder;
   final TreeViewStyle style;
-  final Map<WidgetState, Style>? styleOverrides;
   final Line? emptyPlaceholder;
   final Line? loadingLabel;
   final Line? errorLabel;
@@ -255,9 +248,7 @@ class _TreeViewport<T> extends Node {
   Line _placeholderLine(SliceStatus status) {
     var base = _placeholderStyle();
     if (status == SliceStatus.failed) {
-      base = base.patch(
-        _resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink, overrides: styleOverrides),
-      );
+      base = base.patch(_resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
     }
     final label = switch (status) {
       SliceStatus.filling => loadingLabel ?? Line('Loading…'),
@@ -276,20 +267,16 @@ class _TreeViewport<T> extends Node {
   /// background, or, on a row with none, patches the hover wash — the case
   /// here, since the base is always null. No anatomy slot: hover is a
   /// generic state, not a TreeView-specific part.
-  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides);
+  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// The current node — `cursor` × `fill`.
   Style _cursorItemStyle() =>
-      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
 
   /// The expand, collapse, and loading glyph — `indicator`, patched with the
   /// `loading` state (warning ink + slow blink) while [loading] is true.
-  Style _indicatorStyle(bool loading) => _resolver.resolve(
-    style.indicator,
-    {if (loading) WidgetState.loading},
-    cls: PaintClass.ink,
-    overrides: styleOverrides,
-  );
+  Style _indicatorStyle(bool loading) =>
+      _resolver.resolve(style.indicator, {if (loading) WidgetState.loading}, cls: PaintClass.ink);
 
   /// The empty-state line shown until the roots load, and the base a
   /// placeholder row patches its label over.

@@ -93,8 +93,7 @@ class CheckGlyphs {
 /// Checkbox's anatomy: one nullable style slot per part.
 ///
 /// A `null` slot is derived from the theme's tones by the rule below; a
-/// non-null slot is the caller's exact style and wins verbatim, bypassing both
-/// the derivation and the per-state `styleOverrides` map on `Checkbox`.
+/// non-null slot is the caller's exact style and wins verbatim.
 ///
 /// | slot          | derived default             | matrix source   |
 /// | ------------- | ---------------------------- | --------------- |

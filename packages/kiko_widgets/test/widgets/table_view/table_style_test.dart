@@ -18,7 +18,6 @@ Buffer renderBuffer(
   TableRenderer(
     model,
     theme,
-    null,
     style: style,
     showCrosshair: showCrosshair,
     emptyPlaceholder: emptyPlaceholder,

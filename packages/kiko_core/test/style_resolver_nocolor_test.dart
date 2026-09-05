@@ -28,19 +28,19 @@ void main() {
 
     test('pressed removes reversed from an already-reversed fill', () {
       final restingFill = resolve(WidgetState.selected, PaintClass.fill);
-      final result = resolver.resolve(restingFill, {WidgetState.pressed});
+      final result = resolver.resolve(restingFill, {WidgetState.pressed}, cls: PaintClass.fill);
       expect(result.addModifier.has(Modifier.reversed), isFalse);
     });
 
     test('pressed adds reversed to a base with none', () {
       const inkBase = Style(fg: Color.white);
-      final result = resolver.resolve(inkBase, {WidgetState.pressed});
+      final result = resolver.resolve(inkBase, {WidgetState.pressed}, cls: PaintClass.fill);
       expect(result.addModifier.has(Modifier.reversed), isTrue);
     });
 
     test('hover leaves a fill unchanged under NO_COLOR', () {
       final restingFill = resolve(WidgetState.selected, PaintClass.fill);
-      final result = resolver.resolve(restingFill, {WidgetState.hover});
+      final result = resolver.resolve(restingFill, {WidgetState.hover}, cls: PaintClass.fill);
       expect(result, restingFill);
     });
 
@@ -80,7 +80,7 @@ void main() {
 
     test('the color policy is unaffected — fills still carry their tone', () {
       final colorResolver = StyleResolver(Theme.dark, policy: RenderPolicy.color);
-      final s = colorResolver.resolve(null, const {WidgetState.selected});
+      final s = colorResolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
       expect(s.bg, equals(Theme.dark.selection.color));
       expect(s.addModifier.has(Modifier.reversed), isFalse);
     });

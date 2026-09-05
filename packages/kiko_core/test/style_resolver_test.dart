@@ -8,16 +8,16 @@ void main() {
   group('StyleResolver / basics', () {
     test('empty states returns base unchanged', () {
       const base = Style(fg: Color.red, bg: Color.blue);
-      final result = resolver.resolve(base, {});
+      final result = resolver.resolve(base, {}, cls: PaintClass.fill);
       expect(result, base);
     });
 
     test('null base with no states is an empty style', () {
-      expect(resolver.resolve(null, {}), const Style());
+      expect(resolver.resolve(null, {}, cls: PaintClass.fill), const Style());
     });
 
     test('null base with a state starts from empty', () {
-      final result = resolver.resolve(null, {WidgetState.selected});
+      final result = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       expect(result.fg, theme.selection.on);
       expect(result.bg, theme.selection.color);
     });
@@ -37,7 +37,7 @@ void main() {
 
     test('hover washes a base with no background', () {
       const noBg = Style(fg: Color.white);
-      final result = resolver.resolve(noBg, {WidgetState.hover});
+      final result = resolver.resolve(noBg, {WidgetState.hover}, cls: PaintClass.fill);
       expect(result.bg, theme.hover.color);
       expect(result.fg, noBg.fg);
     });
@@ -47,7 +47,7 @@ void main() {
       expect(ink.fg, theme.selection.color);
       expect(ink.bg, base.bg); // ink never sets bg
 
-      final fill = resolver.resolve(base, {WidgetState.selected});
+      final fill = resolver.resolve(base, {WidgetState.selected}, cls: PaintClass.fill);
       expect(fill.fg, theme.selection.on);
       expect(fill.bg, theme.selection.color);
 
@@ -59,7 +59,7 @@ void main() {
     test('cursor: fill (+bold) and wash, nothing for ink', () {
       expect(resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.ink), base);
 
-      final fill = resolver.resolve(base, {WidgetState.cursor});
+      final fill = resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.fill);
       expect(fill.fg, theme.cursor.on);
       expect(fill.bg, theme.cursor.color);
       expect(fill.addModifier.has(Modifier.bold), isTrue);
@@ -74,7 +74,7 @@ void main() {
       expect(ink.bg, base.bg);
       expect(ink.addModifier.has(Modifier.bold), isTrue);
 
-      final fill = resolver.resolve(base, {WidgetState.focused});
+      final fill = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
       expect(fill.fg, theme.focus.on);
       expect(fill.bg, theme.focus.color);
       expect(fill.addModifier.has(Modifier.bold), isTrue);
@@ -97,7 +97,7 @@ void main() {
       expect(ink.fg, theme.error.color);
       expect(ink.bg, base.bg);
 
-      final fill = resolver.resolve(base, {WidgetState.error});
+      final fill = resolver.resolve(base, {WidgetState.error}, cls: PaintClass.fill);
       expect(fill.fg, theme.error.on);
       expect(fill.bg, theme.error.color);
 
@@ -120,27 +120,27 @@ void main() {
     const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
 
     test('disabled overrides focused', () {
-      final result = resolver.resolve(base, {WidgetState.focused, WidgetState.disabled});
+      final result = resolver.resolve(base, {WidgetState.focused, WidgetState.disabled}, cls: PaintClass.fill);
       expect(result.fg, theme.disabled.color);
       expect(result.addModifier.has(Modifier.dim), isTrue);
     });
 
     test('cursor shows through selected (cursor applied last)', () {
-      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.cursor});
+      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
       expect(result.fg, theme.cursor.on);
       expect(result.bg, theme.cursor.color);
     });
 
     test('error patches over selected without clearing its bg', () {
-      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.error});
+      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.error}, cls: PaintClass.fill);
       // error (fill) sets its own fg/bg, applied after selected.
       expect(result.fg, theme.error.on);
       expect(result.bg, theme.error.color);
     });
 
     test('hover lifts the focus fill', () {
-      final both = resolver.resolve(base, {WidgetState.hover, WidgetState.focused});
-      final focusOnly = resolver.resolve(base, {WidgetState.focused});
+      final both = resolver.resolve(base, {WidgetState.hover, WidgetState.focused}, cls: PaintClass.fill);
+      final focusOnly = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
       expect(both, focusOnly.copyWith(bg: focusOnly.bg!.lift(Theme.hoverLift)));
     });
   });
@@ -149,57 +149,20 @@ void main() {
     const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
 
     test('pressed inverts a fill', () {
-      final result = resolver.resolve(base, {WidgetState.pressed});
+      final result = resolver.resolve(base, {WidgetState.pressed}, cls: PaintClass.fill);
       expect(result, base.inverted);
     });
 
     test('pressed inverts after tone patches — proves transforms run last', () {
-      final focusOnly = resolver.resolve(base, {WidgetState.focused});
-      final result = resolver.resolve(base, {WidgetState.pressed, WidgetState.focused});
+      final focusOnly = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
+      final result = resolver.resolve(base, {WidgetState.pressed, WidgetState.focused}, cls: PaintClass.fill);
       expect(result, focusOnly.inverted);
     });
 
     test('hover runs before pressed', () {
-      final hoverOnly = resolver.resolve(base, {WidgetState.hover});
-      final result = resolver.resolve(base, {WidgetState.hover, WidgetState.pressed});
+      final hoverOnly = resolver.resolve(base, {WidgetState.hover}, cls: PaintClass.fill);
+      final result = resolver.resolve(base, {WidgetState.hover, WidgetState.pressed}, cls: PaintClass.fill);
       expect(result, hoverOnly.inverted);
-    });
-
-    test('an override for pressed is patched, not inverted', () {
-      const custom = Style(fg: Color.green, bg: Color.yellow);
-      final result = resolver.resolve(
-        base,
-        {WidgetState.pressed},
-        overrides: {WidgetState.pressed: custom},
-      );
-      expect(result.fg, Color.green);
-      expect(result.bg, Color.yellow);
-    });
-  });
-
-  group('StyleResolver / overrides', () {
-    const base = Style(fg: Color.white);
-
-    test('an override replaces the default for a state', () {
-      const custom = Style(fg: Color.green, bg: Color.yellow);
-      final result = resolver.resolve(
-        base,
-        {WidgetState.focused},
-        overrides: {WidgetState.focused: custom},
-      );
-      expect(result.fg, Color.green);
-      expect(result.bg, Color.yellow);
-    });
-
-    test('an override applies even where the matrix cell is empty', () {
-      const custom = Style(bg: Color.blue);
-      final result = resolver.resolve(
-        base,
-        {WidgetState.cursor},
-        cls: PaintClass.ink, // cursor x ink is normally empty
-        overrides: {WidgetState.cursor: custom},
-      );
-      expect(result.bg, Color.blue);
     });
   });
 

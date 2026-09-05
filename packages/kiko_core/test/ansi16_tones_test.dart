@@ -4,20 +4,20 @@ import 'package:test/test.dart';
 void main() {
   group('Ansi16Tones.derive', () {
     const theme = Theme(
-      primary: Tone(color: Color.rgb(0x000000)), // pure black: darkest slot
-      secondary: Tone(color: Color.rgb(0xffffff)), // pure white: lightest slot
-      accent: Tone(color: Color.yellow), // already an ANSI-16 color
-      error: Tone(color: Color.rgb(0xff0000), on: Color.rgb(0x123456)), // `on` must be ignored
-      warning: Tone(), // no color at all
-      success: Tone(color: Color.rgb(0x008000)),
-      background: Tone(color: Color.rgb(0x101010)),
-      surface: Tone(color: Color.rgb(0x202020)),
+      primary: SurfaceTone(color: Color.rgb(0x000000), on: Color.white), // pure black: darkest slot
+      secondary: SurfaceTone(color: Color.rgb(0xffffff), on: Color.black), // pure white: lightest slot
+      accent: SurfaceTone(color: Color.yellow, on: Color.black), // already an ANSI-16 color
+      error: SurfaceTone(color: Color.rgb(0xff0000), on: Color.rgb(0x123456)), // `on` must be ignored
+      warning: SurfaceTone(on: Color.rgb(0x123456)), // no color: `on` re-expresses through the same conversion
+      success: SurfaceTone(color: Color.rgb(0x008000), on: Color.white),
+      background: SurfaceTone(color: Color.rgb(0x101010), on: Color.white),
+      surface: SurfaceTone(color: Color.rgb(0x202020), on: Color.white),
       border: Tone(color: Color.rgb(0x303030)),
       muted: Tone(color: Color.rgb(0x404040)),
       disabled: Tone(color: Color.rgb(0x505050)),
-      focus: Tone(color: Color.rgb(0x606060)),
-      selection: Tone(color: Color.rgb(0x708090)),
-      cursor: Tone(color: Color.rgb(0x123456)),
+      focus: SurfaceTone(color: Color.rgb(0x606060), on: Color.white),
+      selection: SurfaceTone(color: Color.rgb(0x708090), on: Color.white),
+      cursor: SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
     );
 
     test('a dark tone color derives brightWhite as its on', () {
@@ -47,10 +47,19 @@ void main() {
       expect(tones16.error.on, equals(Color.white));
     });
 
-    test('a tone with no color derives to a fully empty tone', () {
+    test('a surface tone with no color keeps its own on, re-expressed through the same conversion', () {
       final tones16 = Ansi16Tones.derive(theme);
       expect(tones16.warning.color, isNull);
-      expect(tones16.warning.on, isNull);
+      // warning.on and cursor.color both start from the same 0x123456, so
+      // they must map through the RGB→ANSI-16 search to the same slot.
+      expect(tones16.warning.on, equals(tones16.cursor.color));
+    });
+
+    test('a derived surface tone carries an on; a derived chrome tone has none', () {
+      final tones16 = Ansi16Tones.derive(theme);
+      expect(tones16.primary, isA<SurfaceTone>());
+      expect(tones16.primary.on, isNotNull);
+      expect(tones16.border, isNot(isA<SurfaceTone>()));
     });
 
     test('every table entry is present', () {
@@ -83,21 +92,21 @@ void main() {
   group('Ansi16Tones value semantics', () {
     // Not const: every call builds a fresh instance, so equality here can
     // only pass by comparing fields, never by canonicalization.
-    Ansi16Tones buildTable({Tone? primary}) => Ansi16Tones(
-      primary: primary ?? const Tone(color: Color.cyan, on: Color.black),
-      secondary: const Tone(color: Color.magenta, on: Color.black),
-      accent: const Tone(color: Color.yellow, on: Color.black),
-      error: const Tone(color: Color.red, on: Color.white),
-      warning: const Tone(color: Color.yellow, on: Color.black),
-      success: const Tone(color: Color.green, on: Color.black),
-      background: const Tone(color: Color.black, on: Color.white),
-      surface: const Tone(color: Color.darkGray, on: Color.white),
+    Ansi16Tones buildTable({SurfaceTone? primary}) => Ansi16Tones(
+      primary: primary ?? const SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: const SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: const SurfaceTone(color: Color.yellow, on: Color.black),
+      error: const SurfaceTone(color: Color.red, on: Color.white),
+      warning: const SurfaceTone(color: Color.yellow, on: Color.black),
+      success: const SurfaceTone(color: Color.green, on: Color.black),
+      background: const SurfaceTone(color: Color.black, on: Color.white),
+      surface: const SurfaceTone(color: Color.darkGray, on: Color.white),
       border: const Tone(color: Color.gray),
       muted: const Tone(color: Color.darkGray),
       disabled: const Tone(color: Color.darkGray),
-      focus: const Tone(color: Color.brightCyan, on: Color.black),
-      selection: const Tone(color: Color.yellow, on: Color.black),
-      cursor: const Tone(color: Color.darkGray, on: Color.white),
+      focus: const SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: const SurfaceTone(color: Color.yellow, on: Color.black),
+      cursor: const SurfaceTone(color: Color.darkGray, on: Color.white),
     );
 
     test('two separately constructed equal tables compare equal and hash equal', () {
@@ -111,7 +120,7 @@ void main() {
     test('a differing tone breaks equality', () {
       final a = buildTable();
       final b = buildTable(
-        primary: const Tone(color: Color.brightRed, on: Color.black),
+        primary: const SurfaceTone(color: Color.brightRed, on: Color.black),
       );
       expect(a, isNot(equals(b)));
     });

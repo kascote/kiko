@@ -8,7 +8,7 @@ import 'tone.dart';
 /// shares.
 ///
 /// A theme owns *which* colors exist, never how they land as paint: every tone
-/// becomes cells only through a projection ([Tone.ink] / [Tone.fill] /
+/// becomes cells only through a projection ([Tone.ink] / [SurfaceTone.fill] /
 /// [Tone.wash]), usually via `StyleResolver`. Nothing else belongs on a theme —
 /// per-widget parts are anatomy (widget style slots) and interaction facts are
 /// widget states, so this set stays frozen while widgets grow freely.
@@ -47,27 +47,27 @@ class Theme implements ToneSet {
 
   /// Main brand color for primary actions.
   @override
-  final Tone primary;
+  final SurfaceTone primary;
 
   /// Second-rank actions, less prominent than [primary].
   @override
-  final Tone secondary;
+  final SurfaceTone secondary;
 
   /// Attention-grabbing color for highlights and badges.
   @override
-  final Tone accent;
+  final SurfaceTone accent;
 
   /// Destructive actions and invalid/error states.
   @override
-  final Tone error;
+  final SurfaceTone error;
 
   /// Cautions and warnings.
   @override
-  final Tone warning;
+  final SurfaceTone warning;
 
   /// Confirmations and success states.
   @override
-  final Tone success;
+  final SurfaceTone success;
 
   // === Neutral ===
 
@@ -76,11 +76,11 @@ class Theme implements ToneSet {
   /// `background.color` is the base background; `background.on` is the default
   /// text color drawn on it.
   @override
-  final Tone background;
+  final SurfaceTone background;
 
   /// Elevated surfaces — cards, dialogs, panels.
   @override
-  final Tone surface;
+  final SurfaceTone surface;
 
   /// Resting chrome (borders, separators).
   @override
@@ -98,11 +98,11 @@ class Theme implements ToneSet {
 
   /// Keyboard focus indicator ("you are here").
   @override
-  final Tone focus;
+  final SurfaceTone focus;
 
   /// Chosen items (selected rows, picked options).
   @override
-  final Tone selection;
+  final SurfaceTone selection;
 
   /// Hand-authored ANSI-16 re-expression of this theme's tones.
   ///
@@ -110,7 +110,7 @@ class Theme implements ToneSet {
   /// ([Ansi16Tones.derive]) and cache it — most themes need nothing here.
   final Ansi16Tones? tones16;
 
-  final Tone? _cursor;
+  final SurfaceTone? _cursor;
   final Tone? _hover;
 
   /// Creates a theme from its tones.
@@ -134,7 +134,7 @@ class Theme implements ToneSet {
     required this.focus,
     required this.selection,
     this.tones16,
-    Tone? cursor,
+    SurfaceTone? cursor,
     Tone? hover,
   }) : _cursor = cursor,
        _hover = hover;
@@ -142,15 +142,16 @@ class Theme implements ToneSet {
   /// The current row/column tint.
   ///
   /// When not set explicitly it is derived as a subtle lift of [background]
-  /// (10%), keeping [background]'s text color as its `on`. Derives to an empty
-  /// tone when [background] has no color (terminal-default themes).
+  /// (10%), keeping [background]'s text color as its `on`. Keeps that `on`
+  /// and carries no color when [background] has none (terminal-default
+  /// themes).
   @override
-  Tone get cursor {
+  SurfaceTone get cursor {
     final explicit = _cursor;
     if (explicit != null) return explicit;
     final base = background.color;
-    if (base == null) return const Tone();
-    return Tone(color: base.lift(0.10), on: background.on);
+    if (base == null) return SurfaceTone(on: background.on);
+    return SurfaceTone(color: base.lift(0.10), on: background.on);
   }
 
   /// The mouse-over tint.
@@ -173,19 +174,19 @@ class Theme implements ToneSet {
 
   /// Kiko Dark theme - deep slate base with muted warm accents.
   static const Theme dark = Theme(
-    primary: Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
-    secondary: Tone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
-    accent: Tone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
-    error: Tone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
-    warning: Tone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
-    success: Tone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
-    background: Tone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
-    surface: Tone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
+    primary: SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
+    secondary: SurfaceTone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
+    accent: SurfaceTone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
+    error: SurfaceTone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
+    warning: SurfaceTone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
+    success: SurfaceTone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
+    background: SurfaceTone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
+    surface: SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
     border: Tone(color: Color.rgb(0x30363d)),
     muted: Tone(color: Color.rgb(0x6e7681)),
     disabled: Tone(color: Color.rgb(0x484f58)),
-    focus: Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
-    selection: Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
+    focus: SurfaceTone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
+    selection: SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
     // cursor, hover: derived washes over background.
     //
     // This table is the reference for how every built-in theme picks its
@@ -213,38 +214,38 @@ class Theme implements ToneSet {
     //   disabled) gets no `on` here either; a tone with no RGB color at
     //   all stays null.
     tones16: Ansi16Tones(
-      primary: Tone(color: Color.cyan, on: Color.black),
-      secondary: Tone(color: Color.blue, on: Color.white),
-      accent: Tone(color: Color.brightRed, on: Color.white),
-      error: Tone(color: Color.red, on: Color.white),
-      warning: Tone(color: Color.yellow, on: Color.black),
-      success: Tone(color: Color.green, on: Color.black),
-      background: Tone(color: Color.black, on: Color.white),
-      surface: Tone(color: Color.darkGray, on: Color.white),
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.blue, on: Color.white),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
       border: Tone(color: Color.darkGray),
       muted: Tone(color: Color.gray),
       disabled: Tone(color: Color.darkGray),
-      focus: Tone(color: Color.brightCyan, on: Color.black),
-      selection: Tone(color: Color.blue, on: Color.white),
-      cursor: Tone(color: Color.brightBlue, on: Color.white),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
   /// Kiko Light theme - warm white base with deeper accents.
   static const Theme light = Theme(
-    primary: Tone(color: Color.rgb(0x1a7f8e), on: Color.rgb(0xf6f8fa)),
-    secondary: Tone(color: Color.rgb(0x6b5ba8), on: Color.rgb(0xf6f8fa)),
-    accent: Tone(color: Color.rgb(0xb87a4a), on: Color.rgb(0xf6f8fa)),
-    error: Tone(color: Color.rgb(0xb54343), on: Color.rgb(0xf6f8fa)),
-    warning: Tone(color: Color.rgb(0xa68830), on: Color.rgb(0xf6f8fa)),
-    success: Tone(color: Color.rgb(0x3d8b48), on: Color.rgb(0xf6f8fa)),
-    background: Tone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
-    surface: Tone(color: Color.rgb(0xeef1f5), on: Color.rgb(0x1f2328)),
+    primary: SurfaceTone(color: Color.rgb(0x1a7f8e), on: Color.rgb(0xf6f8fa)),
+    secondary: SurfaceTone(color: Color.rgb(0x6b5ba8), on: Color.rgb(0xf6f8fa)),
+    accent: SurfaceTone(color: Color.rgb(0xb87a4a), on: Color.rgb(0xf6f8fa)),
+    error: SurfaceTone(color: Color.rgb(0xb54343), on: Color.rgb(0xf6f8fa)),
+    warning: SurfaceTone(color: Color.rgb(0xa68830), on: Color.rgb(0xf6f8fa)),
+    success: SurfaceTone(color: Color.rgb(0x3d8b48), on: Color.rgb(0xf6f8fa)),
+    background: SurfaceTone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
+    surface: SurfaceTone(color: Color.rgb(0xeef1f5), on: Color.rgb(0x1f2328)),
     border: Tone(color: Color.rgb(0xd0d7de)),
     muted: Tone(color: Color.rgb(0x8b949e)),
     disabled: Tone(color: Color.rgb(0xafb8c1)),
-    focus: Tone(color: Color.rgb(0x2a8a9a), on: Color.rgb(0xf6f8fa)),
-    selection: Tone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
+    focus: SurfaceTone(color: Color.rgb(0x2a8a9a), on: Color.rgb(0xf6f8fa)),
+    selection: SurfaceTone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
     // Named ANSI colors paint on the user's own terminal background, so a
     // light theme cannot force a light terminal here — this table just
     // stays coherent with the theme's own intent (a white base, dark text).
@@ -253,20 +254,20 @@ class Theme implements ToneSet {
     // (mere chrome, not text) take the lighter one — the opposite ordering
     // from a dark theme, where dim text needs the lighter gray.
     tones16: Ansi16Tones(
-      primary: Tone(color: Color.cyan, on: Color.black),
-      secondary: Tone(color: Color.blue, on: Color.white),
-      accent: Tone(color: Color.brightRed, on: Color.white),
-      error: Tone(color: Color.red, on: Color.white),
-      warning: Tone(color: Color.yellow, on: Color.black),
-      success: Tone(color: Color.green, on: Color.black),
-      background: Tone(color: Color.white, on: Color.black),
-      surface: Tone(color: Color.white, on: Color.black),
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.blue, on: Color.white),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.white, on: Color.black),
+      surface: SurfaceTone(color: Color.white, on: Color.black),
       border: Tone(color: Color.gray),
       muted: Tone(color: Color.darkGray),
       disabled: Tone(color: Color.gray),
-      focus: Tone(color: Color.brightCyan, on: Color.black),
-      selection: Tone(color: Color.blue, on: Color.white),
-      cursor: Tone(color: Color.brightBlue, on: Color.white),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
@@ -275,19 +276,19 @@ class Theme implements ToneSet {
   /// Uses complementary color theory: orange primary with teal accent.
   /// Warm-tinted intents (coral error, olive success) maintain cohesion.
   static const Theme ember = Theme(
-    primary: Tone(color: Color.rgb(0xe07830), on: Color.rgb(0x0a0908)),
-    secondary: Tone(color: Color.rgb(0xa85545), on: Color.rgb(0x0a0908)),
-    accent: Tone(color: Color.rgb(0x45a5a5), on: Color.rgb(0x0a0908)),
-    error: Tone(color: Color.rgb(0xcc5555), on: Color.rgb(0x0a0908)),
-    warning: Tone(color: Color.rgb(0xd5a030), on: Color.rgb(0x0a0908)),
-    success: Tone(color: Color.rgb(0x88a540), on: Color.rgb(0x0a0908)),
-    background: Tone(color: Color.rgb(0x0a0908), on: Color.rgb(0xcdc0b4)),
-    surface: Tone(color: Color.rgb(0x16120f), on: Color.rgb(0xcdc0b4)),
+    primary: SurfaceTone(color: Color.rgb(0xe07830), on: Color.rgb(0x0a0908)),
+    secondary: SurfaceTone(color: Color.rgb(0xa85545), on: Color.rgb(0x0a0908)),
+    accent: SurfaceTone(color: Color.rgb(0x45a5a5), on: Color.rgb(0x0a0908)),
+    error: SurfaceTone(color: Color.rgb(0xcc5555), on: Color.rgb(0x0a0908)),
+    warning: SurfaceTone(color: Color.rgb(0xd5a030), on: Color.rgb(0x0a0908)),
+    success: SurfaceTone(color: Color.rgb(0x88a540), on: Color.rgb(0x0a0908)),
+    background: SurfaceTone(color: Color.rgb(0x0a0908), on: Color.rgb(0xcdc0b4)),
+    surface: SurfaceTone(color: Color.rgb(0x16120f), on: Color.rgb(0xcdc0b4)),
     border: Tone(color: Color.rgb(0x2a2420)),
     muted: Tone(color: Color.rgb(0x6a6055)),
     disabled: Tone(color: Color.rgb(0x4a4540)),
-    focus: Tone(color: Color.rgb(0x55c5c5), on: Color.rgb(0x0a0908)),
-    selection: Tone(color: Color.rgb(0x1a3535), on: Color.rgb(0xcdc0b4)),
+    focus: SurfaceTone(color: Color.rgb(0x55c5c5), on: Color.rgb(0x0a0908)),
+    selection: SurfaceTone(color: Color.rgb(0x1a3535), on: Color.rgb(0xcdc0b4)),
     // Primary and secondary are both warm reds in RGB, so the vivid one
     // (primary) takes the bright slot and the quieter one (secondary)
     // shares plain red with error — an accepted collapse, since staying
@@ -295,57 +296,57 @@ class Theme implements ToneSet {
     // Accent keeps its complementary teal identity as plain cyan, leaving
     // brightCyan free for focus.
     tones16: Ansi16Tones(
-      primary: Tone(color: Color.brightRed, on: Color.white),
-      secondary: Tone(color: Color.red, on: Color.white),
-      accent: Tone(color: Color.cyan, on: Color.black),
-      error: Tone(color: Color.red, on: Color.white),
-      warning: Tone(color: Color.yellow, on: Color.black),
-      success: Tone(color: Color.green, on: Color.black),
-      background: Tone(color: Color.black, on: Color.white),
-      surface: Tone(color: Color.darkGray, on: Color.white),
+      primary: SurfaceTone(color: Color.brightRed, on: Color.white),
+      secondary: SurfaceTone(color: Color.red, on: Color.white),
+      accent: SurfaceTone(color: Color.cyan, on: Color.black),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
       border: Tone(color: Color.darkGray),
       muted: Tone(color: Color.gray),
       disabled: Tone(color: Color.darkGray),
-      focus: Tone(color: Color.brightCyan, on: Color.black),
-      selection: Tone(color: Color.cyan, on: Color.black),
-      cursor: Tone(color: Color.brightBlue, on: Color.white),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.cyan, on: Color.black),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
   /// ANSI-16 dark theme for basic terminal compatibility.
   static const Theme ansiDark = Theme(
-    primary: Tone(color: Color.cyan, on: Color.black),
-    secondary: Tone(color: Color.magenta, on: Color.black),
-    accent: Tone(color: Color.yellow, on: Color.black),
-    error: Tone(color: Color.red, on: Color.white),
-    warning: Tone(color: Color.yellow, on: Color.black),
-    success: Tone(color: Color.green, on: Color.black),
-    background: Tone(color: Color.black, on: Color.white),
-    surface: Tone(color: Color.darkGray, on: Color.white),
+    primary: SurfaceTone(color: Color.cyan, on: Color.black),
+    secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+    accent: SurfaceTone(color: Color.yellow, on: Color.black),
+    error: SurfaceTone(color: Color.red, on: Color.white),
+    warning: SurfaceTone(color: Color.yellow, on: Color.black),
+    success: SurfaceTone(color: Color.green, on: Color.black),
+    background: SurfaceTone(color: Color.black, on: Color.white),
+    surface: SurfaceTone(color: Color.darkGray, on: Color.white),
     border: Tone(color: Color.gray),
     muted: Tone(color: Color.darkGray),
     disabled: Tone(color: Color.darkGray),
-    focus: Tone(color: Color.brightCyan, on: Color.black),
-    selection: Tone(color: Color.yellow, on: Color.black),
+    focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+    selection: SurfaceTone(color: Color.yellow, on: Color.black),
     // Already authored in named ANSI colors, so this table just restates
     // this theme's own tones — including the cursor tint, which this theme
     // leaves to derive as a lift of its black background (comes out as
     // darkGray with the background's own white `on`).
     tones16: Ansi16Tones(
-      primary: Tone(color: Color.cyan, on: Color.black),
-      secondary: Tone(color: Color.magenta, on: Color.black),
-      accent: Tone(color: Color.yellow, on: Color.black),
-      error: Tone(color: Color.red, on: Color.white),
-      warning: Tone(color: Color.yellow, on: Color.black),
-      success: Tone(color: Color.green, on: Color.black),
-      background: Tone(color: Color.black, on: Color.white),
-      surface: Tone(color: Color.darkGray, on: Color.white),
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.yellow, on: Color.black),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
       border: Tone(color: Color.gray),
       muted: Tone(color: Color.darkGray),
       disabled: Tone(color: Color.darkGray),
-      focus: Tone(color: Color.brightCyan, on: Color.black),
-      selection: Tone(color: Color.yellow, on: Color.black),
-      cursor: Tone(color: Color.darkGray, on: Color.white),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.yellow, on: Color.black),
+      cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
     ),
   );
 
@@ -357,19 +358,19 @@ class Theme implements ToneSet {
   /// hierarchy — muted text is a darker amber, focus is a brighter one, and
   /// the only departures from the hue are the intent tones (error, success).
   static const Theme lantern = Theme(
-    primary: Tone(color: Color.rgb(0x008080), on: Color.rgb(0x221a10)), // 0xc8933f
-    secondary: Tone(color: Color.rgb(0xb3854d), on: Color.rgb(0x221a10)),
-    accent: Tone(color: Color.rgb(0xf5d9a0), on: Color.rgb(0x221a10)),
-    error: Tone(color: Color.rgb(0xd06048), on: Color.rgb(0x221a10)),
-    warning: Tone(color: Color.rgb(0xe0b040), on: Color.rgb(0x221a10)),
-    success: Tone(color: Color.rgb(0x9aa548), on: Color.rgb(0x221a10)),
-    background: Tone(color: Color.rgb(0x14100B), on: Color.rgb(0xcaa356)),
-    surface: Tone(color: Color.rgb(0x2a2113), on: Color.rgb(0xcaa356)),
+    primary: SurfaceTone(color: Color.rgb(0x008080), on: Color.rgb(0x221a10)), // 0xc8933f
+    secondary: SurfaceTone(color: Color.rgb(0xb3854d), on: Color.rgb(0x221a10)),
+    accent: SurfaceTone(color: Color.rgb(0xf5d9a0), on: Color.rgb(0x221a10)),
+    error: SurfaceTone(color: Color.rgb(0xd06048), on: Color.rgb(0x221a10)),
+    warning: SurfaceTone(color: Color.rgb(0xe0b040), on: Color.rgb(0x221a10)),
+    success: SurfaceTone(color: Color.rgb(0x9aa548), on: Color.rgb(0x221a10)),
+    background: SurfaceTone(color: Color.rgb(0x14100B), on: Color.rgb(0xcaa356)),
+    surface: SurfaceTone(color: Color.rgb(0x2a2113), on: Color.rgb(0xcaa356)),
     border: Tone(color: Color.rgb(0x3a2e1e)),
     muted: Tone(color: Color.rgb(0x4A3F30)),
     disabled: Tone(color: Color.rgb(0x57492a)),
-    focus: Tone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)),
-    selection: Tone(color: Color.rgb(0x4a3a1e), on: Color.rgb(0xf2d9a5)),
+    focus: SurfaceTone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)),
+    selection: SurfaceTone(color: Color.rgb(0x4a3a1e), on: Color.rgb(0xf2d9a5)),
     // cursor, hover: derived washes over background.
     //
     // Nearly every tone lives in the yellow family, so this table leans on
@@ -379,20 +380,20 @@ class Theme implements ToneSet {
     // error — the quieter warm hue — and the grays follow the dark-theme
     // ordering.
     tones16: Ansi16Tones(
-      primary: Tone(color: Color.yellow, on: Color.black),
-      secondary: Tone(color: Color.red, on: Color.white),
-      accent: Tone(color: Color.brightYellow, on: Color.black),
-      error: Tone(color: Color.red, on: Color.white),
-      warning: Tone(color: Color.yellow, on: Color.black),
-      success: Tone(color: Color.green, on: Color.black),
-      background: Tone(color: Color.black, on: Color.white),
-      surface: Tone(color: Color.darkGray, on: Color.white),
+      primary: SurfaceTone(color: Color.yellow, on: Color.black),
+      secondary: SurfaceTone(color: Color.red, on: Color.white),
+      accent: SurfaceTone(color: Color.brightYellow, on: Color.black),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
       border: Tone(color: Color.darkGray),
       muted: Tone(color: Color.gray),
       disabled: Tone(color: Color.darkGray),
-      focus: Tone(color: Color.brightYellow, on: Color.black),
-      selection: Tone(color: Color.yellow, on: Color.black),
-      cursor: Tone(color: Color.darkGray, on: Color.white),
+      focus: SurfaceTone(color: Color.brightYellow, on: Color.black),
+      selection: SurfaceTone(color: Color.yellow, on: Color.black),
+      cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
     ),
   );
 
@@ -402,21 +403,21 @@ class Theme implements ToneSet {
   /// value (explicit or derived); to override them, pass a tone. Passing
   /// `null` for [tones16] likewise keeps this theme's current table.
   Theme copyWith({
-    Tone? primary,
-    Tone? secondary,
-    Tone? accent,
-    Tone? error,
-    Tone? warning,
-    Tone? success,
-    Tone? background,
-    Tone? surface,
+    SurfaceTone? primary,
+    SurfaceTone? secondary,
+    SurfaceTone? accent,
+    SurfaceTone? error,
+    SurfaceTone? warning,
+    SurfaceTone? success,
+    SurfaceTone? background,
+    SurfaceTone? surface,
     Tone? border,
     Tone? muted,
     Tone? disabled,
-    Tone? focus,
-    Tone? selection,
+    SurfaceTone? focus,
+    SurfaceTone? selection,
     Ansi16Tones? tones16,
-    Tone? cursor,
+    SurfaceTone? cursor,
     Tone? hover,
   }) => Theme(
     primary: primary ?? this.primary,

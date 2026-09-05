@@ -185,7 +185,7 @@ void main() {
   });
 
   group('StyleResolver / tone projections', () {
-    const tone = Tone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
+    const tone = SurfaceTone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
 
     test('color policy projects the raw tone', () {
       final r = StyleResolver(theme, policy: RenderPolicy.color);
@@ -214,7 +214,7 @@ void main() {
   });
 
   group('StyleResolver / ground', () {
-    const tone = Tone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
+    const tone = SurfaceTone(color: Color.rgb(0x336699), on: Color.rgb(0x101010));
 
     test('color policy projects fg and bg, same as fill', () {
       final r = StyleResolver(theme, policy: RenderPolicy.color);
@@ -238,20 +238,20 @@ void main() {
 
     test('a transparent theme (background.color == null) grounds fg-only', () {
       const transparent = Theme(
-        primary: Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
-        secondary: Tone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
-        accent: Tone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
-        error: Tone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
-        warning: Tone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
-        success: Tone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
-        background: Tone(on: Color.rgb(0xc9d1d9)),
-        surface: Tone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
+        primary: SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
+        secondary: SurfaceTone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
+        accent: SurfaceTone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
+        error: SurfaceTone(color: Color.rgb(0xc75d5d), on: Color.rgb(0x0d1117)),
+        warning: SurfaceTone(color: Color.rgb(0xc9a857), on: Color.rgb(0x0d1117)),
+        success: SurfaceTone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
+        background: SurfaceTone(on: Color.rgb(0xc9d1d9)),
+        surface: SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
         border: Tone(color: Color.rgb(0x30363d)),
         muted: Tone(color: Color.rgb(0x6e7681)),
         disabled: Tone(color: Color.rgb(0x484f58)),
-        focus: Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
-        selection: Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
-        cursor: Tone(on: Color.rgb(0xc9d1d9)),
+        focus: SurfaceTone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
+        selection: SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
+        cursor: SurfaceTone(on: Color.rgb(0xc9d1d9)),
         hover: Tone(),
       );
       final r = StyleResolver(transparent, policy: RenderPolicy.color);

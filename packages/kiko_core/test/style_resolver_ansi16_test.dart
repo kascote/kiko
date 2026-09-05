@@ -61,20 +61,20 @@ void main() {
 
     test('a hand-authored tones16 wins over derivation', () {
       const handAuthored = Ansi16Tones(
-        primary: Tone(color: Color.cyan, on: Color.black),
-        secondary: Tone(color: Color.magenta, on: Color.black),
-        accent: Tone(color: Color.yellow, on: Color.black),
-        error: Tone(color: Color.red, on: Color.white),
-        warning: Tone(color: Color.yellow, on: Color.black),
-        success: Tone(color: Color.green, on: Color.black),
-        background: Tone(color: Color.black, on: Color.white),
-        surface: Tone(color: Color.darkGray, on: Color.white),
+        primary: SurfaceTone(color: Color.cyan, on: Color.black),
+        secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+        accent: SurfaceTone(color: Color.yellow, on: Color.black),
+        error: SurfaceTone(color: Color.red, on: Color.white),
+        warning: SurfaceTone(color: Color.yellow, on: Color.black),
+        success: SurfaceTone(color: Color.green, on: Color.black),
+        background: SurfaceTone(color: Color.black, on: Color.white),
+        surface: SurfaceTone(color: Color.darkGray, on: Color.white),
         border: Tone(color: Color.gray),
         muted: Tone(color: Color.darkGray),
         disabled: Tone(color: Color.darkGray),
-        focus: Tone(color: Color.brightCyan, on: Color.black),
-        selection: Tone(color: Color.brightMagenta, on: Color.black),
-        cursor: Tone(color: Color.brightYellow, on: Color.black),
+        focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+        selection: SurfaceTone(color: Color.brightMagenta, on: Color.black),
+        cursor: SurfaceTone(color: Color.brightYellow, on: Color.black),
       );
       final withTable = theme.copyWith(tones16: handAuthored);
       final resolverWithTable = StyleResolver(withTable, policy: RenderPolicy.ansi16);
@@ -197,7 +197,7 @@ void main() {
     for (final MapEntry(key: name, value: bare) in sources.entries) {
       test('$name: every derived `on` is black or bright white', () {
         final table = Ansi16Tones.derive(bare);
-        final tones = <Tone>[
+        final tones = <SurfaceTone>[
           table.primary,
           table.secondary,
           table.accent,
@@ -206,21 +206,16 @@ void main() {
           table.success,
           table.background,
           table.surface,
-          table.border,
-          table.muted,
-          table.disabled,
           table.focus,
           table.selection,
           table.cursor,
         ];
 
         for (final tone in tones) {
-          final on = tone.on;
-          if (on == null) continue;
           expect(
-            on == Color.black || on == Color.white,
+            tone.on == Color.black || tone.on == Color.white,
             isTrue,
-            reason: '$name: derived `on` $on must be black or bright white, never a named hue',
+            reason: '$name: derived `on` ${tone.on} must be black or bright white, never a named hue',
           );
         }
       });

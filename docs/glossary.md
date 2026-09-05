@@ -145,11 +145,13 @@ A term of art added to a page gets its entry here in the same change.
 
 ## Theming
 
-- **tone** — a color pair `(color, on)`; not paintable until projected
-  (`docs/theming.md`).
+- **tone** — a color identity; not paintable until projected
+  (`docs/theming.md`). A plain `Tone` carries a `color`. A `SurfaceTone`
+  adds a readable `on` and can fill or ground an area; a plain `Tone`
+  cannot.
 - **projection** — turning a tone into a paintable style: `.ink` (fg only),
-  `.fill` (fg + bg), `.wash` (bg only), `.ground` (fg + bg, the base under
-  content).
+  `.wash` (bg only), `.fill` (fg + bg), `.ground` (fg + bg, the base under
+  content). Only a `SurfaceTone` can fill or ground.
 - **ground** — the style an area's cells hold before content paints on it;
   a full `(fg, bg)` pair, set once per area (`docs/theming.md`).
 - **anatomy** — the named parts of a widget that can be styled (`XStyle`

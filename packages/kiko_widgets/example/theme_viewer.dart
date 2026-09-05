@@ -802,22 +802,27 @@ View _headerRow(StyleResolver resolver) {
 
 /// One tone: its name, its two halves as labels, then its three projections
 /// — all through the resolver, so the row degrades with the render tier.
+///
+/// A chrome [Tone] has no `on` and cannot fill: both columns show "—" for
+/// one, since only a [SurfaceTone] carries a readable foreground.
 View _toneRow(StyleResolver resolver, String name, Tone tone) {
   final muted = resolver.ink(resolver.tones.muted);
   final defaultText = resolver.ink(Tone(color: resolver.tones.background.on));
+  final on = tone is SurfaceTone ? tone.on : null;
+  final fill = tone is SurfaceTone ? resolver.fill(tone) : const Style();
   return Row(
     children: [
       // Name, in the effective set's default text color.
       _col(11, Line(name, style: defaultText)),
       // color half — drawn in its own hue (its ink) so the swatch reads true.
       _col(8, Line(_colorLabel(tone.color), style: tone.color != null ? resolver.ink(tone) : muted)),
-      // on half — drawn in the on color, or muted "—" when the tone has none.
-      _col(8, Line(_colorLabel(tone.on), style: tone.on != null ? resolver.ink(Tone(color: tone.on)) : muted)),
+      // on half — drawn in the on color, or muted "—" for a chrome tone.
+      _col(8, Line(_colorLabel(on), style: on != null ? resolver.ink(Tone(color: on)) : muted)),
       // ink: fg only — tinted text over the theme background.
       _swatch(4, resolver.ink(tone)),
       const SizedBox(width: 1),
-      // fill: on over color.
-      _swatch(4, resolver.fill(tone)),
+      // fill: on over color — blank for a chrome tone, which has none.
+      _swatch(4, fill),
       const SizedBox(width: 1),
       // wash: bg only — default text sitting on the tint.
       _swatch(4, defaultText.patch(resolver.wash(tone))),

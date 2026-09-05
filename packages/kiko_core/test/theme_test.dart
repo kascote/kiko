@@ -59,7 +59,7 @@ void main() {
     });
 
     test('selection carries a color and a readable on', () {
-      // Old highlight Style(fg: F, bg: B) maps to selection Tone(color: B, on: F).
+      // Old highlight Style(fg: F, bg: B) maps to selection SurfaceTone(color: B, on: F).
       expect(Theme.dark.selection.color, equals(const Color.rgb(0x264a5c)));
       expect(Theme.dark.selection.on, equals(const Color.rgb(0xc9d1d9)));
     });
@@ -90,7 +90,7 @@ void main() {
       });
 
       test('explicit cursor/hover win over derivation', () {
-        const custom = Tone(color: Color.rgb(0x2a1d10), on: Color.rgb(0xffffff));
+        const custom = SurfaceTone(color: Color.rgb(0x2a1d10), on: Color.rgb(0xffffff));
         final theme = Theme.dark.copyWith(cursor: custom);
 
         expect(theme.cursor, equals(custom));
@@ -98,31 +98,31 @@ void main() {
         expect(theme.hover.color, equals(theme.background.color!.lift(0.08)));
       });
 
-      test('terminal-default background derives to an empty tone', () {
+      test('terminal-default background derives an empty cursor that keeps its on', () {
         const theme = Theme(
-          primary: Tone(color: Color.cyan),
-          secondary: Tone(color: Color.magenta),
-          accent: Tone(color: Color.yellow),
-          error: Tone(color: Color.red),
-          warning: Tone(color: Color.yellow),
-          success: Tone(color: Color.green),
-          background: Tone(), // transparent: no color
-          surface: Tone(color: Color.darkGray),
+          primary: SurfaceTone(color: Color.cyan, on: Color.black),
+          secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+          accent: SurfaceTone(color: Color.yellow, on: Color.black),
+          error: SurfaceTone(color: Color.red, on: Color.white),
+          warning: SurfaceTone(color: Color.yellow, on: Color.black),
+          success: SurfaceTone(color: Color.green, on: Color.black),
+          background: SurfaceTone(on: Color.white), // transparent: no color
+          surface: SurfaceTone(color: Color.darkGray, on: Color.white),
           border: Tone(color: Color.gray),
           muted: Tone(color: Color.darkGray),
           disabled: Tone(color: Color.darkGray),
-          focus: Tone(color: Color.brightCyan),
-          selection: Tone(color: Color.yellow),
+          focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+          selection: SurfaceTone(color: Color.yellow, on: Color.black),
         );
 
-        expect(theme.cursor, equals(const Tone()));
+        expect(theme.cursor, equals(const SurfaceTone(on: Color.white)));
         expect(theme.hover, equals(const Tone()));
       });
     });
 
     group('copyWith', () {
       test('replaces a single tone', () {
-        const customPrimary = Tone(color: Color.red, on: Color.white);
+        const customPrimary = SurfaceTone(color: Color.red, on: Color.white);
         final theme = Theme.ansiDark.copyWith(primary: customPrimary);
 
         expect(theme.primary, equals(customPrimary));
@@ -138,9 +138,15 @@ void main() {
       });
 
       test('renaming to selection replaces the old highlight token', () {
-        const custom = Tone(color: Color.blue, on: Color.white);
+        const custom = SurfaceTone(color: Color.blue, on: Color.white);
         final theme = Theme.dark.copyWith(selection: custom);
         expect(theme.selection, equals(custom));
+      });
+
+      test('cursor takes a SurfaceTone', () {
+        const customCursor = SurfaceTone(color: Color.rgb(0x123456), on: Color.white);
+        final theme = Theme.dark.copyWith(cursor: customCursor);
+        expect(theme.cursor, equals(customCursor));
       });
     });
 
@@ -155,13 +161,15 @@ void main() {
       });
 
       test('differing in one tone is unequal', () {
-        final other = Theme.dark.copyWith(primary: const Tone(color: Color.red));
+        final other = Theme.dark.copyWith(
+          primary: const SurfaceTone(color: Color.red, on: Color.white),
+        );
         expect(Theme.dark, isNot(equals(other)));
       });
 
       test('explicit cursor differs from a derived one', () {
         final withCursor = Theme.dark.copyWith(
-          cursor: const Tone(color: Color.rgb(0x123456)),
+          cursor: const SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
         );
         expect(withCursor, isNot(equals(Theme.dark)));
       });
@@ -192,13 +200,22 @@ void main() {
       });
 
       test('an explicit tone flips only its own flag', () {
-        final custom = Theme.dark.copyWith(cursor: const Tone(color: Color.rgb(0x123456)));
+        final custom = Theme.dark.copyWith(
+          cursor: const SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
+        );
         expect(custom.derivesCursor, isFalse);
         expect(custom.derivesHover, isTrue);
       });
 
       test('a copy without an override stays derived', () {
-        expect(Theme.dark.copyWith(primary: const Tone(color: Color.red)).derivesCursor, isTrue);
+        expect(
+          Theme.dark
+              .copyWith(
+                primary: const SurfaceTone(color: Color.red, on: Color.white),
+              )
+              .derivesCursor,
+          isTrue,
+        );
       });
     });
   });

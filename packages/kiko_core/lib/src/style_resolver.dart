@@ -161,8 +161,10 @@ class StyleResolver {
   /// under [RenderPolicy.noColor] so the surface stays distinguishable once its
   /// color is stripped.
   ///
-  /// Read [tone] from [tones] — see [ink].
-  Style fill(Tone tone) => policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
+  /// Read [tone] from [tones] — see [ink]. Only a [SurfaceTone] can fill: the
+  /// compiler rejects a chrome tone here, since it has no `on` to paint.
+  Style fill(SurfaceTone tone) =>
+      policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
 
   /// Projects a tone as a background wash, or drops it entirely under
   /// [RenderPolicy.noColor] or [RenderPolicy.ansi16] — a wash cannot exist
@@ -176,13 +178,14 @@ class StyleResolver {
   /// Set this once per area, then paint content on top with a half-null
   /// [Style]; the unset half inherits the ground already in the cell, because
   /// [Cell.setCell] and [Cell.setStyle] patch a cell rather than replace it.
-  /// Read [tone] from [tones] — see [ink].
+  /// Read [tone] from [tones] — see [ink]. Only a [SurfaceTone] can ground an
+  /// area, for the same reason only one can fill.
   ///
   /// In full RGB this is the same style as [fill]. The two projections part
   /// ways only in how they degrade: under [RenderPolicy.ansi16] a ground
   /// keeps only its foreground, leaving the terminal's own background to show
   /// through; under [RenderPolicy.noColor] it carries no color at all.
-  Style ground(Tone tone) => switch (policy) {
+  Style ground(SurfaceTone tone) => switch (policy) {
     RenderPolicy.color => Style(fg: tone.on, bg: tone.color),
     RenderPolicy.ansi16 => Style(fg: tone.on),
     RenderPolicy.noColor => const Style(),

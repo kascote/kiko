@@ -16,10 +16,12 @@ Every styled cell on screen answers four questions:
 4. WHO can override it?       → Anatomy     (per-widget style slots, per instance)
 ```
 
-- A **tone** is a color pair `(color, on)`. It is not paintable: it becomes
-  a `Style` only through a projection. The compiler rejects a raw tone
-  where a `Style` is expected, so a fill's background can never land on
-  border glyphs by accident.
+- A **tone** is a color identity. A plain `Tone` paints as ink or wash; a
+  `SurfaceTone` adds a readable foreground and can also fill or ground an
+  area. Neither is paintable directly: each becomes a `Style` only through
+  a projection. The compiler rejects a raw tone where a `Style` is
+  expected, and rejects a fill or a ground of a plain `Tone`, so a fill's
+  background can never land on border glyphs by accident.
 - A **projection** turns a tone into a `Style`: `ink` (foreground only),
   `fill` (`fg: on, bg: color`), `wash` (background only), or `ground` (the
   pair an area's cells hold before content paints on them).
@@ -42,42 +44,54 @@ touching kiko_core.
 ## Tones
 
 ```dart
-/// A color identity. Not paintable: project it with .ink / .fill / .wash.
+/// A color identity. Not paintable: project it with .ink / .wash.
 @immutable
 class Tone {
   final Color? color; // the identity color (nullable: terminal-default themes)
-  final Color? on;    // a color readable on top of `color`
 
-  const Tone({this.color, this.on});
+  const Tone({this.color});
 
   Style get ink  => Style(fg: color);
-  Style get fill => Style(fg: on, bg: color);
   Style get wash => Style(bg: color);
+}
+
+/// Adds a readable foreground, so it can also fill or ground an area.
+class SurfaceTone extends Tone {
+  final Color on; // a color readable on top of `color`
+
+  const SurfaceTone({required this.on, super.color});
+
+  Style get fill => Style(fg: on, bg: color);
 }
 ```
 
-The raw halves (`tone.color`, `tone.on`) stay public. Projections cover the
-common cases; the raw halves allow custom derivations.
+`tone.color` stays public on both classes; `tone.on` only exists on a
+`SurfaceTone`. Projections cover the common cases; the raw fields allow
+custom derivations.
 
 The tone set:
 
-| Group       | Tone         | `color` is…                   | `on` is…               |
-| ----------- | ------------ | ----------------------------- | ---------------------- |
-| Intent      | `primary`    | brand / main action           | text on a primary fill |
-|             | `secondary`  | second-rank action            | 〃                     |
-|             | `accent`     | attention, badges             | 〃                     |
-|             | `error`      | destructive / invalid         | 〃                     |
-|             | `warning`    | caution                       | 〃                     |
-|             | `success`    | confirmation                  | 〃                     |
-| Neutral     | `background` | the app base color            | **default text**       |
-|             | `surface`    | elevated panels, dialogs      | text on surface        |
-|             | `border`     | resting chrome                | (rarely used)          |
-|             | `muted`      | secondary text                | —                      |
-|             | `disabled`   | non-interactive               | —                      |
-| Interaction | `focus`      | "you are here" (keyboard)     | text on a focus fill   |
-|             | `selection`  | chosen items                  | text on selection      |
-|             | `cursor`     | current row/col wash (subtle) | text on cursor cell    |
-|             | `hover`      | mouse-over wash (subtle)      | —                      |
+| Kind    | Group       | Tone         | `color` is…                   | `on` is…               |
+| ------- | ----------- | ------------ | ----------------------------- | ---------------------- |
+| surface | Intent      | `primary`    | brand / main action           | text on a primary fill |
+| surface |             | `secondary`  | second-rank action            | 〃                     |
+| surface |             | `accent`     | attention, badges             | 〃                     |
+| surface |             | `error`      | destructive / invalid         | 〃                     |
+| surface |             | `warning`    | caution                       | 〃                     |
+| surface |             | `success`    | confirmation                  | 〃                     |
+| surface | Neutral     | `background` | the app base color            | **default text**       |
+| surface |             | `surface`    | elevated panels, dialogs      | text on surface        |
+| chrome  |             | `border`     | resting chrome                | none                   |
+| chrome  |             | `muted`      | secondary text                | none                   |
+| chrome  |             | `disabled`   | non-interactive               | none                   |
+| surface | Interaction | `focus`      | "you are here" (keyboard)     | text on a focus fill   |
+| surface |             | `selection`  | chosen items                  | text on selection      |
+| surface |             | `cursor`     | current row/col wash (subtle) | text on cursor cell    |
+| chrome  |             | `hover`      | mouse-over wash (subtle)      | none                   |
+
+A surface tone is a `SurfaceTone`; `on` is the foreground that reads on it.
+A chrome tone is a plain `Tone` and carries no `on`. The compiler rejects a
+fill or a ground of a chrome tone, as it rejects a raw tone as a style.
 
 `selection` means chosen items. Search-match styling is widget anatomy, not
 a tone.
@@ -90,17 +104,21 @@ on a light one. `lift`, `lighten`, and `darken` are public `Color` methods,
 so themes, anatomy slots, and apps can do their own derivations. A theme
 may set `cursor` and `hover` explicitly instead.
 
+`ToneSet` holds the tones that reach paint on every tier. `hover` only
+washes, and a wash is empty under ANSI-16 and NO_COLOR, so `hover` lives
+on `Theme` alone.
+
 ### A theme is just tones
 
 ```dart
 static const dark = Theme(
-  primary:    Tone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
-  background: Tone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
-  surface:    Tone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
+  primary:    SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
+  background: SurfaceTone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
+  surface:    SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
   border:     Tone(color: Color.rgb(0x30363d)),
   muted:      Tone(color: Color.rgb(0x6e7681)),
-  focus:      Tone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
-  selection:  Tone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
+  focus:      SurfaceTone(color: Color.rgb(0x6bc5d2), on: Color.rgb(0x0d1117)),
+  selection:  SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
   // cursor, hover: omitted → derived washes over background
   ...
 );
@@ -110,7 +128,8 @@ static const dark = Theme(
 terminal's own background: fills over it set `bg: null`, and the frame's
 ground carries only its foreground, `background.on`. Such a theme should
 set `cursor` and `hover` explicitly. A wash cannot be derived from an
-unknown background, so the derived tones come out empty.
+unknown background: `hover` comes out fully empty, and `cursor` keeps
+`background`'s `on` but carries no color.
 
 ## Projections
 
@@ -238,9 +257,9 @@ class StyleResolver {
 
   /// Tone projections under the active policy. Read the tone from [tones].
   Style ink(Tone tone);
-  Style fill(Tone tone);
+  Style fill(SurfaceTone tone);
   Style wash(Tone tone);
-  Style ground(Tone tone);
+  Style ground(SurfaceTone tone);
 
   /// The active tone set: the theme itself, or its ANSI-16 table under
   /// RenderPolicy.ansi16.

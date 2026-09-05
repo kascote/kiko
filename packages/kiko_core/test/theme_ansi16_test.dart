@@ -18,9 +18,9 @@ void main() {
         expect(theme.tones16, isNotNull);
       });
 
-      test('$name: every RGB tone with a color has a matching named pair', () {
+      test('$name: every RGB surface tone with a color has a matching named pair', () {
         final table = theme.tones16!;
-        final rgb = <String, Tone>{
+        final rgb = <String, SurfaceTone>{
           'primary': theme.primary,
           'secondary': theme.secondary,
           'accent': theme.accent,
@@ -29,13 +29,10 @@ void main() {
           'success': theme.success,
           'background': theme.background,
           'surface': theme.surface,
-          'border': theme.border,
-          'muted': theme.muted,
-          'disabled': theme.disabled,
           'focus': theme.focus,
           'selection': theme.selection,
         };
-        final named = <String, Tone>{
+        final named = <String, SurfaceTone>{
           'primary': table.primary,
           'secondary': table.secondary,
           'accent': table.accent,
@@ -44,9 +41,6 @@ void main() {
           'success': table.success,
           'background': table.background,
           'surface': table.surface,
-          'border': table.border,
-          'muted': table.muted,
-          'disabled': table.disabled,
           'focus': table.focus,
           'selection': table.selection,
         };
@@ -60,11 +54,23 @@ void main() {
             continue;
           }
           expect(namedTone.color, isNotNull, reason: '$name.$key has an RGB color but no named color');
+          expect(namedTone.on, isNotNull, reason: '$name.$key must always carry a readable named `on`');
+        }
+      });
 
-          if (rgbTone.on == null) {
-            expect(namedTone.on, isNull, reason: '$name.$key has no readable RGB `on`, so its named `on` should match');
+      test('$name: every RGB chrome tone with a color has a matching named color', () {
+        final table = theme.tones16!;
+        final rgb = <String, Tone>{'border': theme.border, 'muted': theme.muted, 'disabled': theme.disabled};
+        final named = <String, Tone>{'border': table.border, 'muted': table.muted, 'disabled': table.disabled};
+
+        for (final key in rgb.keys) {
+          final rgbTone = rgb[key]!;
+          final namedTone = named[key]!;
+
+          if (rgbTone.color == null) {
+            expect(namedTone.color, isNull, reason: '$name.$key has no RGB color, so its named color must stay null');
           } else {
-            expect(namedTone.on, isNotNull, reason: '$name.$key has a readable RGB `on` but no named `on`');
+            expect(namedTone.color, isNotNull, reason: '$name.$key has an RGB color but no named color');
           }
         }
       });
@@ -75,29 +81,27 @@ void main() {
 
       test('$name: every named color is an ANSI color in the 0-15 range', () {
         final table = theme.tones16!;
-        final tones = <Tone>[
-          table.primary,
-          table.secondary,
-          table.accent,
-          table.error,
-          table.warning,
-          table.success,
-          table.background,
-          table.surface,
-          table.border,
-          table.muted,
-          table.disabled,
-          table.focus,
-          table.selection,
-          table.cursor,
+        final colors = <Color?>[
+          table.primary.color, table.primary.on, //
+          table.secondary.color, table.secondary.on,
+          table.accent.color, table.accent.on,
+          table.error.color, table.error.on,
+          table.warning.color, table.warning.on,
+          table.success.color, table.success.on,
+          table.background.color, table.background.on,
+          table.surface.color, table.surface.on,
+          table.border.color,
+          table.muted.color,
+          table.disabled.color,
+          table.focus.color, table.focus.on,
+          table.selection.color, table.selection.on,
+          table.cursor.color, table.cursor.on,
         ];
 
-        for (final tone in tones) {
-          for (final color in [tone.color, tone.on]) {
-            if (color == null) continue;
-            expect(color.kind, equals(ColorKind.ansi), reason: '$name: $color must be an ANSI color');
-            expect(color.value, inInclusiveRange(0, 15), reason: '$name: $color must be in range 0-15');
-          }
+        for (final color in colors) {
+          if (color == null) continue;
+          expect(color.kind, equals(ColorKind.ansi), reason: '$name: $color must be an ANSI color');
+          expect(color.value, inInclusiveRange(0, 15), reason: '$name: $color must be in range 0-15');
         }
       });
     }

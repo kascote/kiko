@@ -17,9 +17,11 @@ import 'tone.dart';
 /// blue-family, and so on, so the terminal's own palette customization still
 /// reads correctly.
 ///
-/// Every entry is a [Tone] whose [Tone.color] (when set) is an ANSI-kind
-/// [Color] in the 0-15 range; [Tone.on] is always black or white, chosen for
-/// contrast, never a named hue.
+/// Every entry's [Tone.color] (when set) is an ANSI-kind [Color] in the 0-15
+/// range. Eleven entries are [SurfaceTone]; each one's [SurfaceTone.on] is
+/// always black or white, chosen for contrast, never a named hue. The three
+/// chrome entries (`border`, `muted`, `disabled`) are a plain [Tone] and
+/// carry no `on`, same as on the theme they come from.
 ///
 /// A theme may hand-author this table ([Theme.tones16]); one without a
 /// hand-authored table gets one via [Ansi16Tones.derive], computed once and
@@ -28,35 +30,35 @@ import 'tone.dart';
 class Ansi16Tones implements ToneSet {
   /// Main brand color for primary actions, as a named ANSI-16 pair.
   @override
-  final Tone primary;
+  final SurfaceTone primary;
 
   /// Second-rank actions, less prominent than [primary].
   @override
-  final Tone secondary;
+  final SurfaceTone secondary;
 
   /// Attention-grabbing color for highlights and badges.
   @override
-  final Tone accent;
+  final SurfaceTone accent;
 
   /// Destructive actions and invalid/error states.
   @override
-  final Tone error;
+  final SurfaceTone error;
 
   /// Cautions and warnings.
   @override
-  final Tone warning;
+  final SurfaceTone warning;
 
   /// Confirmations and success states.
   @override
-  final Tone success;
+  final SurfaceTone success;
 
   /// The app base color.
   @override
-  final Tone background;
+  final SurfaceTone background;
 
   /// Elevated surfaces — cards, dialogs, panels.
   @override
-  final Tone surface;
+  final SurfaceTone surface;
 
   /// Resting chrome (borders, separators).
   @override
@@ -72,18 +74,18 @@ class Ansi16Tones implements ToneSet {
 
   /// Keyboard focus indicator ("you are here").
   @override
-  final Tone focus;
+  final SurfaceTone focus;
 
   /// Chosen items (selected rows, picked options).
   @override
-  final Tone selection;
+  final SurfaceTone selection;
 
   /// The current row/column tint.
   ///
   /// [cursor] paints as a fill in the resolver's state matrix, so it needs a
   /// named slot here; `hover` never does (see [ToneSet]) and has none.
   @override
-  final Tone cursor;
+  final SurfaceTone cursor;
 
   /// Creates a table from its named tones.
   const Ansi16Tones({
@@ -154,42 +156,51 @@ class Ansi16Tones implements ToneSet {
   /// from the same theme shares one table instead of re-deriving it.
   ///
   /// Each tone's color converts through the terminal's own RGB→ANSI-16
-  /// nearest-color search (an ANSI color passes through unchanged). The
-  /// paired `on` is picked fresh from the *mapped* color's luminance — black
-  /// on a light slot, white on a dark one — deliberately ignoring the
-  /// theme's original `on`: a white-or-black choice made from the color that
-  /// is actually going to be painted can never collide with it, which
-  /// picking from the original RGB `on` could not guarantee. Identical
-  /// theme tones that map to the same ANSI slot are left identical here;
-  /// this derivation makes no attempt to spread them apart.
+  /// nearest-color search (an ANSI color passes through unchanged). A
+  /// surface tone's paired `on` is picked fresh from the *mapped* color's
+  /// luminance — black on a light slot, white on a dark one — deliberately
+  /// ignoring the theme's original `on`: a white-or-black choice made from
+  /// the color that is actually going to be painted can never collide with
+  /// it, which picking from the original RGB `on` could not guarantee. A
+  /// chrome tone (`border`, `muted`, `disabled`) has no `on` to derive.
+  /// Identical theme tones that map to the same ANSI slot are left identical
+  /// here; this derivation makes no attempt to spread them apart.
   factory Ansi16Tones.derive(Theme theme) {
     final cached = _memo[theme];
     if (cached != null) return cached;
 
     final derived = Ansi16Tones(
-      primary: _deriveTone(theme.primary),
-      secondary: _deriveTone(theme.secondary),
-      accent: _deriveTone(theme.accent),
-      error: _deriveTone(theme.error),
-      warning: _deriveTone(theme.warning),
-      success: _deriveTone(theme.success),
-      background: _deriveTone(theme.background),
-      surface: _deriveTone(theme.surface),
-      border: _deriveTone(theme.border),
-      muted: _deriveTone(theme.muted),
-      disabled: _deriveTone(theme.disabled),
-      focus: _deriveTone(theme.focus),
-      selection: _deriveTone(theme.selection),
-      cursor: _deriveTone(theme.cursor),
+      primary: _deriveSurfaceTone(theme.primary),
+      secondary: _deriveSurfaceTone(theme.secondary),
+      accent: _deriveSurfaceTone(theme.accent),
+      error: _deriveSurfaceTone(theme.error),
+      warning: _deriveSurfaceTone(theme.warning),
+      success: _deriveSurfaceTone(theme.success),
+      background: _deriveSurfaceTone(theme.background),
+      surface: _deriveSurfaceTone(theme.surface),
+      border: _deriveChromeTone(theme.border),
+      muted: _deriveChromeTone(theme.muted),
+      disabled: _deriveChromeTone(theme.disabled),
+      focus: _deriveSurfaceTone(theme.focus),
+      selection: _deriveSurfaceTone(theme.selection),
+      cursor: _deriveSurfaceTone(theme.cursor),
     );
     _memo[theme] = derived;
     return derived;
   }
 
-  static Tone _deriveTone(Tone tone) {
+  // Derives a surface tone's named pair. When `color` maps to null (no
+  // shipped theme does this), there is no mapped color to pick a contrasting
+  // `on` from, so `on` re-expresses the tone's own `on` through the same
+  // ANSI-16 conversion instead.
+  static SurfaceTone _deriveSurfaceTone(SurfaceTone tone) {
     final color16 = _toAnsi16(tone.color);
-    return Tone(color: color16, on: color16 == null ? null : _onFor(color16));
+    if (color16 == null) return SurfaceTone(on: _toAnsi16(tone.on)!);
+    return SurfaceTone(color: color16, on: _onFor(color16));
   }
+
+  // Derives a chrome tone's named color. A chrome tone has no `on` to carry.
+  static Tone _deriveChromeTone(Tone tone) => Tone(color: _toAnsi16(tone.color));
 
   // Maps a color of any kind onto one of the 16 ANSI colors. Null stays
   // null (a tone with no identity color has nothing to map); an ANSI color

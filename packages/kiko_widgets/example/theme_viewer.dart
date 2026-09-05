@@ -615,14 +615,14 @@ View _anatomyBand(StyleResolver resolver) {
     child: Column(
       children: [
         for (final (name, slots) in rows) _anatomyRow(resolver, name, slots),
-        // Button publishes no anatomy class: its resting face is the primary
-        // fill and every other look rides the state matrix.
+        // Button has one anatomy slot, face. A null face derives the primary
+        // fill; every other look rides the state matrix.
         Row(
           children: [
             _col(11, Line('Button', style: mutedInk)),
             Line(' primary.fill face ', style: resolver.fill(t.primary)),
             const SizedBox(width: 1),
-            Line('no slots — states ride the matrix', style: mutedInk),
+            Line('one slot, face; states ride the matrix', style: mutedInk),
           ],
         ),
       ],

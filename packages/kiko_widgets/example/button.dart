@@ -235,6 +235,7 @@ void appView(AppModel model, Frame frame) {
                 '2. Styled',
                 model.focusedPane == 1,
                 _buildStyledButtons(model.styledGroup, theme: theme),
+                captions: const ["Delete's face is danger at rest.", 'All three glow when focused.'],
               ),
             ),
           ],
@@ -298,8 +299,9 @@ View _buildPane(
   StyleResolver resolver,
   String title,
   bool focused,
-  View buttons,
-) {
+  View buttons, {
+  List<String> captions = const [],
+}) {
   final t = resolver.tones;
   final borderStyle = resolver.border({if (focused) WidgetState.focused});
   final titleStyle = resolver.ink(focused ? t.focus : t.muted);
@@ -311,6 +313,7 @@ View _buildPane(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         Line(title, style: titleStyle),
+        for (final caption in captions) Line(caption, style: resolver.ink(t.muted)),
         const SizedBox(height: 1), // Spacer
         Expanded(child: buttons),
       ],
@@ -335,18 +338,24 @@ View _buildHorizontalButtons(
 }
 
 /// Build styled buttons with per-button overrides.
+///
+/// The delete button also gets a danger [ButtonStyle.face] at rest, so it
+/// reads as destructive before it is ever focused.
 View _buildStyledButtons(
   ButtonGroupModel group, {
   required Theme theme,
 }) {
+  final resolver = StyleResolver(theme);
+  final t = resolver.tones;
   final children = <View>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0) {
       children.add(const SizedBox(width: 1, height: 1));
     }
     final btnModel = group.buttons[i];
+    final style = btnModel.id == 'delete' ? ButtonStyle(face: resolver.fill(t.error)) : const ButtonStyle();
     children.add(
-      Button(model: btnModel, theme: theme, styleOverrides: _styledOverrides[btnModel.id]),
+      Button(model: btnModel, theme: theme, style: style, styleOverrides: _styledOverrides[btnModel.id]),
     );
   }
   return Row(children: children);

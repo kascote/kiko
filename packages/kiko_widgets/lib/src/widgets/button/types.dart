@@ -36,6 +36,33 @@ class ButtonPressEvent extends WidgetEvent {
   String toString() => 'ButtonPressEvent($id)';
 }
 
+/// Button's anatomy: one nullable style slot.
+///
+/// A `null` slot is derived from the theme's tones by the rule below; a
+/// non-null slot is the caller's exact resting face and wins verbatim. The
+/// active states still patch over it.
+///
+/// | slot   | derived default          | matrix source  |
+/// | ------ | ------------------------- | -------------- |
+/// | `face` | `resolver.fill(primary)`  | resting face   |
+@immutable
+class ButtonStyle {
+  /// The resting face, painted before any state's contribution.
+  final Style? face;
+
+  /// Creates a ButtonStyle.
+  const ButtonStyle({this.face});
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ButtonStyle && other.face == face;
+  }
+
+  @override
+  int get hashCode => face.hashCode;
+}
+
 /// Default key bindings for button activation.
 final defaultButtonBindings = KeyBinding<ButtonAction>()..map(['enter'], ButtonAction.activate);
 

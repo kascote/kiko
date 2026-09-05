@@ -76,6 +76,68 @@ void main() {
     });
   });
 
+  group('button view style', () {
+    test('a given face paints the resting button with that style verbatim', () {
+      const face = Style(fg: Color.black, bg: Color.red);
+      final frame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.dark,
+            style: const ButtonStyle(face: face),
+          ),
+        );
+
+      final cell = frame.buffer[(x: 1, y: 0)]; // the 'O'
+      expect(cell.fg, Color.black);
+      expect(cell.bg, Color.red);
+    });
+
+    test('a given face yields to the matrix when focused', () {
+      const face = Style(fg: Color.black, bg: Color.red);
+      final resolver = StyleResolver(Theme.dark);
+      final expectedFill = resolver.fill(resolver.tones.focus);
+      final frame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK'), focused: true),
+            theme: Theme.dark,
+            style: const ButtonStyle(face: face),
+          ),
+        );
+
+      final cell = frame.buffer[(x: 1, y: 0)]; // the 'O'
+      // The focused fill replaces the face's fg/bg outright; the face never
+      // shows through while focused.
+      expect(cell.fg, expectedFill.fg);
+      expect(cell.bg, expectedFill.bg);
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('a theme switch with no change to style repaints the default face from the new theme', () {
+      final darkFrame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.dark,
+          ),
+        );
+      final lightFrame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.light,
+          ),
+        );
+
+      final darkCell = darkFrame.buffer[(x: 1, y: 0)];
+      final lightCell = lightFrame.buffer[(x: 1, y: 0)];
+      expect(darkCell.bg, Theme.dark.primary.color);
+      expect(lightCell.bg, Theme.light.primary.color);
+      expect(darkCell.bg, isNot(equals(lightCell.bg)));
+    });
+  });
+
   group('button click routing', () {
     test('a click resolves to the button under it, padding included', () {
       final frame = _frame(4, 1)

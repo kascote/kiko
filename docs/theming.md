@@ -550,9 +550,9 @@ Notes the table cannot carry:
   it, and a custom `nodeBuilder` paints its own row and never sees it.
   Placeholder text stays on the `loadingIndicator`/`errorIndicator`
   `Line`s. A tree has no selection set, so no `selectedItem`.
-- **Button** — no anatomy class. The resting face is `resolver.fill(primary)`;
-  states ride the matrix (focused → `resolver.fill(focus)` + bold, loading →
-  warning + blink, disabled → dim).
+- **Button** — one slot, `ButtonStyle.face`. A null face derives
+  `resolver.fill(primary)`; states ride the matrix (focused →
+  `resolver.fill(focus)` + bold, loading → warning + blink, disabled → dim).
 - **TextInput / TextArea** — region styles are nullable slots on the
   view's `style`. A null region derives from the theme through the resolver:
   placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)

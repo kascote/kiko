@@ -356,11 +356,11 @@ class TableRenderer {
   /// The empty-state line.
   Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
 
-  /// The hovered row — `hover` × `wash`. A bg-only wash (hover resolves for no
-  /// other paint class), so it tints the row without clobbering its foreground.
-  /// No anatomy slot: hover is a generic state, not a TableView-specific part.
-  Style _hoverRowStyle() =>
-      _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides);
+  /// The hovered row. Hover is a transform, not a matrix cell: it lifts a
+  /// background, or, on a row with none, patches the hover wash — the case
+  /// here, since the base is always null. No anatomy slot: hover is a
+  /// generic state, not a TableView-specific part.
+  Style _hoverRowStyle() => _resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedRowStyle() =>

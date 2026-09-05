@@ -213,6 +213,20 @@ void main() {
       expect(spare.bg, Theme.dark.hover.color);
     });
 
+    test('a pressed checkbox inverts its box, not its label', () {
+      final restingModel = CheckboxModel(id: 'c', label: Line('Option'));
+      final restingFrame = _frame(10, 1)..render(Checkbox(model: restingModel, theme: Theme.dark));
+      final pressedModel = CheckboxModel(id: 'c', label: Line('Option'))..pressed = true;
+      final pressedFrame = _frame(10, 1)..render(Checkbox(model: pressedModel, theme: Theme.dark));
+
+      final bracket = pressedFrame.buffer[(x: 0, y: 0)];
+      expect(bracket.bg, Theme.dark.border.color);
+
+      final restingLabel = restingFrame.buffer[(x: 4, y: 0)];
+      final pressedLabel = pressedFrame.buffer[(x: 4, y: 0)];
+      expect(pressedLabel.bg, restingLabel.bg);
+    });
+
     test('a styleOverrides entry for selected replaces the checked mark style', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
       final frame = _frame(10, 1)

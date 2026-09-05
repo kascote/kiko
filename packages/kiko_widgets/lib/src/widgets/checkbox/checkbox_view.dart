@@ -21,9 +21,9 @@ import 'types.dart';
 /// frame's measurer.
 ///
 /// Styles come from [theme] and the model's state (focused / error / disabled
-/// / hovered) through [StyleResolver], with [style] slots taken verbatim
-/// where set; [styleOverrides] replaces a state's contribution on every part
-/// that state touches.
+/// / hovered / pressed) through [StyleResolver], with [style] slots taken
+/// verbatim where set; [styleOverrides] replaces a state's contribution on
+/// every part that state touches.
 final class Checkbox implements View {
   /// Creates a checkbox over [model], styled by [theme].
   const Checkbox({required this.model, required this.theme, this.style = const CheckboxStyle(), this.styleOverrides});
@@ -111,6 +111,7 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
     if (model.focused) WidgetState.focused,
     if (model.error) WidgetState.error,
     if (model.disabled) WidgetState.disabled,
+    if (model.pressed) WidgetState.pressed,
   };
   final open = resolver.resolve(
     style.open ?? resolver.ink(resolver.tones.border),
@@ -128,6 +129,7 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
   final markStates = <WidgetState>{
     if (model.focused) WidgetState.focused,
     if (model.disabled) WidgetState.disabled,
+    if (model.pressed) WidgetState.pressed,
   };
   final mark = resolver.resolve(style.mark, markStates, cls: PaintClass.ink, overrides: styleOverrides);
 
@@ -144,7 +146,7 @@ MainAxisAlignment _mainAxisFor(bool labelFirst, TextAlign labelAlign) {
   );
 
   final rowGround = model.hovered
-      ? resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides)
+      ? resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides)
       : const Style();
 
   return (open: open, close: close, mark: mark, checkedMark: checkedMark, label: label, rowGround: rowGround);

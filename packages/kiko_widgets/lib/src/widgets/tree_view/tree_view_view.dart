@@ -272,11 +272,11 @@ class _TreeViewport<T> extends Node {
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
 
-  /// The hovered node — `hover` × `wash`. A bg-only wash (hover resolves for no
-  /// other paint class), so it tints the row without clobbering its foreground.
-  /// No anatomy slot: hover is a generic state, not a TreeView-specific part.
-  Style _hoverItemStyle() =>
-      _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash, overrides: styleOverrides);
+  /// The hovered node. Hover is a transform, not a matrix cell: it lifts a
+  /// background, or, on a row with none, patches the hover wash — the case
+  /// here, since the base is always null. No anatomy slot: hover is a
+  /// generic state, not a TreeView-specific part.
+  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, overrides: styleOverrides);
 
   /// The current node — `cursor` × `fill`.
   Style _cursorItemStyle() =>

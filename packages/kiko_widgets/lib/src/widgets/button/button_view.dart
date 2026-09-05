@@ -9,9 +9,9 @@ import 'types.dart';
 /// the label sits inside a symmetric horizontal [ButtonModel.padding], and the
 /// built subtree is stamped with the model's id so a click resolves back to it
 /// through [HitMap.hitId]. Styles come from the [theme], [style], and the
-/// model's state (hover / focused / disabled / loading) through the built-in
-/// matrix, with a local inverted face while [ButtonModel.pressed];
-/// [styleOverrides] fully replaces the style for a given state.
+/// model's state (hover / focused / disabled / loading / pressed) through the
+/// built-in matrix; [styleOverrides] fully replaces the style for a given
+/// state.
 ///
 /// The content area is sized to the larger of [ButtonModel.label] and
 /// [ButtonModel.loadingText]: both are laid out every frame, but only the
@@ -71,10 +71,6 @@ final class Button implements View {
 /// `resolver.fill(primary)` when null, with the state contributions coming
 /// straight from the built-in matrix, so a focused button lights up in the
 /// focus tone and a loading one blinks over any face.
-///
-/// A held-down press has no [WidgetState] slot (the enum has no `pressed`), so
-/// it is rendered locally: the resolved face inverted, reading as the button
-/// pushed in. It is kept out of the state matrix until a second widget needs it.
 Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style, Map<WidgetState, Style>? styleOverrides) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{
@@ -82,8 +78,8 @@ Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style, Map<Widge
     if (model.focused) WidgetState.focused,
     if (model.disabled) WidgetState.disabled,
     if (model.loading) WidgetState.loading,
+    if (model.pressed) WidgetState.pressed,
   };
   final face = style.face ?? resolver.fill(resolver.tones.primary);
-  final resolved = resolver.resolve(face, states, overrides: styleOverrides);
-  return model.pressed ? resolved.inverted : resolved;
+  return resolver.resolve(face, states, overrides: styleOverrides);
 }

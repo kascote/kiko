@@ -26,6 +26,24 @@ void main() {
       expect(resolve(WidgetState.hover, PaintClass.wash), equals(const Style()));
     });
 
+    test('pressed removes reversed from an already-reversed fill', () {
+      final restingFill = resolve(WidgetState.selected, PaintClass.fill);
+      final result = resolver.resolve(restingFill, {WidgetState.pressed});
+      expect(result.addModifier.has(Modifier.reversed), isFalse);
+    });
+
+    test('pressed adds reversed to a base with none', () {
+      const inkBase = Style(fg: Color.white);
+      final result = resolver.resolve(inkBase, {WidgetState.pressed});
+      expect(result.addModifier.has(Modifier.reversed), isTrue);
+    });
+
+    test('hover leaves a fill unchanged under NO_COLOR', () {
+      final restingFill = resolve(WidgetState.selected, PaintClass.fill);
+      final result = resolver.resolve(restingFill, {WidgetState.hover});
+      expect(result, restingFill);
+    });
+
     // Deliverable: every interaction state stays DISTINGUISHABLE using modifiers
     // alone. Table-driven off the section 5 matrix — the surface (fill) column,
     // which is where each state paints a whole row/face.

@@ -55,6 +55,27 @@ void main() {
       expect(cell.bg, equals(Color.reset), reason: 'no color under NO_COLOR');
     });
 
+    test('a pressed button under NO_COLOR drops reversed', () {
+      final restingBuffer = canvas(4, 1);
+      Frame(restingBuffer.area, restingBuffer, 0).render(
+        Button(
+          model: ButtonModel(id: 'ok', label: Line('OK')),
+          theme: Theme.dark,
+        ),
+      );
+      final pressedBuffer = canvas(4, 1);
+      Frame(pressedBuffer.area, pressedBuffer, 0).render(
+        Button(
+          model: ButtonModel(id: 'ok', label: Line('OK'))..pressed = true,
+          theme: Theme.dark,
+        ),
+      );
+      final restingCell = restingBuffer[(x: 0, y: 0)];
+      final pressedCell = pressedBuffer[(x: 0, y: 0)];
+      expect(restingCell.modifier.has(Modifier.reversed), isTrue);
+      expect(pressedCell.modifier.has(Modifier.reversed), isFalse);
+    });
+
     test('TableView cursor cell', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i'});
       final model = TableViewModel(

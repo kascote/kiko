@@ -215,6 +215,7 @@ enum WidgetState {
   selected,   // it is in the chosen set
   cursor,     // it is the current item (keyboard cursor position)
   focused,    // the widget owns keyboard input
+  pressed,    // a pointer is held down on it — mouse only
   loading,    // async in flight
   error,      // invalid / failed
   disabled,   // non-interactive — overrides everything
@@ -229,9 +230,10 @@ run. `disabled` is last and overrides everything.
 **Use honest states.** The keyboard-current item is `WidgetState.cursor`,
 never `focused` or `hover`. `focused` means the widget owns keyboard input.
 `hover` means the mouse is over the widget; the keyboard never sets it.
-Keyboard position and mouse hover are different facts. They can coexist and
-deserve different looks: hover as a faint wash under the pointer, cursor as
-the bar you move with arrows.
+`pressed` means a pointer is held down on the widget, mouse only, same as
+`hover`. Keyboard position and mouse hover are different facts. They can
+coexist and deserve different looks: hover as a faint wash under the
+pointer, cursor as the bar you move with arrows.
 
 ## The resolver
 
@@ -285,13 +287,17 @@ not affect that class; modifiers ride on top of the projection.
 
 | state       | tone        | `ink` (chrome/text)       | `fill` (surfaces)            | `wash` (tints)   |
 | ----------- | ----------- | ------------------------- | ---------------------------- | ---------------- |
-| `hover`     | `hover`     | —                         | —                            | `hover.wash`     |
 | `selected`  | `selection` | `selection.ink`           | `selection.fill`             | `selection.wash` |
 | `cursor`    | `cursor`    | —                         | `cursor.fill` + bold         | `cursor.wash`    |
 | `focused`   | `focus`     | `focus.ink` + bold        | `focus.fill` + bold          | —                |
 | `loading`   | `warning`   | `warning.ink` + slowBlink | 〃                           | —                |
 | `error`     | `error`     | `error.ink`               | `error.fill`                 | `error.wash`     |
 | `disabled`  | `disabled`  | `disabled.ink` + dim      | 〃                           | —                |
+
+Two states transform the result after this matrix has patched, instead of
+appearing in it. Hover lifts a background by `Theme.hoverLift`, or washes a
+part that has none. Pressed inverts the result; under `NO_COLOR` it flips
+the `reversed` modifier instead.
 
 Reading examples:
 
@@ -324,7 +330,7 @@ what the library itself does.
 | `focus`      | focused borders and faces, bold                       |
 | `selection`  | selected items as fill; a selected border as ink      |
 | `cursor`     | the current row/column bar                            |
-| `hover`      | the wash under the mouse                              |
+| `hover`      | the wash under the mouse on grounded content; a filled part lifts its own color instead |
 
 The sparse intent rows are the rule, not a gap. The intent tones are the
 app's vocabulary: titles, badges, links, status messages. The library
@@ -549,6 +555,7 @@ Notes the table cannot carry:
 - **Button** — one slot, `ButtonStyle.face`. A null face derives
   `resolver.fill(primary)`; states ride the matrix (focused →
   `resolver.fill(focus)` + bold, loading → warning + blink, disabled → dim).
+  A press inverts the resolved face through `WidgetState.pressed`.
 - **TextInput / TextArea** — region styles are nullable slots on the
   view's `style`. A null region derives from the theme through the resolver:
   placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)
@@ -562,7 +569,8 @@ Notes the table cannot carry:
   and any spare cells, as the row's ground. Focused puts focus ink and bold
   on `open`, `mark`, and `close`. Error puts error ink on `open` and `close`
   only. Disabled dims every part. A set `checkedMark` slot keeps its own
-  color; the `selected` state fills in only a null slot.
+  color; the `selected` state fills in only a null slot. A press inverts
+  `open`, `close`, `mark`, and `checkedMark`; the label does not react.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
 expose `cursor` (not `focused`): the current-item flag.

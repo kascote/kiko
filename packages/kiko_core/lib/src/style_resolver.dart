@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'ansi16_tones.dart';
 import 'cell.dart';
+import 'colors.dart';
 import 'style.dart';
 import 'theme.dart';
 import 'tone.dart';
@@ -54,11 +55,13 @@ enum RenderPolicy {
 
 /// Resolves a [Style] from a [Theme], active [WidgetState]s, and a [PaintClass].
 ///
-/// This is the single place the built-in look lives: for each active state, in
-/// priority order, it patches the state's contribution for the requested paint
-/// class onto a base style. States pick tones from the theme; the [PaintClass] decides
-/// how each tone lands, so the same state looks right on chrome, on a surface,
-/// or as a tint without any per-widget code.
+/// This is the single place the built-in look lives: for each active tone
+/// state, in priority order, it patches the state's contribution for the
+/// requested paint class onto a base style. Tone states pick tones from the
+/// theme; the [PaintClass] decides how each tone lands, so the same state
+/// looks right on chrome, on a surface, or as a tint without any per-widget
+/// code. [WidgetState.hover] and [WidgetState.pressed] are not in that
+/// matrix: they transform the patched result afterward, hover then pressed.
 ///
 /// ```dart
 /// final resolver = StyleResolver(theme);
@@ -108,12 +111,19 @@ class StyleResolver {
   /// Resolves a [Style] by applying state styles on top of [base].
   ///
   /// 1. Starts with [base] (or an empty style if null).
-  /// 2. Walks [WidgetState.values] (declaration = priority order).
-  /// 3. For each active state, uses the [overrides] entry if present, else the
-  ///    built-in default for that state and [cls]. States whose row is empty
-  ///    for [cls] contribute nothing (unless overridden).
-  /// 4. Patches each contribution via [Style.patch], so later (higher-priority)
-  ///    states win.
+  /// 2. Walks the tone states — every value but [WidgetState.hover] and
+  ///    [WidgetState.pressed] — in priority order ([WidgetState.values]
+  ///    declaration order). For each active one, uses the [overrides] entry
+  ///    if present, else the built-in default for that state and [cls].
+  ///    States whose row is empty for [cls] contribute nothing (unless
+  ///    overridden). Patches each contribution via [Style.patch], so later
+  ///    (higher-priority) states win.
+  /// 3. If [WidgetState.hover] is active: patches its [overrides] entry if
+  ///    present; otherwise, under [RenderPolicy.color], lifts a background by
+  ///    [Theme.hoverLift] or, on a result with none, patches the hover wash.
+  /// 4. If [WidgetState.pressed] is active: patches its [overrides] entry if
+  ///    present; otherwise inverts the result, or, under
+  ///    [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
   ///
   /// [cls] defaults to [PaintClass.fill] — the surface case most callers want.
   Style resolve(
@@ -127,6 +137,7 @@ class StyleResolver {
 
     for (final state in WidgetState.values) {
       if (!states.contains(state)) continue;
+      if (state == WidgetState.hover || state == WidgetState.pressed) continue;
 
       final Style? contribution;
       if (overrides != null && overrides.containsKey(state)) {
@@ -135,6 +146,33 @@ class StyleResolver {
         contribution = _cell(state, cls);
       }
       if (contribution != null) result = result.patch(contribution);
+    }
+
+    if (states.contains(WidgetState.hover)) {
+      final hoverOverride = overrides?[WidgetState.hover];
+      if (hoverOverride != null) {
+        result = result.patch(hoverOverride);
+      } else if (policy == RenderPolicy.color) {
+        final bg = result.bg;
+        result = bg != null && bg != Color.reset
+            ? result.copyWith(bg: bg.lift(Theme.hoverLift))
+            : result.patch(wash(theme.hover));
+      }
+    }
+
+    if (states.contains(WidgetState.pressed)) {
+      final pressedOverride = overrides?[WidgetState.pressed];
+      if (pressedOverride != null) {
+        result = result.patch(pressedOverride);
+      } else {
+        result = switch (policy) {
+          RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
+          RenderPolicy.noColor =>
+            result.addModifier.has(Modifier.reversed)
+                ? result.removeModifier(Modifier.reversed)
+                : result.incModifier(Modifier.reversed),
+        };
+      }
     }
 
     return result;
@@ -196,13 +234,15 @@ class StyleResolver {
   /// Returns the style a single [state] contributes for [cls], or `null` when
   /// that state does not affect that paint class. This table is the built-in
   /// look of kiko; modifiers ride on top of the projection.
+  ///
+  /// [resolve] never calls this with [WidgetState.hover] or
+  /// [WidgetState.pressed]: it applies both as transforms after the matrix,
+  /// not as matrix cells.
   Style? _cell(WidgetState state, PaintClass cls) {
     switch (state) {
       case WidgetState.hover:
-        // hover has no ANSI-16 slot (Ansi16Tones carries no hover entry) —
-        // harmless, because it only ever reaches wash, and wash drops the
-        // tone before touching it under ansi16 (same as noColor).
-        return cls == PaintClass.wash ? wash(theme.hover) : null;
+      case WidgetState.pressed:
+        return null;
 
       case WidgetState.selected:
         return switch (cls) {

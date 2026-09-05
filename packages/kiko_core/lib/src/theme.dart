@@ -154,6 +154,10 @@ class Theme implements ToneSet {
     return SurfaceTone(color: base.lift(0.10), on: background.on);
   }
 
+  /// The fraction a hovered background lifts by, shared by the derived
+  /// [hover] tone and the resolver's hover transform.
+  static const double hoverLift = 0.08;
+
   /// The mouse-over tint.
   ///
   /// When not set explicitly it is derived as a fainter lift of [background]
@@ -163,7 +167,7 @@ class Theme implements ToneSet {
     if (explicit != null) return explicit;
     final base = background.color;
     if (base == null) return const Tone();
-    return Tone(color: base.lift(0.08));
+    return Tone(color: base.lift(hoverLift));
   }
 
   /// Whether [cursor] is derived from [background] rather than set explicitly.

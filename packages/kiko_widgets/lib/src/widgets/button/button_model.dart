@@ -39,8 +39,7 @@ class ButtonModel implements Component {
   /// Whether a pointer is currently pressing the button.
   ///
   /// Set on a `down`, cleared on the `up`, on a [PointerCancelMsg], or on a
-  /// release that slid off. Drives the pressed face in `button_view`; it is
-  /// deliberately not a [WidgetState] (the enum has no `pressed`).
+  /// release that slid off. `button_view` folds it into [WidgetState.pressed].
   bool pressed = false;
 
   /// Whether the pointer is over the button.

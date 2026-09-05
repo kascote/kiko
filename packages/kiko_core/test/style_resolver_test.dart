@@ -26,12 +26,20 @@ void main() {
   group('StyleResolver / state x class matrix', () {
     const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
 
-    test('hover: wash only', () {
-      expect(resolver.resolve(base, {WidgetState.hover}, cls: PaintClass.ink), base);
-      expect(resolver.resolve(base, {WidgetState.hover}), base);
-      final wash = resolver.resolve(base, {WidgetState.hover}, cls: PaintClass.wash);
-      expect(wash.bg, theme.hover.color);
-      expect(wash.fg, base.fg); // wash never touches fg
+    test('hover lifts a background, the same for every class', () {
+      final lifted = base.bg!.lift(Theme.hoverLift);
+      for (final cls in PaintClass.values) {
+        final result = resolver.resolve(base, {WidgetState.hover}, cls: cls);
+        expect(result.bg, lifted, reason: '$cls');
+        expect(result.fg, base.fg, reason: '$cls');
+      }
+    });
+
+    test('hover washes a base with no background', () {
+      const noBg = Style(fg: Color.white);
+      final result = resolver.resolve(noBg, {WidgetState.hover});
+      expect(result.bg, theme.hover.color);
+      expect(result.fg, noBg.fg);
     });
 
     test('selected: all three classes', () {
@@ -130,10 +138,42 @@ void main() {
       expect(result.bg, theme.error.color);
     });
 
-    test('hover and focused touch disjoint classes — fill matches focus-only', () {
+    test('hover lifts the focus fill', () {
       final both = resolver.resolve(base, {WidgetState.hover, WidgetState.focused});
       final focusOnly = resolver.resolve(base, {WidgetState.focused});
-      expect(both, focusOnly);
+      expect(both, focusOnly.copyWith(bg: focusOnly.bg!.lift(Theme.hoverLift)));
+    });
+  });
+
+  group('StyleResolver / pressed transform', () {
+    const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
+
+    test('pressed inverts a fill', () {
+      final result = resolver.resolve(base, {WidgetState.pressed});
+      expect(result, base.inverted);
+    });
+
+    test('pressed inverts after tone patches — proves transforms run last', () {
+      final focusOnly = resolver.resolve(base, {WidgetState.focused});
+      final result = resolver.resolve(base, {WidgetState.pressed, WidgetState.focused});
+      expect(result, focusOnly.inverted);
+    });
+
+    test('hover runs before pressed', () {
+      final hoverOnly = resolver.resolve(base, {WidgetState.hover});
+      final result = resolver.resolve(base, {WidgetState.hover, WidgetState.pressed});
+      expect(result, hoverOnly.inverted);
+    });
+
+    test('an override for pressed is patched, not inverted', () {
+      const custom = Style(fg: Color.green, bg: Color.yellow);
+      final result = resolver.resolve(
+        base,
+        {WidgetState.pressed},
+        overrides: {WidgetState.pressed: custom},
+      );
+      expect(result.fg, Color.green);
+      expect(result.bg, Color.yellow);
     });
   });
 

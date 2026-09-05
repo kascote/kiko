@@ -46,6 +46,18 @@ void main() {
       expect(resolver.resolve(null, {WidgetState.hover}, cls: PaintClass.wash), equals(const Style()));
     });
 
+    test('hover leaves a fill unchanged under ansi16', () {
+      final fill = resolver.resolve(null, {WidgetState.selected});
+      final result = resolver.resolve(fill, {WidgetState.hover});
+      expect(result, fill);
+    });
+
+    test('pressed inverts the named pair under ansi16', () {
+      final fill = resolver.resolve(null, {WidgetState.selected});
+      final result = resolver.resolve(fill, {WidgetState.pressed});
+      expect(result, fill.inverted);
+    });
+
     test('the cursor fill still carries its bold modifier', () {
       final s = resolver.resolve(null, {WidgetState.cursor});
       expect(s.fg, equals(derived.cursor.on));

@@ -51,8 +51,8 @@ void main() {
 
   group('button view pressed', () {
     test('a pressed button inverts its resting face', () {
-      // The pressed look has no WidgetState slot; button_view renders it as the
-      // resolved face inverted, so the label cell's fg/bg swap versus resting.
+      // The press runs through WidgetState.pressed in the resolver, so the
+      // label cell's fg/bg swap versus resting.
       final resting = _frame(4, 1)
         ..render(
           Button(
@@ -73,6 +73,30 @@ void main() {
       expect(pc.symbol, equals('O'));
       expect(pc.fg, equals(rc.bg));
       expect(pc.bg, equals(rc.fg));
+    });
+  });
+
+  group('button view hover', () {
+    test('a hovered button lifts its face', () {
+      final resting = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK')),
+            theme: Theme.dark,
+          ),
+        );
+      final hovered = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK'))..hovered = true,
+            theme: Theme.dark,
+          ),
+        );
+
+      final rc = resting.buffer[(x: 1, y: 0)]; // the 'O'
+      final hc = hovered.buffer[(x: 1, y: 0)];
+      expect(hc.bg, equals(Theme.dark.primary.color!.lift(Theme.hoverLift)));
+      expect(hc.fg, equals(rc.fg));
     });
   });
 

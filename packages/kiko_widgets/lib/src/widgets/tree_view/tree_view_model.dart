@@ -76,16 +76,6 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// Whether nodes display icons.
   final bool showIcons;
 
-  /// Placeholder shown beneath a node while its children load.
-  final Line loadingIndicator;
-
-  /// Placeholder shown beneath a node whose child load failed.
-  final Line errorIndicator;
-
-  /// Placeholder shown beneath an expanded node whose children are missing
-  /// with nothing on the way — a refused load ([SliceStatus.stalled]).
-  final Line stalledIndicator;
-
   /// Key bindings for tree actions.
   late final KeyBinding<TreeViewAction> keyBinding;
 
@@ -96,15 +86,9 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     this.collapsedChar = '▶',
     this.loadingChar = '◌',
     this.showIcons = false,
-    Line? loadingIndicator,
-    Line? errorIndicator,
-    Line? stalledIndicator,
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
-  }) : id = id ?? autoId('treeview'),
-       loadingIndicator = loadingIndicator ?? Line('Loading...'),
-       errorIndicator = errorIndicator ?? Line('Failed to load'),
-       stalledIndicator = stalledIndicator ?? Line('Not loaded') {
+  }) : id = id ?? autoId('treeview') {
     this.keyBinding = keyBinding ?? defaultTreeViewBindings.copy();
   }
 
@@ -563,11 +547,11 @@ class TreeViewModel<T> with ScrollableModel implements Component {
           case SliceStatus.ready:
             addNodes(_childrenCache[node.path]!);
           case SliceStatus.filling:
-            _flatNodes.add(_placeholder(node.path, '_loading', loadingIndicator));
+            _flatNodes.add(_placeholder(node.path, '_loading', SliceStatus.filling));
           case SliceStatus.failed:
-            _flatNodes.add(_placeholder(node.path, '_error', errorIndicator));
+            _flatNodes.add(_placeholder(node.path, '_error', SliceStatus.failed));
           case SliceStatus.stalled:
-            _flatNodes.add(_placeholder(node.path, '_stalled', stalledIndicator));
+            _flatNodes.add(_placeholder(node.path, '_stalled', SliceStatus.stalled));
         }
       }
     }
@@ -575,8 +559,8 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     addNodes(_roots!);
   }
 
-  TreeNode<T> _placeholder(String parentPath, String suffix, Line label) =>
-      TreeNode<T>(path: '$parentPath/$suffix', label: label, isLeaf: true);
+  TreeNode<T> _placeholder(String parentPath, String suffix, SliceStatus status) =>
+      TreeNode<T>(path: '$parentPath/$suffix', label: Line(''), isLeaf: true, placeholder: status);
 
   TreeNode<T>? _findNode(String path) {
     // Check flat nodes first

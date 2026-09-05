@@ -105,12 +105,6 @@ class TableViewModel with ScrollableModel implements Component {
   /// Separator between columns.
   final Text columnSeparator;
 
-  /// Shown while loading.
-  final Line? loadingIndicator;
-
-  /// Shown when no data.
-  final Line? emptyPlaceholder;
-
   // ─────────────────────────────────────────────
   // State
   // ─────────────────────────────────────────────
@@ -161,8 +155,6 @@ class TableViewModel with ScrollableModel implements Component {
     this.selectionEnabled = false,
     this.ellipsis = '…',
     this.columnSeparator = const Text(' '),
-    this.loadingIndicator,
-    this.emptyPlaceholder,
     KeyBinding<TableViewAction>? keyBinding,
     this.focused = false,
   }) : id = id ?? autoId('tableview') {

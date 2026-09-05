@@ -30,6 +30,8 @@ class TableRenderer {
     this.measurer = const TermUnicodeMeasurer(),
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
+    this.emptyPlaceholder,
+    this.pendingBuilder,
   });
 
   /// The model containing table state.
@@ -53,6 +55,13 @@ class TableRenderer {
   /// Off by default, matching the table's look before the crosshair existed:
   /// only the cursor row and the cursor cell are highlighted.
   final bool showCrosshair;
+
+  /// The line shown when the table holds zero rows, or `null` for a blank body.
+  final Line? emptyPlaceholder;
+
+  /// Builds the line for a row at a given index whose page has not landed, or
+  /// `null` to paint the column-shaped skeleton instead.
+  final Line Function(int index)? pendingBuilder;
 
   /// Resolves the anatomy slots that derive from theme tones + state.
   late final _resolver = StyleResolver(theme);
@@ -94,7 +103,7 @@ class TableRenderer {
     // A table that knows its size (or has a page on its way) has rows to draw,
     // even before any of them arrive: they paint as skeletons below.
     if (model.rowLimit == 0) {
-      final placeholder = model.emptyPlaceholder;
+      final placeholder = emptyPlaceholder;
       if (placeholder != null) {
         paintLine(
           surface,
@@ -135,7 +144,7 @@ class TableRenderer {
       mark?.call(RowRegion(rowIdx), rowRect);
 
       if (row == null) {
-        _renderLoadingRow(surface, rowRect, visibleCols);
+        _renderPendingRow(surface, rowRect, visibleCols, rowIdx);
         continue;
       }
 
@@ -200,20 +209,20 @@ class TableRenderer {
     }
   }
 
-  /// Renders the placeholder for a row whose page isn't held.
+  /// Renders the row at [rowIndex] for a page that isn't held.
   ///
   /// By default it is a skeleton: the row's own shape — its columns and
   /// separators — with a dim run standing in for each cell. Forty rows each
   /// reading "Loading..." are unreadable at scrolling speed and look like a
   /// fault; the same rows as column-shaped runs read as filling in. A caller
-  /// that wants a literal line back sets [TableViewModel.loadingIndicator].
-  void _renderLoadingRow(Surface surface, Rect area, List<TableColumn> visibleCols) {
-    final loadingStyle = _loadingRowStyle();
-    final indicator = model.loadingIndicator;
-    if (indicator != null) {
+  /// that wants a literal line back passes `pendingBuilder` on `TableView`.
+  void _renderPendingRow(Surface surface, Rect area, List<TableColumn> visibleCols, int rowIndex) {
+    final pendingStyle = _pendingStyle();
+    final builder = pendingBuilder;
+    if (builder != null) {
       paintLine(
         surface,
-        indicator.patchStyle(loadingStyle),
+        builder(rowIndex).patchStyle(pendingStyle),
         x: area.x,
         y: area.y,
         width: area.width,
@@ -243,7 +252,7 @@ class TableRenderer {
       final runWidth = col.width <= 2 ? col.width : (col.width * 3) ~/ 4;
       paintLine(
         surface,
-        Line('░' * runWidth).patchStyle(loadingStyle),
+        Line('░' * runWidth).patchStyle(pendingStyle),
         x: x,
         y: area.y,
         width: col.width,
@@ -341,8 +350,8 @@ class TableRenderer {
   /// Column separator glyph style.
   Style _separatorStyle() => style.separator ?? _resolver.ink(_resolver.tones.border);
 
-  /// Placeholder rows for data windowed out of the cache.
-  Style _loadingRowStyle() => style.loadingRow ?? _resolver.ink(_resolver.tones.muted);
+  /// Rows for data windowed out of the cache.
+  Style _pendingStyle() => style.pending ?? _resolver.ink(_resolver.tones.muted);
 
   /// The empty-state line.
   Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);

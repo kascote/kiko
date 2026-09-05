@@ -182,22 +182,7 @@ class AsyncCategorySource extends TreeDataSource<Category> {
 
 class AppModel with ThemeSwitcher {
   final treeData = AsyncCategorySource();
-  final tree = TreeViewModel<Category>(
-    focused: true,
-    showIcons: true,
-    loadingIndicator: Line.fromTexts(const [
-      Text(
-        'Loading...',
-        style: Style(fg: Color.darkGray, addModifier: Modifier.dim),
-      ),
-    ]),
-    errorIndicator: Line.fromTexts(const [
-      Text(
-        '⚠ Failed to load — collapse + expand to retry',
-        style: Style(fg: Color.red, addModifier: Modifier.dim),
-      ),
-    ]),
-  );
+  final tree = TreeViewModel<Category>(focused: true, showIcons: true);
 
   String? selectedPath;
   int expandCount = 0;
@@ -313,6 +298,18 @@ void appView(AppModel model, Frame frame) {
       theme: theme,
       style: const TreeViewStyle(indicator: Style(fg: Color.red)),
       emptyPlaceholder: Line('Loading categories...', style: resolver.ink(t.muted)),
+      loadingLabel: Line.fromTexts(const [
+        Text(
+          'Loading...',
+          style: Style(fg: Color.darkGray, addModifier: Modifier.dim),
+        ),
+      ]),
+      errorLabel: Line.fromTexts(const [
+        Text(
+          '⚠ Failed to load — collapse + expand to retry',
+          style: Style(fg: Color.red, addModifier: Modifier.dim),
+        ),
+      ]),
     ),
   );
 

@@ -27,13 +27,22 @@ String render(
   Map<WidgetState, Style>? styleOverrides,
   bool showEmptyCells = false,
   TextMeasurer measurer = const TermUnicodeMeasurer(),
+  Line? emptyPlaceholder,
+  Line Function(int index)? pendingBuilder,
 }) {
   final buffer = Buffer.empty(
     Rect.create(x: 0, y: 0, width: width, height: height),
     measurer: measurer,
   );
   final surface = BufferSurface(buffer);
-  TableRenderer(model, Theme.dark, styleOverrides, measurer: measurer).paint(buffer.area, surface);
+  TableRenderer(
+    model,
+    Theme.dark,
+    styleOverrides,
+    measurer: measurer,
+    emptyPlaceholder: emptyPlaceholder,
+    pendingBuilder: pendingBuilder,
+  ).paint(buffer.area, surface);
   // Paint reports the viewport it showed; the runtime delivers the report to
   // the model once the frame commits. Do the same here.
   surface.reports.forEach(model.update);
@@ -841,11 +850,10 @@ Bob       idle''',
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
-          emptyPlaceholder: Line('No data'),
         );
 
         expect(
-          render(model, width: 23, height: 3),
+          render(model, width: 23, height: 3, emptyPlaceholder: Line('No data')),
           equals(
             '''
 ID   Name      Value
@@ -861,11 +869,10 @@ No data''',
           keyField: 'id',
           columns: sampleColumns(),
           columnSeparator: const Text(''),
-          loadingIndicator: Line('...'),
         )..viewport(rows: 5, cols: 3);
 
         expect(
-          render(model, width: 23, height: 4),
+          render(model, width: 23, height: 4, pendingBuilder: (_) => Line('...')),
           equals(
             '''
 ID   Name      Value
@@ -928,16 +935,13 @@ r9   Name 9    90'''),
         }
       });
 
-      test('a loadingIndicator still replaces the skeleton with its own line', () {
-        final model = TableViewModel(
-          totalCount: 20,
-          keyField: 'id',
-          columns: sampleColumns(),
-          pageSize: 10,
-          loadingIndicator: Line('Loading...'),
-        );
+      test('a pendingBuilder still replaces the skeleton with its own line', () {
+        final model = TableViewModel(totalCount: 20, keyField: 'id', columns: sampleColumns(), pageSize: 10);
 
-        expect(render(model, width: 25, height: 2), endsWith('Loading...'));
+        expect(
+          render(model, width: 25, height: 2, pendingBuilder: (_) => Line('Loading...')),
+          endsWith('Loading...'),
+        );
       });
     });
 

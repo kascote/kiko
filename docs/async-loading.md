@@ -173,11 +173,11 @@ one storage type.
   request. Collapsing a node cancels its slot, so a late child result drops.
   Each expanded branch paints its placeholder from the shared status,
   exposed as `branchStatus(path)` so chrome and tests read the same answer.
-  A failed child renders an **error placeholder** (`errorIndicator` config);
-  it never spins forever. A refused child renders a **stalled placeholder**
-  (`stalledIndicator` config): the branch is expanded with nothing coming,
-  which must not read as an empty branch. Collapsing and re-expanding it
-  asks again.
+  A failed child renders an **error placeholder** (`errorLabel` on the
+  view); it never spins forever. A refused child renders a **stalled
+  placeholder** (`stalledLabel` on the view): the branch is expanded with
+  nothing coming, which must not read as an empty branch. Collapsing and
+  re-expanding it asks again.
 - **TableView** — `PageKey(page)`, one slot per page, so any number of
   pages can be in flight and a result places itself: the page travels in the
   key (`(req.key as PageKey).page`), and nothing has to remember what
@@ -214,10 +214,8 @@ one storage type.
 
   - An item whose page isn't held paints as a dim run through the item's own
     height — the item builder is never called without an item. An optional
-    `loadingItemBuilder` on the view replaces the run with app-built lines
-    for that index; state fills and the row's click region behave the same.
-    The table's counterpart stays a literal `Line` (`loadingIndicator`): its
-    rows are single-line and column-shaped, so a builder buys nothing there.
+    `pendingBuilder` on the view replaces the run with app-built lines for
+    that index; state fills and the row's click region behave the same.
   - While a fetch is in flight and the cursor is off screen, the view paints
     the nearest run of items it holds whole; with the cursor on screen it
     paints the true position, placeholders and all. Nothing on screen may

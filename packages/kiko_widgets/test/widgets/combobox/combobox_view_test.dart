@@ -418,7 +418,7 @@ void main() {
       expect(_rowText(frame.buffer, 2, 0, 6).trim(), isEmpty, reason: 'no stale match survives the ask');
     });
 
-    test('a refusal shows the stalled row, styled through ComboboxStyle.stalledRow', () {
+    test('a refusal shows the stalled row, styled through ComboboxStyle.placeholder', () {
       const stalledStyle = Style(fg: Color.indexed(11));
       final combo = _remoteBox()
         ..update(_pressOn('combo/toggle')) // asks QueryKey('')
@@ -427,17 +427,34 @@ void main() {
       final view = Combobox(
         model: combo,
         theme: _theme,
-        style: const ComboboxStyle(stalledRow: stalledStyle),
+        style: const ComboboxStyle(placeholder: stalledStyle),
       );
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
 
       expect(_rowText(frame.buffer, 1, 0, 10), 'Not loaded');
-      expect(frame.buffer[(x: 0, y: 1)].fg, stalledStyle.fg);
+      expect(
+        frame.buffer[(x: 0, y: 1)].fg,
+        stalledStyle.fg,
+        reason: 'stalled carries no state patch, so the slot wins',
+      );
     });
 
-    test('shows an error row after the newest query fails, styled through ComboboxStyle.errorRow', () {
+    test('a stalled row with no slot derives the muted tone', () {
+      final combo = _remoteBox()
+        ..update(_pressOn('combo/toggle'))
+        ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(12, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(frame.buffer[(x: 0, y: 1)].fg, equals(_theme.muted.color));
+    });
+
+    test('a failed row patches the error tone over ComboboxStyle.placeholder', () {
       const errorStyle = Style(fg: Color.indexed(9));
       final combo = _remoteBox()
         ..update(_pressOn('combo/toggle'))
@@ -448,15 +465,34 @@ void main() {
       final view = Combobox(
         model: combo,
         theme: _theme,
-        style: const ComboboxStyle(errorRow: errorStyle),
+        style: const ComboboxStyle(placeholder: errorStyle),
       );
       final frame = _frame(16, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
 
       expect(_rowText(frame.buffer, 1, 0, 14), 'Failed to load');
-      expect(frame.buffer[(x: 0, y: 1)].fg, errorStyle.fg);
+      expect(
+        frame.buffer[(x: 0, y: 1)].fg,
+        equals(_theme.error.color),
+        reason: 'error is a state, so it wins over the slot even when one is set',
+      );
       expect(_rowText(frame.buffer, 2, 0, 5).trim(), isEmpty, reason: 'the failed query cleared the prior options');
+    });
+
+    test('a failed row with no slot derives the error tone', () {
+      final combo = _remoteBox()
+        ..update(_pressOn('combo/toggle'))
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
+        ..update(const KeyMsg('z', text: 'z'))
+        ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(16, 6);
+      _renderRow(frame, view);
+      view.renderPopup(frame);
+
+      expect(frame.buffer[(x: 0, y: 1)].fg, equals(_theme.error.color));
     });
 
     test("an installed empty answer shows the default 'No matches' placeholder", () {

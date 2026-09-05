@@ -110,7 +110,7 @@ typedef ItemState = ({bool checked, bool cursor, bool disabled});
 /// | `item`         | none (inherits the pane's ground)| —                 |
 /// | `selectedItem` | `resolver.fill(selection)`   | selected × fill   |
 /// | `cursorItem`   | `resolver.fill(cursor)` + bold | cursor × fill   |
-/// | `loadingItem`  | `resolver.ink(muted)`        | anatomy-specific  |
+/// | `pending`      | `resolver.ink(muted)`        | anatomy-specific  |
 /// | `placeholder`  | `resolver.ink(muted)`        | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
@@ -130,8 +130,8 @@ class ListViewStyle {
   final Style? cursorItem;
 
   /// The built-in dim run for an item whose page isn't held. A
-  /// `loadingItemBuilder` on the view replaces the run, lines and style both.
-  final Style? loadingItem;
+  /// `pendingBuilder` on the view replaces the run, lines and style both.
+  final Style? pending;
 
   /// The empty-state line.
   final Style? placeholder;
@@ -141,7 +141,7 @@ class ListViewStyle {
     this.item,
     this.selectedItem,
     this.cursorItem,
-    this.loadingItem,
+    this.pending,
     this.placeholder,
   });
 }

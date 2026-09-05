@@ -1,5 +1,7 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
+
 /// A node in a tree structure.
 ///
 /// Each node has a unique [path] (e.g., '/root/child/grandchild'),
@@ -30,6 +32,15 @@ class TreeNode<T> {
   /// Optional typed user data payload.
   final T? data;
 
+  /// The status this node stands in for, or `null` for a real node.
+  ///
+  /// A non-null value marks a synthetic row the tree model inserts beneath
+  /// an expanded branch while its children are missing: [SliceStatus.filling]
+  /// in flight, [SliceStatus.failed] after an error, [SliceStatus.stalled]
+  /// after a refusal. The view paints this row itself, from its own label
+  /// parameters, and never calls a custom `nodeBuilder` for it.
+  final SliceStatus? placeholder;
+
   /// Creates a TreeNode.
   const TreeNode({
     required this.path,
@@ -37,6 +48,7 @@ class TreeNode<T> {
     this.icon,
     this.isLeaf = false,
     this.data,
+    this.placeholder,
   });
 
   /// Depth of this node (number of path segments - 1).

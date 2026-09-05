@@ -132,22 +132,21 @@ typedef NodeState = ({
 /// non-null slot is the caller's exact style and wins verbatim, bypassing both
 /// the derivation and the per-state `styleOverrides` map on `TreeView`.
 ///
-/// | slot          | derived default            | matrix source     |
-/// | ------------- | -------------------------- | ----------------- |
-/// | `item`        | none (inherits the pane's ground)| —               |
-/// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill |
-/// | `indicator`   | none (inherits the row)    | —                 |
-/// | `placeholder` | `resolver.ink(muted)`      | anatomy-specific  |
+/// | slot          | derived default               | matrix source     |
+/// | ------------- | ------------------------------ | ----------------- |
+/// | `item`        | none (inherits the pane's ground) | —              |
+/// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill     |
+/// | `indicator`   | none (inherits the row)        | loading × ink     |
+/// | `placeholder` | `resolver.ink(muted)`          | anatomy-specific  |
+///
+/// A failed placeholder row patches `error` × `ink` over the `placeholder`
+/// base.
 ///
 /// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
-/// keyboard cursor is on the node, then — for a node whose children are being
-/// fetched — the `loading` state (a warning ink with a slow blink, resolved
-/// from the state matrix). The tree has no selection set, so no `selectedItem`.
-///
-/// Two tree parts keep their homes on the tree model rather than duplicating
-/// slots here: the placeholder rows shown beneath a node while its children
-/// load or after a failure carry their own style on the `loadingIndicator` /
-/// `errorIndicator` lines.
+/// keyboard cursor is on the node. The tree has no selection set, so no
+/// `selectedItem`. A node whose children are being fetched carries the
+/// `loading` state on its `indicator` glyph alone — a warning ink with a
+/// slow blink — never on the row.
 class TreeViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;

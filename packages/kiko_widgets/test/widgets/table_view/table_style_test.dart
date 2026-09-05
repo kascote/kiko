@@ -12,6 +12,7 @@ Buffer renderBuffer(
   Theme theme = Theme.dark,
   TableViewStyle style = const TableViewStyle(),
   bool showCrosshair = false,
+  Line? emptyPlaceholder,
 }) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   TableRenderer(
@@ -20,6 +21,7 @@ Buffer renderBuffer(
     null,
     style: style,
     showCrosshair: showCrosshair,
+    emptyPlaceholder: emptyPlaceholder,
   ).paint(buffer.area, BufferSurface(buffer));
   return buffer;
 }
@@ -205,8 +207,8 @@ void main() {
       });
     });
 
-    group('loadingRow and placeholder derivation', () {
-      test('a hole inside the loaded range uses the loadingRow default', () {
+    group('pending and placeholder derivation', () {
+      test('a hole inside the loaded range uses the pending default', () {
         // Page 1 (rows 2-3) is missing between page 0 (0-1) and page 2 (4-5),
         // the way a concurrent forward+backward load can leave a gap.
         final model = TableViewModel(keyField: 'id', columns: _columns(), pageSize: 2, totalCount: 6)
@@ -215,20 +217,15 @@ void main() {
 
         final buffer = renderBuffer(model, width: 11, height: 7);
 
-        // Row index 2 falls in the hole and paints the loading placeholder.
+        // Row index 2 falls in the hole and paints the pending placeholder.
         final cell = buffer[(x: 0, y: 3)];
         expect(cell.fg, equals(Theme.dark.muted.color));
       });
 
       test('the empty-state placeholder uses the muted default', () {
-        final model = TableViewModel(
-          rows: const <Map<String, Object?>>[],
-          keyField: 'id',
-          columns: _columns(),
-          emptyPlaceholder: Line('No data'),
-        );
+        final model = TableViewModel(rows: const <Map<String, Object?>>[], keyField: 'id', columns: _columns());
 
-        final buffer = renderBuffer(model, width: 11, height: 3);
+        final buffer = renderBuffer(model, width: 11, height: 3, emptyPlaceholder: Line('No data'));
         expect(buffer[(x: 0, y: 1)].fg, equals(Theme.dark.muted.color));
       });
     });

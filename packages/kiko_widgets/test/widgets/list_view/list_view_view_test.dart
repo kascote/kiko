@@ -196,13 +196,13 @@ void main() {
       expect(frame.hits.regionAt('list', 0, 2), const RowRegion(3));
     });
 
-    test('a loadingItemBuilder replaces the dim run with its own lines', () {
+    test('a pendingBuilder replaces the dim run with its own lines', () {
       final model = ListViewModel<String, String>(id: 'list', totalCount: 4, focused: true);
       final node = ListView<String, String>(
         model: model,
         theme: Theme.dark,
         itemBuilder: _row,
-        loadingItemBuilder: (index) => [Line('#$index')],
+        pendingBuilder: (index) => [Line('#$index')],
       );
 
       final frame = _frame(5, 4)..render(node);
@@ -218,7 +218,7 @@ void main() {
         model: model,
         theme: Theme.dark,
         itemBuilder: _row,
-        loadingItemBuilder: (index) => [Line('#$index')],
+        pendingBuilder: (index) => [Line('#$index')],
       );
 
       _commit(5, 3, node, model);

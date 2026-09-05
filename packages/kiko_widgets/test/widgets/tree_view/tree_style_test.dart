@@ -75,18 +75,23 @@ void main() {
       expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor fill wins over the hover wash');
     });
 
-    test('a node whose children are loading blinks warning over the row', () {
-      // Expanding an uncached branch marks it loading; its own row then carries
-      // the loading state (warning ink + slow blink) from the state matrix.
+    test('a node whose children are loading blinks warning on the glyph, not the row', () {
+      // Expanding an uncached branch marks it loading; only the indicator
+      // glyph carries the loading state (warning ink + slow blink) — the
+      // label and the rest of the row never do.
       final model = TreeViewModel<String>(focused: true)
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Branch'))])
         ..viewport(rows: 3)
         ..expand('/a'); // no children cached → slot begins loading
       final buffer = _render(model);
 
-      final cell = buffer[(x: 9, y: 0)];
-      expect(cell.modifier.has(Modifier.slowBlink), isTrue);
-      expect(cell.fg, equals(Theme.dark.warning.color));
+      final glyphCell = buffer[(x: 0, y: 0)];
+      expect(glyphCell.modifier.has(Modifier.slowBlink), isTrue);
+      expect(glyphCell.fg, equals(Theme.dark.warning.color));
+
+      final labelCell = buffer[(x: 2, y: 0)]; // 'B' of 'Branch'
+      expect(labelCell.modifier.has(Modifier.slowBlink), isFalse);
+      expect(labelCell.fg, isNot(equals(Theme.dark.warning.color)));
     });
 
     test('the empty placeholder derives the muted ink', () {

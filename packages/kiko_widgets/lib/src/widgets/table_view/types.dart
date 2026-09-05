@@ -176,7 +176,7 @@ class TableScrollState {
 /// | `cursorRow`    | `resolver.wash(cursor)`                   | cursor × wash     |
 /// | `cursorColumn` | `resolver.wash(cursor)`                   | cursor × wash     |
 /// | `cursorCell`   | `resolver.fill(cursor)` + bold            | cursor × fill     |
-/// | `loadingRow`   | `resolver.ink(muted)`                     | anatomy-specific  |
+/// | `pending`      | `resolver.ink(muted)`                     | anatomy-specific  |
 /// | `placeholder`  | `resolver.ink(muted)`                     | anatomy-specific  |
 ///
 /// Per-cell paint order is: row base, then `selectedRow` (a fill), then
@@ -207,8 +207,8 @@ class TableViewStyle {
   /// The cursor cell (current row ∩ current column), painted as a fill.
   final Style? cursorCell;
 
-  /// Placeholder rows for data windowed out of the cache.
-  final Style? loadingRow;
+  /// Rows for data windowed out of the cache.
+  final Style? pending;
 
   /// The empty-state line.
   final Style? placeholder;
@@ -222,7 +222,7 @@ class TableViewStyle {
     this.cursorRow,
     this.cursorColumn,
     this.cursorCell,
-    this.loadingRow,
+    this.pending,
     this.placeholder,
   });
 }

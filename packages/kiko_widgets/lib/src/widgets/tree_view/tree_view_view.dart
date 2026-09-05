@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 
+import '../../load/load.dart';
 import '../../load/viewport_changed.dart';
 import '../row_region.dart';
 import 'tree_node.dart';
@@ -12,12 +13,15 @@ import 'types.dart';
 /// that windows the model's flat, visible nodes and paints them through the plume
 /// paint protocol — each row indented by its depth, drawn by [nodeBuilder] or a
 /// default builder showing the expand indicator, icon, and label, with an
-/// [emptyPlaceholder] until the roots load. Row backgrounds come from the node's
-/// honest state (cursor / loading) painted through [style]'s [TreeViewStyle]
-/// anatomy — each `null` slot deriving from the theme's tones — and overridable
-/// with [styleOverrides]. Wrap it in a [Container] for a border or edge titles. The
-/// node is stamped with the model id so a click routes back through
-/// [HitMap.hitId].
+/// [emptyPlaceholder] until the roots load. Beneath an expanded node whose
+/// children are missing, the view paints a placeholder row itself, labeled by
+/// [loadingLabel], [errorLabel], or [stalledLabel]; it never passes that row
+/// to [nodeBuilder]. Row
+/// backgrounds come from the node's honest state (cursor / loading) painted
+/// through [style]'s [TreeViewStyle] anatomy — each `null` slot deriving from
+/// the theme's tones — and overridable with [styleOverrides]. Wrap it in a
+/// [Container] for a border or edge titles. The node is stamped with the model
+/// id so a click routes back through [HitMap.hitId].
 final class TreeView<T> implements View {
   /// Creates a tree view over [model], styled by [theme] and built row by row
   /// through [nodeBuilder].
@@ -28,6 +32,9 @@ final class TreeView<T> implements View {
     this.style = const TreeViewStyle(),
     this.styleOverrides,
     this.emptyPlaceholder,
+    this.loadingLabel,
+    this.errorLabel,
+    this.stalledLabel,
   });
 
   /// The model whose visible nodes, cursor, and expansion this view renders.
@@ -49,6 +56,24 @@ final class TreeView<T> implements View {
   /// The line shown until the roots load, or `null` for a blank body.
   final Line? emptyPlaceholder;
 
+  /// The placeholder row shown beneath a node while its children load.
+  ///
+  /// Null shows 'Loading…'. A given line's own styling wins over the themed
+  /// base ([TreeViewStyle.placeholder], or the theme's muted ink).
+  final Line? loadingLabel;
+
+  /// The placeholder row shown beneath a node whose child load failed.
+  ///
+  /// Null shows 'Failed to load'; styling as for [loadingLabel], patched over
+  /// the error tone.
+  final Line? errorLabel;
+
+  /// The placeholder row shown beneath an expanded node whose children are
+  /// missing with nothing on the way — a refused load ([SliceStatus.stalled]).
+  ///
+  /// Null shows 'Not loaded'; styling as for [loadingLabel].
+  final Line? stalledLabel;
+
   @override
   Node build() => _TreeViewport<T>(
     model: model,
@@ -57,6 +82,9 @@ final class TreeView<T> implements View {
     style: style,
     styleOverrides: styleOverrides,
     emptyPlaceholder: emptyPlaceholder,
+    loadingLabel: loadingLabel,
+    errorLabel: errorLabel,
+    stalledLabel: stalledLabel,
   )..tag = IdTag(model.id);
 }
 
@@ -70,6 +98,9 @@ class _TreeViewport<T> extends Node {
     this.nodeBuilder,
     this.styleOverrides,
     this.emptyPlaceholder,
+    this.loadingLabel,
+    this.errorLabel,
+    this.stalledLabel,
   });
 
   final TreeViewModel<T> model;
@@ -78,6 +109,9 @@ class _TreeViewport<T> extends Node {
   final TreeViewStyle style;
   final Map<WidgetState, Style>? styleOverrides;
   final Line? emptyPlaceholder;
+  final Line? loadingLabel;
+  final Line? errorLabel;
+  final Line? stalledLabel;
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the rows, not just the box chrome.
@@ -148,9 +182,9 @@ class _TreeViewport<T> extends Node {
       markRegion(RowRegion(i), rowArea.toPlume());
 
       // Honest anatomy, not borrowed states: the base item style, then the
-      // hover wash (weakest, so the cursor reads over it), then the cursor fill,
-      // then the loading state (warning ink + blink) for a node whose children
-      // are being fetched — each layer patches the last.
+      // hover wash (weakest, so the cursor reads over it), then the cursor
+      // fill — each layer patches the last. The loading state paints the
+      // indicator glyph alone, never the row.
       var rowStyle = style.item ?? const Style();
       var styled = style.item != null;
       if (m.hoverRow == i) {
@@ -161,16 +195,17 @@ class _TreeViewport<T> extends Node {
         rowStyle = rowStyle.patch(_cursorItemStyle());
         styled = true;
       }
-      if (isLoading) {
-        rowStyle = rowStyle.patch(_loadingStyle());
-        styled = true;
-      }
       if (styled) {
         fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
       }
 
       final state = (cursor: isCursor, expanded: isExpanded, loading: isLoading);
-      final nodeLine = nodeBuilder != null ? nodeBuilder!(node, node.depth, state) : _defaultNode(node, state, m);
+      final placeholder = node.placeholder;
+      final nodeLine = placeholder != null
+          ? _placeholderLine(placeholder)
+          : nodeBuilder != null
+          ? nodeBuilder!(node, node.depth, state)
+          : _defaultNode(node, state, m);
 
       final indent = node.depth * m.indentWidth;
       final contentWidth = (area.width - indent).clamp(0, area.width);
@@ -204,13 +239,33 @@ class _TreeViewport<T> extends Node {
           : state.expanded
           ? m.expandedChar
           : m.collapsedChar;
-      texts.add(Text('$char ', style: style.indicator));
+      texts.add(Text('$char ', style: _indicatorStyle(state.loading)));
     }
     if (m.showIcons && node.icon != null) {
       texts.add(Text('${node.icon!} '));
     }
     texts.addAll(node.label.texts);
     return Line.fromTexts(texts, style: node.label.style);
+  }
+
+  /// Builds the row for a placeholder node: no expand glyph — a blank run the
+  /// width of one, the same as a leaf gets — then the matching label patched
+  /// over the [_placeholderStyle] base, with an `error` × `ink` patch first on
+  /// a failed row.
+  Line _placeholderLine(SliceStatus status) {
+    var base = _placeholderStyle();
+    if (status == SliceStatus.failed) {
+      base = base.patch(
+        _resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink, overrides: styleOverrides),
+      );
+    }
+    final label = switch (status) {
+      SliceStatus.filling => loadingLabel ?? Line('Loading…'),
+      SliceStatus.failed => errorLabel ?? Line('Failed to load'),
+      SliceStatus.stalled => stalledLabel ?? Line('Not loaded'),
+      SliceStatus.ready => throw StateError('a placeholder node is never SliceStatus.ready'),
+    };
+    return Line.fromTexts([const Text('  '), ...label.texts], style: base.patch(label.style));
   }
 
   // ─────────────────────────────────────────────
@@ -227,11 +282,16 @@ class _TreeViewport<T> extends Node {
   Style _cursorItemStyle() =>
       style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
 
-  /// A node whose children are being fetched — `loading` × `fill` (warning ink
-  /// + slow blink). No anatomy slot: loading is a generic state, not a
-  /// TreeView-specific part.
-  Style _loadingStyle() => _resolver.resolve(null, const {WidgetState.loading}, overrides: styleOverrides);
+  /// The expand, collapse, and loading glyph — `indicator`, patched with the
+  /// `loading` state (warning ink + slow blink) while [loading] is true.
+  Style _indicatorStyle(bool loading) => _resolver.resolve(
+    style.indicator,
+    {if (loading) WidgetState.loading},
+    cls: PaintClass.ink,
+    overrides: styleOverrides,
+  );
 
-  /// The empty-state line shown until the roots load.
+  /// The empty-state line shown until the roots load, and the base a
+  /// placeholder row patches its label over.
   Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
 }

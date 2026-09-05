@@ -18,17 +18,15 @@ import '../text_input/types.dart';
 /// | `toggle`         | inherit, focused × ink            | focused × ink     |
 /// | `popupGround`    | `resolver.ground(surface)`       | anatomy-specific  |
 /// | `popupBorder`    | `resolver.border({})`            | resting chrome    |
-/// | `loadingRow`     | `resolver.ink(muted)`            | anatomy-specific  |
-/// | `errorRow`       | `resolver.ink(muted)`            | anatomy-specific  |
-/// | `stalledRow`     | `resolver.ink(muted)`            | anatomy-specific  |
+/// | `placeholder`    | `resolver.ink(muted)`            | anatomy-specific  |
 /// | `field`          | the field's own derived look     | —                 |
 /// | `list`           | the popup list's own derived look | —                 |
 ///
 /// The field styles through [field], and the popup's match rows style
-/// through [list]. `loadingRow`, `errorRow` and `stalledRow` style the
-/// popup's own status row instead — the one line the view paints itself,
-/// after the standing matches, while a remote query is in flight, has
-/// failed, or was refused.
+/// through [list]. `placeholder` styles the popup's own status row instead —
+/// the one line the view paints itself, after the standing matches, while a
+/// remote query is in flight, has failed, or was refused. A failed row
+/// patches `error` × `ink` over that base.
 class ComboboxStyle {
   /// The toggle glyph's style.
   final Style? toggle;
@@ -40,14 +38,8 @@ class ComboboxStyle {
   /// The popup border's ink.
   final Style? popupBorder;
 
-  /// The popup's status row while the newest query is in flight.
-  final Style? loadingRow;
-
-  /// The popup's status row after the newest query's answer failed.
-  final Style? errorRow;
-
-  /// The popup's status row after the newest query was refused.
-  final Style? stalledRow;
+  /// The popup's status row: in flight, failed, or refused.
+  final Style? placeholder;
 
   /// The embedded field's anatomy.
   final TextInputStyle field;
@@ -60,9 +52,7 @@ class ComboboxStyle {
     this.toggle,
     this.popupGround,
     this.popupBorder,
-    this.loadingRow,
-    this.errorRow,
-    this.stalledRow,
+    this.placeholder,
     this.field = const TextInputStyle(),
     this.list = const ListViewStyle(),
   });

@@ -77,12 +77,13 @@ The view paints one status row from `queryStatus`, alone on the cleared
 popup: `loadingLabel` while filling, `errorLabel` after a failure,
 `stalledLabel` after a refusal. Each is a `Line`. A null label shows its
 built-in text — 'Loading…', 'Failed to load', 'Not loaded' — and a given
-line's own styling wins over the themed base
-(`ComboboxStyle.loadingRow`/`errorRow`/`stalledRow`). A ready answer with
-no options shows `emptyPlaceholder` instead: 'No matches' unless
-overridden, `Line('')` for a blank body. The same placeholder shows when
-no in-memory option matches. An in-memory combobox never shows a status
-row: `queryStatus` stays `ready` and `queryError` null.
+line's own styling wins over the themed base (`ComboboxStyle.placeholder`).
+The failed row patches the error tone over that base first, because the
+popup knows the query failed. A ready answer with no options shows
+`emptyPlaceholder` instead: 'No matches' unless overridden, `Line('')` for
+a blank body. The same placeholder shows when no in-memory option matches.
+An in-memory combobox never shows a status row: `queryStatus` stays `ready`
+and `queryError` null.
 
 ## The popup and placement
 
@@ -174,13 +175,13 @@ it the way it forwards one from `update`.
 | `toggle`          | inherit, focused × ink            | focused × ink     |
 | `popupGround`     | `resolver.ground(surface)`       | anatomy-specific  |
 | `popupBorder`     | `resolver.border({})`            | resting chrome    |
-| `loadingRow`      | `resolver.ink(muted)`            | anatomy-specific  |
-| `errorRow`        | `resolver.ink(muted)`            | anatomy-specific  |
-| `stalledRow`      | `resolver.ink(muted)`            | anatomy-specific  |
+| `placeholder`     | `resolver.ink(muted)`            | anatomy-specific  |
 | `field`           | the field's own derived look     | —                 |
 | `list`            | the popup list's own derived look | —                 |
 
 A `null` slot derives from the theme by the rule above; a non-null slot is
-the caller's exact style and wins verbatim (`docs/theming.md`). The field
-styles through `ComboboxStyle.field`, a `TextInputStyle`, and the popup's
-match rows style through `ComboboxStyle.list`, a `ListViewStyle`.
+the caller's exact style and wins verbatim (`docs/theming.md`). `placeholder`
+styles the popup's status row; a failed row patches `error` × `ink` over it
+first. The field styles through `ComboboxStyle.field`, a `TextInputStyle`,
+and the popup's match rows style through `ComboboxStyle.list`, a
+`ListViewStyle`.

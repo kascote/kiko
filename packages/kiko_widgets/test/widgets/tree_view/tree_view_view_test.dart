@@ -112,6 +112,65 @@ void main() {
     });
   });
 
+  group('placeholder rows', () {
+    // A branch root with nothing cached: expanding it appends one placeholder
+    // row beneath it, at the depth a real child would sit at.
+    TreeViewModel<String> branchNoChildren() => TreeViewModel<String>(focused: true)
+      ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Branch'))])
+      ..viewport(rows: 3)
+      ..expand('/a');
+
+    test("the loading row shows the view's label over the muted base", () {
+      final model = branchNoChildren();
+      final frame = _frame(20, 2)
+        ..render(TreeView<String>(model: model, theme: Theme.dark, loadingLabel: Line('Fetching')));
+
+      // The branch's own row still carries the loading state, on its glyph.
+      expect(_dump(frame.buffer), '◌ Branch\n    Fetching\n');
+      expect(frame.buffer[(x: 4, y: 1)].fg, equals(Theme.dark.muted.color));
+    });
+
+    test("the failed row shows the view's label with the error tone", () {
+      final model = branchNoChildren();
+      model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a'), error: 'boom'));
+
+      final frame = _frame(20, 2)..render(TreeView<String>(model: model, theme: Theme.dark, errorLabel: Line('Broke')));
+
+      expect(_dump(frame.buffer), '▼ Branch\n    Broke\n');
+      expect(frame.buffer[(x: 4, y: 1)].fg, equals(Theme.dark.error.color));
+    });
+
+    test("the stalled row shows the view's label over the muted base", () {
+      final model = branchNoChildren();
+      model.update(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
+
+      final frame = _frame(20, 2)
+        ..render(TreeView<String>(model: model, theme: Theme.dark, stalledLabel: Line('Skip')));
+
+      expect(_dump(frame.buffer), '▼ Branch\n    Skip\n');
+      expect(frame.buffer[(x: 4, y: 1)].fg, equals(Theme.dark.muted.color));
+    });
+
+    test('a custom nodeBuilder is not called for a placeholder row', () {
+      final model = branchNoChildren();
+      var calls = 0;
+      final frame = _frame(20, 2)
+        ..render(
+          TreeView<String>(
+            model: model,
+            theme: Theme.dark,
+            nodeBuilder: (node, depth, state) {
+              calls++;
+              return node.label;
+            },
+          ),
+        );
+
+      expect(calls, 1, reason: 'called once for the real branch row, never for its placeholder row');
+      expect(_dump(frame.buffer), 'Branch\n    Loading…\n');
+    });
+  });
+
   group('tree view under a partial clip (viewport)', () {
     test('anchors content at the placement rect, not the clip sub-rect', () {
       // Simulates a Viewport ancestor showing only rows 2-4 of a tree placed at

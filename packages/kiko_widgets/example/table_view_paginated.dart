@@ -159,10 +159,6 @@ class AppModel with ThemeSwitcher {
     ],
     loadThreshold: 15,
     focused: true,
-    loadingIndicator: Line.fromTexts(const [
-      Text('Loading...', style: Style(fg: Color.yellow)),
-    ]),
-    emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
   );
 
   bool initialized = false;
@@ -303,6 +299,8 @@ void appView(AppModel model, Frame frame) {
     child: TableView(
       model: table,
       theme: theme,
+      pendingBuilder: (_) => Line.fromTexts(const [Text('Loading...', style: Style(fg: Color.yellow))]),
+      emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
     ),
   );
 

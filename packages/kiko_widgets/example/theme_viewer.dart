@@ -226,8 +226,6 @@ class Model {
       ),
     ],
     loadThreshold: 8,
-    loadingIndicator: Line('Loading…'),
-    emptyPlaceholder: Line('No rows'),
   );
 
   /// Tab order of the gallery. The disabled button and the disabled field
@@ -433,7 +431,17 @@ void view(Model model, Frame frame) {
               child: _pane(resolver, 'TreeView', model.tree.focused, TreeView(model: model.tree, theme: theme)),
             ),
             Expanded(
-              child: _pane(resolver, 'TableView', model.table.focused, TableView(model: model.table, theme: theme)),
+              child: _pane(
+                resolver,
+                'TableView',
+                model.table.focused,
+                TableView(
+                  model: model.table,
+                  theme: theme,
+                  pendingBuilder: (_) => Line('Loading…'),
+                  emptyPlaceholder: Line('No rows'),
+                ),
+              ),
             ),
           ],
         ),
@@ -566,9 +574,7 @@ View _anatomyBand(StyleResolver resolver) {
       [
         ('[toggle]', text),
         ('popupGround', resolver.ground(t.surface)),
-        ('loadingRow', mutedInk),
-        ('errorRow', mutedInk),
-        ('stalledRow', mutedInk),
+        ('placeholder', mutedInk),
       ],
     ),
     (
@@ -577,7 +583,7 @@ View _anatomyBand(StyleResolver resolver) {
         ('[item]', text),
         ('selectedItem', selectedFill),
         ('cursorItem', cursorFill),
-        ('loadingItem', mutedInk),
+        ('pending', mutedInk),
         ('placeholder', mutedInk),
       ],
     ),
@@ -599,7 +605,7 @@ View _anatomyBand(StyleResolver resolver) {
         ('cursorRow', cursorWash),
         ('cursorColumn', cursorWash),
         ('cursorCell', cursorFill),
-        ('loadingRow', mutedInk),
+        ('pending', mutedInk),
         ('placeholder', mutedInk),
       ],
     ),

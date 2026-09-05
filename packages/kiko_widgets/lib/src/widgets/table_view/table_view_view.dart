@@ -11,8 +11,11 @@ import 'types.dart';
 /// through the plume paint protocol. That row rendering — visible columns,
 /// truncation, alignment, per-cell styling — is the table's own [TableRenderer]
 /// and is reused here, so the plume port and the old widget draw identically.
-/// Wrap it in a [Container] for a border or edge titles. The node is stamped with the
-/// model id so a click routes back through [HitMap.hitId].
+/// [emptyPlaceholder] shows while the table holds zero rows, and a row whose
+/// page has not landed paints as a column-shaped skeleton, or through
+/// [pendingBuilder] when given. Wrap it in a [Container] for a border or edge
+/// titles. The node is stamped with the model id so a click routes back
+/// through [HitMap.hitId].
 final class TableView implements View {
   /// Creates a table view over [model], styled by [theme].
   const TableView({
@@ -21,6 +24,8 @@ final class TableView implements View {
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
     this.styleOverrides,
+    this.emptyPlaceholder,
+    this.pendingBuilder,
   });
 
   /// The model whose columns, rows, cursor, and scroll this view renders.
@@ -42,6 +47,13 @@ final class TableView implements View {
   /// Per-state style overrides applied on top of the theme's row styles.
   final Map<WidgetState, Style>? styleOverrides;
 
+  /// The line shown when the table holds zero rows, or `null` for a blank body.
+  final Line? emptyPlaceholder;
+
+  /// Builds the line for a row at a given index whose page has not landed,
+  /// or `null` to paint the column-shaped skeleton instead.
+  final Line Function(int index)? pendingBuilder;
+
   @override
   Node build() => _TableViewport(
     model: model,
@@ -49,6 +61,8 @@ final class TableView implements View {
     style: style,
     showCrosshair: showCrosshair,
     styleOverrides: styleOverrides,
+    emptyPlaceholder: emptyPlaceholder,
+    pendingBuilder: pendingBuilder,
   )..tag = IdTag(model.id);
 }
 
@@ -61,6 +75,8 @@ class _TableViewport extends Node {
     required this.style,
     required this.showCrosshair,
     this.styleOverrides,
+    this.emptyPlaceholder,
+    this.pendingBuilder,
   });
 
   final TableViewModel model;
@@ -68,6 +84,8 @@ class _TableViewport extends Node {
   final TableViewStyle style;
   final bool showCrosshair;
   final Map<WidgetState, Style>? styleOverrides;
+  final Line? emptyPlaceholder;
+  final Line Function(int index)? pendingBuilder;
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the cells, not just the box chrome.
@@ -88,10 +106,15 @@ class _TableViewport extends Node {
     // windowing must stay keyed to the widget's own laid-out size, or a
     // partially scrolled-off table pins its content to the viewport edge.
     final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
-    TableRenderer(model, theme, styleOverrides, measurer: _measurer, style: style, showCrosshair: showCrosshair).paint(
-      area,
-      surface,
-      mark: (region, r) => markRegion(region, r.toPlume()),
-    );
+    TableRenderer(
+      model,
+      theme,
+      styleOverrides,
+      measurer: _measurer,
+      style: style,
+      showCrosshair: showCrosshair,
+      emptyPlaceholder: emptyPlaceholder,
+      pendingBuilder: pendingBuilder,
+    ).paint(area, surface, mark: (region, r) => markRegion(region, r.toPlume()));
   }
 }

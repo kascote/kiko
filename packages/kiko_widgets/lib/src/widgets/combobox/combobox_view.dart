@@ -61,20 +61,19 @@ final class Combobox<T> implements View {
   /// The popup's status row while the newest remote query is in flight.
   ///
   /// Null shows 'Loading…'. A given line's own styling wins over the themed
-  /// base ([ComboboxStyle.loadingRow], or the theme's muted ink).
+  /// base ([ComboboxStyle.placeholder], or the theme's muted ink).
   final Line? loadingLabel;
 
   /// The popup's status row after the newest remote query's answer failed.
   ///
-  /// Null shows 'Failed to load'; styling as for [loadingLabel], based on
-  /// [ComboboxStyle.errorRow].
+  /// Null shows 'Failed to load'; styling as for [loadingLabel], patched over
+  /// the error tone.
   final Line? errorLabel;
 
   /// The popup's status row after the newest remote query was refused:
   /// resolved, nothing installed, nothing coming.
   ///
-  /// Null shows 'Not loaded'; styling as for [loadingLabel], based on
-  /// [ComboboxStyle.stalledRow].
+  /// Null shows 'Not loaded'; styling as for [loadingLabel].
   final Line? stalledLabel;
 
   /// The border drawn around the popup, or [BorderType.none] for none.
@@ -222,16 +221,23 @@ final class Combobox<T> implements View {
   /// a refusal, or null while an answer stands — always, for an in-memory
   /// [model].
   Line? _statusLine() => switch (model.queryStatus) {
-    SliceStatus.filling => _statusRow(loadingLabel, 'Loading…', style.loadingRow),
-    SliceStatus.failed => _statusRow(errorLabel, 'Failed to load', style.errorRow),
-    SliceStatus.stalled => _statusRow(stalledLabel, 'Not loaded', style.stalledRow),
+    SliceStatus.filling => _statusRow(loadingLabel, 'Loading…'),
+    SliceStatus.failed => _statusRow(errorLabel, 'Failed to load', failed: true),
+    SliceStatus.stalled => _statusRow(stalledLabel, 'Not loaded'),
     SliceStatus.ready => null,
   };
 
   /// Materializes one status row: [label] with its own styling patched over
-  /// the themed base, or [fallback] in the base style alone.
-  Line _statusRow(Line? label, String fallback, Style? slot) {
-    final base = slot ?? _resolver.ink(_resolver.tones.muted);
+  /// the themed base, or [fallback] in the base style alone. [failed] patches
+  /// the error tone over the base first, since the popup knows the query
+  /// failed.
+  Line _statusRow(Line? label, String fallback, {bool failed = false}) {
+    var base = style.placeholder ?? _resolver.ink(_resolver.tones.muted);
+    if (failed) {
+      base = base.patch(
+        _resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink, overrides: styleOverrides),
+      );
+    }
     if (label == null) return Line(fallback, style: base);
     return Line.fromTexts(label.texts.toList(), style: base.patch(label.style));
   }

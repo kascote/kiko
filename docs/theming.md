@@ -382,9 +382,7 @@ Give a slot only to a part you actually paint. ListView has no `indicator`
 slot: its `itemBuilder` owns every glyph, so the slot would style nothing.
 TreeView has one: its default node builder paints the glyph and reads the
 slot, and a custom `nodeBuilder` paints its own row and ignores it. Do not
-duplicate a part that already has a home. TreeView's loading/error
-placeholder text carries its own style on the `loadingIndicator` /
-`errorIndicator` `Line`s, so `TreeViewStyle` does not re-declare it.
+duplicate a part that already has a home.
 
 ### 3. Resolve states through the resolver, with the right class
 
@@ -510,21 +508,20 @@ doc comment; that copy is the widget's contract.
 |           | `cursorRow`       | `resolver.wash(cursor)`             | cursor × wash    |
 |           | `cursorColumn`    | `resolver.wash(cursor)`             | cursor × wash    |
 |           | `cursorCell`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
-|           | `loadingRow`      | `resolver.ink(muted)`               | anatomy-specific |
+|           | `pending`         | `resolver.ink(muted)`               | anatomy-specific |
 |           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | ListView  | `item`            | none (inherits the pane's ground)   | —                |
 |           | `selectedItem`    | `resolver.fill(selection)`          | selected × fill  |
 |           | `cursorItem`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
-|           | `loadingItem`     | `resolver.ink(muted)`               | anatomy-specific |
+|           | `pending`         | `resolver.ink(muted)`               | anatomy-specific |
 |           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | TreeView  | `item`            | none (inherits the pane's ground)   | —                |
 |           | `cursorItem`      | `resolver.fill(cursor)` + bold      | cursor × fill    |
+|           | `indicator`       | none (inherits the row)             | loading × ink    |
 |           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | Combobox  | `toggle`          | inherit                             | focused × ink    |
 |           | `popupGround`     | `resolver.ground(surface)`          | anatomy-specific |
-|           | `loadingRow`      | `resolver.ink(muted)`               | anatomy-specific |
-|           | `errorRow`        | `resolver.ink(muted)`               | anatomy-specific |
-|           | `stalledRow`      | `resolver.ink(muted)`               | anatomy-specific |
+|           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | TextInput | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 |           | `fill`            | `resolver.ink(muted)`               | anatomy-specific |
 |           | `obscured`        | none (inherits the base text style) | —                |
@@ -548,8 +545,7 @@ Notes the table cannot carry:
 - **TreeView** — the expand, collapse, and loading glyph is the
   `indicator` slot; the default node builder paints the glyph and reads
   it, and a custom `nodeBuilder` paints its own row and never sees it.
-  Placeholder text stays on the `loadingIndicator`/`errorIndicator`
-  `Line`s. A tree has no selection set, so no `selectedItem`.
+  A tree has no selection set, so no `selectedItem`.
 - **Button** — one slot, `ButtonStyle.face`. A null face derives
   `resolver.fill(primary)`; states ride the matrix (focused →
   `resolver.fill(focus)` + bold, loading → warning + blink, disabled → dim).

@@ -183,7 +183,7 @@ class TableScrollState {
 /// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each
 /// cell's own foreground untouched), then `cursorCell` (a fill, which wins
 /// outright since it patches last). The crosshair (`cursorColumn`) only
-/// paints when `TableViewModel.showCrosshair` is true; a slot's presence
+/// paints when `TableView.showCrosshair` is true; a slot's presence
 /// styles a part, it never turns on the behavior that paints it.
 class TableViewStyle {
   /// Sticky header text.

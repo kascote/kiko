@@ -1,6 +1,9 @@
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
 
+import '../list_view/types.dart';
+import '../text_input/types.dart';
+
 // ═══════════════════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════════════════
@@ -14,16 +17,18 @@ import 'package:meta/meta.dart';
 /// | ---------------- | -------------------------------- | ---------------- |
 /// | `toggle`         | inherit, focused × ink            | focused × ink     |
 /// | `popupGround`    | `resolver.ground(surface)`       | anatomy-specific  |
+/// | `popupBorder`    | `resolver.border({})`            | resting chrome    |
 /// | `loadingRow`     | `resolver.ink(muted)`            | anatomy-specific  |
 /// | `errorRow`       | `resolver.ink(muted)`            | anatomy-specific  |
 /// | `stalledRow`     | `resolver.ink(muted)`            | anatomy-specific  |
+/// | `field`          | the field's own derived look     | —                 |
+/// | `list`           | the popup list's own derived look | —                 |
 ///
-/// The field's own look stays `TextInputModel`'s business — a combobox styles
-/// only the parts it owns on top of the embedded field. The popup's match
-/// rows are styled by the embedded list's own anatomy, not by this class.
-/// `loadingRow`, `errorRow` and `stalledRow` style the popup's own status row
-/// instead — the one line the view paints itself, after the standing matches,
-/// while a remote query is in flight, has failed, or was refused.
+/// The field styles through [field], and the popup's match rows style
+/// through [list]. `loadingRow`, `errorRow` and `stalledRow` style the
+/// popup's own status row instead — the one line the view paints itself,
+/// after the standing matches, while a remote query is in flight, has
+/// failed, or was refused.
 class ComboboxStyle {
   /// The toggle glyph's style.
   final Style? toggle;
@@ -31,6 +36,9 @@ class ComboboxStyle {
   /// The popup's ground, painted behind every row and under the blank tail
   /// past the last match.
   final Style? popupGround;
+
+  /// The popup border's ink.
+  final Style? popupBorder;
 
   /// The popup's status row while the newest query is in flight.
   final Style? loadingRow;
@@ -41,8 +49,23 @@ class ComboboxStyle {
   /// The popup's status row after the newest query was refused.
   final Style? stalledRow;
 
+  /// The embedded field's anatomy.
+  final TextInputStyle field;
+
+  /// The popup list's anatomy.
+  final ListViewStyle list;
+
   /// Creates a ComboboxStyle.
-  const ComboboxStyle({this.toggle, this.popupGround, this.loadingRow, this.errorRow, this.stalledRow});
+  const ComboboxStyle({
+    this.toggle,
+    this.popupGround,
+    this.popupBorder,
+    this.loadingRow,
+    this.errorRow,
+    this.stalledRow,
+    this.field = const TextInputStyle(),
+    this.list = const ListViewStyle(),
+  });
 }
 
 // ═══════════════════════════════════════════════════════════

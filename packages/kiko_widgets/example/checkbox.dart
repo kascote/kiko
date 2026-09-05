@@ -102,8 +102,8 @@ Case _presetsCase(AppModel model) {
 // different tone. The bottom row builds the block preset's "filled button"
 // look: the bracket tone as fill on the mark, so the mark cell reads as a
 // solid button between the two half blocks, and as ink on the brackets
-// themselves. The app derives both style sets from the theme in `update`,
-// on start and on every theme switch; the view only reads them.
+// themselves. The view builds both style sets from the theme on every
+// frame, so a theme switch always shows the current tones.
 
 Case _colorsCase(AppModel model) {
   const title = 'Per-part colors';
@@ -112,16 +112,35 @@ Case _colorsCase(AppModel model) {
   return Case(
     proves: 'Every glyph part has its own style slot; a fill on the bracket tone reads as a filled button.',
     members: members,
-    box: (theme, resolver) => _caseBox(
-      title: title,
-      watch: watch,
-      focused: members.contains(model.focusGroup.focused),
-      resolver: resolver,
-      content: Column(
-        crossAxis: CrossAxisAlignment.stretch,
-        children: [for (final m in members) Checkbox(model: m, theme: theme)],
-      ),
-    ),
+    box: (theme, resolver) {
+      final t = resolver.tones;
+      final partsStyle = CheckboxStyle(
+        open: resolver.ink(t.primary),
+        close: resolver.ink(t.secondary),
+        mark: resolver.ink(t.accent),
+        checkedMark: resolver.ink(t.success),
+        label: resolver.ink(t.warning),
+      );
+      final blockStyle = CheckboxStyle(
+        open: resolver.ink(t.accent),
+        close: resolver.ink(t.accent),
+        mark: resolver.fill(t.accent),
+        checkedMark: resolver.fill(t.accent),
+      );
+      return _caseBox(
+        title: title,
+        watch: watch,
+        focused: members.contains(model.focusGroup.focused),
+        resolver: resolver,
+        content: Column(
+          crossAxis: CrossAxisAlignment.stretch,
+          children: [
+            Checkbox(model: model.colorsParts, theme: theme, style: partsStyle),
+            Checkbox(model: model.colorsBlock, theme: theme, style: blockStyle),
+          ],
+        ),
+      );
+    },
   );
 }
 
@@ -309,7 +328,6 @@ class AppModel with ThemeSwitcher {
     ];
     focusGroup = FocusGroup<Component>([for (final c in cases) ...c.members]);
     router = FocusRouter(focusGroup);
-    applyTheme();
   }
 
   /// One checkbox per named glyph preset.
@@ -414,30 +432,6 @@ class AppModel with ThemeSwitcher {
 
   /// The case the currently focused member belongs to.
   Case get focusedCase => cases.firstWhere((c) => c.members.contains(focusGroup.focused));
-
-  /// Derives the per-part-colors case's two style sets from the current
-  /// theme.
-  ///
-  /// The app calls this once, at construction, and again on every theme
-  /// switch, so [colorsParts] and [colorsBlock] always carry tones from the
-  /// theme in force.
-  void applyTheme() {
-    final resolver = StyleResolver(theme);
-    final t = resolver.tones;
-    colorsParts.styles = CheckboxStyle(
-      open: resolver.ink(t.primary),
-      close: resolver.ink(t.secondary),
-      mark: resolver.ink(t.accent),
-      checkedMark: resolver.ink(t.success),
-      label: resolver.ink(t.warning),
-    );
-    colorsBlock.styles = CheckboxStyle(
-      open: resolver.ink(t.accent),
-      close: resolver.ink(t.accent),
-      mark: resolver.fill(t.accent),
-      checkedMark: resolver.fill(t.accent),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -481,7 +475,6 @@ void _onEvent(AppModel model, WidgetEvent event) {
 /// declines.
 (AppModel, Cmd?) update(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) {
-    model.applyTheme();
     return (model, null);
   }
 

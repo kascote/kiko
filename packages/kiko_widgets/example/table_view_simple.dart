@@ -98,6 +98,7 @@ class AppModel with ThemeSwitcher {
         label: Line('Salary', style: const Style(addModifier: Modifier.bold)),
         width: 12,
         alignment: TextAlign.end,
+        style: (r) => r.ink(r.tones.success),
         render: (ctx) {
           final salary = ctx.value as int? ?? 0;
           final formatted = '\$${_formatNumber(salary)}';
@@ -113,6 +114,9 @@ class AppModel with ThemeSwitcher {
 
   /// Whether the ember-style [_emberTableStyle] override is active.
   bool customStyleOn = false;
+
+  /// Whether the cursor-column crosshair wash is on.
+  bool crosshairOn = false;
 }
 
 String _formatNumber(int n) {
@@ -148,12 +152,11 @@ Cmd? onEvent(AppModel model, WidgetEvent event) {
   // bindings so 'c'/'y' never reach it as unhandled keys.
   if (msg case KeyMsg(:final key)) {
     if (key == 'c') {
-      model.table.showCrosshair = !model.table.showCrosshair;
+      model.crosshairOn = !model.crosshairOn;
       return (model, null);
     }
     if (key == 'y') {
       model.customStyleOn = !model.customStyleOn;
-      model.table.styles = model.customStyleOn ? _emberTableStyle : const TableViewStyle();
       return (model, null);
     }
   }
@@ -201,6 +204,8 @@ void appView(AppModel model, Frame frame) {
     child: TableView(
       model: model.table,
       theme: theme,
+      style: model.customStyleOn ? _emberTableStyle : const TableViewStyle(),
+      showCrosshair: model.crosshairOn,
     ),
   );
 
@@ -245,7 +250,7 @@ void appView(AppModel model, Frame frame) {
       Expanded(
         child: Line(
           '↑↓←→/hjkl/click nav | Space select | Enter confirm | wheel scroll | c crosshair'
-          '${model.table.showCrosshair ? " (on)" : ""} | y style'
+          '${model.crosshairOn ? " (on)" : ""} | y style'
           '${model.customStyleOn ? " (on)" : ""} | Esc quit',
           style: resolver.ink(t.muted),
         ),

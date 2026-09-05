@@ -15,7 +15,7 @@ import 'types.dart';
 /// optional [separatorBuilder] between items and an [emptyPlaceholder] line when
 /// there are no items. An item whose page has not arrived paints as a dim run,
 /// or through [loadingItemBuilder] when given. Row backgrounds come from the item's honest state
-/// (selected / cursor / disabled) painted through the model's [ListViewStyle]
+/// (selected / cursor / disabled) painted through [style]'s [ListViewStyle]
 /// anatomy — each `null` slot deriving from the theme's tones — and overridable
 /// per state with [styleOverrides]. Wrap it in a [Container] for a border or edge
 /// titles. The node is stamped with the model id so a click routes back through
@@ -27,6 +27,7 @@ final class ListView<T, K> implements View {
     required this.model,
     required this.theme,
     required this.itemBuilder,
+    this.style = const ListViewStyle(),
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
@@ -46,6 +47,9 @@ final class ListView<T, K> implements View {
   /// with the item's absolute index. `null` paints the built-in dim run.
   final List<Line> Function(int index)? loadingItemBuilder;
 
+  /// Row anatomy overrides. See [ListViewStyle].
+  final ListViewStyle style;
+
   /// Per-state style overrides applied on top of the theme's row styles.
   final Map<WidgetState, Style>? styleOverrides;
 
@@ -60,6 +64,7 @@ final class ListView<T, K> implements View {
     model: model,
     theme: theme,
     itemBuilder: itemBuilder,
+    style: style,
     styleOverrides: styleOverrides,
     separatorBuilder: separatorBuilder,
     emptyPlaceholder: emptyPlaceholder,
@@ -74,6 +79,7 @@ class _ListViewport<T, K> extends Node {
     required this.model,
     required this.theme,
     required this.itemBuilder,
+    required this.style,
     this.styleOverrides,
     this.separatorBuilder,
     this.emptyPlaceholder,
@@ -83,6 +89,7 @@ class _ListViewport<T, K> extends Node {
   final ListViewModel<T, K> model;
   final Theme theme;
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
+  final ListViewStyle style;
   final Map<WidgetState, Style>? styleOverrides;
   final Line Function()? separatorBuilder;
   final Line? emptyPlaceholder;
@@ -181,8 +188,8 @@ class _ListViewport<T, K> extends Node {
       // a selected run), then the disabled dim — each layer patches the last.
       // A placeholder row layers the same way, so the cursor stays visible
       // over items still filling in.
-      var rowStyle = m.styles.item ?? const Style();
-      var styled = m.styles.item != null;
+      var rowStyle = style.item ?? const Style();
+      var styled = style.item != null;
       if (m.hoverRow == i) {
         rowStyle = rowStyle.patch(_hoverItemStyle());
         styled = true;
@@ -246,19 +253,19 @@ class _ListViewport<T, K> extends Node {
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedItemStyle() =>
-      model.styles.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+      style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
 
   /// The current item — `cursor` × `fill`.
   Style _cursorItemStyle() =>
-      model.styles.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
 
   /// Disabled rows — `disabled` × `fill` (dim). No anatomy slot: disabled is a
   /// generic state, not a ListView-specific part.
   Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, overrides: styleOverrides);
 
   /// The built-in dim run for items whose page isn't held.
-  Style _loadingItemStyle() => model.styles.loadingItem ?? _resolver.ink(_resolver.tones.muted);
+  Style _loadingItemStyle() => style.loadingItem ?? _resolver.ink(_resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
 }

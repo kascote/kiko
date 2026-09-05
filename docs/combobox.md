@@ -106,11 +106,11 @@ held decision.
 
 `popupBorder` frames the popup with a border. The popup box grows by the
 border's two rows, so the visible match rows stay
-`ComboboxModel.maxVisibleRows`. `popupBorderStyle` sets the border's ink; a
-null one derives from the theme. The field carries no such option — an app
-frames the field row itself, with a bordered `Container` around the
-combobox, as any other field is framed. The popup needs the option because
-the widget builds it privately, out of the app's reach.
+`ComboboxModel.maxVisibleRows`. `ComboboxStyle.popupBorder` sets the
+border's ink; a null one derives from the theme. The field carries no such
+option — an app frames the field row itself, with a bordered `Container`
+around the combobox, as any other field is framed. The popup needs the
+option because the widget builds it privately, out of the app's reach.
 
 ## The base render and the popup layer
 
@@ -173,13 +173,14 @@ it the way it forwards one from `update`.
 | ----------------- | --------------------------------- | ----------------- |
 | `toggle`          | inherit, focused × ink            | focused × ink     |
 | `popupGround`     | `resolver.ground(surface)`       | anatomy-specific  |
+| `popupBorder`     | `resolver.border({})`            | resting chrome    |
 | `loadingRow`      | `resolver.ink(muted)`            | anatomy-specific  |
 | `errorRow`        | `resolver.ink(muted)`            | anatomy-specific  |
 | `stalledRow`      | `resolver.ink(muted)`            | anatomy-specific  |
+| `field`           | the field's own derived look     | —                 |
+| `list`            | the popup list's own derived look | —                 |
 
 A `null` slot derives from the theme by the rule above; a non-null slot is
-the caller's exact style and wins verbatim (`docs/theming.md`). The field's
-own look stays `TextInputModel`'s business — a combobox styles only the
-parts it owns on top of the embedded field. The popup's match rows are
-styled by the embedded list's own anatomy (`ListViewStyle`), not by
-`ComboboxStyle`.
+the caller's exact style and wins verbatim (`docs/theming.md`). The field
+styles through `ComboboxStyle.field`, a `TextInputStyle`, and the popup's
+match rows style through `ComboboxStyle.list`, a `ListViewStyle`.

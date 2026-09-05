@@ -2,6 +2,7 @@ import 'package:kiko/kiko.dart';
 
 import 'table_renderer.dart';
 import 'table_view_model.dart';
+import 'types.dart';
 
 /// A TableView as a view — the plume-native view for [TableViewModel].
 ///
@@ -17,6 +18,8 @@ final class TableView implements View {
   const TableView({
     required this.model,
     required this.theme,
+    this.style = const TableViewStyle(),
+    this.showCrosshair = false,
     this.styleOverrides,
   });
 
@@ -26,20 +29,44 @@ final class TableView implements View {
   /// The theme that resolves cell, header, and row styles.
   final Theme theme;
 
+  /// Row and chrome anatomy overrides. See [TableViewStyle].
+  final TableViewStyle style;
+
+  /// Paints the full crosshair: a wash across the cursor's column, in
+  /// addition to the cursor row wash and cursor cell fill that always paint.
+  ///
+  /// Off by default, matching the table's look before the crosshair existed:
+  /// only the cursor row and the cursor cell are highlighted.
+  final bool showCrosshair;
+
   /// Per-state style overrides applied on top of the theme's row styles.
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  Node build() => _TableViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = IdTag(model.id);
+  Node build() => _TableViewport(
+    model: model,
+    theme: theme,
+    style: style,
+    showCrosshair: showCrosshair,
+    styleOverrides: styleOverrides,
+  )..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TableView]: fills the space the box gives it and
 /// paints the table through the plume `Surface`.
 class _TableViewport extends Node {
-  _TableViewport({required this.model, required this.theme, this.styleOverrides});
+  _TableViewport({
+    required this.model,
+    required this.theme,
+    required this.style,
+    required this.showCrosshair,
+    this.styleOverrides,
+  });
 
   final TableViewModel model;
   final Theme theme;
+  final TableViewStyle style;
+  final bool showCrosshair;
   final Map<WidgetState, Style>? styleOverrides;
 
   // Captured from the layout context so paint measures text the way the frame
@@ -61,7 +88,7 @@ class _TableViewport extends Node {
     // windowing must stay keyed to the widget's own laid-out size, or a
     // partially scrolled-off table pins its content to the viewport edge.
     final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
-    TableRenderer(model, theme, styleOverrides, measurer: _measurer).paint(
+    TableRenderer(model, theme, styleOverrides, measurer: _measurer, style: style, showCrosshair: showCrosshair).paint(
       area,
       surface,
       mark: (region, r) => markRegion(region, r.toPlume()),

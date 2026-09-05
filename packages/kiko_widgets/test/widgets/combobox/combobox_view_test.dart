@@ -95,6 +95,28 @@ void main() {
 
       expect(_rowText(frame.buffer, 0, 0, 6), 'Banana');
     });
+
+    test('a ComboboxStyle.field reaches the embedded field', () {
+      const placeholderStyle = Style(fg: Color.indexed(5));
+      final combo = ComboboxModel<String>(
+        id: 'combo',
+        fieldId: 'field',
+        toggleId: 'toggle',
+        label: (s) => s,
+        options: const ['Apple'],
+        placeholder: 'Search…',
+      );
+      final frame = _frame(10, 1)
+        ..render(
+          Combobox(
+            model: combo,
+            theme: _theme,
+            style: const ComboboxStyle(field: TextInputStyle(placeholder: placeholderStyle)),
+          ),
+        );
+
+      expect(frame.buffer[(x: 0, y: 0)].fg, placeholderStyle.fg);
+    });
   });
 
   group('Combobox.renderPopup', () {
@@ -174,6 +196,24 @@ void main() {
 
       expect(_rowText(frame.buffer, 1, 0, 5), 'Apple');
       expect(_rowText(frame.buffer, 2, 0, 6), 'Banana');
+    });
+
+    test('a ComboboxStyle.list reaches the popup rows', () {
+      const cursorStyle = Style(fg: Color.indexed(2), bg: Color.indexed(4));
+      final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        style: const ComboboxStyle(list: ListViewStyle(cursorItem: cursorStyle)),
+      );
+      final frame = _frame(10, 6);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      // A fresh list's cursor sits on row 0 ("Apple"), the popup's first row.
+      expect(frame.buffer[(x: 0, y: 1)].fg, cursorStyle.fg);
+      expect(frame.buffer[(x: 0, y: 1)].bg, cursorStyle.bg);
     });
 
     test('a custom itemBuilder paints instead of the default', () {
@@ -344,14 +384,14 @@ void main() {
       expect(frame.hits.hitId(1, 2), 'combo/${combo.internalList.id}');
     });
 
-    test('a given popupBorderStyle paints the border verbatim', () {
+    test('a given ComboboxStyle.popupBorder paints the border verbatim', () {
       const borderStyle = Style(fg: Color.indexed(13));
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
       final view = Combobox(
         model: combo,
         theme: _theme,
         popupBorder: BorderType.rounded,
-        popupBorderStyle: borderStyle,
+        style: const ComboboxStyle(popupBorder: borderStyle),
       );
       final frame = _frame(10, 8);
       _renderRow(frame, view);
@@ -381,11 +421,14 @@ void main() {
     test('a refusal shows the stalled row, styled through ComboboxStyle.stalledRow', () {
       const stalledStyle = Style(fg: Color.indexed(11));
       final combo = _remoteBox()
-        ..styles = const ComboboxStyle(stalledRow: stalledStyle)
         ..update(_pressOn('combo/toggle')) // asks QueryKey('')
         ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        style: const ComboboxStyle(stalledRow: stalledStyle),
+      );
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -397,13 +440,16 @@ void main() {
     test('shows an error row after the newest query fails, styled through ComboboxStyle.errorRow', () {
       const errorStyle = Style(fg: Color.indexed(9));
       final combo = _remoteBox()
-        ..styles = const ComboboxStyle(errorRow: errorStyle)
         ..update(_pressOn('combo/toggle'))
         ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
         ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z'), clearing the matches
         ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        style: const ComboboxStyle(errorRow: errorStyle),
+      );
       final frame = _frame(16, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);

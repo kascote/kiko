@@ -6,7 +6,7 @@ import '../list_view/list_view_view.dart';
 import '../list_view/types.dart';
 import '../popup/popup_placed.dart';
 import '../popup/popup_view.dart';
-import '../text_input_view.dart';
+import '../text_input/text_input_view.dart';
 import 'combobox_model.dart';
 import 'types.dart';
 
@@ -31,7 +31,7 @@ final class Combobox<T> implements View {
     this.errorLabel,
     this.stalledLabel,
     this.popupBorder = BorderType.none,
-    this.popupBorderStyle,
+    this.style = const ComboboxStyle(),
     this.styleOverrides,
   });
 
@@ -83,10 +83,9 @@ final class Combobox<T> implements View {
   /// rows stay [ComboboxModel.maxVisibleRows].
   final BorderType popupBorder;
 
-  /// The colour and modifiers of the popup's border glyphs.
-  ///
-  /// Null derives the border ink from the theme.
-  final Style? popupBorderStyle;
+  /// Anatomy overrides for the toggle, the popup, the field, and the popup's
+  /// rows. See [ComboboxStyle].
+  final ComboboxStyle style;
 
   /// Per-state style overrides applied on top of the theme's derived styles.
   final Map<WidgetState, Style>? styleOverrides;
@@ -100,7 +99,7 @@ final class Combobox<T> implements View {
     Row(
       children: [
         Expanded(
-          child: TextInput(model: model.field, theme: theme),
+          child: TextInput(model: model.field, theme: theme, style: style.field),
         ),
         _toggle(),
       ],
@@ -111,15 +110,15 @@ final class Combobox<T> implements View {
   /// the combobox's own scope.
   View _toggle() {
     final glyph = model.isOpen ? openGlyph : closedGlyph;
-    final style =
-        model.styles.toggle ??
+    final toggleStyle =
+        style.toggle ??
         _resolver.resolve(
           null,
           {if (model.focused) WidgetState.focused},
           cls: PaintClass.ink,
           overrides: styleOverrides,
         );
-    return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: style)));
+    return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: toggleStyle)));
   }
 
   /// Paints the popup as a layer on top of the already-painted [frame],
@@ -144,7 +143,7 @@ final class Combobox<T> implements View {
 
     final list = model.internalList;
     final resolver = _resolver;
-    final fill = model.styles.popupGround ?? resolver.ground(resolver.tones.surface);
+    final fill = style.popupGround ?? resolver.ground(resolver.tones.surface);
     final rowBuilder = itemBuilder ?? _defaultItemBuilder;
 
     renderAnchoredPopup(
@@ -198,7 +197,7 @@ final class Combobox<T> implements View {
       Container(
         ground: fill,
         border: popupBorder,
-        borderStyle: popupBorderStyle ?? _resolver.border(const {}),
+        borderStyle: style.popupBorder ?? _resolver.border(const {}),
         child: Column(
           children: [
             ConstrainedBox(
@@ -207,6 +206,7 @@ final class Combobox<T> implements View {
                 model: list,
                 theme: theme,
                 itemBuilder: rowBuilder,
+                style: style.list,
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
               ),
             ),
@@ -222,9 +222,9 @@ final class Combobox<T> implements View {
   /// a refusal, or null while an answer stands — always, for an in-memory
   /// [model].
   Line? _statusLine() => switch (model.queryStatus) {
-    SliceStatus.filling => _statusRow(loadingLabel, 'Loading…', model.styles.loadingRow),
-    SliceStatus.failed => _statusRow(errorLabel, 'Failed to load', model.styles.errorRow),
-    SliceStatus.stalled => _statusRow(stalledLabel, 'Not loaded', model.styles.stalledRow),
+    SliceStatus.filling => _statusRow(loadingLabel, 'Loading…', style.loadingRow),
+    SliceStatus.failed => _statusRow(errorLabel, 'Failed to load', style.errorRow),
+    SliceStatus.stalled => _statusRow(stalledLabel, 'Not loaded', style.stalledRow),
     SliceStatus.ready => null,
   };
 

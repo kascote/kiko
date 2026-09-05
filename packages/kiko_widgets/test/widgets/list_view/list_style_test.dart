@@ -11,12 +11,14 @@ Buffer _render(
   int width = 8,
   int height = 3,
   Theme theme = Theme.dark,
+  ListViewStyle style = const ListViewStyle(),
 }) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   Frame(buffer.area, buffer, 0).render(
     ListView<String, String>(
       model: model,
       theme: theme,
+      style: style,
       itemBuilder: (item, index, state) => [Line(item)],
     ),
   );
@@ -27,13 +29,11 @@ ListViewModel<String, String> _list(
   List<String> items, {
   bool multiSelect = false,
   bool Function(int index)? isDisabled,
-  ListViewStyle styles = const ListViewStyle(),
 }) => ListViewModel<String, String>(
   items: items,
   focused: true,
   multiSelect: multiSelect,
   isDisabled: isDisabled,
-  styles: styles,
 );
 
 void main() {
@@ -112,8 +112,8 @@ void main() {
 
     test('an explicit cursorItem style wins outright over the derivation', () {
       const override = Style(fg: Color.green, bg: Color.blue);
-      final model = _list(<String>['Apple', 'Banana'], styles: const ListViewStyle(cursorItem: override));
-      final buffer = _render(model);
+      final model = _list(<String>['Apple', 'Banana']);
+      final buffer = _render(model, style: const ListViewStyle(cursorItem: override));
 
       final cell = buffer[(x: 7, y: 0)];
       expect(cell.bg, equals(Color.blue));
@@ -136,6 +136,27 @@ void main() {
 
       // Placeholder text 'none' painted at x=0 with the derived muted fg.
       expect(buffer[(x: 0, y: 0)].fg, equals(Theme.dark.muted.color));
+    });
+
+    test('a style built from the theme in view never goes stale after a theme switch', () {
+      ListViewStyle styleFor(Theme theme) {
+        final resolver = StyleResolver(theme);
+        return ListViewStyle(selectedItem: resolver.fill(resolver.tones.success));
+      }
+
+      // Select row 0, then move the cursor away, so the selected row is not
+      // also the cursor row — the cursor fill would otherwise patch over it.
+      final model = _list(<String>['Apple', 'Banana'], multiSelect: true)
+        ..update(const KeyMsg('space'))
+        ..update(const KeyMsg('down'));
+
+      final darkBuffer = _render(model, style: styleFor(Theme.dark));
+      expect(darkBuffer[(x: 0, y: 0)].bg, equals(Theme.dark.success.color));
+
+      // Same model, rebuilt style, second theme: the view carries no state of
+      // its own, so the new frame reflects the new theme with nothing to reset.
+      final lightBuffer = _render(model, theme: Theme.light, style: styleFor(Theme.light));
+      expect(lightBuffer[(x: 0, y: 0)].bg, equals(Theme.light.success.color));
     });
   });
 }

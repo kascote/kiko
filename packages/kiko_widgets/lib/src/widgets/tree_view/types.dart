@@ -136,6 +136,7 @@ typedef NodeState = ({
 /// | ------------- | -------------------------- | ----------------- |
 /// | `item`        | none (inherits the pane's ground)| —               |
 /// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill |
+/// | `indicator`   | none (inherits the row)    | —                 |
 /// | `placeholder` | `resolver.ink(muted)`      | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
@@ -143,17 +144,19 @@ typedef NodeState = ({
 /// fetched — the `loading` state (a warning ink with a slow blink, resolved
 /// from the state matrix). The tree has no selection set, so no `selectedItem`.
 ///
-/// Three tree parts keep their homes on the tree model rather than duplicating
-/// slots here: the expand/collapse/loading glyph is styled by its
-/// `indicatorStyle`, and the placeholder rows shown beneath a node while its
-/// children load or after a failure carry their own style on the
-/// `loadingIndicator` / `errorIndicator` lines.
+/// Two tree parts keep their homes on the tree model rather than duplicating
+/// slots here: the placeholder rows shown beneath a node while its children
+/// load or after a failure carry their own style on the `loadingIndicator` /
+/// `errorIndicator` lines.
 class TreeViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;
 
   /// The current node — the keyboard cursor position.
   final Style? cursorItem;
+
+  /// The expand, collapse, and loading glyph.
+  final Style? indicator;
 
   /// The empty-state line shown until the roots load.
   final Style? placeholder;
@@ -162,6 +165,7 @@ class TreeViewStyle {
   const TreeViewStyle({
     this.item,
     this.cursorItem,
+    this.indicator,
     this.placeholder,
   });
 }

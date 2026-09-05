@@ -13,7 +13,7 @@ import 'types.dart';
 /// paint protocol — each row indented by its depth, drawn by [nodeBuilder] or a
 /// default builder showing the expand indicator, icon, and label, with an
 /// [emptyPlaceholder] until the roots load. Row backgrounds come from the node's
-/// honest state (cursor / loading) painted through the model's [TreeViewStyle]
+/// honest state (cursor / loading) painted through [style]'s [TreeViewStyle]
 /// anatomy — each `null` slot deriving from the theme's tones — and overridable
 /// with [styleOverrides]. Wrap it in a [Container] for a border or edge titles. The
 /// node is stamped with the model id so a click routes back through
@@ -25,6 +25,7 @@ final class TreeView<T> implements View {
     required this.model,
     required this.theme,
     this.nodeBuilder,
+    this.style = const TreeViewStyle(),
     this.styleOverrides,
     this.emptyPlaceholder,
   });
@@ -39,6 +40,9 @@ final class TreeView<T> implements View {
   /// default row (expand indicator, icon, and label).
   final Line Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder;
 
+  /// Row anatomy overrides. See [TreeViewStyle].
+  final TreeViewStyle style;
+
   /// Per-state style overrides applied on top of the theme's row styles.
   final Map<WidgetState, Style>? styleOverrides;
 
@@ -50,6 +54,7 @@ final class TreeView<T> implements View {
     model: model,
     theme: theme,
     nodeBuilder: nodeBuilder,
+    style: style,
     styleOverrides: styleOverrides,
     emptyPlaceholder: emptyPlaceholder,
   )..tag = IdTag(model.id);
@@ -61,6 +66,7 @@ class _TreeViewport<T> extends Node {
   _TreeViewport({
     required this.model,
     required this.theme,
+    required this.style,
     this.nodeBuilder,
     this.styleOverrides,
     this.emptyPlaceholder,
@@ -69,6 +75,7 @@ class _TreeViewport<T> extends Node {
   final TreeViewModel<T> model;
   final Theme theme;
   final Line Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder;
+  final TreeViewStyle style;
   final Map<WidgetState, Style>? styleOverrides;
   final Line? emptyPlaceholder;
 
@@ -144,8 +151,8 @@ class _TreeViewport<T> extends Node {
       // hover wash (weakest, so the cursor reads over it), then the cursor fill,
       // then the loading state (warning ink + blink) for a node whose children
       // are being fetched — each layer patches the last.
-      var rowStyle = m.styles.item ?? const Style();
-      var styled = m.styles.item != null;
+      var rowStyle = style.item ?? const Style();
+      var styled = style.item != null;
       if (m.hoverRow == i) {
         rowStyle = rowStyle.patch(_hoverItemStyle());
         styled = true;
@@ -197,7 +204,7 @@ class _TreeViewport<T> extends Node {
           : state.expanded
           ? m.expandedChar
           : m.collapsedChar;
-      texts.add(Text('$char ', style: m.indicatorStyle));
+      texts.add(Text('$char ', style: style.indicator));
     }
     if (m.showIcons && node.icon != null) {
       texts.add(Text('${node.icon!} '));
@@ -218,7 +225,7 @@ class _TreeViewport<T> extends Node {
 
   /// The current node — `cursor` × `fill`.
   Style _cursorItemStyle() =>
-      model.styles.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
 
   /// A node whose children are being fetched — `loading` × `fill` (warning ink
   /// + slow blink). No anatomy slot: loading is a generic state, not a
@@ -226,5 +233,5 @@ class _TreeViewport<T> extends Node {
   Style _loadingStyle() => _resolver.resolve(null, const {WidgetState.loading}, overrides: styleOverrides);
 
   /// The empty-state line shown until the roots load.
-  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
 }

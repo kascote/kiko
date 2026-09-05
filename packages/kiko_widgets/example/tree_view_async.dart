@@ -185,7 +185,6 @@ class AppModel with ThemeSwitcher {
   final tree = TreeViewModel<Category>(
     focused: true,
     showIcons: true,
-    indicatorStyle: const Style(fg: Color.red),
     loadingIndicator: Line.fromTexts(const [
       Text(
         'Loading...',
@@ -312,6 +311,7 @@ void appView(AppModel model, Frame frame) {
     child: TreeView(
       model: model.tree,
       theme: theme,
+      style: const TreeViewStyle(indicator: Style(fg: Color.red)),
       emptyPlaceholder: Line('Loading categories...', style: resolver.ink(t.muted)),
     ),
   );

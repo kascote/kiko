@@ -370,17 +370,21 @@ class FooViewStyle {
 }
 ```
 
-Hold the anatomy on the model as a mutable `styles` field (default
-`const FooViewStyle()`), the way `TableViewModel.styles` does. An app can
-then swap the look at runtime.
+A model never holds a resolved `Style`. Take `style` as a view parameter
+(default `const FooViewStyle()`), the way `ListView` and `TableView` do. The
+view is rebuilt every frame, so the app builds the look there from the
+theme it holds at that moment; a slot can never go stale after a theme
+switch. A fixed definition a model holds — one set once, at construction,
+like `TableColumn` — carries a function of the resolver instead, resolved
+at paint; see `TableColumn.style`.
 
-Give a slot only to a part you actually paint. ListView and TreeView have
-no `indicator` slot: their `itemBuilder`/`nodeBuilder` owns every glyph, so
-the slot would style nothing. Do not duplicate a part that already has a
-home. TreeView keeps its expand glyph on `indicatorStyle` and its
-loading/error placeholder text on the `loadingIndicator`/`errorIndicator`
-`Line`s, which carry their own style, so `TreeViewStyle` does not
-re-declare them.
+Give a slot only to a part you actually paint. ListView has no `indicator`
+slot: its `itemBuilder` owns every glyph, so the slot would style nothing.
+TreeView has one: its default node builder paints the glyph and reads the
+slot, and a custom `nodeBuilder` paints its own row and ignores it. Do not
+duplicate a part that already has a home. TreeView's loading/error
+placeholder text carries its own style on the `loadingIndicator` /
+`errorIndicator` `Line`s, so `TreeViewStyle` does not re-declare it.
 
 ### 3. Resolve states through the resolver, with the right class
 
@@ -390,10 +394,10 @@ For each part, fall back from the slot to the resolver:
 late final _resolver = StyleResolver(theme);
 
 Style _selectedItemStyle() =>
-    model.styles.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+    style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
 
 Style _cursorItemStyle() =>
-    model.styles.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
+    style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, overrides: styleOverrides);
 ```
 
 `resolve` defaults to `PaintClass.fill`, the surface case. Pass
@@ -404,7 +408,7 @@ cursor → disabled — each `Style.patch` over the last. The cursor then stays
 visible over a selected run, and disabled dims everything:
 
 ```dart
-var s = model.styles.item ?? const Style();
+var s = style.item ?? const Style();
 if (isSelected) s = s.patch(_selectedItemStyle());
 if (isCursor)   s = s.patch(_cursorItemStyle());
 if (isDisabled) s = s.patch(_resolver.resolve(null, const {WidgetState.disabled}));
@@ -477,15 +481,16 @@ first `InitMsg`, and picks its starting theme.
 
 ## Which knob serves which user
 
-| user                                  | touches                                            |
-| ------------------------------------- | -------------------------------------------------- |
-| "make it look right"                  | nothing — derived defaults                         |
-| "my colors everywhere"                | the tones of a `Theme`                             |
-| "this table gets an orange crosshair" | `XStyle(...)` on that instance                     |
-| "every table in my app is custom"     | a shared `const appTableStyle = TableViewStyle(…)` |
-| "one row blinks on my signal"         | per-state `styleOverrides` / a custom `render`     |
+| user                                  | touches                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| "make it look right"                  | nothing — derived defaults                                               |
+| "my colors everywhere"                | the tones of a `Theme`                                                   |
+| "this table gets an orange crosshair" | `XStyle(...)` passed to the view                                         |
+| "every table in my app is custom"     | a shared `const appTableStyle = TableViewStyle(…)`, passed to every view |
+| "this column is green"                | `TableColumn.style`                                                      |
+| "one row blinks on my signal"         | per-state `styleOverrides` / a custom `render`                           |
 
-A widget that serves all five rows without the author fighting the
+A widget that serves all six rows without the author fighting the
 framework is themed correctly by construction.
 
 ## Shipped widget anatomies
@@ -535,25 +540,28 @@ doc comment; that copy is the widget's contract.
 Notes the table cannot carry:
 
 - **TableView** — the crosshair (`cursorColumn`) is enabled by
-  `showCrosshair` on the model, not by slot presence: a slot styles a part,
-  it does not create the behavior. A cell paints base → hover → selectedRow
-  → cursorRow/cursorColumn → cursorCell, each patched over the last. The
+  `showCrosshair` on the view, not by slot presence: a slot styles a part,
+  it does not create the behavior. A cell paints base → the column's own
+  style (`TableColumn.style`, resolved at paint) → hover → selectedRow →
+  cursorRow/cursorColumn → cursorCell, each patched over the last. The
   exemplar — copy its shape.
-- **TreeView** — the expand glyph stays on `indicatorStyle`; placeholder
-  text stays on the `loadingIndicator`/`errorIndicator` `Line`s. A tree has
-  no selection set, so no `selectedItem`.
+- **TreeView** — the expand, collapse, and loading glyph is the
+  `indicator` slot; the default node builder paints the glyph and reads
+  it, and a custom `nodeBuilder` paints its own row and never sees it.
+  Placeholder text stays on the `loadingIndicator`/`errorIndicator`
+  `Line`s. A tree has no selection set, so no `selectedItem`.
 - **Button** — no anatomy class. The resting face is `resolver.fill(primary)`;
   states ride the matrix (focused → `resolver.fill(focus)` + bold, loading →
   warning + blink, disabled → dim).
-- **TextInput / TextArea** — region styles are nullable slots on
-  `model.style`. A null region derives from the theme through the resolver:
+- **TextInput / TextArea** — region styles are nullable slots on the
+  view's `style`. A null region derives from the theme through the resolver:
   placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)
   are muted ink; TextArea's selection is a selection fill. Base text has no
   color of its own; it inherits the ground it is painted on. Focus resolves
   through the resolver, not through slots.
-- **Combobox** — the field's own look stays `TextInputModel`'s business,
-  and the popup's match rows style through the embedded `ListViewStyle`,
-  not through `ComboboxStyle` (`docs/combobox.md`).
+- **Combobox** — the field styles through `ComboboxStyle.field` and the
+  popup's match rows through `ComboboxStyle.list`; the popup border's ink
+  styles through `ComboboxStyle.popupBorder` (`docs/combobox.md`).
 - **Checkbox** — hover washes the whole row: the box, the gap, the label,
   and any spare cells, as the row's ground. Focused puts focus ink and bold
   on `open`, `mark`, and `close`. Error puts error ink on `open` and `close`

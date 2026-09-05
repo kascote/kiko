@@ -3,6 +3,7 @@ import 'package:kiko/kiko.dart';
 
 import 'selection.dart';
 import 'text_area_model.dart';
+import 'types.dart';
 
 /// Paints a [TextAreaModel] through a plume [Surface].
 ///
@@ -17,7 +18,13 @@ class TextAreaRenderer {
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes content like it draws it.
-  TextAreaRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()});
+  TextAreaRenderer(
+    this.model,
+    this.theme,
+    this.styleOverrides, {
+    this.measurer = const TermUnicodeMeasurer(),
+    this.style = const TextAreaStyle(),
+  });
 
   /// The model containing state and config.
   final TextAreaModel model;
@@ -31,16 +38,19 @@ class TextAreaRenderer {
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
 
+  /// Region anatomy overrides. See [TextAreaStyle].
+  final TextAreaStyle style;
+
   /// Resolves the anatomy slots that derive from theme tones + state.
   late final _resolver = StyleResolver(theme);
 
-  /// Region styles: the theme's derived defaults, with [model]'s own
+  /// Region styles: the theme's derived defaults, with [style]'s own
   /// non-null slots patched on top.
   late final TextAreaStyle _regionStyle = TextAreaStyle(
     placeholder: _resolver.ink(_resolver.tones.muted),
     selection: _resolver.fill(_resolver.tones.selection),
     lineNumber: _resolver.ink(_resolver.tones.muted),
-  ).merge(model.style);
+  ).merge(style);
 
   /// Resolves the base text style from theme + model state.
   ///
@@ -225,12 +235,12 @@ class TextAreaRenderer {
     for (final part in parts) {
       if (part.part.isEmpty) continue;
 
-      final style = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
+      final partStyle = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
       final partWidth = measurer.widthOf(part.part.string);
 
       paintLine(
         surface,
-        Line(part.part.string, style: style),
+        Line(part.part.string, style: partStyle),
         x: x,
         y: area.y,
         width: partWidth,

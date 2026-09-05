@@ -68,13 +68,9 @@ void main() {
       expect(model.obscureChar, equals('*'));
     });
 
-    test('fillChar and style fields are set', () {
-      final model = TextInputModel(
-        fillChar: '_',
-        style: const TextInputStyle(fill: Style(fg: Color.red)),
-      );
+    test('fillChar is set', () {
+      final model = TextInputModel(fillChar: '_');
       expect(model.fillChar, equals('_'));
-      expect(model.style!.fill, equals(const Style(fg: Color.red)));
     });
 
     test('clear empties text and resets cursor, focused or not', () {

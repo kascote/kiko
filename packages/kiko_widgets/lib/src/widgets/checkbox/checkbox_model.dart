@@ -37,9 +37,6 @@ class CheckboxModel implements Component {
   /// The glyph parts the box is drawn from.
   CheckGlyphs glyphs;
 
-  /// Per-part style overrides.
-  CheckboxStyle styles;
-
   /// Whether the label paints before the box.
   bool labelFirst;
 
@@ -71,7 +68,6 @@ class CheckboxModel implements Component {
     this.disabled = false,
     this.error = false,
     this.glyphs = CheckGlyphs.ascii,
-    this.styles = const CheckboxStyle(),
     this.labelFirst = false,
     this.labelAlign = TextAlign.start,
     this.keyBinding,

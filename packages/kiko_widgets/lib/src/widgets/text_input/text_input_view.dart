@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import 'text_input_model.dart';
+import 'types.dart';
 
 /// A single-line text input as a view — the plume-native view for
 /// [TextInputModel].
@@ -14,13 +15,13 @@ import 'text_input_model.dart';
 /// [TextInputModel.fillChar] repeated across whatever width is left. Styles
 /// come from the [theme] and the model's focus state, with region styles
 /// (placeholder, fill, obscured) derived through a [StyleResolver] and merged
-/// with the model's own, per [TextInputStyle]. The built node is stamped with
+/// with [style]'s own, per [TextInputStyle]. The built node is stamped with
 /// the model id so a click routes back through [HitMap.hitId]; the terminal
 /// cursor is reported through the surface, the same way the `TextArea`
 /// viewport does.
 final class TextInput implements View {
   /// Creates a text input over [model], styled by [theme].
-  const TextInput({required this.model, required this.theme, this.styleOverrides});
+  const TextInput({required this.model, required this.theme, this.style = const TextInputStyle(), this.styleOverrides});
 
   /// The model whose text, cursor, and scroll this view renders.
   final TextInputModel model;
@@ -28,31 +29,37 @@ final class TextInput implements View {
   /// The theme that resolves the field's styles.
   final Theme theme;
 
+  /// Region anatomy overrides. See [TextInputStyle].
+  final TextInputStyle style;
+
   /// Per-state style overrides applied on top of the theme's field styles.
   final Map<WidgetState, Style>? styleOverrides;
 
   @override
-  Node build() => _TextInputViewport(model: model, theme: theme, styleOverrides: styleOverrides)..tag = IdTag(model.id);
+  Node build() =>
+      _TextInputViewport(model: model, theme: theme, style: style, styleOverrides: styleOverrides)
+        ..tag = IdTag(model.id);
 }
 
 /// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
-  _TextInputViewport({required this.model, required this.theme, this.styleOverrides});
+  _TextInputViewport({required this.model, required this.theme, required this.style, this.styleOverrides});
 
   final TextInputModel model;
   final Theme theme;
+  final TextInputStyle style;
   final Map<WidgetState, Style>? styleOverrides;
 
   /// Resolves the anatomy slots that derive from theme tones + state.
   late final _resolver = StyleResolver(theme);
 
-  /// Region styles: the theme's derived defaults, with [model]'s own
+  /// Region styles: the theme's derived defaults, with [style]'s own
   /// non-null slots patched on top.
   late final TextInputStyle _regionStyle = TextInputStyle(
     placeholder: _resolver.ink(_resolver.tones.muted),
     fill: _resolver.ink(_resolver.tones.muted),
-  ).merge(model.style);
+  ).merge(style);
 
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the field content, not just the box chrome.

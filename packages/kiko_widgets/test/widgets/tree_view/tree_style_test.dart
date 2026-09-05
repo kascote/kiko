@@ -11,20 +11,18 @@ Buffer _render(
   int width = 10,
   int height = 3,
   Theme theme = Theme.dark,
+  TreeViewStyle style = const TreeViewStyle(),
 }) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
-  Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: theme));
+  Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: theme, style: style));
   return buffer;
 }
 
-TreeViewModel<String> _tree({TreeViewStyle styles = const TreeViewStyle()}) =>
-    TreeViewModel<String>(
-      focused: true,
-      styles: styles,
-    )..applyRoots(<TreeNode<String>>[
-      TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true),
-      TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
-    ]);
+TreeViewModel<String> _tree() => TreeViewModel<String>(focused: true)
+  ..applyRoots(<TreeNode<String>>[
+    TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true),
+    TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
+  ]);
 
 void main() {
   group('TreeView anatomy styling', () {
@@ -51,8 +49,8 @@ void main() {
 
     test('an explicit cursorItem style wins outright over the derivation', () {
       const override = Style(fg: Color.green, bg: Color.blue);
-      final model = _tree(styles: const TreeViewStyle(cursorItem: override));
-      final buffer = _render(model);
+      final model = _tree();
+      final buffer = _render(model, style: const TreeViewStyle(cursorItem: override));
 
       final cell = buffer[(x: 9, y: 0)];
       expect(cell.bg, equals(Color.blue));

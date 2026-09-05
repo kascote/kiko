@@ -226,24 +226,29 @@ void main() {
       expect(frame.buffer[(x: 1, y: 0)].fg, Color.yellow);
     });
 
-    test('a styles.open slot wins verbatim at rest', () {
-      final model = CheckboxModel(
-        id: 'c',
-        label: Line('Option'),
-        styles: const CheckboxStyle(open: Style(fg: Color.magenta)),
-      );
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+    test('a style.open slot wins verbatim at rest', () {
+      final model = CheckboxModel(id: 'c', label: Line('Option'));
+      final frame = _frame(10, 1)
+        ..render(
+          Checkbox(
+            model: model,
+            theme: Theme.dark,
+            style: const CheckboxStyle(open: Style(fg: Color.magenta)),
+          ),
+        );
       expect(frame.buffer[(x: 0, y: 0)].fg, Color.magenta);
     });
 
-    test('an app-set styles.checkedMark keeps its fg when checked', () {
-      final model = CheckboxModel(
-        id: 'c',
-        label: Line('Option'),
-        state: CheckState.checked,
-        styles: const CheckboxStyle(checkedMark: Style(fg: Color.cyan)),
-      );
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+    test('an app-set style.checkedMark keeps its fg when checked', () {
+      final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
+      final frame = _frame(10, 1)
+        ..render(
+          Checkbox(
+            model: model,
+            theme: Theme.dark,
+            style: const CheckboxStyle(checkedMark: Style(fg: Color.cyan)),
+          ),
+        );
       // The selected state would otherwise overwrite an app-set checkedMark
       // color, so this pins that the explicit slot is the base, not a patch
       // target.

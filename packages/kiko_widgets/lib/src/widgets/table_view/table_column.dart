@@ -16,8 +16,13 @@ class TableColumn {
   /// Cell alignment (start/center/end).
   final TextAlign alignment;
 
-  /// Default cell style for this column.
-  final Style? style;
+  /// The cell style for this column, resolved at paint against the frame's
+  /// [StyleResolver].
+  ///
+  /// The renderer patches the result over the table's `row` slot, then the
+  /// states patch over that. A style that sets only a foreground keeps the
+  /// row slot's background.
+  final Style Function(StyleResolver resolver)? style;
 
   /// Whether column is visible.
   final bool visible;

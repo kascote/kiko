@@ -123,18 +123,6 @@ class CheckboxStyle {
   /// Creates a CheckboxStyle.
   const CheckboxStyle({this.open, this.close, this.mark, this.checkedMark, this.label});
 
-  /// Merges [other] on top of this, non-null values override.
-  CheckboxStyle merge(CheckboxStyle? other) {
-    if (other == null) return this;
-    return CheckboxStyle(
-      open: other.open ?? open,
-      close: other.close ?? close,
-      mark: other.mark ?? mark,
-      checkedMark: other.checkedMark ?? checkedMark,
-      label: other.label ?? label,
-    );
-  }
-
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

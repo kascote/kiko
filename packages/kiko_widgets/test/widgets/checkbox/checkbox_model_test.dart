@@ -29,7 +29,6 @@ void main() {
       expect(checkbox.labelFirst, isFalse);
       expect(checkbox.labelAlign, equals(TextAlign.start));
       expect(checkbox.glyphs, equals(CheckGlyphs.ascii));
-      expect(checkbox.styles, equals(const CheckboxStyle()));
     });
 
     test('the checked setter clears mixed', () {

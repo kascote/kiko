@@ -96,14 +96,6 @@ class TableViewModel with ScrollableModel implements Component {
   /// Header pinned at top.
   final bool stickyHeader;
 
-  /// Paints the full crosshair: a wash across the cursor's column, in
-  /// addition to the cursor row wash and cursor cell fill that always paint.
-  ///
-  /// Off by default, matching the table's look before the crosshair existed:
-  /// only the cursor row and the cursor cell are highlighted. Mutable so an
-  /// app can offer a live toggle, the way it flips [focused].
-  bool showCrosshair;
-
   /// Allow row selection.
   final bool selectionEnabled;
 
@@ -118,10 +110,6 @@ class TableViewModel with ScrollableModel implements Component {
 
   /// Shown when no data.
   final Line? emptyPlaceholder;
-
-  /// Anatomy overrides. Mutable so an app can swap in a custom look at
-  /// runtime, the way it flips [showCrosshair].
-  TableViewStyle styles;
 
   // ─────────────────────────────────────────────
   // State
@@ -170,13 +158,11 @@ class TableViewModel with ScrollableModel implements Component {
     this.loadThreshold = 10,
     this.maxConcurrentLoads = 3,
     this.stickyHeader = true,
-    this.showCrosshair = false,
     this.selectionEnabled = false,
     this.ellipsis = '…',
     this.columnSeparator = const Text(' '),
     this.loadingIndicator,
     this.emptyPlaceholder,
-    this.styles = const TableViewStyle(),
     KeyBinding<TableViewAction>? keyBinding,
     this.focused = false,
   }) : id = id ?? autoId('tableview') {

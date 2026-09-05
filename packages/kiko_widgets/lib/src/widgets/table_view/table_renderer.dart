@@ -23,7 +23,14 @@ class TableRenderer {
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes cells like it draws them.
-  TableRenderer(this.model, this.theme, this.styleOverrides, {this.measurer = const TermUnicodeMeasurer()});
+  TableRenderer(
+    this.model,
+    this.theme,
+    this.styleOverrides, {
+    this.measurer = const TermUnicodeMeasurer(),
+    this.style = const TableViewStyle(),
+    this.showCrosshair = false,
+  });
 
   /// The model containing table state.
   final TableViewModel model;
@@ -36,6 +43,16 @@ class TableRenderer {
 
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
+
+  /// Row and chrome anatomy overrides. See [TableViewStyle].
+  final TableViewStyle style;
+
+  /// Paints the full crosshair: a wash across the cursor's column, in
+  /// addition to the cursor row wash and cursor cell fill that always paint.
+  ///
+  /// Off by default, matching the table's look before the crosshair existed:
+  /// only the cursor row and the cursor cell are highlighted.
+  final bool showCrosshair;
 
   /// Resolves the anatomy slots that derive from theme tones + state.
   late final _resolver = StyleResolver(theme);
@@ -172,12 +189,12 @@ class TableRenderer {
       }
 
       final col = visibleCols[i];
-      final style = _headerStyle();
+      final headerStyle = _headerStyle();
 
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
       final aligned = _alignLine(line, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(style), x: x, y: y, width: col.width, measurer: measurer);
+      paintLine(surface, aligned.patchStyle(headerStyle), x: x, y: y, width: col.width, measurer: measurer);
 
       x += col.width;
     }
@@ -191,10 +208,17 @@ class TableRenderer {
   /// fault; the same rows as column-shaped runs read as filling in. A caller
   /// that wants a literal line back sets [TableViewModel.loadingIndicator].
   void _renderLoadingRow(Surface surface, Rect area, List<TableColumn> visibleCols) {
-    final style = _loadingRowStyle();
+    final loadingStyle = _loadingRowStyle();
     final indicator = model.loadingIndicator;
     if (indicator != null) {
-      paintLine(surface, indicator.patchStyle(style), x: area.x, y: area.y, width: area.width, measurer: measurer);
+      paintLine(
+        surface,
+        indicator.patchStyle(loadingStyle),
+        x: area.x,
+        y: area.y,
+        width: area.width,
+        measurer: measurer,
+      );
       return;
     }
 
@@ -219,7 +243,7 @@ class TableRenderer {
       final runWidth = col.width <= 2 ? col.width : (col.width * 3) ~/ 4;
       paintLine(
         surface,
-        Line('░' * runWidth).patchStyle(style),
+        Line('░' * runWidth).patchStyle(loadingStyle),
         x: x,
         y: area.y,
         width: col.width,
@@ -231,11 +255,12 @@ class TableRenderer {
 
   /// Renders a data row.
   ///
-  /// Per-cell paint order is honest anatomy, not borrowed states: row base,
+  /// Per-cell paint order is honest anatomy, not borrowed states: the `row`
+  /// slot as base, patched by the column's own [TableColumn.style] when set,
   /// then the [_hoverRowStyle] wash (weakest, so selection/cursor read over
   /// it) if the row is hovered, then [_selectedRowStyle] (a fill) if the row is
   /// selected, then the crosshair washes ([_cursorRowStyle] always,
-  /// [_cursorColumnStyle] only when [TableViewModel.showCrosshair] is on) if the
+  /// [_cursorColumnStyle] only when [showCrosshair] is on) if the
   /// cell is on the cursor's row/column, then [_cursorCellStyle] (a fill) if this
   /// is the exact cursor cell — patched last, so it wins outright. Each wash is a
   /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
@@ -275,12 +300,13 @@ class TableRenderer {
       final isCursorColumn = (scrollCol + colIdx) == model.cursorCol;
       final isCursorCell = isCursorRow && isCursorColumn;
 
-      var style = col.style ?? model.styles.row ?? const Style();
-      if (isHover) style = style.patch(_hoverRowStyle());
-      if (isSelected) style = style.patch(_selectedRowStyle());
-      if (isCursorRow) style = style.patch(_cursorRowStyle());
-      if (model.showCrosshair && isCursorColumn) style = style.patch(_cursorColumnStyle());
-      if (isCursorCell) style = style.patch(_cursorCellStyle());
+      var cellStyle = style.row ?? const Style();
+      if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
+      if (isHover) cellStyle = cellStyle.patch(_hoverRowStyle());
+      if (isSelected) cellStyle = cellStyle.patch(_selectedRowStyle());
+      if (isCursorRow) cellStyle = cellStyle.patch(_cursorRowStyle());
+      if (showCrosshair && isCursorColumn) cellStyle = cellStyle.patch(_cursorColumnStyle());
+      if (isCursorCell) cellStyle = cellStyle.patch(_cursorCellStyle());
 
       // Build render context
       final ctx = CellRenderContext(
@@ -299,7 +325,7 @@ class TableRenderer {
       final line = col.render?.call(ctx) ?? _defaultRender(value, col);
       final truncated = _truncateLine(line, col.width, model.ellipsis);
       final aligned = _alignLine(truncated, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(style), x: x, y: area.y, width: col.width, measurer: measurer);
+      paintLine(surface, aligned.patchStyle(cellStyle), x: x, y: area.y, width: col.width, measurer: measurer);
 
       x += col.width;
     }
@@ -310,16 +336,16 @@ class TableRenderer {
   // ─────────────────────────────────────────────
 
   /// Sticky header text style: bold, over whatever ground the pane painted.
-  Style _headerStyle() => model.styles.header ?? const Style(addModifier: Modifier.bold);
+  Style _headerStyle() => style.header ?? const Style(addModifier: Modifier.bold);
 
   /// Column separator glyph style.
-  Style _separatorStyle() => model.styles.separator ?? _resolver.ink(_resolver.tones.border);
+  Style _separatorStyle() => style.separator ?? _resolver.ink(_resolver.tones.border);
 
   /// Placeholder rows for data windowed out of the cache.
-  Style _loadingRowStyle() => model.styles.loadingRow ?? _resolver.ink(_resolver.tones.muted);
+  Style _loadingRowStyle() => style.loadingRow ?? _resolver.ink(_resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => model.styles.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
 
   /// The hovered row — `hover` × `wash`. A bg-only wash (hover resolves for no
   /// other paint class), so it tints the row without clobbering its foreground.
@@ -329,16 +355,16 @@ class TableRenderer {
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedRowStyle() =>
-      model.styles.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
+      style.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, overrides: styleOverrides);
 
   /// Crosshair row wash — `cursor` × `wash`.
-  Style _cursorRowStyle() => model.styles.cursorRow ?? _resolveCursor(PaintClass.wash);
+  Style _cursorRowStyle() => style.cursorRow ?? _resolveCursor(PaintClass.wash);
 
   /// Crosshair column wash — `cursor` × `wash`.
-  Style _cursorColumnStyle() => model.styles.cursorColumn ?? _resolveCursor(PaintClass.wash);
+  Style _cursorColumnStyle() => style.cursorColumn ?? _resolveCursor(PaintClass.wash);
 
   /// The cursor cell fill — `cursor` × `fill`.
-  Style _cursorCellStyle() => model.styles.cursorCell ?? _resolveCursor(PaintClass.fill);
+  Style _cursorCellStyle() => style.cursorCell ?? _resolveCursor(PaintClass.fill);
 
   Style _resolveCursor(PaintClass cls) =>
       _resolver.resolve(null, const {WidgetState.cursor}, cls: cls, overrides: styleOverrides);

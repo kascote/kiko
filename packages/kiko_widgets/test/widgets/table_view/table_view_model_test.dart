@@ -265,7 +265,6 @@ void main() {
           loadThreshold: 20,
           maxConcurrentLoads: 1,
           stickyHeader: false,
-          showCrosshair: true,
           selectionEnabled: true,
           focused: true,
         );
@@ -274,21 +273,8 @@ void main() {
         expect(model.loadThreshold, equals(20));
         expect(model.maxConcurrentLoads, equals(1));
         expect(model.stickyHeader, isFalse);
-        expect(model.showCrosshair, isTrue);
         expect(model.selectionEnabled, isTrue);
         expect(model.focused, isTrue);
-      });
-
-      test('showCrosshair defaults to false and is mutable', () {
-        final model = TableViewModel(
-          rows: sampleRows(),
-          keyField: 'id',
-          columns: sampleColumns(),
-        );
-        expect(model.showCrosshair, isFalse);
-
-        model.showCrosshair = true;
-        expect(model.showCrosshair, isTrue);
       });
 
       test('a static table knows its own row count', () {

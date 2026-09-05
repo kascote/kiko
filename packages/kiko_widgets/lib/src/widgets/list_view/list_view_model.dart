@@ -101,10 +101,6 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   /// How far past the viewport, in items, the list asks for pages.
   final int loadThreshold;
 
-  /// Anatomy overrides. Mutable so an app can swap in a custom look at runtime,
-  /// the way it flips [focused].
-  ListViewStyle styles;
-
   /// Items per page. Fixed for the life of the model: page boundaries are index
   /// arithmetic, so every page except the last must contain exactly this many
   /// items. A source that cannot promise that must re-chunk before answering
@@ -161,7 +157,6 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
     this.maxConcurrentLoads = 3,
     this.focused = false,
     this.isDisabled,
-    this.styles = const ListViewStyle(),
     KeyBinding<ListViewAction>? keyBinding,
   }) : id = id ?? autoId('listview'),
        itemKey = itemKey ?? _castItemKey {

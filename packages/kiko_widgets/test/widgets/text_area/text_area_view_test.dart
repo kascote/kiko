@@ -189,4 +189,22 @@ void main() {
       );
     });
   });
+
+  group('text area anatomy styling', () {
+    test('a TextAreaStyle.lineNumber reaches the gutter', () {
+      const lineNumberStyle = Style(fg: Color.indexed(6));
+      final model = TextAreaModel(id: 'ta', initial: 'ab', showLineNumbers: true);
+      final frame = _frame(6, 1)
+        ..render(
+          TextArea(
+            model: model,
+            theme: Theme.dark,
+            style: const TextAreaStyle(lineNumber: lineNumberStyle),
+          ),
+        );
+
+      expect(frame.buffer[(x: 0, y: 0)].symbol, equals('1'));
+      expect(frame.buffer[(x: 0, y: 0)].fg, equals(lineNumberStyle.fg));
+    });
+  });
 }

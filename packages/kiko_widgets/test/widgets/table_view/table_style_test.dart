@@ -10,9 +10,17 @@ Buffer renderBuffer(
   required int width,
   required int height,
   Theme theme = Theme.dark,
+  TableViewStyle style = const TableViewStyle(),
+  bool showCrosshair = false,
 }) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
-  TableRenderer(model, theme, null).paint(buffer.area, BufferSurface(buffer));
+  TableRenderer(
+    model,
+    theme,
+    null,
+    style: style,
+    showCrosshair: showCrosshair,
+  ).paint(buffer.area, BufferSurface(buffer));
   return buffer;
 }
 
@@ -35,29 +43,20 @@ List<Map<String, Object?>> _rows(int count) => List.generate(count, (i) => {'id'
 TableViewModel _model({
   int rowCount = 4,
   bool selectionEnabled = false,
-  bool showCrosshair = false,
   bool focused = true,
-  TableViewStyle styles = const TableViewStyle(),
 }) {
   final model = TableViewModel(
     rows: _rows(rowCount),
     keyField: 'id',
     columns: _columns(),
     selectionEnabled: selectionEnabled,
-    showCrosshair: showCrosshair,
     focused: focused,
-    styles: styles,
   )..insertRows(_rows(rowCount), 0);
   return model;
 }
 
 void main() {
   group('TableView anatomy styling', () {
-    test('showCrosshair defaults to false', () {
-      final model = _model();
-      expect(model.showCrosshair, isFalse);
-    });
-
     group("wash preserves each cell's own foreground", () {
       test('cursor row wash does not clobber a custom render fg', () {
         final model = _model()
@@ -106,11 +105,11 @@ void main() {
       });
 
       test('crosshair column wash also preserves fg', () {
-        final model = _model(showCrosshair: true)
+        final model = _model()
           ..update(const KeyMsg('down')) // cursorRow = 1
           ..update(const KeyMsg('right')); // cursorCol = 1 ("b")
 
-        final buffer = renderBuffer(model, width: 11, height: 5);
+        final buffer = renderBuffer(model, width: 11, height: 5, showCrosshair: true);
 
         // Row 0, column "a" (x=0, y=1): not the cursor row, and column "a"
         // is not the cursor column either — should be untouched.
@@ -139,11 +138,11 @@ void main() {
       });
 
       test('the same cell is washed once showCrosshair is turned on', () {
-        final model = _model(showCrosshair: true)
+        final model = _model()
           ..update(const KeyMsg('down'))
           ..update(const KeyMsg('right'));
 
-        final buffer = renderBuffer(model, width: 11, height: 5);
+        final buffer = renderBuffer(model, width: 11, height: 5, showCrosshair: true);
         final cell = buffer[(x: 6, y: 1)];
         expect(cell.bg, equals(Theme.dark.cursor.color));
       });
@@ -239,12 +238,12 @@ void main() {
         const override = Style(fg: Color.green, bg: Color.blue);
         // Select row 0, then move the cursor away so row 0 is selected but
         // not also the cursor row (which would layer a wash on top).
-        final model = _model(selectionEnabled: true, styles: const TableViewStyle(selectedRow: override))
+        final model = _model(selectionEnabled: true)
           ..update(const KeyMsg('space'))
           ..update(const KeyMsg('down'))
           ..update(const KeyMsg('down'));
 
-        final buffer = renderBuffer(model, width: 11, height: 5);
+        final buffer = renderBuffer(model, width: 11, height: 5, style: const TableViewStyle(selectedRow: override));
         final cell = buffer[(x: 6, y: 1)]; // column "b", no custom fg to fight with
 
         expect(cell.fg, equals(Color.green));
@@ -253,9 +252,9 @@ void main() {
 
       test('an explicit header style wins outright', () {
         const override = Style(fg: Color.yellow);
-        final model = _model(styles: const TableViewStyle(header: override));
+        final model = _model();
 
-        final buffer = renderBuffer(model, width: 11, height: 5);
+        final buffer = renderBuffer(model, width: 11, height: 5, style: const TableViewStyle(header: override));
         final header = buffer[(x: 0, y: 0)];
 
         expect(header.fg, equals(Color.yellow));
@@ -267,13 +266,50 @@ void main() {
         // Column "a" has its own explicit red fg from its render callback,
         // which always wins over any cell-level style — move the cursor to
         // column "b" so the override is the only fg in play.
-        final model = _model(styles: const TableViewStyle(cursorCell: override))..update(const KeyMsg('right'));
+        final model = _model()..update(const KeyMsg('right'));
 
-        final buffer = renderBuffer(model, width: 11, height: 5);
+        final buffer = renderBuffer(model, width: 11, height: 5, style: const TableViewStyle(cursorCell: override));
         final cell = buffer[(x: 6, y: 1)];
 
         expect(cell.fg, equals(Color.white));
         expect(cell.bg, equals(Color.magenta));
+      });
+    });
+
+    group('a column style resolves at paint', () {
+      TableViewModel modelWithColumnStyle(Style Function(StyleResolver resolver) style) {
+        final columns = [
+          TableColumn(field: 'a', label: Line('A'), width: 5, style: style),
+          TableColumn(field: 'b', label: Line('B'), width: 5),
+        ];
+        return TableViewModel(rows: _rows(4), keyField: 'id', columns: columns)..insertRows(_rows(4), 0);
+      }
+
+      test('a column style paints the tone and follows a theme switch', () {
+        final model = modelWithColumnStyle((r) => r.ink(r.tones.success));
+
+        // Row index 1 (screen y=2): neither the cursor row nor selected, so
+        // only the row base and the column's own style land on it.
+        final darkCell = renderBuffer(model, width: 11, height: 5)[(x: 0, y: 2)];
+        expect(darkCell.fg, equals(Theme.dark.success.color));
+
+        final lightCell = renderBuffer(model, width: 11, height: 5, theme: Theme.light)[(x: 0, y: 2)];
+        expect(lightCell.fg, equals(Theme.light.success.color));
+      });
+
+      test('a column style that sets only a foreground keeps the row slot background', () {
+        const rowStyle = Style(bg: Color.blue);
+        final model = modelWithColumnStyle((r) => r.ink(r.tones.success));
+
+        final cell = renderBuffer(
+          model,
+          width: 11,
+          height: 5,
+          style: const TableViewStyle(row: rowStyle),
+        )[(x: 0, y: 2)];
+
+        expect(cell.fg, equals(Theme.dark.success.color));
+        expect(cell.bg, equals(Color.blue));
       });
     });
   });

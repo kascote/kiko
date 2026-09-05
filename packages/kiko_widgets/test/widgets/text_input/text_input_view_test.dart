@@ -233,14 +233,17 @@ void main() {
     });
 
     test('applies style.fill to fill characters', () {
-      final model = TextInputModel(
-        initial: 'ab',
-        fillChar: '_',
-        style: const TextInputStyle(
-          fill: Style(fg: Color.red, bg: Color.blue),
-        ),
-      );
-      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final model = TextInputModel(initial: 'ab', fillChar: '_');
+      final frame = _frame(10, 1)
+        ..render(
+          TextInput(
+            model: model,
+            theme: Theme.dark,
+            style: const TextInputStyle(
+              fill: Style(fg: Color.red, bg: Color.blue),
+            ),
+          ),
+        );
 
       // Text cells should have default style.
       expect(frame.buffer[(x: 0, y: 0)].fg, isNot(equals(Color.red)));
@@ -263,23 +266,30 @@ void main() {
     });
 
     test('applies style.placeholder to placeholder text', () {
-      final model = TextInputModel(
-        placeholder: 'Type here',
-        style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
-      );
-      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final model = TextInputModel(placeholder: 'Type here');
+      final frame = _frame(10, 1)
+        ..render(
+          TextInput(
+            model: model,
+            theme: Theme.dark,
+            style: const TextInputStyle(placeholder: Style(fg: Color.gray)),
+          ),
+        );
 
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('T'));
       expect(frame.buffer[(x: 0, y: 0)].fg, equals(Color.gray));
     });
 
     test('applies style.obscured to obscured text', () {
-      final model = TextInputModel(
-        initial: 'secret',
-        obscureText: true,
-        style: const TextInputStyle(obscured: Style(fg: Color.yellow)),
-      );
-      final frame = _frame(10, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final model = TextInputModel(initial: 'secret', obscureText: true);
+      final frame = _frame(10, 1)
+        ..render(
+          TextInput(
+            model: model,
+            theme: Theme.dark,
+            style: const TextInputStyle(obscured: Style(fg: Color.yellow)),
+          ),
+        );
 
       // Uses the obscured style, not the plain text style.
       expect(frame.buffer[(x: 0, y: 0)].symbol, equals('•'));

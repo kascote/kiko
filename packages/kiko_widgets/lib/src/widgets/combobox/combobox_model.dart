@@ -6,7 +6,7 @@ import '../list_view/list_view_model.dart';
 import '../list_view/types.dart';
 import '../popup/popup_placed.dart';
 import '../popup/popup_placement.dart';
-import '../text_input_model.dart';
+import '../text_input/text_input_model.dart';
 import 'types.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -109,10 +109,6 @@ class ComboboxModel<T> implements Component {
   /// Placeholder text shown in the field when it is empty.
   final String placeholder;
 
-  /// Anatomy overrides for the toggle and the popup background. Mutable so
-  /// an app can swap the look at runtime, the way it flips [focused].
-  ComboboxStyle styles;
-
   /// The popup's held placement decision, or null while closed.
   ///
   /// The popup's paint reports a [PopupPlaced] whenever it decides a
@@ -167,7 +163,6 @@ class ComboboxModel<T> implements Component {
     T? value,
     this.maxVisibleRows = 5,
     this.placeholder = '',
-    this.styles = const ComboboxStyle(),
     bool focused = false,
   }) : matches = matches ?? _defaultMatches(label),
        _options = options == null ? null : List<T>.of(options),

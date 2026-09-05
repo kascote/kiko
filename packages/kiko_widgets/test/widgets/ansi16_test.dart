@@ -87,11 +87,10 @@ void main() {
           TableColumn(field: 'b', label: Line('B'), width: 3),
         ],
         focused: true,
-        showCrosshair: true,
       );
       // cursorRow == 0, cursorCol == 0 on a fresh model.
       final buffer = canvas(7, 4); // header + 3 rows; col a (0-2), sep (3), col b (4-6)
-      TableRenderer(model, Theme.dark, null).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, Theme.dark, null, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
 
       final cursorCell = buffer[(x: 0, y: 1)]; // row 0, col a — the exact cursor cell
       expect(cursorCell.fg, equals(tones.cursor.on));

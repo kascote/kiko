@@ -73,9 +73,6 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// Character for loading node indicator.
   final String loadingChar;
 
-  /// Style for expand/collapse/loading indicators.
-  final Style? indicatorStyle;
-
   /// Whether nodes display icons.
   final bool showIcons;
 
@@ -89,10 +86,6 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// with nothing on the way — a refused load ([SliceStatus.stalled]).
   final Line stalledIndicator;
 
-  /// Anatomy overrides. Mutable so an app can swap in a custom look at runtime,
-  /// the way it flips [focused].
-  TreeViewStyle styles;
-
   /// Key bindings for tree actions.
   late final KeyBinding<TreeViewAction> keyBinding;
 
@@ -102,12 +95,10 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     this.expandedChar = '▼',
     this.collapsedChar = '▶',
     this.loadingChar = '◌',
-    this.indicatorStyle,
     this.showIcons = false,
     Line? loadingIndicator,
     Line? errorIndicator,
     Line? stalledIndicator,
-    this.styles = const TreeViewStyle(),
     this.focused = false,
     KeyBinding<TreeViewAction>? keyBinding,
   }) : id = id ?? autoId('treeview'),

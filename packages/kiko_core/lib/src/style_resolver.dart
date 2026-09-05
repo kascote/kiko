@@ -222,13 +222,6 @@ class StyleResolver {
           PaintClass.wash => null,
         };
 
-      case WidgetState.unfocused:
-        return switch (cls) {
-          PaintClass.ink => ink(tones.muted),
-          PaintClass.fill => ink(tones.muted).patch(wash(tones.surface)),
-          PaintClass.wash => null,
-        };
-
       case WidgetState.loading:
         return switch (cls) {
           PaintClass.ink || PaintClass.fill => ink(tones.warning).incModifier(Modifier.slowBlink),

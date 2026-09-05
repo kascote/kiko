@@ -140,12 +140,6 @@ void main() {
       expect(s.addModifier.has(Modifier.slowBlink), isTrue);
     });
 
-    test('unfocused reads through the muted named color, its wash dropped', () {
-      final s = resolver.resolve(null, {WidgetState.unfocused});
-      expect(s.fg, equals(derived.muted.color));
-      expect(s.bg, isNull, reason: 'the surface wash has nothing left to contribute under ansi16');
-    });
-
     test('a hand-authored table can still collapse two states onto the same named color — the '
         'modifier is what tells them apart, same as NO_COLOR', () {
       // Theme.ansiDark hand-authors muted and disabled as the SAME named
@@ -154,13 +148,13 @@ void main() {
       // modifier floor — verified here against a real built-in table, not a
       // constructed one.
       final ansiDarkResolver = StyleResolver(Theme.ansiDark, policy: RenderPolicy.ansi16);
-      final unfocused = ansiDarkResolver.resolve(null, {WidgetState.unfocused});
+      final muted = ansiDarkResolver.ink(ansiDarkResolver.tones.muted);
       final disabled = ansiDarkResolver.resolve(null, {WidgetState.disabled});
 
-      expect(unfocused.fg, equals(disabled.fg), reason: 'ansiDark hand-authors both as darkGray');
-      expect(unfocused.addModifier.has(Modifier.dim), isFalse);
+      expect(muted.fg, equals(disabled.fg), reason: 'ansiDark hand-authors both as darkGray');
+      expect(muted.addModifier.has(Modifier.dim), isFalse);
       expect(disabled.addModifier.has(Modifier.dim), isTrue);
-      expect(unfocused, isNot(equals(disabled)), reason: 'the dim modifier is the only thing telling them apart');
+      expect(muted, isNot(equals(disabled)), reason: 'the dim modifier is the only thing telling them apart');
     });
 
     test('the border helper stays colored at rest and gains bold while focused', () {

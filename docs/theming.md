@@ -196,7 +196,6 @@ enum WidgetState {
   selected,   // it is in the chosen set
   cursor,     // it is the current item (keyboard cursor position)
   focused,    // the widget owns keyboard input
-  unfocused,  // its container lost focus (dim)
   loading,    // async in flight
   error,      // invalid / failed
   disabled,   // non-interactive — overrides everything
@@ -271,7 +270,6 @@ not affect that class; modifiers ride on top of the projection.
 | `selected`  | `selection` | `selection.ink`           | `selection.fill`             | `selection.wash` |
 | `cursor`    | `cursor`    | —                         | `cursor.fill` + bold         | `cursor.wash`    |
 | `focused`   | `focus`     | `focus.ink` + bold        | `focus.fill` + bold          | —                |
-| `unfocused` | `muted`     | `muted.ink`               | `muted.ink` + `surface.wash` | —                |
 | `loading`   | `warning`   | `warning.ink` + slowBlink | 〃                           | —                |
 | `error`     | `error`     | `error.ink`               | `error.fill`                 | `error.wash`     |
 | `disabled`  | `disabled`  | `disabled.ink` + dim      | 〃                           | —                |
@@ -300,9 +298,9 @@ what the library itself does.
 | `warning`    | loading-state chrome, blinking                        |
 | `success`    | nothing — app content only                            |
 | `background` | the app base; `background.on` is the default text     |
-| `surface`    | popups and dialogs; the unfocused wash                |
+| `surface`    | popups and dialogs                                    |
 | `border`     | every resting border                                  |
-| `muted`      | placeholders, secondary text, unfocused text          |
+| `muted`      | placeholders, secondary text                          |
 | `disabled`   | disabled items and chrome, dim                        |
 | `focus`      | focused borders and faces, bold                       |
 | `selection`  | selected items as fill; a selected border as ink      |

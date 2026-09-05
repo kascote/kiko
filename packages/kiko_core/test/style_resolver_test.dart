@@ -74,18 +74,6 @@ void main() {
       expect(resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.wash), base);
     });
 
-    test('unfocused: muted ink, and muted fg over surface wash for fill', () {
-      final ink = resolver.resolve(base, {WidgetState.unfocused}, cls: PaintClass.ink);
-      expect(ink.fg, theme.muted.color);
-      expect(ink.bg, base.bg);
-
-      final fill = resolver.resolve(base, {WidgetState.unfocused});
-      expect(fill.fg, theme.muted.color);
-      expect(fill.bg, theme.surface.color);
-
-      expect(resolver.resolve(base, {WidgetState.unfocused}, cls: PaintClass.wash), base);
-    });
-
     test('loading: warning ink + slowBlink for ink and fill', () {
       for (final cls in [PaintClass.ink, PaintClass.fill]) {
         final r = resolver.resolve(base, {WidgetState.loading}, cls: cls);

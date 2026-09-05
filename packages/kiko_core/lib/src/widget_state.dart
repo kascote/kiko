@@ -17,9 +17,6 @@ enum WidgetState {
   /// The widget owns keyboard input.
   focused,
 
-  /// The widget's container lost focus (dimmed).
-  unfocused,
-
   /// The widget is performing an async operation.
   loading,
 

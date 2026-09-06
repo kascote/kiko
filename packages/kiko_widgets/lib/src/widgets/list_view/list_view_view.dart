@@ -137,10 +137,11 @@ class _ListViewport<T, K> extends Node {
       if (placeholder != null) {
         paintLine(
           surface,
-          placeholder.patchStyle(_placeholderStyle()),
+          placeholder,
           x: area.x,
           y: area.y,
           width: area.width,
+          base: _placeholderStyle(),
           measurer: _measurer,
         );
       }
@@ -211,9 +212,17 @@ class _ListViewport<T, K> extends Node {
         // an item, so a dim run stands in on each of its lines. Short of the
         // full width, so the run reads as content pending, not content.
         final runWidth = itemArea.width <= 2 ? itemArea.width : (itemArea.width * 3) ~/ 4;
-        final run = Line('░' * runWidth).patchStyle(_pendingStyle());
+        final run = Line('░' * runWidth);
         for (var li = 0; li < itemArea.height; li++) {
-          paintLine(surface, run, x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
+          paintLine(
+            surface,
+            run,
+            x: itemArea.x,
+            y: itemArea.y + li,
+            width: itemArea.width,
+            base: _pendingStyle(),
+            measurer: _measurer,
+          );
         }
       } else {
         // A held item builds its rows; an unheld one builds the caller's

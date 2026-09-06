@@ -47,7 +47,7 @@ final class Checkbox implements View {
     const gap = Text(' ');
 
     final box = Row(children: model.labelFirst ? [gap, open, mark, close] : [open, mark, close, gap]);
-    final label = model.label.patchStyle(styles.label);
+    final label = model.label.over(styles.label);
 
     return Container(
       ground: styles.rowGround,

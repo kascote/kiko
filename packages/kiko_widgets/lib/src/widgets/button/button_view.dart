@@ -24,7 +24,9 @@ import 'types.dart';
 /// `resolver.fill(primary)` — a button is a primary action by default. Its
 /// states then ride the built-in state × class matrix (via [StyleResolver]):
 /// focused → `resolver.fill(focus)` + bold, loading → warning ink + slow
-/// blink, disabled → dim.
+/// blink, disabled → dim. The face paints as the row's ground, so
+/// [ButtonModel.label] and [ButtonModel.loadingText] paint over it: a label
+/// with its own foreground keeps it on the face, in any state.
 final class Button implements View {
   /// Creates a button over [model], styled by [theme].
   const Button({required this.model, required this.theme, this.style = const ButtonStyle()});
@@ -41,8 +43,8 @@ final class Button implements View {
   @override
   Node build() {
     final resolvedStyle = _resolveStyle(model, theme, style);
-    final label = model.label.patchStyle(resolvedStyle);
-    final loadingText = model.loadingText.patchStyle(resolvedStyle);
+    final label = model.label;
+    final loadingText = model.loadingText;
     // Both are laid out every frame, so the stack always sizes to the larger
     // of the two; only the active one paints, the other sits offstage. The
     // stack's default top-left alignment is what start-aligns the shorter

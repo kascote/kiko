@@ -103,10 +103,11 @@ class TableRenderer {
       if (placeholder != null) {
         paintLine(
           surface,
-          placeholder.patchStyle(_placeholderStyle()),
+          placeholder,
           x: area.x,
           y: area.y + headerHeight,
           width: area.width,
+          base: _placeholderStyle(),
           measurer: measurer,
         );
       }
@@ -184,10 +185,11 @@ class TableRenderer {
       if (i > 0 && sepWidth > 0) {
         paintLine(
           surface,
-          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          Line.fromTexts([sep]),
           x: x,
           y: y,
           width: sepWidth,
+          base: _separatorStyle(),
           measurer: measurer,
         );
         x += sepWidth;
@@ -199,7 +201,7 @@ class TableRenderer {
       // Render header cell
       final line = _truncateLine(col.label, col.width, model.ellipsis);
       final aligned = _alignLine(line, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(headerStyle), x: x, y: y, width: col.width, measurer: measurer);
+      paintLine(surface, aligned, x: x, y: y, width: col.width, base: headerStyle, measurer: measurer);
 
       x += col.width;
     }
@@ -218,10 +220,11 @@ class TableRenderer {
     if (builder != null) {
       paintLine(
         surface,
-        builder(rowIndex).patchStyle(pendingStyle),
+        builder(rowIndex),
         x: area.x,
         y: area.y,
         width: area.width,
+        base: pendingStyle,
         measurer: measurer,
       );
       return;
@@ -234,10 +237,11 @@ class TableRenderer {
       if (i > 0 && sepWidth > 0) {
         paintLine(
           surface,
-          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          Line.fromTexts([sep]),
           x: x,
           y: area.y,
           width: sepWidth,
+          base: _separatorStyle(),
           measurer: measurer,
         );
         x += sepWidth;
@@ -248,10 +252,11 @@ class TableRenderer {
       final runWidth = col.width <= 2 ? col.width : (col.width * 3) ~/ 4;
       paintLine(
         surface,
-        Line('░' * runWidth).patchStyle(pendingStyle),
+        Line('░' * runWidth),
         x: x,
         y: area.y,
         width: col.width,
+        base: pendingStyle,
         measurer: measurer,
       );
       x += col.width;
@@ -267,9 +272,12 @@ class TableRenderer {
   /// selected, then the crosshair washes ([_cursorRowStyle] always,
   /// [_cursorColumnStyle] only when [showCrosshair] is on) if the
   /// cell is on the cursor's row/column, then [_cursorCellStyle] (a fill) if this
-  /// is the exact cursor cell — patched last, so it wins outright. Each wash is a
-  /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
-  /// a custom [TableColumn.render]) already painted untouched.
+  /// is the exact cursor cell. Each wash is a bg-only [Style], so [Style.patch]
+  /// leaves whatever foreground the row (or a custom [TableColumn.render])
+  /// already painted untouched. This whole stack goes into `paintLine` as
+  /// `base`, never patched onto the cell's content: the cell's content
+  /// patches last, so a line-level or span-level color a column paints always
+  /// wins over the row's own state.
   void _renderRow(
     Surface surface,
     Rect area,
@@ -290,10 +298,11 @@ class TableRenderer {
       if (colIdx > 0 && sepWidth > 0) {
         paintLine(
           surface,
-          Line.fromTexts([sep]).patchStyle(_separatorStyle()),
+          Line.fromTexts([sep]),
           x: x,
           y: area.y,
           width: sepWidth,
+          base: _separatorStyle(),
           measurer: measurer,
         );
         x += sepWidth;
@@ -330,7 +339,7 @@ class TableRenderer {
       final line = col.render?.call(ctx) ?? _defaultRender(value, col);
       final truncated = _truncateLine(line, col.width, model.ellipsis);
       final aligned = _alignLine(truncated, col.width, col.alignment);
-      paintLine(surface, aligned.patchStyle(cellStyle), x: x, y: area.y, width: col.width, measurer: measurer);
+      paintLine(surface, aligned, x: x, y: area.y, width: col.width, base: cellStyle, measurer: measurer);
 
       x += col.width;
     }

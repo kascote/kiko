@@ -138,6 +138,26 @@ void main() {
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
+    test('a label with its own foreground keeps it on a focused face', () {
+      final resolver = StyleResolver(Theme.dark);
+      final expectedFill = resolver.fill(resolver.tones.focus);
+      final frame = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(
+              id: 'ok',
+              label: Line('OK', style: const Style(fg: Color.red)),
+              focused: true,
+            ),
+            theme: Theme.dark,
+          ),
+        );
+
+      final cell = frame.buffer[(x: 1, y: 0)]; // the 'O'
+      expect(cell.fg, equals(Color.red), reason: "the label's own color wins over the focused face");
+      expect(cell.bg, equals(expectedFill.bg));
+    });
+
     test('a theme switch with no change to style repaints the default face from the new theme', () {
       final darkFrame = _frame(4, 1)
         ..render(

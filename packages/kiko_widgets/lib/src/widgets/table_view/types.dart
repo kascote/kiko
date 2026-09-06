@@ -180,10 +180,12 @@ class TableScrollState {
 ///
 /// Per-cell paint order is: row base, then `selectedRow` (a fill), then
 /// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each
-/// cell's own foreground untouched), then `cursorCell` (a fill, which wins
-/// outright since it patches last). The crosshair (`cursorColumn`) only
-/// paints when `TableView.showCrosshair` is true; a slot's presence
-/// styles a part, it never turns on the behavior that paints it.
+/// cell's own foreground untouched), then `cursorCell` (a fill, patched
+/// last among the slots). The crosshair (`cursorColumn`) only paints when
+/// `TableView.showCrosshair` is true; a slot's presence styles a part, it
+/// never turns on the behavior that paints it. The cell's content — the
+/// column's rendered [Line] and its spans — patches last of all, over every
+/// slot above.
 class TableViewStyle {
   /// Sticky header text.
   final Style? header;

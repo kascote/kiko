@@ -161,6 +161,15 @@ A **ground** is the style an area's cells hold before content paints on
 them. Set it once per area. Paint content on top with a half-null `Style`;
 the unset half inherits the ground already in the cell.
 
+The style a cell ends up with is a chain, four layers deep: the ground,
+then a widget's slot or state style, then a line's own style, then a
+span's style. Each layer patches the one before it, so a null half always
+falls through to what the layer below already holds. A widget hands its
+slot or state style to `paintLine` as `base`, or, where it builds the line
+itself, patches the line's own style over that base with `Line.over`. It
+never patches a slot or a state onto content — content always patches
+last, so a line or a span keeps its own color through every state.
+
 `Cell.setCell` and `Cell.setStyle` patch a cell instead of replacing it, so
 a null half falls through to the ground underneath. `Buffer.operator []=`
 replaces the whole cell instead, so a raw `Cell` written that way inherits
@@ -557,7 +566,9 @@ Notes the table cannot carry:
   `showCrosshair` on the view, not by slot presence: a slot styles a part,
   it does not create the behavior. A cell paints base → the column's own
   style (`TableColumn.style`, resolved at paint) → hover → selectedRow →
-  cursorRow/cursorColumn → cursorCell, each patched over the last. The
+  cursorRow/cursorColumn → cursorCell, each patched over the last. That
+  whole chain is the `base` the cell's content paints over, so the cell's
+  content — the column's rendered line and its spans — patches last. The
   exemplar — copy its shape.
 - **TreeView** — the expand, collapse, and loading glyph is the
   `indicator` slot; the default node builder paints the glyph and reads

@@ -60,6 +60,21 @@ void main() {
       expect(line3, line2);
     });
 
+    test('over', () {
+      final line = Line.fromTexts(const [
+        Text('foo', style: Style(fg: Color.red)),
+      ], style: const Style(fg: Color.green));
+
+      final result = line.over(const Style(fg: Color.yellow, bg: Color.blue));
+
+      expect(
+        result.style,
+        const Style(fg: Color.green, bg: Color.blue),
+        reason: "the line's own fg wins, the base's bg falls through",
+      );
+      expect(result.texts, line.texts);
+    });
+
     test('reset style', () {
       final line = Line(
         'foobar',

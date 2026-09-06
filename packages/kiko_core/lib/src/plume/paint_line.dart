@@ -10,10 +10,12 @@ import 'text_flatten.dart';
 ///
 /// This is what a self-painting viewport (a data widget's visible row) calls
 /// to draw its content through the plume paint protocol — [plume.Surface] —
-/// instead of the retired `Widget.render` buffer bridge. The style chain
-/// resolves as [base] ▸ the line's own style ▸ each span's style. The viewport
-/// owns the row's rect, so it also owns placement: [align] positions the line
-/// within [width], defaulting to the start.
+/// instead of the retired `Widget.render` buffer bridge. The style chain is
+/// four deep: the cell's ground, then [base], then the line's own style, then
+/// each span's style, each patching the one before it. A caller hands its
+/// slot or state style to [base]; it never patches that style onto [line]
+/// itself. The viewport owns the row's rect, so it also owns placement:
+/// [align] positions the line within [width], defaulting to the start.
 ///
 /// [skipColumns] is a horizontal scroll offset (see plume's `paintRuns`) —
 /// meant for left-aligned, single-line scrolling content such as a text

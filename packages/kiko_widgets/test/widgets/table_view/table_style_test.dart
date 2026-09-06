@@ -185,6 +185,27 @@ void main() {
         expect(cursorCell.bg, equals(Theme.dark.cursor.color));
         expect(cursorCell.modifier.has(Modifier.bold), isTrue);
       });
+
+      test('a line-level color survives the cursor cell fill', () {
+        final columns = [
+          TableColumn(
+            field: 'a',
+            label: Line('A'),
+            width: 5,
+            render: (ctx) => Line(ctx.value.toString(), style: const Style(fg: Color.red)),
+          ),
+          TableColumn(field: 'b', label: Line('B'), width: 5),
+        ];
+        final model = TableViewModel(rows: _rows(4), keyField: 'id', columns: columns)..insertRows(_rows(4), 0);
+
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        // Row 0, column "a" (x=0, y=1) is the cursor cell by default: the
+        // line's own red fg must survive the fill, which supplies only the bg.
+        final cell = buffer[(x: 0, y: 1)];
+        expect(cell.fg, equals(Color.red), reason: "the line's own color wins over the cursor cell fill");
+        expect(cell.bg, equals(Theme.dark.cursor.color));
+      });
     });
 
     group('header and separator derivation', () {
@@ -203,6 +224,29 @@ void main() {
 
         expect(buffer[(x: 5, y: 0)].fg, equals(Theme.dark.border.color));
         expect(buffer[(x: 5, y: 1)].fg, equals(Theme.dark.border.color));
+      });
+
+      test('a colored header label survives a colored header slot', () {
+        final columns = [
+          TableColumn(
+            field: 'a',
+            label: Line('A', style: const Style(fg: Color.red)),
+            width: 5,
+          ),
+          TableColumn(field: 'b', label: Line('B'), width: 5),
+        ];
+        final model = TableViewModel(rows: _rows(4), keyField: 'id', columns: columns)..insertRows(_rows(4), 0);
+
+        final buffer = renderBuffer(
+          model,
+          width: 11,
+          height: 5,
+          style: const TableViewStyle(header: Style(bg: Color.blue)),
+        );
+        final header = buffer[(x: 0, y: 0)];
+
+        expect(header.fg, equals(Color.red), reason: "the label's own color wins over the header slot");
+        expect(header.bg, equals(Color.blue));
       });
     });
 

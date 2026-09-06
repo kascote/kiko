@@ -123,6 +123,20 @@ void main() {
       expect(_dump((_frame(9, 1)..render(node)).buffer), '(empty)\n');
     });
 
+    test('an emptyPlaceholder with its own foreground keeps it over the placeholder slot', () {
+      final node = ListView<String, String>(
+        model: _list(<String>[]),
+        theme: Theme.dark,
+        itemBuilder: _row,
+        style: const ListViewStyle(placeholder: Style(bg: Color.blue)),
+        emptyPlaceholder: Line('(empty)', style: const Style(fg: Color.red)),
+      );
+      final cell = (_frame(9, 1)..render(node)).buffer[(x: 0, y: 0)];
+
+      expect(cell.fg, equals(Color.red), reason: "the placeholder's own color wins over the slot");
+      expect(cell.bg, equals(Color.blue));
+    });
+
     test('paints real row content through a RecordingSurface, not a hole', () {
       // The row body used to gate on `surface is BufferSurface`, so a golden
       // taken through plume's own RecordingSurface saw a border and nothing

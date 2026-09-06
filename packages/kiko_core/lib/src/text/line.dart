@@ -76,6 +76,14 @@ class Line implements View {
   /// modifiers to this Line's style.
   Line patchStyle(Style newStyle) => Line._(_texts, style.patch(newStyle));
 
+  /// Patches this line's own style over [base], so the line wins.
+  ///
+  /// Use this where a widget cannot paint through `paintLine(base:)` and must
+  /// build a [Line] that already carries the surrounding slot or state style
+  /// underneath its own. It is the inverse of [patchStyle]: there, the
+  /// argument wins; here, the line does.
+  Line over(Style base) => Line._(_texts, base.patch(style));
+
   /// Resets the style of this Line to the default style.
   Line resetStyle() => Line._(_texts, style.patch(const Style.reset()));
 

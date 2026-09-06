@@ -227,7 +227,7 @@ final class Combobox<T> implements View {
       base = base.patch(_resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
     }
     if (label == null) return Line(fallback, style: base);
-    return Line.fromTexts(label.texts.toList(), style: base.patch(label.style));
+    return label.over(base);
   }
 
   List<Line> _defaultItemBuilder(T item, int index, ItemState state) => [Line(model.label(item))];

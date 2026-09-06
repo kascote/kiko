@@ -140,10 +140,11 @@ class _TreeViewport<T> extends Node {
       if (placeholder != null) {
         paintLine(
           surface,
-          placeholder.patchStyle(_placeholderStyle()),
+          placeholder,
           x: area.x,
           y: area.y,
           width: area.width,
+          base: _placeholderStyle(),
           measurer: _measurer,
         );
       }
@@ -242,9 +243,9 @@ class _TreeViewport<T> extends Node {
   }
 
   /// Builds the row for a placeholder node: no expand glyph — a blank run the
-  /// width of one, the same as a leaf gets — then the matching label patched
-  /// over the [_placeholderStyle] base, with an `error` × `ink` patch first on
-  /// a failed row.
+  /// width of one, the same as a leaf gets — then the matching label over the
+  /// [_placeholderStyle] base, with an `error` × `ink` patch first on a failed
+  /// row.
   Line _placeholderLine(SliceStatus status) {
     var base = _placeholderStyle();
     if (status == SliceStatus.failed) {
@@ -256,7 +257,7 @@ class _TreeViewport<T> extends Node {
       SliceStatus.stalled => stalledLabel ?? Line('Not loaded'),
       SliceStatus.ready => throw StateError('a placeholder node is never SliceStatus.ready'),
     };
-    return Line.fromTexts([const Text('  '), ...label.texts], style: base.patch(label.style));
+    return Line.fromTexts([const Text('  '), ...label.texts], style: label.style).over(base);
   }
 
   // ─────────────────────────────────────────────

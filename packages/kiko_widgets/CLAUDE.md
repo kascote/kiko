@@ -37,6 +37,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Never paint a `Tone` directly — project it with `.ink`/`.fill`/`.wash`; route every style through `StyleResolver`; never handle NO_COLOR or ANSI-16 yourself (`docs/theming.md`).
 - The keyboard-current item is `WidgetState.cursor` — never borrow `focused` or `hover` for it (`docs/theming.md`).
 - A model never holds a resolved `Style`: anatomy is a view parameter, and a column's style is a function of the resolver (`docs/theming.md`).
+- Content patches over the widget's base: hand a slot or state style to `paintLine` as `base` or through `Line.over`; never `patchStyle` it onto content (`docs/theming.md`).
 
 ## Documentation map
 

@@ -486,6 +486,10 @@ ANSI-16 and NO_COLOR like any other theme:
 Button(model: model.delete, theme: theme.copyWith(focus: theme.error))
 ```
 
+`copyWith` drops a hand-authored `tones16` table when a tone changes, so the
+resolver derives the variant's ANSI-16 table from the new tones. Pass
+`tones16` to the same call to keep a hand-authored table in control.
+
 ## Degradation: three tiers of color fidelity
 
 A theme is authored once, in RGB, for every terminal. What changes from

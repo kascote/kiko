@@ -152,6 +152,37 @@ void main() {
         expect(theme.background, equals(Theme.ansiDark.background));
       });
 
+      test('changing no tone keeps the hand-authored ANSI-16 table', () {
+        expect(Theme.dark.copyWith().tones16, same(Theme.dark.tones16));
+        expect(Theme.dark.copyWith(hover: const Tone(color: Color.blue)).tones16, same(Theme.dark.tones16));
+      });
+
+      test('changing a tone drops the hand-authored ANSI-16 table', () {
+        expect(Theme.dark.copyWith(focus: Theme.dark.error).tones16, isNull);
+        expect(
+          Theme.dark
+              .copyWith(
+                cursor: const SurfaceTone(color: Color.blue, on: Color.white),
+              )
+              .tones16,
+          isNull,
+        );
+      });
+
+      test('a passed table stays in control when a tone changes', () {
+        final theme = Theme.dark.copyWith(focus: Theme.dark.error, tones16: Theme.light.tones16);
+        expect(theme.tones16, same(Theme.light.tones16));
+      });
+
+      test('a variant paints its changed tone under ANSI-16', () {
+        final variant = Theme.dark.copyWith(focus: Theme.dark.error);
+        final resolver = StyleResolver(variant, policy: RenderPolicy.ansi16);
+        final focused = resolver.resolve(null, const {WidgetState.focused}, cls: PaintClass.fill);
+
+        expect(focused.bg, equals(resolver.tones.error.color));
+        expect(focused.bg, isNot(equals(Theme.dark.tones16!.focus.color)));
+      });
+
       test('renaming to selection replaces the old highlight token', () {
         const custom = SurfaceTone(color: Color.blue, on: Color.white);
         final theme = Theme.dark.copyWith(selection: custom);

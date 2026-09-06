@@ -387,7 +387,7 @@ class Theme implements ToneSet {
     border: Tone(color: Color.rgb(0x3a2e1e)),
     muted: Tone(color: Color.rgb(0x4A3F30)),
     disabled: Tone(color: Color.rgb(0x57492a)),
-    focus: SurfaceTone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)),
+    focus: SurfaceTone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)), // 6c5638
     selection: SurfaceTone(color: Color.rgb(0x4a3a1e), on: Color.rgb(0xf2d9a5)),
     // cursor, hover: derived washes over background.
     //
@@ -418,8 +418,13 @@ class Theme implements ToneSet {
   /// Creates a copy of this theme with the given tones replaced.
   ///
   /// Passing `null` for [cursor] or [hover] keeps this theme's current
-  /// value (explicit or derived); to override them, pass a tone. Passing
-  /// `null` for [tones16] likewise keeps this theme's current table.
+  /// value (explicit or derived); to override them, pass a tone.
+  ///
+  /// The ANSI-16 table follows the tones. When a tone other than [hover]
+  /// changes and no [tones16] is passed, the copy carries no table, so the
+  /// resolver derives one from the new tones ([Ansi16Tones.derive]). Pass
+  /// [tones16] to keep a hand-authored table in control. A copy that changes
+  /// no tone keeps this theme's table.
   Theme copyWith({
     SurfaceTone? primary,
     SurfaceTone? secondary,
@@ -437,24 +442,42 @@ class Theme implements ToneSet {
     Ansi16Tones? tones16,
     SurfaceTone? cursor,
     Tone? hover,
-  }) => Theme(
-    primary: primary ?? this.primary,
-    secondary: secondary ?? this.secondary,
-    accent: accent ?? this.accent,
-    error: error ?? this.error,
-    warning: warning ?? this.warning,
-    success: success ?? this.success,
-    background: background ?? this.background,
-    surface: surface ?? this.surface,
-    border: border ?? this.border,
-    muted: muted ?? this.muted,
-    disabled: disabled ?? this.disabled,
-    focus: focus ?? this.focus,
-    selection: selection ?? this.selection,
-    tones16: tones16 ?? this.tones16,
-    cursor: cursor ?? _cursor,
-    hover: hover ?? _hover,
-  );
+  }) {
+    final tonesChanged = [
+      primary,
+      secondary,
+      accent,
+      error,
+      warning,
+      success,
+      background,
+      surface,
+      border,
+      muted,
+      disabled,
+      focus,
+      selection,
+      cursor,
+    ].any((tone) => tone != null);
+    return Theme(
+      primary: primary ?? this.primary,
+      secondary: secondary ?? this.secondary,
+      accent: accent ?? this.accent,
+      error: error ?? this.error,
+      warning: warning ?? this.warning,
+      success: success ?? this.success,
+      background: background ?? this.background,
+      surface: surface ?? this.surface,
+      border: border ?? this.border,
+      muted: muted ?? this.muted,
+      disabled: disabled ?? this.disabled,
+      focus: focus ?? this.focus,
+      selection: selection ?? this.selection,
+      tones16: tones16 ?? (tonesChanged ? null : this.tones16),
+      cursor: cursor ?? _cursor,
+      hover: hover ?? _hover,
+    );
+  }
 
   @override
   bool operator ==(Object other) {

@@ -102,7 +102,9 @@ background: `cursor` is `background.color.lift(0.10)` and `hover` is
 `background.color.lift(0.08)`. `lift` lightens on a dark theme and darkens
 on a light one. `lift`, `lighten`, and `darken` are public `Color` methods,
 so themes, anatomy slots, and apps can do their own derivations. A theme
-may set `cursor` and `hover` explicitly instead.
+may set `cursor` and `hover` explicitly instead. An ANSI-16 table
+(`Ansi16Tones`) derives a missing `cursor` from its own `background` by
+the same rule.
 
 `ToneSet` holds the tones that reach paint on every tier. `hover` only
 washes, and a wash is empty under ANSI-16 and NO_COLOR, so `hover` lives

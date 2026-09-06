@@ -83,11 +83,22 @@ class Ansi16Tones implements ToneSet {
   /// The current row/column tint.
   ///
   /// [cursor] paints as a fill in the resolver's state matrix, so it needs a
-  /// named slot here; `hover` never does (see [ToneSet]) and has none.
+  /// named slot here; `hover` never does (see [ToneSet]) and has none. When
+  /// not set explicitly it derives from [background] the same way
+  /// [Theme.cursor] does.
+  ///
+  /// Equality compares the field this table was built with, not the derived
+  /// value, so a table left to derive and one that states the same value by
+  /// hand compare unequal.
   @override
-  final SurfaceTone cursor;
+  SurfaceTone get cursor => _cursor ?? Theme.deriveCursor(background);
+
+  final SurfaceTone? _cursor;
 
   /// Creates a table from its named tones.
+  ///
+  /// [cursor] is optional: leave it out to derive it from [background]
+  /// (see [cursor]).
   const Ansi16Tones({
     required this.primary,
     required this.secondary,
@@ -102,8 +113,8 @@ class Ansi16Tones implements ToneSet {
     required this.disabled,
     required this.focus,
     required this.selection,
-    required this.cursor,
-  });
+    SurfaceTone? cursor,
+  }) : _cursor = cursor;
 
   @override
   bool operator ==(Object other) {
@@ -122,7 +133,7 @@ class Ansi16Tones implements ToneSet {
         other.disabled == disabled &&
         other.focus == focus &&
         other.selection == selection &&
-        other.cursor == cursor;
+        other._cursor == _cursor;
   }
 
   @override
@@ -141,7 +152,7 @@ class Ansi16Tones implements ToneSet {
     disabled,
     focus,
     selection,
-    cursor,
+    _cursor,
   );
 
   // Auto-derived tables, keyed by value. Theme has value equality, so a

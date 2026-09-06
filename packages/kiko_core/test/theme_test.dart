@@ -109,6 +109,10 @@ void main() {
         expect(theme.hover.color, equals(theme.background.color!.lift(0.08)));
       });
 
+      test('deriveCursor matches the getter it backs', () {
+        expect(Theme.deriveCursor(Theme.dark.background), equals(Theme.dark.cursor));
+      });
+
       test('terminal-default background derives an empty cursor that keeps its on', () {
         const theme = Theme(
           primary: SurfaceTone(color: Color.cyan, on: Color.black),

@@ -141,14 +141,20 @@ class Theme implements ToneSet {
 
   /// The current row/column tint.
   ///
-  /// When not set explicitly it is derived as a subtle lift of [background]
-  /// (10%), keeping [background]'s text color as its `on`. Keeps that `on`
-  /// and carries no color when [background] has none (terminal-default
-  /// themes).
+  /// When not set explicitly it is derived from [background] by
+  /// [deriveCursor]. Keeps [background]'s text color as its `on` and
+  /// carries no color when [background] has none (terminal-default themes).
   @override
-  SurfaceTone get cursor {
-    final explicit = _cursor;
-    if (explicit != null) return explicit;
+  SurfaceTone get cursor => _cursor ?? deriveCursor(background);
+
+  /// Derives a cursor tone from a surface tone, when one is not set
+  /// explicitly.
+  ///
+  /// Lifts [background]'s color by 10% and keeps its `on`; carries no color
+  /// when [background] has none. [Theme.cursor] and [Ansi16Tones.cursor]
+  /// both call this, so a theme and its ANSI-16 table derive a missing
+  /// cursor by the same rule.
+  static SurfaceTone deriveCursor(SurfaceTone background) {
     final base = background.color;
     if (base == null) return SurfaceTone(on: background.on);
     return SurfaceTone(color: base.lift(0.10), on: background.on);
@@ -390,7 +396,8 @@ class Theme implements ToneSet {
     // yellow, accent and focus share brightYellow (focus also picks up bold
     // from the resolver's state matrix). Secondary drops to red alongside
     // error — the quieter warm hue — and the grays follow the dark-theme
-    // ordering.
+    // ordering. Cursor is left out, so it derives from background the same
+    // way [Theme.cursor] does.
     tones16: Ansi16Tones(
       primary: SurfaceTone(color: Color.yellow, on: Color.black),
       secondary: SurfaceTone(color: Color.red, on: Color.white),
@@ -405,7 +412,6 @@ class Theme implements ToneSet {
       disabled: Tone(color: Color.darkGray),
       focus: SurfaceTone(color: Color.brightYellow, on: Color.black),
       selection: SurfaceTone(color: Color.yellow, on: Color.black),
-      cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
     ),
   );
 

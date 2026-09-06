@@ -88,6 +88,30 @@ void main() {
       expect(first.error.color, isNotNull);
     });
 
+    test('a transparent background derives with reset passed through unchanged', () {
+      const transparent = Theme(
+        primary: SurfaceTone(color: Color.rgb(0x000000), on: Color.white),
+        secondary: SurfaceTone(color: Color.rgb(0xffffff), on: Color.black),
+        accent: SurfaceTone(color: Color.yellow, on: Color.black),
+        error: SurfaceTone(color: Color.rgb(0xff0000), on: Color.rgb(0x123456)),
+        warning: SurfaceTone(on: Color.rgb(0x123456)),
+        success: SurfaceTone(color: Color.rgb(0x008000), on: Color.white),
+        background: SurfaceTone(on: Color.reset),
+        surface: SurfaceTone(color: Color.rgb(0x202020), on: Color.white),
+        border: Tone(color: Color.rgb(0x303030)),
+        muted: Tone(color: Color.rgb(0x404040)),
+        disabled: Tone(color: Color.rgb(0x505050)),
+        focus: SurfaceTone(color: Color.rgb(0x606060), on: Color.white),
+        selection: SurfaceTone(color: Color.rgb(0x708090), on: Color.white),
+        cursor: SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
+        hover: Tone(color: Color.rgb(0x123456)),
+      );
+
+      final tones16 = Ansi16Tones.derive(transparent);
+      expect(tones16.background.color, isNull);
+      expect(tones16.background.on, equals(Color.reset));
+    });
+
     test('two equal themes built separately share one derived table', () {
       // A theme variant built fresh each frame (e.g. Theme.dark.copyWith(...))
       // is a new instance every time, never identical to a prior one. The

@@ -99,7 +99,9 @@ void main() {
         ];
 
         for (final color in colors) {
-          if (color == null) continue;
+          // Null and reset both mean "no color to map"; reset is the
+          // terminal-default sentinel a transparent theme carries through.
+          if (color == null || color == Color.reset) continue;
           expect(color.kind, equals(ColorKind.ansi), reason: '$name: $color must be an ANSI color');
           expect(color.value, inInclusiveRange(0, 15), reason: '$name: $color must be in range 0-15');
         }

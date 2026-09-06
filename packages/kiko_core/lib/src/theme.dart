@@ -317,7 +317,13 @@ class Theme implements ToneSet {
     ),
   );
 
-  /// ANSI-16 dark theme for basic terminal compatibility.
+  /// The palette theme for a dark terminal.
+  ///
+  /// Authored entirely in named ANSI colors, so it looks the same on every
+  /// render tier. It paints no background of its own: [background] carries
+  /// no color, so the terminal's own background shows through, and default
+  /// text is the terminal's default foreground. Pick it from
+  /// `InitMsg.hasDarkBackground`.
   static const Theme ansiDark = Theme(
     primary: SurfaceTone(color: Color.cyan, on: Color.black),
     secondary: SurfaceTone(color: Color.magenta, on: Color.black),
@@ -325,17 +331,19 @@ class Theme implements ToneSet {
     error: SurfaceTone(color: Color.red, on: Color.white),
     warning: SurfaceTone(color: Color.yellow, on: Color.black),
     success: SurfaceTone(color: Color.green, on: Color.black),
-    background: SurfaceTone(color: Color.black, on: Color.white),
+    background: SurfaceTone(on: Color.reset),
     surface: SurfaceTone(color: Color.darkGray, on: Color.white),
     border: Tone(color: Color.gray),
     muted: Tone(color: Color.darkGray),
     disabled: Tone(color: Color.darkGray),
     focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
     selection: SurfaceTone(color: Color.yellow, on: Color.black),
+    // The background carries no color, so nothing can derive a wash from
+    // it; cursor and hover are set by hand instead.
+    cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
+    hover: Tone(color: Color.darkGray),
     // Already authored in named ANSI colors, so this table just restates
-    // this theme's own tones — including the cursor tint, which this theme
-    // leaves to derive as a lift of its black background (comes out as
-    // darkGray with the background's own white `on`).
+    // this theme's own tones.
     tones16: Ansi16Tones(
       primary: SurfaceTone(color: Color.cyan, on: Color.black),
       secondary: SurfaceTone(color: Color.magenta, on: Color.black),
@@ -343,7 +351,7 @@ class Theme implements ToneSet {
       error: SurfaceTone(color: Color.red, on: Color.white),
       warning: SurfaceTone(color: Color.yellow, on: Color.black),
       success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
+      background: SurfaceTone(on: Color.reset),
       surface: SurfaceTone(color: Color.darkGray, on: Color.white),
       border: Tone(color: Color.gray),
       muted: Tone(color: Color.darkGray),

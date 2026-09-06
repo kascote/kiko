@@ -44,9 +44,20 @@ void main() {
       expect(theme.primary.on, equals(Color.black));
       expect(theme.error.color, equals(Color.red));
       expect(theme.success.color, equals(Color.green));
-      // background: color = base bg, on = default text.
-      expect(theme.background.color, equals(Color.black));
-      expect(theme.background.on, equals(Color.white));
+      // Transparent: no background color, default text is the terminal's own.
+      expect(theme.background.color, isNull);
+      expect(theme.background.on, equals(Color.reset));
+    });
+
+    test('ansiDark grounds fg-only and sets cursor and hover by hand', () {
+      const theme = Theme.ansiDark;
+      final resolver = StyleResolver(theme, policy: RenderPolicy.color);
+      final ground = resolver.ground(theme.background);
+
+      expect(ground.bg, isNull);
+      expect(ground.fg, equals(Color.reset));
+      expect(theme.cursor, equals(const SurfaceTone(color: Color.darkGray, on: Color.white)));
+      expect(theme.hover, equals(const Tone(color: Color.darkGray)));
     });
 
     test('background tone: color is the base bg, on is default text', () {
@@ -184,7 +195,7 @@ void main() {
       });
 
       test('background.on for default text', () {
-        expect(Theme.ansiDark.background.on, equals(Color.white));
+        expect(Theme.ansiDark.background.on, equals(Color.reset));
       });
 
       test('border.ink for chrome carries no background', () {

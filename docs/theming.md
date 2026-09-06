@@ -131,6 +131,16 @@ set `cursor` and `hover` explicitly. A wash cannot be derived from an
 unknown background: `hover` comes out fully empty, and `cursor` keeps
 `background`'s `on` but carries no color.
 
+### Shipped themes
+
+| Theme       | Intent                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| `dark`      | Deep slate base with muted warm accents.                                |
+| `light`     | Warm white base with deeper accents.                                    |
+| `ember`     | Warm orange palette with teal accents on a near-black base.             |
+| `ansiDark`  | The palette theme for a dark terminal. It paints no background, so the terminal's own background shows through. Pick it from `InitMsg.hasDarkBackground`. It looks the same on every render tier. |
+| `lantern`   | Monochrome amber on a dark warm-brown base, like text lit by lamplight. |
+
 ## Projections
 
 | Projection | Produces            | Use for                                                       |
@@ -480,7 +490,8 @@ terminal's background as a tri-state on `InitMsg.hasDarkBackground`
 (mirrored on `Backend.hasDarkBackground`): `true` for dark, `false` for
 light, `null` when the terminal never answered. Treat `null` as dark; most
 terminal defaults are. A typical app reads it once, in `update` on the
-first `InitMsg`, and picks its starting theme.
+first `InitMsg`, and picks its starting theme. See "Shipped themes" above
+for which built-in theme suits a dark or a light terminal.
 
 ## Which knob serves which user
 

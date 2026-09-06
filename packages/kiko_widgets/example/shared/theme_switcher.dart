@@ -23,6 +23,7 @@ mixin ThemeSwitcher {
     Theme.light,
     Theme.ember,
     Theme.ansiDark,
+    Theme.lantern,
   ];
 
   static const List<String> _themeNames = [
@@ -30,6 +31,7 @@ mixin ThemeSwitcher {
     'Kiko Light',
     'Ember',
     'ANSI-16',
+    'Lantern',
   ];
 
   Theme get theme => _themes[_themeIndex];

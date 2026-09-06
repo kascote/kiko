@@ -267,17 +267,17 @@ class TableRenderer {
   ///
   /// Per-cell paint order is honest anatomy, not borrowed states: the `row`
   /// slot as base, patched by the column's own [TableColumn.style] when set,
-  /// then the [_hoverRowStyle] wash (weakest, so selection/cursor read over
-  /// it) if the row is hovered, then [_selectedRowStyle] (a fill) if the row is
-  /// selected, then the crosshair washes ([_cursorRowStyle] always,
-  /// [_cursorColumnStyle] only when [showCrosshair] is on) if the
-  /// cell is on the cursor's row/column, then [_cursorCellStyle] (a fill) if this
-  /// is the exact cursor cell. Each wash is a bg-only [Style], so [Style.patch]
-  /// leaves whatever foreground the row (or a custom [TableColumn.render])
-  /// already painted untouched. This whole stack goes into `paintLine` as
-  /// `base`, never patched onto the cell's content: the cell's content
-  /// patches last, so a line-level or span-level color a column paints always
-  /// wins over the row's own state.
+  /// then [_selectedRowStyle] (a fill) if the row is selected, then the
+  /// crosshair washes ([_cursorRowStyle] always, [_cursorColumnStyle] only
+  /// when [showCrosshair] is on) if the cell is on the cursor's row/column,
+  /// then [_cursorCellStyle] (a fill) if this is the exact cursor cell.
+  /// Hover applies last, as a transform over that patched cell: a cell with a
+  /// background lifts it, a bare cell takes the hover wash. Each wash is a
+  /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
+  /// a custom [TableColumn.render]) already painted untouched. This whole
+  /// stack goes into `paintLine` as `base`, never patched onto the cell's
+  /// content: the cell's content patches last, so a line-level or span-level
+  /// color a column paints always wins over the row's own state.
   void _renderRow(
     Surface surface,
     Rect area,
@@ -316,11 +316,11 @@ class TableRenderer {
 
       var cellStyle = style.row ?? const Style();
       if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
-      if (isHover) cellStyle = cellStyle.patch(_hoverRowStyle());
       if (isSelected) cellStyle = cellStyle.patch(_selectedRowStyle());
       if (isCursorRow) cellStyle = cellStyle.patch(_cursorRowStyle());
       if (showCrosshair && isCursorColumn) cellStyle = cellStyle.patch(_cursorColumnStyle());
       if (isCursorCell) cellStyle = cellStyle.patch(_cursorCellStyle());
+      if (isHover) cellStyle = _resolver.resolve(cellStyle, const {WidgetState.hover}, cls: PaintClass.fill);
 
       // Build render context
       final ctx = CellRenderContext(
@@ -360,12 +360,6 @@ class TableRenderer {
 
   /// The empty-state line.
   Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
-
-  /// The hovered row. Hover is a transform, not a matrix cell: it lifts a
-  /// background, or, on a row with none, patches the hover wash — the case
-  /// here, since the base is always null. No anatomy slot: hover is a
-  /// generic state, not a TableView-specific part.
-  Style _hoverRowStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedRowStyle() =>

@@ -22,7 +22,8 @@ resolves there too.
 paths — `HitTag.join(id, fieldId)` and `HitTag.join(id, toggleId)` — and
 the view uses them to anchor and size the popup. Nothing else needs them:
 build a `ComboboxModel<T>` and route to it by `id`, the same as any other
-`Component`.
+`Component`. The toggle reacts to hover — a wash on its glyph, since it has
+no background of its own — and clears on a leave.
 
 ## Keys
 

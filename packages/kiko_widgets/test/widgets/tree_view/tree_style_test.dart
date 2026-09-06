@@ -67,12 +67,14 @@ void main() {
       expect(hoverCell.bg, equals(Theme.dark.hover.color));
     });
 
-    test('hover is the weakest state: a hovered cursor node still reads cursor', () {
+    test('hover lifts a cursor node', () {
+      // Node 0 is both hovered and the cursor; hover applies last, over the
+      // patched cursor fill, lifting it rather than hiding it.
       final model = _tree()..hoverRow = 0;
       final buffer = _render(model);
 
       final cell = buffer[(x: 9, y: 0)];
-      expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor fill wins over the hover wash');
+      expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
     });
 
     test('a node whose children are loading blinks warning on the glyph, not the row', () {

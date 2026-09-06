@@ -176,17 +176,18 @@ class _TreeViewport<T> extends Node {
       markRegion(RowRegion(i), rowArea.toPlume());
 
       // Honest anatomy, not borrowed states: the base item style, then the
-      // hover wash (weakest, so the cursor reads over it), then the cursor
-      // fill — each layer patches the last. The loading state paints the
-      // indicator glyph alone, never the row.
+      // cursor fill — each layer patches the last. Hover applies last, as a
+      // transform over the patched row: a row with a background lifts it, a
+      // bare row takes the wash. The loading state paints the indicator glyph
+      // alone, never the row.
       var rowStyle = style.item ?? const Style();
       var styled = style.item != null;
-      if (m.hoverRow == i) {
-        rowStyle = rowStyle.patch(_hoverItemStyle());
-        styled = true;
-      }
       if (isCursor) {
         rowStyle = rowStyle.patch(_cursorItemStyle());
+        styled = true;
+      }
+      if (m.hoverRow == i) {
+        rowStyle = _resolver.resolve(rowStyle, const {WidgetState.hover}, cls: PaintClass.fill);
         styled = true;
       }
       if (styled) {
@@ -263,12 +264,6 @@ class _TreeViewport<T> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
-
-  /// The hovered node. Hover is a transform, not a matrix cell: it lifts a
-  /// background, or, on a row with none, patches the hover wash — the case
-  /// here, since the base is always null. No anatomy slot: hover is a
-  /// generic state, not a TreeView-specific part.
-  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// The current node — `cursor` × `fill`.
   Style _cursorItemStyle() =>

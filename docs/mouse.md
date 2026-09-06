@@ -381,7 +381,8 @@ to end. The rules:
   `handleRowPointer` sets it from the resolved row in `update`; `build` folds
   it into the `WidgetState` set; `PointerLeaveMsg` clears it. There is no
   enter message — the first `PointerMsg` addressed to the widget is the
-  enter.
+  enter. Which part of a widget hovers is the state table's column in
+  `docs/theming.md`.
 - **Scrolling goes through `ScrollableModel`**
   (`packages/kiko_widgets/lib/src/widgets/scrollable_model.dart`):
   `scrollOffset` and `visibleCount`; `scrollBy(rows)`, which clamps and

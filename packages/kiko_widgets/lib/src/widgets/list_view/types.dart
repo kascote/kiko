@@ -116,10 +116,12 @@ typedef ItemState = ({bool checked, bool cursor, bool disabled});
 /// row is in the selection set, then `cursorItem` (a fill) if the keyboard
 /// cursor is on it, then the disabled dim if the row is disabled — later layers
 /// patch over earlier ones, so the cursor stays visible over a selected run and
-/// disabled dims everything. The row's content — the lines `itemBuilder`
-/// returns — patches last of all, over every slot above. There is no
-/// `indicator` slot: a ListView renders no built-in glyph, so any marker is
-/// the caller's own `itemBuilder` content.
+/// disabled dims everything. Hover applies last, as a transform over that
+/// patched row: a row with a background lifts it, a bare row takes the hover
+/// wash. The row's content — the lines `itemBuilder` returns — patches last of
+/// all, over every slot above, hover included. There is no `indicator` slot: a
+/// ListView renders no built-in glyph, so any marker is the caller's own
+/// `itemBuilder` content.
 class ListViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;

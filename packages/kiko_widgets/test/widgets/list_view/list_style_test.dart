@@ -92,14 +92,14 @@ void main() {
       expect(hoverCell.bg, equals(Theme.dark.hover.color));
     });
 
-    test('hover is the weakest state: a hovered cursor row still reads cursor', () {
-      // Row 0 is both hovered and the cursor; the cursor fill (patched after the
-      // hover wash) must win.
+    test('hover lifts a cursor row', () {
+      // Row 0 is both hovered and the cursor; hover applies last, over the
+      // patched cursor fill, lifting it rather than hiding it.
       final model = _list(<String>['Apple', 'Banana'])..hoverRow = 0;
       final buffer = _render(model);
 
       final cell = buffer[(x: 7, y: 0)];
-      expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor fill wins over the hover wash');
+      expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
     });
 
     test('a disabled row dims', () {

@@ -94,15 +94,40 @@ void main() {
         expect(cell.bg, equals(Theme.dark.hover.color));
       });
 
-      test('hover is the weakest state: the cursor row wash wins over it', () {
-        // Row 0 is both hovered and the cursor; on a non-cursor column its wash
-        // is the cursor tone, not the hover tone.
+      test('hover lifts a cursor row', () {
+        // Row 0 is both hovered and the cursor; hover applies last, over the
+        // patched cursor row wash, lifting it rather than hiding it.
         final model = _model()..hoverRow = 0;
         final buffer = renderBuffer(model, width: 11, height: 5);
 
-        // Column "b" (x=6) on the cursor row (y=1): cursor row wash, not hover.
+        // Column "b" (x=6) on the cursor row (y=1): the cursor row wash, lifted.
         final cell = buffer[(x: 6, y: 1)];
-        expect(cell.bg, equals(Theme.dark.cursor.color), reason: 'the cursor wash wins over the hover wash');
+        expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
+      });
+
+      test('a hovered selected row lifts the selection fill', () {
+        // Select row 1, move the cursor off it, then hover it: only the
+        // selection fill, lifted, should paint.
+        final model = _model(selectionEnabled: true)
+          ..update(const KeyMsg('down')) // cursorRow = 1
+          ..update(const KeyMsg('space')) // select row 1
+          ..update(const KeyMsg('down')) // cursor off row 1
+          ..hoverRow = 1;
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 6, y: 2)];
+        expect(cell.bg, equals(Theme.dark.selection.color!.lift(Theme.hoverLift)));
+      });
+
+      test('a hovered cursor cell lifts the cell fill and keeps bold', () {
+        final model = _model()..hoverRow = 0; // cursorRow = 0, cursorCol = 0
+
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        // Column "a" (x=0) on the cursor row (y=1): the exact cursor cell.
+        final cell = buffer[(x: 0, y: 1)];
+        expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
+        expect(cell.modifier.has(Modifier.bold), isTrue);
       });
 
       test('crosshair column wash also preserves fg', () {

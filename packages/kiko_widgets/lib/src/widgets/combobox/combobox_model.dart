@@ -117,6 +117,12 @@ class ComboboxModel<T> implements Component {
   /// clears it.
   PopupPlacement? placement;
 
+  /// Whether the pointer is over the toggle.
+  ///
+  /// Set by a move or drag over the toggle, cleared by a leave. The toggle
+  /// acts on the down, so it has no held phase and takes no `pressed`.
+  bool toggleHovered = false;
+
   /// The embedded text field.
   ///
   /// The combobox owns every decision around it — it emits no events of its
@@ -295,7 +301,9 @@ class ComboboxModel<T> implements Component {
   /// click-to-caret and popup rows all work whether or not the combobox is
   /// focused. A press on the bare scope path — a blank popup row, or the
   /// scope's own untagged cells — is consumed and does nothing: no caret
-  /// move, no commit, no close. An [Addressed] message whose id names the
+  /// move, no commit, no close. A move over the toggle sets [toggleHovered];
+  /// a leave over it clears the flag; a wheel over it is declined, so a
+  /// scrollable ancestor gets it. An [Addressed] message whose id names the
   /// popup list — the part after the combobox's own id — is forwarded to the
   /// list; a [LoadResult] addressed to the combobox itself installs a remote
   /// query's answer, or records its failure; a [PopupPlaced] addressed to it
@@ -308,7 +316,13 @@ class ComboboxModel<T> implements Component {
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) return _handlePointer(pointer);
-    if (msg is PointerLeaveMsg) return _forwardToListIfAddressed(msg, msg.targetId);
+    if (msg case final PointerLeaveMsg leave) {
+      if (HitTag.partOn(leave.targetId, under: id, parts: {toggleId, _list.id}) == toggleId) {
+        toggleHovered = false;
+        return const Handled();
+      }
+      return _forwardToListIfAddressed(leave, leave.targetId);
+    }
     if (msg case PointerCancelMsg(:final targetId?)) return _forwardToListIfAddressed(msg, targetId);
     if (msg is PointerCancelMsg) return const Declined();
     // A part is forwarded to before the guard below asks whether the message
@@ -338,7 +352,11 @@ class ComboboxModel<T> implements Component {
 
     switch (HitTag.partOn(targetId, under: id, parts: {toggleId, fieldId, _list.id})) {
       case final part when part == toggleId:
-        if (!pointer.isDown) return const Declined();
+        if (pointer.isWheel) return const Declined();
+        if (!pointer.isDown) {
+          toggleHovered = true;
+          return const Handled();
+        }
         if (isOpen) {
           close();
           return const Handled();

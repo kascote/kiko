@@ -567,11 +567,13 @@ Notes the table cannot carry:
 - **TableView** — the crosshair (`cursorColumn`) is enabled by
   `showCrosshair` on the view, not by slot presence: a slot styles a part,
   it does not create the behavior. A cell paints base → the column's own
-  style (`TableColumn.style`, resolved at paint) → hover → selectedRow →
-  cursorRow/cursorColumn → cursorCell, each patched over the last. That
-  whole chain is the `base` the cell's content paints over, so the cell's
-  content — the column's rendered line and its spans — patches last. The
-  exemplar — copy its shape.
+  style (`TableColumn.style`, resolved at paint) → selectedRow →
+  cursorRow/cursorColumn → cursorCell, each patched over the last. Hover
+  applies last of all, as a transform over that patched cell: a cell with
+  a background lifts it, a bare cell takes the hover wash. That whole
+  chain is the `base` the cell's content paints over, so the cell's
+  content — the column's rendered line and its spans — patches last of
+  all, over hover included. The exemplar — copy its shape.
 - **TreeView** — the expand, collapse, and loading glyph is the
   `indicator` slot; the default node builder paints the glyph and reads
   it, and a custom `nodeBuilder` paints its own row and never sees it.

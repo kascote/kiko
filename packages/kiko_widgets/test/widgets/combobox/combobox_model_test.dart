@@ -18,6 +18,10 @@ PointerMsg pressOn(String targetId) =>
 PointerMsg moveOn(String targetId) =>
     PointerMsg(global: Position.origin, action: PointerAction.move, local: Position.origin, targetId: targetId);
 
+/// A routed wheel notch addressed to [targetId].
+PointerMsg wheelOn(String targetId) =>
+    PointerMsg(global: Position.origin, action: PointerAction.wheelDown, local: Position.origin, targetId: targetId);
+
 /// An option with value equality, standing in for a rich remote record: two
 /// fetches produce equal but non-identical instances.
 @immutable
@@ -135,8 +139,28 @@ void main() {
         expect(combo.isOpen, isTrue);
       });
 
-      test('a non-down pointer on the toggle is declined', () {
-        expect(fruitBox().update(moveOn('combo-toggle')), isA<Declined>());
+      test('a move over the toggle sets toggleHovered and is consumed', () {
+        final combo = fruitBox();
+        final result = combo.update(moveOn(HitTag.join(combo.id, combo.toggleId)));
+
+        expect(result, isA<Handled>());
+        expect(combo.toggleHovered, isTrue);
+      });
+
+      test('a leave over the toggle clears it', () {
+        final combo = fruitBox();
+        combo.update(moveOn(HitTag.join(combo.id, combo.toggleId)));
+        expect(combo.toggleHovered, isTrue);
+
+        final result = combo.update(PointerLeaveMsg(HitTag.join(combo.id, combo.toggleId)));
+
+        expect(result, isA<Handled>());
+        expect(combo.toggleHovered, isFalse);
+      });
+
+      test('a wheel on the toggle is declined', () {
+        final combo = fruitBox();
+        expect(combo.update(wheelOn(HitTag.join(combo.id, combo.toggleId))), isA<Declined>());
       });
 
       test('a navigation key with nothing bound (e.g. tab) is declined while closed', () {

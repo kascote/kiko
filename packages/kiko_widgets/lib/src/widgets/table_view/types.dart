@@ -183,9 +183,11 @@ class TableScrollState {
 /// cell's own foreground untouched), then `cursorCell` (a fill, patched
 /// last among the slots). The crosshair (`cursorColumn`) only paints when
 /// `TableView.showCrosshair` is true; a slot's presence styles a part, it
-/// never turns on the behavior that paints it. The cell's content — the
-/// column's rendered [Line] and its spans — patches last of all, over every
-/// slot above.
+/// never turns on the behavior that paints it. Hover applies last, as a
+/// transform over that patched cell: a cell with a background lifts it, a
+/// bare cell takes the hover wash. The cell's content — the column's
+/// rendered [Line] and its spans — patches last of all, over every slot
+/// above, hover included.
 class TableViewStyle {
   /// Sticky header text.
   final Style? header;

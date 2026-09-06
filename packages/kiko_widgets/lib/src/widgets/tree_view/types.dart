@@ -143,9 +143,11 @@ typedef NodeState = ({
 ///
 /// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
 /// keyboard cursor is on the node. The tree has no selection set, so no
-/// `selectedItem`. A node whose children are being fetched carries the
-/// `loading` state on its `indicator` glyph alone — a warning ink with a
-/// slow blink — never on the row.
+/// `selectedItem`. Hover applies last, as a transform over that patched row:
+/// a row with a background lifts it, a bare row takes the hover wash. A node
+/// whose children are being fetched carries the `loading` state on its
+/// `indicator` glyph alone — a warning ink with a slow blink — never on the
+/// row.
 class TreeViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;

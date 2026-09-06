@@ -106,7 +106,11 @@ final class Combobox<T> implements View {
   View _toggle() {
     final glyph = model.isOpen ? openGlyph : closedGlyph;
     final toggleStyle =
-        style.toggle ?? _resolver.resolve(null, {if (model.focused) WidgetState.focused}, cls: PaintClass.ink);
+        style.toggle ??
+        _resolver.resolve(null, {
+          if (model.focused) WidgetState.focused,
+          if (model.toggleHovered) WidgetState.hover,
+        }, cls: PaintClass.ink);
     return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: toggleStyle)));
   }
 

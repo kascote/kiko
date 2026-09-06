@@ -89,6 +89,13 @@ void main() {
       expect(_cellAt(open.buffer, 9, 0), '▴');
     });
 
+    test('the toggle glyph washes while hovered', () {
+      final combo = _fruitBox()..toggleHovered = true;
+      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+
+      expect(frame.buffer[(x: 9, y: 0)].bg, equals(Theme.dark.hover.color));
+    });
+
     test('the field shows the committed label', () {
       final combo = _fruitBox(value: 'Banana');
       final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));

@@ -178,17 +178,14 @@ class _ListViewport<T, K> extends Node {
       markRegion(RowRegion(i), itemArea.toPlume());
 
       // Honest anatomy, not borrowed states: the base item style, then the
-      // hover wash (weakest, so selection/cursor read over it), then the
       // selection fill, then the cursor fill (so the cursor stays visible over
       // a selected run), then the disabled dim — each layer patches the last.
-      // A placeholder row layers the same way, so the cursor stays visible
-      // over items still filling in.
+      // Hover applies last, as a transform over the patched row: a row with a
+      // background lifts it, a bare row takes the wash. A placeholder row
+      // layers the same way, so the cursor stays visible over items still
+      // filling in.
       var rowStyle = style.item ?? const Style();
       var styled = style.item != null;
-      if (m.hoverRow == i) {
-        rowStyle = rowStyle.patch(_hoverItemStyle());
-        styled = true;
-      }
       if (isChecked) {
         rowStyle = rowStyle.patch(_selectedItemStyle());
         styled = true;
@@ -199,6 +196,10 @@ class _ListViewport<T, K> extends Node {
       }
       if (isDisabled) {
         rowStyle = rowStyle.patch(_disabledStyle());
+        styled = true;
+      }
+      if (m.hoverRow == i) {
+        rowStyle = _resolver.resolve(rowStyle, const {WidgetState.hover}, cls: PaintClass.fill);
         styled = true;
       }
       if (styled) {
@@ -247,12 +248,6 @@ class _ListViewport<T, K> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
-
-  /// The hovered row. Hover is a transform, not a matrix cell: it lifts a
-  /// background, or, on a row with none, patches the hover wash — the case
-  /// here, since the base is always null. No anatomy slot: hover is a
-  /// generic state, not a ListView-specific part.
-  Style _hoverItemStyle() => _resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash);
 
   /// Rows in the selection set — `selected` × `fill`.
   Style _selectedItemStyle() =>

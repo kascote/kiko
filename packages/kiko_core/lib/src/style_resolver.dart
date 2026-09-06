@@ -62,6 +62,8 @@ enum RenderPolicy {
 /// looks right on chrome, on a surface, or as a tint without any per-widget
 /// code. [WidgetState.hover] and [WidgetState.pressed] are not in that
 /// matrix: they transform the patched result afterward, hover then pressed.
+/// A theme picks the colors the matrix reads; the matrix itself picks every
+/// modifier, including [Theme.hoverLift].
 ///
 /// ```dart
 /// final resolver = StyleResolver(theme);

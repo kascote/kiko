@@ -10,7 +10,7 @@ import 'types.dart';
 /// Returns [ButtonPressEvent] when activated.
 ///
 /// Has `copyWith` for creating modified copies. Mutable fields are
-/// `focused` (required by [Focusable] interface) and `loading`.
+/// `focused` (required by [Focusable] interface), `loading`, and `disabled`.
 class ButtonModel implements Component {
   /// Unique identifier for the button.
   @override
@@ -20,7 +20,7 @@ class ButtonModel implements Component {
   final Line label;
 
   /// Whether the button is disabled.
-  final bool disabled;
+  bool disabled;
 
   /// Content shown during loading.
   final Line loadingText;

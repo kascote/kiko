@@ -58,6 +58,7 @@ class TextAreaRenderer {
   Style _resolveStyle() {
     final states = <WidgetState>{
       if (model.focused) WidgetState.focused,
+      if (model.disabled) WidgetState.disabled,
     };
     return _resolver.resolve(null, states, cls: PaintClass.ink);
   }
@@ -96,16 +97,17 @@ class TextAreaRenderer {
       x: area.x + gutterWidth,
       width: area.width - gutterWidth,
     );
+    final disabledStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
     paintLine(
       surface,
-      Line(model.placeholder, style: _regionStyle.placeholder),
+      Line(model.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
       x: textArea.x,
       y: textArea.y,
       width: textArea.width,
       measurer: measurer,
     );
 
-    return model.focused ? Position(textArea.x, textArea.y) : null;
+    return model.focused && !model.disabled ? Position(textArea.x, textArea.y) : null;
   }
 
   Position? _renderContent(
@@ -161,7 +163,7 @@ class TextAreaRenderer {
         );
 
         // Position cursor if on this line
-        if (m.focused && bufferRow == ta.row && wrapOffset == m.currentLineInfo.rowOffset) {
+        if (m.focused && !m.disabled && bufferRow == ta.row && wrapOffset == m.currentLineInfo.rowOffset) {
           final cursorX = textX + m.currentLineInfo.visualOffset;
           if (cursorX < textX + textAreaWidth) {
             cursor = Position(cursorX, y);
@@ -186,9 +188,10 @@ class TextAreaRenderer {
     int? lineNum,
   ) {
     final text = lineNum != null ? lineNum.toString().padLeft(gutterWidth - 1) : ' ' * (gutterWidth - 1);
+    final disabledStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
     paintLine(
       surface,
-      Line('$text ', style: _regionStyle.lineNumber),
+      Line('$text ', style: _resolver.resolve(_regionStyle.lineNumber, disabledStates, cls: PaintClass.ink)),
       x: x,
       y: y,
       width: gutterWidth,
@@ -222,11 +225,14 @@ class TextAreaRenderer {
     }
 
     // Render with selection highlighting
+    final disabledStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
     var x = area.x;
     for (final part in parts) {
       if (part.part.isEmpty) continue;
 
-      final partStyle = part.kind == PartKind.selection ? (_regionStyle.selection ?? const Style()) : textStyle;
+      final partStyle = part.kind == PartKind.selection
+          ? _resolver.resolve(_regionStyle.selection ?? const Style(), disabledStates, cls: PaintClass.ink)
+          : textStyle;
       final partWidth = measurer.widthOf(part.part.string);
 
       paintLine(

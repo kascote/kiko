@@ -143,6 +143,8 @@ class ComboboxModel<T> implements Component {
   T? _value;
   bool _isOpen = false;
   bool _focused;
+  bool _disabled;
+  bool _error;
 
   /// Whether the field currently shows the committed label untouched since it
   /// was last set — by construction, a commit, or a restore.
@@ -170,10 +172,14 @@ class ComboboxModel<T> implements Component {
     this.maxVisibleRows = 5,
     this.placeholder = '',
     bool focused = false,
+    bool disabled = false,
+    bool error = false,
   }) : matches = matches ?? _defaultMatches(label),
        _options = options == null ? null : List<T>.of(options),
        _value = value,
-       _focused = focused {
+       _focused = focused,
+       _disabled = disabled,
+       _error = error {
     this.id = id ?? autoId('combobox');
     this.fieldId = fieldId ?? autoId('combobox-field');
     this.toggleId = toggleId ?? autoId('combobox-toggle');
@@ -182,6 +188,8 @@ class ComboboxModel<T> implements Component {
       initial: value == null ? '' : label(value),
       placeholder: placeholder,
       focused: focused,
+      disabled: disabled,
+      error: error,
     );
     _list = ListViewModel<T, T>(focused: true, keyBinding: _popupKeyBinding);
   }
@@ -198,6 +206,29 @@ class ComboboxModel<T> implements Component {
     if (!value) close();
     _focused = value;
     field.focused = value;
+  }
+
+  /// Whether the combobox is disabled.
+  ///
+  /// The embedded field's own `disabled` mirrors this value. Setting it true
+  /// also closes the popup, the way setting [focused] false does.
+  bool get disabled => _disabled;
+
+  set disabled(bool value) {
+    if (value) close();
+    _disabled = value;
+    field.disabled = value;
+  }
+
+  /// Whether validation failed for this combobox.
+  ///
+  /// The embedded field's own `error` mirrors this value; the view lands it
+  /// on the toggle.
+  bool get error => _error;
+
+  set error(bool value) {
+    _error = value;
+    field.error = value;
   }
 
   /// Whether the popup is open.
@@ -336,6 +367,7 @@ class ComboboxModel<T> implements Component {
     if (!focused) return const Declined();
 
     if (msg case final KeyMsg key) {
+      if (disabled) return const Handled();
       return isOpen ? _handleOpenKey(key) : _handleClosedKey(key);
     }
 
@@ -353,6 +385,7 @@ class ComboboxModel<T> implements Component {
     switch (HitTag.partOn(targetId, under: id, parts: {toggleId, fieldId, _list.id})) {
       case final part when part == toggleId:
         if (pointer.isWheel) return const Declined();
+        if (disabled) return const Handled();
         if (!pointer.isDown) {
           toggleHovered = true;
           return const Handled();

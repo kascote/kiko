@@ -178,10 +178,13 @@ class Model {
 
   final name = TextInputModel(id: 'name-input', placeholder: 'Type here…');
 
-  /// Empty means invalid here, so the error tone shows until something is typed.
-  final requiredInput = TextInputModel(id: 'required-input', placeholder: 'Type to clear the error');
+  /// Empty means invalid here, so the error tone shows until something is
+  /// typed; `update` keeps `error` in sync with the field's value.
+  final requiredInput = TextInputModel(id: 'required-input', placeholder: 'Type to clear the error', error: true);
 
-  bool get requiredMissing => requiredInput.value.trim().isEmpty;
+  /// A field the app disables outright, to show the disabled tone in the
+  /// field chrome.
+  final disabledInput = TextInputModel(id: 'disabled-input', initial: 'Not editable', disabled: true);
 
   final combo = ComboboxModel<String>(
     id: 'role-combo',
@@ -229,7 +232,7 @@ class Model {
   );
 
   /// Tab order of the gallery. The disabled button and the disabled field
-  /// mock are not members: neither can take focus.
+  /// are not members: neither can take focus.
   late final FocusGroup<Component> focus = FocusGroup<Component>(<Component>[
     name,
     requiredInput,
@@ -369,6 +372,9 @@ Cmd? onEvent(Model model, WidgetEvent event) {
   // carries, which installs it.
   switch (model.router.route(msg, ctx)) {
     case Handled(:final events, :final cmd):
+      // Empty means invalid here, so this keeps the required field's own
+      // error fact in sync with its text on every handled interaction.
+      model.requiredInput.error = model.requiredInput.value.trim().isEmpty;
       return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
     case Declined():
       break; // not interaction traffic the router owns — fall through
@@ -654,7 +660,7 @@ View _anatomyRow(StyleResolver resolver, String name, List<(String, Style)> slot
 View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboView) {
   final requiredStates = {
     if (model.requiredInput.focused) WidgetState.focused,
-    if (model.requiredMissing) WidgetState.error,
+    if (model.requiredInput.error) WidgetState.error,
   };
   return ConstrainedBox(
     additionalConstraints: const BoxConstraints(minW: 36, maxW: 36),
@@ -673,13 +679,11 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           requiredStates,
           TextInput(model: model.requiredInput, theme: theme),
         ),
-        // TextInput has no disabled mode; the disabled tone is shown by the
-        // field chrome and a read-only line. Not a focus member.
         _field(
           resolver,
           'TextInput — disabled',
           const {WidgetState.disabled},
-          Line('Not editable', style: resolver.resolve(null, const {WidgetState.disabled}, cls: PaintClass.ink)),
+          TextInput(model: model.disabledInput, theme: theme),
         ),
         _field(resolver, 'Combobox', {if (model.combo.focused) WidgetState.focused}, comboView),
         Expanded(

@@ -36,6 +36,11 @@ void main() {
       expect(button.width(const TermUnicodeMeasurer()), equals(6)); // 2 chars + 2*2 padding
     });
 
+    test('disabled is settable after construction', () {
+      final button = ButtonModel(id: 'btn', label: Line('OK'))..disabled = true;
+      expect(button.disabled, isTrue);
+    });
+
     test('copyWith creates modified copy', () {
       final button = ButtonModel(id: 'btn', label: Line('OK'));
       final copy = button.copyWith(disabled: true, loading: true);

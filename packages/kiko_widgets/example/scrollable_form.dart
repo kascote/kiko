@@ -134,11 +134,13 @@ class AppModel {
     for (final f in fieldList) {
       if (f.value.trim().isEmpty) {
         errorId = f.id;
+        f.error = true;
         focusOn(f.id);
         scroll.ensureVisible(f.id);
         return;
       }
     }
+    if (errorId != null) fields[errorId]!.error = false;
     errorId = null;
   }
 }
@@ -160,6 +162,7 @@ class AppModel {
   if (msg is KeyMsg &&
       model.errorId == model.focus.focused.id &&
       model.fields[model.focus.focused.id]!.value.trim().isNotEmpty) {
+    model.fields[model.errorId]!.error = false;
     model.errorId = null;
   }
 
@@ -224,7 +227,7 @@ void view(AppModel model, Frame frame) {
     children: [
       for (var i = 0; i < model.fieldList.length; i++) ...[
         if (i > 0) const SizedBox(height: 1),
-        _field(model.fieldList[i], i, model, resolver),
+        _field(model.fieldList[i], i, resolver),
       ],
     ],
   );
@@ -265,7 +268,7 @@ void view(AppModel model, Frame frame) {
   frame.render(ui);
 }
 
-View _field(TextInputModel input, int index, AppModel model, StyleResolver resolver) => Tagged.scope(
+View _field(TextInputModel input, int index, StyleResolver resolver) => Tagged.scope(
   // Names the whole bordered container, borders included, so `ensureVisible`
   // can bring it fully into view. Legal to wrap in `Tagged.scope` here —
   // unlike the TextInput below — because `Container` itself never self-tags;
@@ -275,7 +278,7 @@ View _field(TextInputModel input, int index, AppModel model, StyleResolver resol
     border: BorderType.plain,
     borderStyle: resolver.border({
       if (input.focused) WidgetState.focused,
-      if (input.id == model.errorId) WidgetState.error,
+      if (input.error) WidgetState.error,
     }),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [

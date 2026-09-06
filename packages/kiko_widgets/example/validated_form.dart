@@ -106,6 +106,14 @@ class AppModel with ThemeSwitcher {
   ValidationResult get emailValid => validateEmail(email.value);
   ValidationResult get passwordValid => validatePassword(password.value);
 
+  /// Writes each field's own `error` fact from its validation result. An
+  /// empty field is not an error yet, only an invalid value is.
+  void revalidate() {
+    username.error = usernameValid is Invalid;
+    email.error = emailValid is Invalid;
+    password.error = passwordValid is Invalid;
+  }
+
   bool get isFormValid => usernameValid is Valid && emailValid is Valid && passwordValid is Valid;
 
   int get validCount => [usernameValid, emailValid, passwordValid].whereType<Valid>().length;
@@ -131,6 +139,9 @@ class AppModel with ThemeSwitcher {
   // field it's addressed to, and a down-click moves keyboard focus there.
   switch (model.router.route(msg, ctx)) {
     case Handled(:final cmd):
+      // A handled message may have edited a field, so its error fact is
+      // refreshed here, once, instead of inside every read of the result.
+      model.revalidate();
       return (model, cmd);
     case Declined():
       break; // not interaction traffic — fall through to fallback keys
@@ -230,15 +241,17 @@ View _fieldWithValidation(
   StyleResolver resolver,
 ) {
   final t = resolver.tones;
+  // The valid case is this form's own tone choice; the error case reads the
+  // field's `error` fact through the state set, as any composed border does.
   final (borderTone, statusText, statusTone) = switch (validation) {
     Valid() => (t.success, '✓', t.success),
-    Invalid(:final message) => (t.error, message, t.error),
+    Invalid(:final message) => (t.border, message, t.error),
     Empty() => (t.border, 'Required', t.muted),
   };
 
   final effectiveBorder = resolver.resolve(
     resolver.ink(borderTone),
-    {if (input.focused) WidgetState.focused},
+    {if (input.focused) WidgetState.focused, if (input.error) WidgetState.error},
     cls: PaintClass.ink,
   );
 

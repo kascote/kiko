@@ -66,6 +66,26 @@ void main() {
     });
   });
 
+  group('text area disabled and error', () {
+    test('disabled text carries the disabled ink and dim, and no cursor is placed', () {
+      final model = TextAreaModel(id: 'ta', initial: 'ab', focused: true, disabled: true);
+      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final cell = frame.buffer[(x: 0, y: 0)];
+
+      expect(cell.fg, equals(Theme.dark.disabled.color));
+      expect(cell.modifier.has(Modifier.dim), isTrue);
+      expect(frame.cursorPosition, isNull);
+    });
+
+    test('error paints the text unchanged — the editor owns no chrome for it', () {
+      final model = TextAreaModel(id: 'ta', initial: 'ab', error: true);
+      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final cell = frame.buffer[(x: 0, y: 0)];
+
+      expect(cell.fg, equals(Color.reset));
+    });
+  });
+
   group('text area under a partial clip (viewport)', () {
     test('anchors content at the placement rect, not the clip sub-rect', () {
       // Simulates a Viewport ancestor showing only rows 2-4 of a 5-line editor

@@ -26,6 +26,19 @@ class TextInputModel implements Component {
   @override
   bool focused;
 
+  /// Whether the input is disabled.
+  ///
+  /// A disabled field keeps its text: it consumes a press without moving the
+  /// caret, swallows a key without inserting or acting on it, and reports no
+  /// terminal cursor.
+  bool disabled;
+
+  /// Whether validation failed for this field.
+  ///
+  /// The field paints nothing for it; the border a caller composes around
+  /// the field reads it instead.
+  bool error;
+
   /// The ruler cursor, scroll and click-to-caret math measure against.
   ///
   /// The view assigns its layout context's measurer here on every frame, so
@@ -75,6 +88,8 @@ class TextInputModel implements Component {
     this.fillChar,
     this.inputFilter,
     this.focused = false,
+    this.disabled = false,
+    this.error = false,
     KeyBinding<TextInputAction>? keyBinding,
   }) : id = id ?? autoId('textinput'),
        _text = Characters(initial),
@@ -141,7 +156,9 @@ class TextInputModel implements Component {
   /// caret there; a button-down with no rect is a press on the field's own
   /// chrome and is consumed without moving the caret. A wheel is declined so a
   /// scrollable ancestor gets it, and any other pointer traffic is declined
-  /// too. The keyboard and paste paths stay behind the gate.
+  /// too. The keyboard and paste paths stay behind the gate. While [disabled],
+  /// every pointer past the wheel is consumed and moves no caret, and a key
+  /// or a paste keeps its usual verdict but inserts and acts on nothing.
   ///
   /// Returns [Handled] for handled keys, for a paste, and for any button-down.
   /// Returns [Declined] for keys it doesn't handle (e.g., Tab), for pointers
@@ -152,6 +169,7 @@ class TextInputModel implements Component {
       // Nothing to scroll vertically — decline so a scrollable ancestor gets
       // the wheel.
       if (pointer.isWheel) return const Declined();
+      if (disabled) return const Handled();
       if (pointer.isDown) {
         // Without a rect, local falls back to the global position, so it
         // names no character cell — leave the caret where it is.
@@ -178,7 +196,7 @@ class TextInputModel implements Component {
     if (msg case PasteMsg(:final text)) {
       // A single-line field: newlines are stripped, and the insert goes
       // through the same filter and maxLength checks as typed input.
-      _insertAt(text.replaceAll('\r', '').replaceAll('\n', ''));
+      if (!disabled) _insertAt(text.replaceAll('\r', '').replaceAll('\n', ''));
       return const Handled();
     }
     return const Declined();
@@ -193,20 +211,22 @@ class TextInputModel implements Component {
     final action = keyBinding.resolve(msg);
 
     if (action != null) {
-      final _ = switch (action) {
-        TextInputAction.home => _cursor = 0,
-        TextInputAction.end => _cursor = length,
-        TextInputAction.left => _cursor > 0 ? _cursor-- : null,
-        TextInputAction.right => _cursor < length ? _cursor++ : null,
-        TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
-        TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
-        TextInputAction.backspace => _deleteBeforeCursor(),
-        TextInputAction.delete => _deleteAfterCursor(),
-        TextInputAction.deleteWordLeft => _deleteWordLeft(),
-        TextInputAction.deleteWordRight => _deleteWordRight(),
-        TextInputAction.deleteToLineStart => _deleteToLineStart(),
-        TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
-      };
+      if (!disabled) {
+        final _ = switch (action) {
+          TextInputAction.home => _cursor = 0,
+          TextInputAction.end => _cursor = length,
+          TextInputAction.left => _cursor > 0 ? _cursor-- : null,
+          TextInputAction.right => _cursor < length ? _cursor++ : null,
+          TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
+          TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
+          TextInputAction.backspace => _deleteBeforeCursor(),
+          TextInputAction.delete => _deleteAfterCursor(),
+          TextInputAction.deleteWordLeft => _deleteWordLeft(),
+          TextInputAction.deleteWordRight => _deleteWordRight(),
+          TextInputAction.deleteToLineStart => _deleteToLineStart(),
+          TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
+        };
+      }
       return const Handled();
     }
 
@@ -219,7 +239,7 @@ class TextInputModel implements Component {
     // key or a ctrl/alt-chord carries null text, so there is nothing left
     // to filter.
     if (msg.text case final text?) {
-      _insertAt(text);
+      if (!disabled) _insertAt(text);
       return const Handled();
     }
 

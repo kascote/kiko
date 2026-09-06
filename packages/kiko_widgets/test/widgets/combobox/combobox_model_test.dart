@@ -190,6 +190,36 @@ void main() {
       });
     });
 
+    group('disabled', () {
+      test('a toggle press while disabled does not open the popup', () {
+        final combo = fruitBox()..disabled = true;
+
+        final result = combo.update(pressOn(HitTag.join(combo.id, combo.toggleId)));
+
+        expect(result, isA<Handled>());
+        expect(combo.isOpen, isFalse);
+      });
+
+      test('a text-editing key while disabled does not open the popup', () {
+        final combo = fruitBox()..disabled = true;
+
+        final result = combo.update(charMsg('a'));
+
+        expect(result, isA<Handled>());
+        expect(combo.isOpen, isFalse);
+      });
+
+      test('setting disabled closes an open popup and reaches the field', () {
+        final combo = fruitBox()..update(keyMsg('down'));
+        expect(combo.isOpen, isTrue);
+
+        combo.disabled = true;
+
+        expect(combo.isOpen, isFalse);
+        expect(combo.field.disabled, isTrue);
+      });
+    });
+
     group('open-key forwarding', () {
       test('down moves the popup cursor forward', () {
         final combo = fruitBox()

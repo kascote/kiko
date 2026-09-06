@@ -96,6 +96,20 @@ void main() {
       expect(frame.buffer[(x: 9, y: 0)].bg, equals(Theme.dark.hover.color));
     });
 
+    test('the toggle glyph takes the error ink', () {
+      final combo = _fruitBox()..error = true;
+      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+
+      expect(frame.buffer[(x: 9, y: 0)].fg, equals(Theme.dark.error.color));
+    });
+
+    test('the toggle glyph takes the disabled ink', () {
+      final combo = _fruitBox()..disabled = true;
+      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+
+      expect(frame.buffer[(x: 9, y: 0)].fg, equals(Theme.dark.disabled.color));
+    });
+
     test('the field shows the committed label', () {
       final combo = _fruitBox(value: 'Banana');
       final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));

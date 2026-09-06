@@ -35,6 +35,19 @@ class TextAreaModel implements Component {
   @override
   bool focused;
 
+  /// Whether the text area is disabled.
+  ///
+  /// A disabled editor keeps its text: it consumes a press without moving the
+  /// caret, swallows a key without inserting or acting on it, and reports no
+  /// terminal cursor.
+  bool disabled;
+
+  /// Whether validation failed for this editor.
+  ///
+  /// The editor paints nothing for it; the border a caller composes around
+  /// the editor reads it instead.
+  bool error;
+
   /// The ruler cursor movement, selection and word-wrap math measure against.
   ///
   /// Forwards to [TextAreaComponent.measurer], which owns the wrap cache and
@@ -73,6 +86,8 @@ class TextAreaModel implements Component {
     String initial = '',
     this.placeholder = '',
     this.focused = false,
+    this.disabled = false,
+    this.error = false,
     this.tabWidth = 4,
     this.showLineNumbers = false,
     int maxCharacters = 0,
@@ -118,7 +133,10 @@ class TextAreaModel implements Component {
   /// whether or not the area is focused (the app focuses it). A button-down maps
   /// the clicked cell to a buffer position and moves the caret there; a wheel is
   /// declined so a scrollable ancestor gets it, and any other pointer traffic is
-  /// declined too. The keyboard and paste paths stay behind the gate.
+  /// declined too. The keyboard and paste paths stay behind the gate. While
+  /// [disabled], every pointer past the wheel is consumed and moves no caret,
+  /// and a key or a paste keeps its usual verdict but inserts and acts on
+  /// nothing.
   ///
   /// Returns [Handled] for handled keys, for a paste, and for a click that
   /// moves the caret. Returns [Declined] for keys it doesn't handle, for
@@ -130,6 +148,7 @@ class TextAreaModel implements Component {
       // Nothing to scroll vertically — decline so a scrollable ancestor gets
       // the wheel.
       if (pointer.isWheel) return const Declined();
+      if (disabled) return const Handled();
       if (pointer.isDown) {
         caretAt(pointer.local);
         return const Handled();
@@ -146,7 +165,7 @@ class TextAreaModel implements Component {
       return _handleKey(msg);
     }
     if (msg case PasteMsg(:final text)) {
-      textArea.insert(text);
+      if (!disabled) textArea.insert(text);
       return const Handled();
     }
     return const Declined();
@@ -211,7 +230,7 @@ class TextAreaModel implements Component {
     final action = keyBinding.resolve(msg);
 
     if (action != null) {
-      _executeAction(action);
+      if (!disabled) _executeAction(action);
       return const Handled();
     }
 
@@ -224,7 +243,7 @@ class TextAreaModel implements Component {
     // resolved above — and a named key or a ctrl/alt-chord carries null
     // text, so there is nothing left to filter.
     if (msg.text case final text?) {
-      textArea.insert(text);
+      if (!disabled) textArea.insert(text);
       return const Handled(); // handled
     }
 

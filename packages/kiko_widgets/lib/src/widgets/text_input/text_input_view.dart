@@ -96,21 +96,25 @@ class _TextInputViewport extends Node {
     int usedWidth;
     Position? cursor;
 
+    final disabledStates = <WidgetState>{if (m.disabled) WidgetState.disabled};
+
     if (showPlaceholder) {
       paintLine(
         surface,
-        Line(m.placeholder, style: _regionStyle.placeholder),
+        Line(m.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
         x: area.x,
         y: y,
         width: area.width,
         measurer: _measurer,
       );
       usedWidth = _measurer.widthOf(m.placeholder).clamp(0, visibleWidth);
-      if (m.focused) cursor = Position(area.x, y);
+      if (m.focused && !m.disabled) cursor = Position(area.x, y);
     } else {
       final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
 
-      final textStyle = m.obscureText ? (_regionStyle.obscured ?? _resolveStyle()) : _resolveStyle();
+      final textStyle = m.obscureText && _regionStyle.obscured != null
+          ? _resolver.resolve(_regionStyle.obscured, disabledStates, cls: PaintClass.ink)
+          : _resolveStyle();
       paintLine(
         surface,
         Line(displayText.string, style: textStyle),
@@ -124,7 +128,7 @@ class _TextInputViewport extends Node {
       final totalTextWidth = _measurer.widthOf(displayText.string);
       usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
 
-      if (m.focused) {
+      if (m.focused && !m.disabled) {
         cursor = Position(area.x + (cursorDisplayPos - scrollOffset), y);
       }
     }
@@ -141,7 +145,10 @@ class _TextInputViewport extends Node {
           if (fillCount > 0) {
             paintLine(
               surface,
-              Line(fillChar * fillCount, style: _regionStyle.fill),
+              Line(
+                fillChar * fillCount,
+                style: _resolver.resolve(_regionStyle.fill, disabledStates, cls: PaintClass.ink),
+              ),
               x: area.x + usedWidth,
               y: y,
               width: remainingWidth,
@@ -155,7 +162,8 @@ class _TextInputViewport extends Node {
     return cursor;
   }
 
-  /// Resolves the input text style from the theme and the model's focus state.
+  /// Resolves the input text style from the theme and the model's focus and
+  /// disabled state.
   ///
   /// The text has no base color of its own; it inherits the ground it is
   /// painted on. A focused field tints its text foreground on top of that,
@@ -163,7 +171,10 @@ class _TextInputViewport extends Node {
   /// characters and the terminal cursor). Focus as a surface belongs on the
   /// field's border, resolved by the caller.
   Style _resolveStyle() {
-    final states = <WidgetState>{if (model.focused) WidgetState.focused};
+    final states = <WidgetState>{
+      if (model.focused) WidgetState.focused,
+      if (model.disabled) WidgetState.disabled,
+    };
     return _resolver.resolve(null, states, cls: PaintClass.ink);
   }
 }

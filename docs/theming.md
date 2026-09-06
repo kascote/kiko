@@ -256,6 +256,34 @@ never `focused` or `hover`. `focused` means the widget owns keyboard input.
 coexist and deserve different looks: hover as a faint wash under the
 pointer, cursor as the bar you move with arrows.
 
+**`disabled` is a behavior fact.** A widget produces it when its model has
+input to refuse. A disabled widget consumes a press and a bound key
+without acting on either. An unbound key still declines, and the widget
+reports no terminal cursor.
+
+**`error` is a model fact; where it lands follows the chrome rule.** A
+widget lands it on chrome it owns, the same way it lands `focused`. A
+widget with no chrome of its own paints nothing for it; a border the
+caller composes around the widget reads the fact from the model instead.
+
+The table below is the contract: which states each shipped widget
+produces, and which part of it each state lands on.
+
+| widget    | produces                                            | lands on                                                                                                             |
+| --------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Button    | focused, hover, pressed, loading, disabled           | the face, every state                                                                                                                    |
+| Checkbox  | focused, hover, pressed, error, disabled, selected    | focused/pressed/disabled: brackets and mark; error: brackets; selected: checked mark; disabled: label too; hover: the row                |
+| TextInput | focused, error, disabled                             | focused: the text (ink + bold), and the composed border; error: no part of its own, the composed border reads it; disabled: text, placeholder, fill, obscured |
+| TextArea  | focused, error, disabled                             | as TextInput; disabled also dims the gutter and the selection                                                                            |
+| Combobox  | focused, hover, error, disabled                      | focused/hover/error: the toggle; disabled: field and toggle                                                                              |
+| ListView  | selected, cursor, disabled (per item), hover          | the row                                                                                                                                   |
+| TableView | selected, cursor, hover                              | cursor: row and column wash, cell fill; the rest: the row                                                                                |
+| TreeView  | cursor, loading, hover                               | loading: the indicator glyph; the rest: the row                                                                                          |
+
+A state not in a widget's row is not produced by that widget. A state a
+widget holds but lands on no part of its own is painted by the chrome the
+caller composes, from the widget's field.
+
 ## The resolver
 
 `StyleResolver` maps `(state, paint class)` to paint through a built-in
@@ -309,6 +337,13 @@ not affect that class; modifiers ride on top of the projection.
 | `loading`   | `warning`   | `warning.ink` + slowBlink | 〃                           | —                |
 | `error`     | `error`     | `error.ink`               | `error.fill`                 | `error.wash`     |
 | `disabled`  | `disabled`  | `disabled.ink` + dim      | 〃                           | —                |
+
+Colors are the theme's. The modifiers in this matrix, and `Theme.hoverLift`,
+belong to the matrix instead: a theme picks which color `focus` or
+`disabled` means, never whether `focused` also carries bold. A theme
+without that bold would lose the one thing a state still shows once
+`NO_COLOR` strips the color away. A theme that needs different modifiers
+is a different matrix, not a theme.
 
 Two states transform the result after this matrix has patched, instead of
 appearing in it. Hover lifts a background by `Theme.hoverLift`, or washes a
@@ -586,8 +621,10 @@ Notes the table cannot carry:
   view's `style`. A null region derives from the theme through the resolver:
   placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)
   are muted ink; TextArea's selection is a selection fill. Base text has no
-  color of its own; it inherits the ground it is painted on. Focus resolves
-  through the resolver, not through slots.
+  color of its own; it inherits the ground it is painted on. The text takes
+  the focus ink and bold when focused, resolved through the resolver rather
+  than a slot; the border a caller composes around the field takes
+  `focused` and `error` from the model's own fields.
 - **Combobox** — the field styles through `ComboboxStyle.field` and the
   popup's match rows through `ComboboxStyle.list`; the popup border's ink
   styles through `ComboboxStyle.popupBorder` (`docs/combobox.md`).

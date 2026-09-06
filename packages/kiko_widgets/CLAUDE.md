@@ -38,6 +38,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - The keyboard-current item is `WidgetState.cursor` — never borrow `focused` or `hover` for it (`docs/theming.md`).
 - A model never holds a resolved `Style`: anatomy is a view parameter, and a column's style is a function of the resolver (`docs/theming.md`).
 - Content patches over the widget's base: hand a slot or state style to `paintLine` as `base` or through `Line.over`; never `patchStyle` it onto content (`docs/theming.md`).
+- `disabled` and `error` are model facts on every value widget; where a state lands is the view's contract, listed per widget (`docs/theming.md`).
 
 ## Documentation map
 

@@ -152,6 +152,46 @@ void main() {
     });
   });
 
+  group('TextAreaModel.update while disabled', () {
+    test('a typed key is consumed and the text is unchanged', () {
+      final model = TextAreaModel(initial: 'ab', focused: true, disabled: true);
+      final result = model.update(const KeyMsg('c', text: 'c'));
+      expect(result, isA<Handled>());
+      expect(model.value, equals('ab'));
+    });
+
+    test('a bound key is consumed and does nothing', () {
+      final model = TextAreaModel(initial: 'ab', focused: true, disabled: true);
+      final result = model.update(const KeyMsg('backSpace'));
+      expect(result, isA<Handled>());
+      expect(model.value, equals('ab'));
+    });
+
+    test('a press is consumed and the caret does not move', () {
+      final model = TextAreaModel(initial: 'foo\nbar', focused: true, disabled: true);
+      final row = model.cursorRow;
+      final col = model.cursorCol;
+
+      final result = model.update(pointerAt(PointerAction.down));
+
+      expect(result, isA<Handled>());
+      expect(model.cursorRow, equals(row));
+      expect(model.cursorCol, equals(col));
+    });
+
+    test('Tab still declines', () {
+      final model = TextAreaModel(focused: true, disabled: true);
+      expect(model.update(const KeyMsg('tab')), isA<Declined>());
+    });
+
+    test('a paste is consumed and inserts nothing', () {
+      final model = TextAreaModel(initial: 'ab', focused: true, disabled: true);
+      final result = model.update(const PasteMsg('xyz'));
+      expect(result, isA<Handled>());
+      expect(model.value, equals('ab'));
+    });
+  });
+
   group('TextAreaModel.update key release / bare modifier', () {
     test('a release of the just-pressed key is declined and never doubles the character', () {
       // The regression this whole delivery kills: KeyMsg and KeyReleaseMsg

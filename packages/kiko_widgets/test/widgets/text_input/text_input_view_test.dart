@@ -97,6 +97,24 @@ void main() {
       expect(cell.bg, isNot(equals(Theme.dark.focus.color)));
     });
 
+    test('disabled text carries the disabled ink and dim, and no cursor is placed', () {
+      final model = TextInputModel(initial: 'hi', focused: true, disabled: true);
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final cell = frame.buffer[(x: 0, y: 0)];
+
+      expect(cell.fg, equals(Theme.dark.disabled.color));
+      expect(cell.modifier.has(Modifier.dim), isTrue);
+      expect(frame.cursorPosition, isNull);
+    });
+
+    test('error paints the text unchanged — the field owns no chrome for it', () {
+      final model = TextInputModel(initial: 'hi', error: true);
+      final frame = _frame(5, 1)..render(TextInput(model: model, theme: Theme.dark));
+      final cell = frame.buffer[(x: 0, y: 0)];
+
+      expect(cell.fg, equals(Color.reset));
+    });
+
     test('places the cursor mid-text when the model starts scrolled to the middle', () {
       final model = TextInputModel(initial: 'hello', focused: true)..cursor = 3;
       final frame = _frame(20, 1)..render(TextInput(model: model, theme: Theme.dark));

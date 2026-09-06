@@ -54,13 +54,16 @@ class CellRenderContext {
   final TableColumn column;
 
   /// Whether this row is selected.
-  final bool isSelected;
+  final bool selected;
 
-  /// Whether cursor is on this row.
-  final bool isCursorRow;
+  /// Whether the cursor is on this row.
+  final bool cursorRow;
 
-  /// Whether cursor is on this exact cell.
-  final bool isCursorCell;
+  /// Whether the cursor is on this exact cell.
+  final bool cursorCell;
+
+  /// Whether the pointer sits over this row.
+  final bool hover;
 
   /// Total row count, or null if unknown.
   final int? totalCount;
@@ -72,9 +75,10 @@ class CellRenderContext {
     required this.rowIndex,
     required this.colIndex,
     required this.column,
-    required this.isSelected,
-    required this.isCursorRow,
-    required this.isCursorCell,
+    required this.selected,
+    required this.cursorRow,
+    required this.cursorCell,
+    required this.hover,
     required this.totalCount,
   });
 }

@@ -36,9 +36,10 @@ class TableColumn {
   /// - `rowIndex`: global row index
   /// - `colIndex`: column index (visible only)
   /// - `column`: this column definition
-  /// - `isSelected`: row selection state
-  /// - `isCursorRow`: cursor on this row
-  /// - `isCursorCell`: cursor on this exact cell
+  /// - `selected`: row selection state
+  /// - `cursorRow`: cursor on this row
+  /// - `cursorCell`: cursor on this exact cell
+  /// - `hover`: pointer over this row
   /// - `totalCount`: total rows (nullable)
   final Line Function(CellRenderContext ctx)? render;
 

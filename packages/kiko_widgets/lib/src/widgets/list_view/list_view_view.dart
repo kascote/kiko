@@ -165,7 +165,7 @@ class _ListViewport<T, K> extends Node {
     for (var i = startIndex; i < endIndex; i++) {
       final item = m.getItem(i);
       final isCursor = i == m.cursor;
-      final isChecked = m.isSelected(i);
+      final isSelected = m.isSelected(i);
       final isDisabled = m.isDisabled?.call(i) ?? false;
 
       final itemArea = Rect.create(x: area.x, y: y, width: area.width, height: m.itemHeight).intersection(area);
@@ -186,7 +186,7 @@ class _ListViewport<T, K> extends Node {
       // filling in.
       var rowStyle = style.item ?? const Style();
       var styled = style.item != null;
-      if (isChecked) {
+      if (isSelected) {
         rowStyle = rowStyle.patch(_selectedItemStyle());
         styled = true;
       }
@@ -230,7 +230,12 @@ class _ListViewport<T, K> extends Node {
         // placeholder from the index alone. Both paint the same way, over the
         // same state fill.
         final lines = item != null
-            ? itemBuilder(item, i, (checked: isChecked, cursor: isCursor, disabled: isDisabled))
+            ? itemBuilder(item, i, (
+                selected: isSelected,
+                cursor: isCursor,
+                hover: m.hoverRow == i,
+                disabled: isDisabled,
+              ))
             : pendingBuilder!(i);
         for (var li = 0; li < lines.length && li < itemArea.height; li++) {
           paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);

@@ -599,4 +599,8 @@ Notes the table cannot carry:
   `open`, `close`, `mark`, and `checkedMark`; the label does not react.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
-expose `cursor` (not `focused`): the current-item flag.
+use `cursor` (not `focused`) for the current-item flag. `ItemState` carries
+`selected`, `cursor`, `hover`, and `disabled`. `NodeState` carries `cursor`,
+`hover`, `loading`, and `expanded`. `CellRenderContext`, passed to
+`TableColumn.render`, carries `selected`, `cursorRow`, `cursorCell`, and
+`hover` for the same four facts on a cell.

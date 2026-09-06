@@ -79,9 +79,10 @@ class ScrollState {
 
 /// State passed to itemBuilder for each item.
 ///
+/// - `selected`: true if the item is in the selection set (multi-select
+///   only, requires `multiSelect: true` on ListViewModel)
 /// - `cursor`: true if the keyboard cursor is on this item (the current item)
-/// - `checked`: true if item is checked (multi-select only, requires
-///   `multiSelect: true` on ListViewModel)
+/// - `hover`: true if the pointer sits over this item
 /// - `disabled`: true if item is disabled via `isDisabled` callback
 ///
 /// Use `_` to ignore, or destructure what you need:
@@ -90,10 +91,10 @@ class ScrollState {
 /// itemBuilder: (item, index, _) => Line(item),
 ///
 /// // Use specific fields
-/// itemBuilder: (item, index, (:cursor, :checked, :disabled)) =>
+/// itemBuilder: (item, index, (:cursor, :selected, :disabled)) =>
 ///     Line('${cursor ? '>' : ' '} $item'),
 /// ```
-typedef ItemState = ({bool checked, bool cursor, bool disabled});
+typedef ItemState = ({bool selected, bool cursor, bool hover, bool disabled});
 
 // ═══════════════════════════════════════════════════════════
 // STYLES

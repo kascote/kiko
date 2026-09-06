@@ -194,7 +194,7 @@ class _TreeViewport<T> extends Node {
         fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
       }
 
-      final state = (cursor: isCursor, expanded: isExpanded, loading: isLoading);
+      final state = (cursor: isCursor, hover: m.hoverRow == i, loading: isLoading, expanded: isExpanded);
       final placeholder = node.placeholder;
       final nodeLine = placeholder != null
           ? _placeholderLine(placeholder)

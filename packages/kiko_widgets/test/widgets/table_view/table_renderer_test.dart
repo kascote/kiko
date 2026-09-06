@@ -660,7 +660,7 @@ ID
         expect(contexts[3].colIndex, equals(1));
       });
 
-      test('provides isCursorRow and isCursorCell', () async {
+      test('provides cursorRow and cursorCell', () async {
         final contexts = <CellRenderContext>[];
         final columns = [
           TableColumn(
@@ -699,13 +699,13 @@ ID
         render(model, width: 10, height: 3);
 
         // Row 0 is cursor row
-        expect(contexts[0].isCursorRow, isTrue);
-        expect(contexts[0].isCursorCell, isTrue); // col 0
-        expect(contexts[1].isCursorRow, isTrue);
-        expect(contexts[1].isCursorCell, isFalse); // col 1
+        expect(contexts[0].cursorRow, isTrue);
+        expect(contexts[0].cursorCell, isTrue); // col 0
+        expect(contexts[1].cursorRow, isTrue);
+        expect(contexts[1].cursorCell, isFalse); // col 1
         // Row 1 is not cursor row
-        expect(contexts[2].isCursorRow, isFalse);
-        expect(contexts[3].isCursorRow, isFalse);
+        expect(contexts[2].cursorRow, isFalse);
+        expect(contexts[3].cursorRow, isFalse);
 
         // Move cursor to row 1, col 1
         model
@@ -715,16 +715,16 @@ ID
         render(model, width: 10, height: 3);
 
         // Row 0 is not cursor row
-        expect(contexts[0].isCursorRow, isFalse);
-        expect(contexts[1].isCursorRow, isFalse);
+        expect(contexts[0].cursorRow, isFalse);
+        expect(contexts[1].cursorRow, isFalse);
         // Row 1 is cursor row
-        expect(contexts[2].isCursorRow, isTrue);
-        expect(contexts[2].isCursorCell, isFalse); // col 0
-        expect(contexts[3].isCursorRow, isTrue);
-        expect(contexts[3].isCursorCell, isTrue); // col 1
+        expect(contexts[2].cursorRow, isTrue);
+        expect(contexts[2].cursorCell, isFalse); // col 0
+        expect(contexts[3].cursorRow, isTrue);
+        expect(contexts[3].cursorCell, isTrue); // col 1
       });
 
-      test('provides isSelected', () async {
+      test('provides selected', () async {
         final contexts = <CellRenderContext>[];
         final columns = [
           TableColumn(
@@ -755,8 +755,34 @@ ID
         contexts.clear();
         render(model, width: 10, height: 3);
 
-        expect(contexts[0].isSelected, isTrue);
-        expect(contexts[1].isSelected, isFalse);
+        expect(contexts[0].selected, isTrue);
+        expect(contexts[1].selected, isFalse);
+      });
+
+      test('provides hover', () async {
+        final contexts = <CellRenderContext>[];
+        final columns = [
+          TableColumn(
+            field: 'a',
+            label: Line('A'),
+            width: 10,
+            render: (ctx) {
+              contexts.add(ctx);
+              return Line('');
+            },
+          ),
+        ];
+        final rows = [
+          {'id': 'r0', 'a': 1},
+          {'id': 'r1', 'a': 2},
+        ];
+        final model = TableViewModel(rows: rows, keyField: 'id', columns: columns)
+          ..viewport(rows: 2, cols: 1)
+          ..hoverRow = 1;
+        render(model, width: 10, height: 3);
+
+        expect(contexts[0].hover, isFalse);
+        expect(contexts[1].hover, isTrue);
       });
 
       test('provides totalCount', () async {

@@ -329,9 +329,10 @@ class TableRenderer {
         rowIndex: rowIndex,
         colIndex: scrollCol + colIdx,
         column: col,
-        isSelected: isSelected,
-        isCursorRow: isCursorRow,
-        isCursorCell: isCursorCell,
+        selected: isSelected,
+        cursorRow: isCursorRow,
+        cursorCell: isCursorCell,
+        hover: isHover,
         totalCount: model.totalCount,
       );
 

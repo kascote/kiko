@@ -250,6 +250,33 @@ void main() {
     });
   });
 
+  group('tree view node state', () {
+    test('the hovered node builds with hover: true, the rest with false', () {
+      final states = <int, NodeState>{};
+      final model = TreeViewModel<String>()
+        ..viewport(rows: 10)
+        ..applyRoots(<TreeNode<String>>[
+          TreeNode(path: '/a', label: Line('a'), isLeaf: true),
+          TreeNode(path: '/b', label: Line('b'), isLeaf: true),
+        ])
+        ..hoverRow = 1;
+
+      _frame(10, 2).render(
+        TreeView<String>(
+          model: model,
+          theme: Theme.dark,
+          nodeBuilder: (node, depth, state) {
+            states[model.flatNodes.indexOf(node)] = state;
+            return node.label;
+          },
+        ),
+      );
+
+      expect(states[0]!.hover, isFalse);
+      expect(states[1]!.hover, isTrue);
+    });
+  });
+
   group('hit regions (task 0262)', () {
     // A branch root at depth 0 (its expand indicator sits at columns 0-1),
     // followed by a leaf (which paints no indicator).

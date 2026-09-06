@@ -123,7 +123,7 @@ void appView(AppModel model, Frame frame) {
               model: model.list,
               theme: theme,
               itemBuilder: (contact, index, state) {
-                final checkbox = state.checked ? '●' : '○';
+                final checkbox = state.selected ? '●' : '○';
                 final archivedTag = state.disabled ? ' (archived)' : '';
                 return [
                   Line(

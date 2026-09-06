@@ -300,6 +300,27 @@ void main() {
     });
   });
 
+  group('list view item state', () {
+    test('the hovered item builds with hover: true, the rest with false', () {
+      final states = <int, ItemState>{};
+      final model = _list(<String>['Apple', 'Banana', 'Cherry'])..hoverRow = 1;
+      _frame(12, 5).render(
+        ListView<String, String>(
+          model: model,
+          theme: Theme.dark,
+          itemBuilder: (item, index, state) {
+            states[index] = state;
+            return [Line(item)];
+          },
+        ),
+      );
+
+      expect(states[0]!.hover, isFalse);
+      expect(states[1]!.hover, isTrue);
+      expect(states[2]!.hover, isFalse);
+    });
+  });
+
   group('hit regions (task 0254)', () {
     // A two-line item list with a separator between items — the shape of
     // example/list_view_multiselect.dart, where the old scrollOffset + local.y

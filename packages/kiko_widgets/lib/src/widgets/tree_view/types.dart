@@ -114,12 +114,14 @@ class TreeScrollState {
 /// State passed to nodeBuilder for each node.
 ///
 /// - `cursor`: true if the keyboard cursor is on this node (the current node)
-/// - `expanded`: true if the node is open
+/// - `hover`: true if the pointer sits over this node
 /// - `loading`: true if the node's children are being fetched
+/// - `expanded`: true if the node is open
 typedef NodeState = ({
   bool cursor,
-  bool expanded,
+  bool hover,
   bool loading,
+  bool expanded,
 });
 
 // ═══════════════════════════════════════════════════════════

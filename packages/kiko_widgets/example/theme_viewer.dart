@@ -739,7 +739,7 @@ View _listView(Model model, Theme theme) => ListView(
   model: model.list,
   theme: theme,
   itemBuilder: (chore, index, state) => [
-    Line(' ${state.checked ? '●' : '○'} $chore'),
+    Line(' ${state.selected ? '●' : '○'} $chore'),
   ],
 );
 

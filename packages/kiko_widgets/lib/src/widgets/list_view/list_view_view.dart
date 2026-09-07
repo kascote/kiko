@@ -177,30 +177,55 @@ class _ListViewport<T, K> extends Node {
       // Separator lines and the blank tail stay unmarked.
       markRegion(RowRegion(i), itemArea.toPlume());
 
-      // Honest anatomy, not borrowed states: the base item style, then the
-      // selection fill, then the cursor fill (so the cursor stays visible over
-      // a selected run), then the disabled dim — each layer patches the last.
-      // Hover applies last, as a transform over the patched row: a row with a
-      // background lifts it, a bare row takes the wash. A placeholder row
+      // The row base goes to the resolver with its active states, so the
+      // resolver — not this widget — decides how a state lands on it. A
+      // colored base lifts under the cursor and blends toward the ground
+      // under disabled, instead of one state's fill replacing another's.
+      // The cursor paints as a fill when the list owns focus and as a wash
+      // when it does not, in its own call after selected and before disabled
+      // and hover. Hover applies last, inside the resolver. A placeholder row
       // layers the same way, so the cursor stays visible over items still
       // filling in.
+      final isHover = m.hoverRow == i;
       var rowStyle = style.item ?? const Style();
-      var styled = style.item != null;
-      if (isSelected) {
-        rowStyle = rowStyle.patch(_selectedItemStyle());
-        styled = true;
-      }
-      if (isCursor) {
-        rowStyle = rowStyle.patch(_cursorItemStyle());
-        styled = true;
-      }
-      if (isDisabled) {
-        rowStyle = rowStyle.patch(_disabledStyle());
-        styled = true;
-      }
-      if (m.hoverRow == i) {
-        rowStyle = _resolver.resolve(rowStyle, const {WidgetState.hover}, cls: PaintClass.fill);
-        styled = true;
+      final styled = style.item != null || isSelected || isCursor || isDisabled || isHover;
+      final slots = <WidgetState, Style>{
+        if (style.selectedItem != null) WidgetState.selected: style.selectedItem!,
+        if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
+      };
+      if (m.focused) {
+        rowStyle = _resolver.resolve(
+          rowStyle,
+          {
+            if (isSelected) WidgetState.selected,
+            if (isCursor) WidgetState.cursor,
+            if (isDisabled) WidgetState.disabled,
+            if (isHover) WidgetState.hover,
+          },
+          cls: PaintClass.fill,
+          slots: slots,
+        );
+      } else {
+        rowStyle = _resolver.resolve(
+          rowStyle,
+          {if (isSelected) WidgetState.selected},
+          cls: PaintClass.fill,
+          slots: slots,
+        );
+        rowStyle = _resolver.resolve(
+          rowStyle,
+          {if (isCursor) WidgetState.cursor},
+          cls: PaintClass.wash,
+          slots: slots,
+        );
+        rowStyle = _resolver.resolve(
+          rowStyle,
+          {
+            if (isDisabled) WidgetState.disabled,
+            if (isHover) WidgetState.hover,
+          },
+          cls: PaintClass.fill,
+        );
       }
       if (styled) {
         for (var dy = 0; dy < itemArea.height; dy++) {
@@ -233,7 +258,7 @@ class _ListViewport<T, K> extends Node {
             ? itemBuilder(item, i, (
                 selected: isSelected,
                 cursor: isCursor,
-                hover: m.hoverRow == i,
+                hover: isHover,
                 disabled: isDisabled,
               ))
             : pendingBuilder!(i);
@@ -253,18 +278,6 @@ class _ListViewport<T, K> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
-
-  /// Rows in the selection set — `selected` × `fill`.
-  Style _selectedItemStyle() =>
-      style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
-
-  /// The current item — `cursor` × `fill`.
-  Style _cursorItemStyle() =>
-      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
-
-  /// Disabled rows — `disabled` × `fill` (dim). No anatomy slot: disabled is a
-  /// generic state, not a ListView-specific part.
-  Style _disabledStyle() => _resolver.resolve(null, const {WidgetState.disabled}, cls: PaintClass.fill);
 
   /// The built-in dim run for items whose page isn't held.
   Style _pendingStyle() => style.pending ?? _resolver.ink(_resolver.tones.muted);

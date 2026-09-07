@@ -265,19 +265,20 @@ class TableRenderer {
 
   /// Renders a data row.
   ///
-  /// Per-cell paint order is honest anatomy, not borrowed states: the `row`
-  /// slot as base, patched by the column's own [TableColumn.style] when set,
-  /// then [_selectedRowStyle] (a fill) if the row is selected, then the
-  /// crosshair washes ([_cursorRowStyle] always, [_cursorColumnStyle] only
-  /// when [showCrosshair] is on) if the cell is on the cursor's row/column,
-  /// then [_cursorCellStyle] (a fill) if this is the exact cursor cell.
-  /// Hover applies last, as a transform over that patched cell: a cell with a
-  /// background lifts it, a bare cell takes the hover wash. Each wash is a
-  /// bg-only [Style], so [Style.patch] leaves whatever foreground the row (or
-  /// a custom [TableColumn.render]) already painted untouched. This whole
-  /// stack goes into `paintLine` as `base`, never patched onto the cell's
-  /// content: the cell's content patches last, so a line-level or span-level
-  /// color a column paints always wins over the row's own state.
+  /// The cell base is the `row` slot, patched by the column's own
+  /// [TableColumn.style] when set. Three calls to [StyleResolver.resolve]
+  /// then carry it through its states, in order. First, a fill call resolves
+  /// `selected`, and `cursor` when the cell is the exact cursor cell and the
+  /// table owns focus — `style.selectedRow` and `style.cursorCell` ride in
+  /// as slots. Second, a wash call resolves `cursor` on a cell that sits on
+  /// the cursor row or, with [showCrosshair] on, the cursor column, as long
+  /// as the cell was not already resolved as a focused cursor cell in the
+  /// first call — an unfocused cursor cell washes here instead. The row's
+  /// own slot wins when a cell is on both the cursor row and the crosshair
+  /// column. Third, a fill call resolves `hover`. The resulting style goes
+  /// into `paintLine` as `base`, never patched onto the cell's content: the
+  /// cell's content patches last, so a line-level or span-level color a
+  /// column paints always wins over the row's own state.
   void _renderRow(
     Surface surface,
     Rect area,
@@ -316,11 +317,36 @@ class TableRenderer {
 
       var cellStyle = style.row ?? const Style();
       if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
-      if (isSelected) cellStyle = cellStyle.patch(_selectedRowStyle());
-      if (isCursorRow) cellStyle = cellStyle.patch(_cursorRowStyle());
-      if (showCrosshair && isCursorColumn) cellStyle = cellStyle.patch(_cursorColumnStyle());
-      if (isCursorCell) cellStyle = cellStyle.patch(_cursorCellStyle());
-      if (isHover) cellStyle = _resolver.resolve(cellStyle, const {WidgetState.hover}, cls: PaintClass.fill);
+
+      final isFocusedCursorCell = isCursorCell && model.focused;
+      cellStyle = _resolver.resolve(
+        cellStyle,
+        {
+          if (isSelected) WidgetState.selected,
+          if (isFocusedCursorCell) WidgetState.cursor,
+        },
+        cls: PaintClass.fill,
+        slots: {
+          if (style.selectedRow != null) WidgetState.selected: style.selectedRow!,
+          if (style.cursorCell != null) WidgetState.cursor: style.cursorCell!,
+        },
+      );
+
+      // An unfocused cursor cell washes here too: it never resolved `cursor`
+      // above, since that call only fires the cursor state when the table
+      // owns focus.
+      final onCrosshairColumn = showCrosshair && isCursorColumn;
+      if ((isCursorRow || onCrosshairColumn) && !isFocusedCursorCell) {
+        final washSlot = isCursorRow ? style.cursorRow : style.cursorColumn;
+        cellStyle = _resolver.resolve(
+          cellStyle,
+          const {WidgetState.cursor},
+          cls: PaintClass.wash,
+          slots: {WidgetState.cursor: ?washSlot},
+        );
+      }
+
+      cellStyle = _resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
 
       // Build render context
       final ctx = CellRenderContext(
@@ -361,21 +387,6 @@ class TableRenderer {
 
   /// The empty-state line.
   Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
-
-  /// Rows in the selection set — `selected` × `fill`.
-  Style _selectedRowStyle() =>
-      style.selectedRow ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
-
-  /// Crosshair row wash — `cursor` × `wash`.
-  Style _cursorRowStyle() => style.cursorRow ?? _resolveCursor(PaintClass.wash);
-
-  /// Crosshair column wash — `cursor` × `wash`.
-  Style _cursorColumnStyle() => style.cursorColumn ?? _resolveCursor(PaintClass.wash);
-
-  /// The cursor cell fill — `cursor` × `fill`.
-  Style _cursorCellStyle() => style.cursorCell ?? _resolveCursor(PaintClass.fill);
-
-  Style _resolveCursor(PaintClass cls) => _resolver.resolve(null, const {WidgetState.cursor}, cls: cls);
 
   /// Default cell rendering: converts value to string.
   Line _defaultRender(Object? value, TableColumn col) {

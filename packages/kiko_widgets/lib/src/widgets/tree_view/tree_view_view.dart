@@ -175,26 +175,28 @@ class _TreeViewport<T> extends Node {
       // the node.
       markRegion(RowRegion(i), rowArea.toPlume());
 
-      // Honest anatomy, not borrowed states: the base item style, then the
-      // cursor fill — each layer patches the last. Hover applies last, as a
-      // transform over the patched row: a row with a background lifts it, a
-      // bare row takes the wash. The loading state paints the indicator glyph
-      // alone, never the row.
+      // The row base goes to the resolver with its active states, so the
+      // resolver — not this widget — decides how a state lands on it. The
+      // cursor paints as a fill when the tree owns focus and as a wash when
+      // it does not; a colored base lifts either way instead of one state's
+      // fill replacing another's. Hover applies last, inside the resolver, in
+      // its own call. The loading state paints the indicator glyph alone,
+      // never the row.
+      final isHover = m.hoverRow == i;
       var rowStyle = style.item ?? const Style();
-      var styled = style.item != null;
-      if (isCursor) {
-        rowStyle = rowStyle.patch(_cursorItemStyle());
-        styled = true;
-      }
-      if (m.hoverRow == i) {
-        rowStyle = _resolver.resolve(rowStyle, const {WidgetState.hover}, cls: PaintClass.fill);
-        styled = true;
-      }
+      final styled = style.item != null || isCursor || isHover;
+      rowStyle = _resolver.resolve(
+        rowStyle,
+        {if (isCursor) WidgetState.cursor},
+        cls: m.focused ? PaintClass.fill : PaintClass.wash,
+        slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
+      );
+      rowStyle = _resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
       if (styled) {
         fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
       }
 
-      final state = (cursor: isCursor, hover: m.hoverRow == i, loading: isLoading, expanded: isExpanded);
+      final state = (cursor: isCursor, hover: isHover, loading: isLoading, expanded: isExpanded);
       final placeholder = node.placeholder;
       final nodeLine = placeholder != null
           ? _placeholderLine(placeholder)
@@ -264,10 +266,6 @@ class _TreeViewport<T> extends Node {
   // ─────────────────────────────────────────────
   // Anatomy — derived defaults, overridable per instance or per theme
   // ─────────────────────────────────────────────
-
-  /// The current node — `cursor` × `fill`.
-  Style _cursorItemStyle() =>
-      style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
 
   /// The expand, collapse, and loading glyph — `indicator`, patched with the
   /// `loading` state (warning ink + slow blink) while [loading] is true.

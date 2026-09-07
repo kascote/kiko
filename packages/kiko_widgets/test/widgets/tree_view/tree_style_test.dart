@@ -47,7 +47,7 @@ void main() {
       expect(plainCell.bg, equals(Color.reset));
     });
 
-    test('an explicit cursorItem style wins outright over the derivation', () {
+    test('an explicit cursorItem style paints verbatim, plus the resolver bold', () {
       const override = Style(fg: Color.green, bg: Color.blue);
       final model = _tree();
       final buffer = _render(model, style: const TreeViewStyle(cursorItem: override));
@@ -55,6 +55,17 @@ void main() {
       final cell = buffer[(x: 9, y: 0)];
       expect(cell.bg, equals(Color.blue));
       expect(cell.fg, equals(Color.green));
+      // The slot replaces the theme's fallback on a bare row; the resolver
+      // still adds its own bold on top.
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('an unfocused tree washes the cursor on a plain node, no bold', () {
+      final model = _tree()..focused = false;
+      final buffer = _render(model);
+
+      final cell = buffer[(x: 9, y: 0)];
+      expect(cell.bg, equals(Theme.dark.cursor.color));
       expect(cell.modifier.has(Modifier.bold), isFalse);
     });
 

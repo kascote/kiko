@@ -77,7 +77,10 @@ void main() {
   });
 
   group('button view hover', () {
-    test('a hovered button lifts its face', () {
+    test('a hovered button lifts its face toward the ground, not its own luminance', () {
+      // primary's own luminance sits past the midpoint that Color.lift would
+      // have darkened by; the ground (Theme.dark's background) is dark, so
+      // the lift lightens instead.
       final resting = _frame(4, 1)
         ..render(
           Button(
@@ -95,7 +98,7 @@ void main() {
 
       final rc = resting.buffer[(x: 1, y: 0)]; // the 'O'
       final hc = hovered.buffer[(x: 1, y: 0)];
-      expect(hc.bg, equals(Theme.dark.primary.color!.lift(Theme.hoverLift)));
+      expect(hc.bg, equals(Theme.dark.primary.color!.lighten(Theme.hoverLift)));
       expect(hc.fg, equals(rc.fg));
     });
   });
@@ -117,10 +120,8 @@ void main() {
       expect(cell.bg, Color.red);
     });
 
-    test('a given face yields to the matrix when focused', () {
+    test('a given face keeps its own foreground and lifts its background when focused', () {
       const face = Style(fg: Color.black, bg: Color.red);
-      final resolver = StyleResolver(Theme.dark);
-      final expectedFill = resolver.fill(resolver.tones.focus);
       final frame = _frame(4, 1)
         ..render(
           Button(
@@ -131,16 +132,14 @@ void main() {
         );
 
       final cell = frame.buffer[(x: 1, y: 0)]; // the 'O'
-      // The focused fill replaces the face's fg/bg outright; the face never
-      // shows through while focused.
-      expect(cell.fg, expectedFill.fg);
-      expect(cell.bg, expectedFill.bg);
+      // Focus lifts the face's bg instead of replacing the pair; the face's
+      // own fg survives.
+      expect(cell.fg, equals(Color.black));
+      expect(cell.bg, equals(Color.red.lighten(Theme.stateLift)));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
     test('a label with its own foreground keeps it on a focused face', () {
-      final resolver = StyleResolver(Theme.dark);
-      final expectedFill = resolver.fill(resolver.tones.focus);
       final frame = _frame(4, 1)
         ..render(
           Button(
@@ -154,8 +153,39 @@ void main() {
         );
 
       final cell = frame.buffer[(x: 1, y: 0)]; // the 'O'
-      expect(cell.fg, equals(Color.red), reason: "the label's own color wins over the focused face");
-      expect(cell.bg, equals(expectedFill.bg));
+      expect(cell.fg, equals(Color.red), reason: "the label's own color wins over the focused fill");
+      expect(cell.bg, equals(Theme.dark.primary.color!.lighten(Theme.stateLift)));
+    });
+
+    test('a disabled button blends its face toward the ground and dims; hover changes nothing', () {
+      const face = Style(fg: Color.black, bg: Color.red);
+      final ground = Theme.dark.background.color!;
+      final resting = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK'), disabled: true),
+            theme: Theme.dark,
+            style: const ButtonStyle(face: face),
+          ),
+        );
+      final hoveredDisabled = _frame(4, 1)
+        ..render(
+          Button(
+            model: ButtonModel(id: 'ok', label: Line('OK'), disabled: true)..hovered = true,
+            theme: Theme.dark,
+            style: const ButtonStyle(face: face),
+          ),
+        );
+
+      final cell = resting.buffer[(x: 1, y: 0)];
+      expect(cell.fg, equals(Color.black.mix(ground, Theme.disabledMix)));
+      expect(cell.bg, equals(Color.red.mix(ground, Theme.disabledMix)));
+      expect(cell.modifier.has(Modifier.dim), isTrue);
+
+      final hoverCell = hoveredDisabled.buffer[(x: 1, y: 0)];
+      expect(hoverCell.fg, equals(cell.fg));
+      expect(hoverCell.bg, equals(cell.bg));
+      expect(hoverCell.modifier.has(Modifier.dim), isTrue);
     });
 
     test('a theme switch with no change to style repaints the default face from the new theme', () {

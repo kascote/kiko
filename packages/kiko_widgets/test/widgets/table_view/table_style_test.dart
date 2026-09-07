@@ -175,7 +175,7 @@ void main() {
     });
 
     group('selected + cursor layering', () {
-      test('the cursor stays visible over a selected run', () {
+      test('a cursor row wash over a selected row lifts the selection and keeps its foreground', () {
         final model = _model(selectionEnabled: true)
           ..update(const KeyMsg('space')) // select row 0
           ..update(const KeyMsg('down'))
@@ -192,23 +192,43 @@ void main() {
         expect(selectedOnly.fg, equals(Theme.dark.selection.on));
         expect(selectedOnly.bg, equals(Theme.dark.selection.color));
 
-        // Row 2, column "a": selected AND the cursor row, but not the cursor
-        // cell (cursor is at column 0 = "a" actually — move right so "a"
-        // isn't the cursor column for this check).
-        final rowStyled = buffer[(x: 6, y: 3)]; // column "b", row 2
-        // The wash (bg-only) must win over the selection fill's bg, while
-        // the selection fill's fg (there's no custom render on column b)
-        // shows through untouched by the wash.
-        expect(rowStyled.bg, equals(Theme.dark.cursor.color));
+        // Row 2, column "b": selected AND the cursor row, but not the cursor
+        // cell (the cursor sits on column "a"). The wash lifts the selection
+        // fill instead of replacing it, and keeps its foreground.
+        final rowStyled = buffer[(x: 6, y: 3)];
         expect(rowStyled.fg, equals(Theme.dark.selection.on));
+        expect(rowStyled.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+      });
 
-        // Row 2, column "a" (x=0): the exact cursor cell — the fill wins
-        // outright over both the selection fill and the row wash, and picks
-        // up bold. Column "a" has a custom red fg, which still survives.
+      test('a cursor cell over a selected row lifts the selection and is bold', () {
+        final model = _model(selectionEnabled: true)
+          ..update(const KeyMsg('space')) // select row 0
+          ..update(const KeyMsg('down'))
+          ..update(const KeyMsg('space')) // select row 1
+          ..update(const KeyMsg('down'))
+          ..update(const KeyMsg('space')); // select row 2; cursor now on row 2
+
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        // Row 2, column "a" (x=0): the exact cursor cell — the fill lifts
+        // the selection fill instead of replacing it, and adds bold. Column
+        // "a" has a custom red fg, which still survives over the fill.
         final cursorCell = buffer[(x: 0, y: 3)];
         expect(cursorCell.fg, equals(Color.red));
-        expect(cursorCell.bg, equals(Theme.dark.cursor.color));
+        expect(cursorCell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
         expect(cursorCell.modifier.has(Modifier.bold), isTrue);
+      });
+
+      test('a cursor cell over a plain row is the cursor pair, bold', () {
+        // Move the cursor to column "b", which has no custom render fg, so
+        // the resolved fill's own fg is visible directly.
+        final model = _model()..update(const KeyMsg('right'));
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 6, y: 1)]; // column "b", the exact cursor cell
+        expect(cell.fg, equals(Theme.dark.cursor.on));
+        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.modifier.has(Modifier.bold), isTrue);
       });
 
       test('a line-level color survives the cursor cell fill', () {
@@ -230,6 +250,28 @@ void main() {
         final cell = buffer[(x: 0, y: 1)];
         expect(cell.fg, equals(Color.red), reason: "the line's own color wins over the cursor cell fill");
         expect(cell.bg, equals(Theme.dark.cursor.color));
+      });
+
+      test('an unfocused table washes the whole cursor row on a plain row, no bold', () {
+        final model = _model(focused: false); // cursor row 0
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 6, y: 1)]; // column "b", on the cursor row
+        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.modifier.has(Modifier.bold), isFalse);
+      });
+
+      test('an unfocused table lifts the cursor row on a selected row, no bold', () {
+        // Select row 0 while focused (the cursor stays there), then blur.
+        final model = _model(selectionEnabled: true)
+          ..update(const KeyMsg('space'))
+          ..focused = false;
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 6, y: 1)]; // column "b", selected and on the cursor row
+        expect(cell.fg, equals(Theme.dark.selection.on));
+        expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+        expect(cell.modifier.has(Modifier.bold), isFalse);
       });
     });
 

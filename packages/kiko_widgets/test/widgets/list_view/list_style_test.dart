@@ -29,9 +29,10 @@ ListViewModel<String, String> _list(
   List<String> items, {
   bool multiSelect = false,
   bool Function(int index)? isDisabled,
+  bool focused = true,
 }) => ListViewModel<String, String>(
   items: items,
-  focused: true,
+  focused: focused,
   multiSelect: multiSelect,
   isDisabled: isDisabled,
 );
@@ -73,14 +74,16 @@ void main() {
       expect(selectedCell.fg, equals(Theme.dark.selection.on));
     });
 
-    test('the cursor stays visible over a selected run', () {
-      // Row 0 is both selected and the cursor; the cursor fill (patched last)
-      // must win over the selection fill.
+    test('a selected row under the cursor keeps the selection fg and lifts its bg, bold', () {
+      // Row 0 is both selected and the cursor: the cursor lifts the
+      // selection fill instead of replacing it, so the fact stays visible.
       final model = _list(<String>['Apple', 'Banana'], multiSelect: true)..update(const KeyMsg('space'));
       final buffer = _render(model);
 
       final cell = buffer[(x: 7, y: 0)];
-      expect(cell.bg, equals(Theme.dark.cursor.color));
+      expect(cell.fg, equals(Theme.dark.selection.on));
+      expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+      expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
     test('a hovered row derives the hover wash', () {
@@ -110,7 +113,31 @@ void main() {
       expect(disabledCell.modifier.has(Modifier.dim), isTrue);
     });
 
-    test('an explicit cursorItem style wins outright over the derivation', () {
+    test('a disabled selected row blends both colors toward the ground, dim', () {
+      // Toggling selection on a disabled row is refused, so row 1 is
+      // selected first, then marked disabled for painting — leaving it
+      // selected, disabled, and off the cursor.
+      final disabledRows = <int>{};
+      final model =
+          _list(
+              <String>['Apple', 'Banana', 'Cherry'],
+              multiSelect: true,
+              isDisabled: disabledRows.contains,
+            )
+            ..update(const KeyMsg('down'))
+            ..update(const KeyMsg('space'))
+            ..update(const KeyMsg('down'));
+      disabledRows.add(1);
+      final buffer = _render(model);
+
+      final ground = Theme.dark.background.color!;
+      final cell = buffer[(x: 7, y: 1)];
+      expect(cell.fg, equals(Theme.dark.selection.on.mix(ground, Theme.disabledMix)));
+      expect(cell.bg, equals(Theme.dark.selection.color!.mix(ground, Theme.disabledMix)));
+      expect(cell.modifier.has(Modifier.dim), isTrue);
+    });
+
+    test('an explicit cursorItem style paints verbatim, plus the resolver bold', () {
       const override = Style(fg: Color.green, bg: Color.blue);
       final model = _list(<String>['Apple', 'Banana']);
       final buffer = _render(model, style: const ListViewStyle(cursorItem: override));
@@ -118,7 +145,42 @@ void main() {
       final cell = buffer[(x: 7, y: 0)];
       expect(cell.bg, equals(Color.blue));
       expect(cell.fg, equals(Color.green));
-      // Derivation's bold is not applied when the slot is overridden.
+      // The slot replaces the theme's fallback on a bare row; the resolver
+      // still adds its own bold on top.
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('an explicit cursorItem style gives way to the lift on a selected cursor row', () {
+      const override = Style(fg: Color.green, bg: Color.blue);
+      final model = _list(<String>['Apple', 'Banana'], multiSelect: true)..update(const KeyMsg('space'));
+      final buffer = _render(model, style: const ListViewStyle(cursorItem: override));
+
+      final cell = buffer[(x: 7, y: 0)];
+      expect(cell.fg, equals(Theme.dark.selection.on));
+      expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('an unfocused list washes the cursor on a plain row, no bold', () {
+      final model = _list(<String>['Apple', 'Banana'], focused: false);
+      final buffer = _render(model);
+
+      final cell = buffer[(x: 7, y: 0)];
+      expect(cell.bg, equals(Theme.dark.cursor.color));
+      expect(cell.modifier.has(Modifier.bold), isFalse);
+    });
+
+    test('an unfocused list lifts the cursor on a selected row, no bold', () {
+      // Select and leave the cursor on row 0 while focused, then blur: the
+      // model keeps its selection and cursor position across the flip.
+      final model = _list(<String>['Apple', 'Banana'], multiSelect: true)
+        ..update(const KeyMsg('space'))
+        ..focused = false;
+      final buffer = _render(model);
+
+      final cell = buffer[(x: 7, y: 0)];
+      expect(cell.fg, equals(Theme.dark.selection.on));
+      expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
       expect(cell.modifier.has(Modifier.bold), isFalse);
     });
 

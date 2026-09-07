@@ -158,6 +158,15 @@ A term of art added to a page gets its entry here in the same change.
   classes of nullable slots).
 - **matrix** — the built-in state × class table: the style each
   `WidgetState` contributes to each paint class (`docs/theming.md`).
+- **lift** — moving a background one step lighter or darker by a fixed
+  amount, instead of replacing it. The ground decides the direction: a
+  dark ground lightens, a light ground darkens. The `cursor` and `focused`
+  transforms lift a base that already carries a background
+  (`docs/theming.md`).
+- **blend** — mixing both `fg` and `bg` of a filled base toward the ground
+  by a fixed amount. The `disabled` transform blends a base that already
+  carries a background, instead of swapping its foreground alone
+  (`docs/theming.md`).
 - **tier** — one of three levels of color fidelity a style degrades
   through: full RGB, the named ANSI-16 table, NO_COLOR modifiers
   (`docs/theming.md`). The word is reserved for this meaning.

@@ -239,14 +239,42 @@ enum WidgetState {
   pressed,    // a pointer is held down on it — mouse only
   loading,    // async in flight
   error,      // invalid / failed
-  disabled,   // non-interactive — overrides everything
+  disabled,   // non-interactive — ends the chain, hover and pressed do nothing
 }
 ```
 
-Declaration order is priority order: when several states apply, a later
-state's contribution patches over an earlier one's. `cursor` beats
-`selected`, so the cursor bar stays visible while it moves over a selected
-run. `disabled` is last and overrides everything.
+Declaration order sets the order states apply. `selected`, `loading` and
+`error` patch onto the base first, each patch replacing the last. `cursor`,
+`focused` and `disabled` transform the patched result next, in that order.
+`hover` and `pressed` transform last.
+
+`cursor` and `focused` lift a base that already carries a background,
+instead of replacing it. On a bare base — `bg` is null or `Color.reset` —
+each patches a fallback style instead: its fill in the fill class, its wash
+in the wash class. A lift keeps two facts on one cell: a selected row under
+the cursor keeps the selection color, one step brighter or darker, instead
+of the cursor's own color hiding it.
+
+A lift's direction follows the ground, not the color it lifts. The ground
+is `tones.background.color`. A dark ground — luminance below 0.5, or no
+color — lightens; a light ground darkens. A second lift then continues the
+first instead of reversing it, so hover on top of a state lift always reads
+as a further step. A state lifts by `Theme.stateLift`; hover lifts by
+`Theme.hoverLift`, the smaller step.
+
+The ink class is the exception: an ink has no background to lift, so
+`focused` × `ink` patches the focus ink plus bold at its declaration
+position, and an error ink still wins over it on chrome.
+
+Under full color, when the ground has a color, `disabled` blends both `fg`
+and `bg` of a filled base toward it by `Theme.disabledMix` and adds dim,
+keeping the pair. Moving one half of an authored pair would break its
+contrast; moving both toward one target scales the contrast down evenly.
+Otherwise — under a plainer
+tier, or when the ground has no color — `disabled` keeps the pair and adds
+dim alone. On a bare base `disabled` swaps in the disabled ink and adds
+dim. Either way, `disabled` ends the chain: `hover` and `pressed` do
+nothing once it is active.
 
 **Use honest states.** The keyboard-current item is `WidgetState.cursor`,
 never `focused` or `hover`. `focused` means the widget owns keyboard input.
@@ -295,8 +323,14 @@ enum PaintClass { ink, fill, wash }
 class StyleResolver {
   StyleResolver(this.theme); // adopts StyleResolver.defaultPolicy
 
-  /// Resolves [base] under [states] for one paint class.
-  Style resolve(Style? base, Set<WidgetState> states, {required PaintClass cls});
+  /// Resolves [base] under [states] for one paint class. [slots] carries a
+  /// widget's own per-state style, keyed by state.
+  Style resolve(
+    Style? base,
+    Set<WidgetState> states, {
+    required PaintClass cls,
+    Map<WidgetState, Style> slots = const {},
+  });
 
   /// Border style for a set of states.
   Style border(Set<WidgetState> states);
@@ -317,6 +351,13 @@ class StyleResolver {
 `resolver.border({if (m.focused) WidgetState.focused})` replaces the
 hand-written `m.focused ? theme.focus : theme.border` at every call site.
 
+`slots` lets a widget hand in its own per-state style for one state — a
+cursor-row slot, say. A slot replaces the theme's contribution for that
+state: the fallback a lift uses on a bare base, or the matrix cell for
+`selected`, `loading` or `error`. It never replaces the style the call
+composes, so a background the base itself carries still lifts under
+`cursor` or `focused` even when a slot is set for that state.
+
 A raw projection (`theme.success.fill`) bypasses the render policy: it
 paints RGB on every terminal. App content that paints tones directly — a
 title in `primary`, a status badge in `success` — should read the tone
@@ -329,14 +370,14 @@ This table is the built-in look of kiko. It is the single place where "what
 does selected mean on a border" is decided. An em-dash means the state does
 not affect that class; modifiers ride on top of the projection.
 
-| state       | tone        | `ink` (chrome/text)       | `fill` (surfaces)            | `wash` (tints)   |
-| ----------- | ----------- | ------------------------- | ---------------------------- | ---------------- |
-| `selected`  | `selection` | `selection.ink`           | `selection.fill`             | `selection.wash` |
-| `cursor`    | `cursor`    | —                         | `cursor.fill` + bold         | `cursor.wash`    |
-| `focused`   | `focus`     | `focus.ink` + bold        | `focus.fill` + bold          | —                |
-| `loading`   | `warning`   | `warning.ink` + slowBlink | 〃                           | —                |
-| `error`     | `error`     | `error.ink`               | `error.fill`                 | `error.wash`     |
-| `disabled`  | `disabled`  | `disabled.ink` + dim      | 〃                           | —                |
+| state       | tone        | `ink` (chrome/text)       | `fill` (surfaces)                             | `wash` (tints)                 |
+| ----------- | ----------- | ------------------------- | ------------------------------------------------ | ------------------------------- |
+| `selected`  | `selection` | `selection.ink`           | `selection.fill`                                  | `selection.wash`                |
+| `cursor`    | `cursor`    | —                         | lift, or `cursor.fill` + bold on bare             | lift, or `cursor.wash` on bare   |
+| `focused`   | `focus`     | `focus.ink` + bold        | lift, or `focus.fill` + bold on bare              | —                                |
+| `loading`   | `warning`   | `warning.ink` + slowBlink | 〃                                                | —                                |
+| `error`     | `error`     | `error.ink`               | `error.fill`                                      | `error.wash`                    |
+| `disabled`  | `disabled`  | `disabled.ink` + dim      | blend + dim, or `disabled.ink` + dim on bare      | —                                |
 
 Colors are the theme's. The modifiers in this matrix, and `Theme.hoverLift`,
 belong to the matrix instead: a theme picks which color `focus` or
@@ -345,16 +386,26 @@ without that bold would lose the one thing a state still shows once
 `NO_COLOR` strips the color away. A theme that needs different modifiers
 is a different matrix, not a theme.
 
-Two states transform the result after this matrix has patched, instead of
-appearing in it. Hover lifts a background by `Theme.hoverLift`, or washes a
-part that has none. Pressed inverts the result; under `NO_COLOR` it flips
-the `reversed` modifier instead.
+`selected`, `loading` and `error` patch onto the base exactly as the table
+shows. `cursor`, `focused` and `disabled` transform the patched result
+instead: the table shows what each produces, a lift or a blend, not a
+literal patch. Hover transforms next, lifting a background by
+`Theme.hoverLift` as a second step on top of any lift already there, or
+washing a part that has none. Pressed transforms last, inverting the
+result; under `NO_COLOR` it flips the `reversed` modifier instead.
 
 Reading examples:
 
 - A selected pane border is `selected` × `ink`: a foreground tint of the
   selection color, no background.
-- A focused button is `focused` × `fill`: `focus.fill` plus bold.
+- A focused button is `focused` × `fill`: it lifts the face's own
+  background one step and keeps its pair, plus bold.
+- A selected row under the cursor is `selected` × `fill` then `cursor` ×
+  `fill`: the cursor lifts the selection color a further step and adds
+  bold, instead of replacing it.
+- A disabled selected row is `selected` × `fill` then `disabled` × `fill`:
+  disabled blends the selection's `fg` and `bg` toward the ground and adds
+  dim, keeping the pair readable.
 - An error input's border is `error` × `ink`; its text keeps the base
   style. The matrix only patches what a state owns.
 
@@ -443,32 +494,42 @@ duplicate a part that already has a home.
 
 ### 3. Resolve states through the resolver, with the right class
 
-For each part, fall back from the slot to the resolver:
+Hand the resolver the part's own base style, not `null`. A background the
+part already carries lifts under `cursor` or `focused` instead of being
+replaced, which is why a selected row keeps its pair under the cursor:
 
 ```dart
 late final _resolver = StyleResolver(theme);
 
-Style _selectedItemStyle() =>
-    style.selectedItem ?? _resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
-
-Style _cursorItemStyle() =>
-    style.cursorItem ?? _resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill);
+var itemStyle = style.item ?? const Style();
+itemStyle = _resolver.resolve(
+  itemStyle,
+  {
+    if (isSelected) WidgetState.selected,
+    if (isCursor) WidgetState.cursor,
+    if (isDisabled) WidgetState.disabled,
+    if (isHover) WidgetState.hover,
+  },
+  cls: PaintClass.fill,
+  slots: {
+    if (style.selectedItem != null) WidgetState.selected: style.selectedItem!,
+    if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
+  },
+);
 ```
 
 `cls` is required: the part picks the projection, so every call names its
 class. Pass `cls: PaintClass.wash` for a tint and `cls: PaintClass.ink` for
-chrome.
+chrome. `slots` carries the part's own anatomy styles, keyed by state: a
+slot replaces the theme's contribution for that state — the fallback a
+lift uses on a bare base, or the matrix cell for `selected` — but never the
+style the call composes.
 
-Layer parts by patching in the matrix's priority order — base → selected →
-cursor → disabled — each `Style.patch` over the last. The cursor then stays
-visible over a selected run, and disabled dims everything:
-
-```dart
-var s = style.item ?? const Style();
-if (isSelected) s = s.patch(_selectedItemStyle());
-if (isCursor)   s = s.patch(_cursorItemStyle());
-if (isDisabled) s = s.patch(_resolver.resolve(null, const {WidgetState.disabled}, cls: PaintClass.fill));
-```
+A part that owns keyboard focus paints its cursor in the fill class; one
+that does not paints it in the wash class, in its own `resolve` call.
+Compose several calls when a part's states need different classes:
+`selected` and `disabled` in one fill call, `cursor` in a wash call of its
+own for a part that does not own focus.
 
 For borders, use the `border` helper:
 
@@ -507,23 +568,34 @@ projection call, so a widget never branches on the terminal it runs in:
   `selection` stays blue-family, and the terminal's own palette
   customization still reads correctly. A theme may hand-author this table.
   One that does not gets a table derived from its RGB tones
-  (`Ansi16Tones.derive`). A wash has no subtle tint to spend at this tier,
-  so it drops entirely. A ground keeps only its foreground, so the
-  terminal's own background shows through.
-- **`RenderPolicy.noColor`** — color is off (NO_COLOR). Meaning
-  re-expresses through modifiers: `fill` becomes `Modifier.reversed`, `ink`
-  keeps its modifiers with the color dropped, and `wash` becomes nothing —
-  a crosshair collapses to its cursor cell. A ground carries no color at
-  all here, and — unlike `fill` — never reverses.
+  (`Ansi16Tones.derive`). A lift at this tier always steps to the bright
+  variant of the slot, whatever the ground: darkening a named slot can
+  leave it unchanged, which would hide the step. A slot already at its
+  bright variant stays there, so a second lift — hover on top of a state
+  lift — collapses into the first instead of adding a further step. Hover
+  lifts the same way. A wash has no subtle tint to spend at this tier, so
+  it drops entirely. A ground keeps only its foreground, so the terminal's
+  own background shows through.
+- **`RenderPolicy.noColor`** — color is off (NO_COLOR). Nothing lifts or
+  blends at this tier: a base that already carries a background stays as
+  it is, a bare base takes the fallback style, and bold and dim carry the
+  states instead. Meaning re-expresses through modifiers: `fill` becomes
+  `Modifier.reversed`, `ink` keeps its modifiers with the color dropped,
+  and `wash` becomes nothing — a crosshair collapses to its cursor cell. A
+  ground carries no color at all here, and — unlike `fill` — never
+  reverses.
 
 The staircase reads the same from richest to plainest: a fill is tint plus
 fill in RGB, a real `(fg, bg)` pair from sixteen names at ANSI-16, and
 reversed once color is off. A state that must stay distinguishable —
 selected, cursor, focused, error, disabled — never goes invisible on the
-way down; it spends a plainer signal at each step. An ink-only state with
-no modifier (`selection.ink` on a border) does degrade to nothing under
-NO_COLOR. That loss is accepted, because every such state stays visible
-through its fill projection.
+way down; it spends a plainer signal at each step. `cursor` is the
+exception when a widget paints it only as a wash: a widget that does not
+own keyboard focus gives it no fill projection to fall back on, so it
+drops to nothing under `ansi16` and `noColor` on a bare row, same as an
+ink-only state. An ink-only state with no modifier (`selection.ink` on a
+border) does degrade to nothing under NO_COLOR. That loss is accepted,
+because every such state stays visible through its fill projection.
 
 `Application` maps the terminal's color profile to a policy before the
 first frame and sets it on `StyleResolver.defaultPolicy`. Every
@@ -605,22 +677,29 @@ Notes the table cannot carry:
 
 - **TableView** — the crosshair (`cursorColumn`) is enabled by
   `showCrosshair` on the view, not by slot presence: a slot styles a part,
-  it does not create the behavior. A cell paints base → the column's own
-  style (`TableColumn.style`, resolved at paint) → selectedRow →
-  cursorRow/cursorColumn → cursorCell, each patched over the last. Hover
-  applies last of all, as a transform over that patched cell: a cell with
-  a background lifts it, a bare cell takes the hover wash. That whole
-  chain is the `base` the cell's content paints over, so the cell's
-  content — the column's rendered line and its spans — patches last of
-  all, over hover included. The exemplar — copy its shape.
+  it does not create the behavior. A cell's base is `row`, patched by the
+  column's own style (`TableColumn.style`, resolved at paint). The resolver
+  then composes `selected` and, on the exact cursor cell of a focused
+  table, `cursor` in the fill class — `selectedRow` and `cursorCell` ride
+  in as slots. A cell on the cursor row, or on the crosshair column, that
+  is not that focused cursor cell resolves `cursor` again in the wash
+  class, through the `cursorRow` slot or the `cursorColumn` slot;
+  `cursorRow` wins when a cell sits on both. The wash lifts a selected row
+  instead of replacing it, so an unfocused table's cursor washes every row
+  it crosses without ever entering the fill class. Hover resolves last, in
+  its own fill call: a cell with a background lifts it, a bare cell takes
+  the hover wash. The resolved style is the `base` the cell's content
+  paints over, so the column's rendered line and its spans always patch
+  last, over hover included. The exemplar — copy its shape.
 - **TreeView** — the expand, collapse, and loading glyph is the
   `indicator` slot; the default node builder paints the glyph and reads
   it, and a custom `nodeBuilder` paints its own row and never sees it.
   A tree has no selection set, so no `selectedItem`.
 - **Button** — one slot, `ButtonStyle.face`. A null face derives
-  `resolver.fill(primary)`; states ride the matrix (focused →
-  `resolver.fill(focus)` + bold, loading → warning + blink, disabled → dim).
-  A press inverts the resolved face through `WidgetState.pressed`.
+  `resolver.fill(primary)`; states ride the matrix — `focused` lifts the
+  face's background and adds bold, `loading` reads warning + blink,
+  `disabled` blends the face toward the ground and dims it. A press
+  inverts the resolved face through `WidgetState.pressed`.
 - **TextInput / TextArea** — region styles are nullable slots on the
   view's `style`. A null region derives from the theme through the resolver:
   placeholder and fill (TextInput) or placeholder and lineNumber (TextArea)

@@ -32,7 +32,10 @@ import 'package:kiko_widgets/kiko_widgets.dart';
 // through the gallery. The tree and table load through deliberately slow
 // fetches, so the loading tone stays on screen long enough to see. The
 // editor starts with a selection, so the selection tone shows on the first
-// frame.
+// frame. The list starts with a selected row under the cursor, so the
+// lifted-selection look shows on the first frame too, and the Dialog…
+// button keeps an error face, so a destructive color surviving focus is
+// visible as soon as tab reaches it.
 //
 // Theme keys are alt+[ / alt+] with F1/F2 as a fallback: a legacy terminal
 // sends alt+[ as a bare `ESC [` — the CSI introducer — so only the kitty
@@ -116,6 +119,13 @@ class Model {
     for (var i = 0; i < _seedSelection; i++) {
       editor.textArea.moveCursorLeft(isSelecting: true);
     }
+    // Select the row under the cursor, so the lifted-selection look shows on
+    // the first frame. The model refuses a key while unfocused, so the list
+    // is focused for the toggle, then dropped back to its resting state.
+    list
+      ..focused = true
+      ..update(const KeyMsg('space'))
+      ..focused = false;
     // Realize the lazily-built FocusGroup now, so the first field is focused —
     // and drawn as such, with a cursor — on the very first frame.
     focus.setIndex(0);
@@ -703,7 +713,11 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
             const SizedBox(width: 1),
             Button(model: model.offButton, theme: theme),
             const SizedBox(width: 1),
-            Button(model: model.dialogButton, theme: theme),
+            Button(
+              model: model.dialogButton,
+              theme: theme,
+              style: ButtonStyle(face: resolver.fill(resolver.tones.error)),
+            ),
           ],
         ),
       ],

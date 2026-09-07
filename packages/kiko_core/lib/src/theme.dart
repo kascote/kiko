@@ -164,6 +164,21 @@ class Theme implements ToneSet {
   /// [hover] tone and the resolver's hover transform.
   static const double hoverLift = 0.08;
 
+  /// The fraction a background lifts by when a state lands on a base that
+  /// already has one.
+  ///
+  /// `StyleResolver` lifts a colored base by this much for
+  /// `WidgetState.cursor` and `WidgetState.focused`; [hoverLift] is hover's
+  /// own, smaller step on top.
+  static const double stateLift = 0.16;
+
+  /// The fraction a disabled fill's `fg` and `bg` move toward the ground
+  /// color.
+  ///
+  /// `StyleResolver` blends with this under `RenderPolicy.color` only, when
+  /// the base already carries a background and [background] has a color.
+  static const double disabledMix = 0.5;
+
   /// The mouse-over tint.
   ///
   /// When not set explicitly it is derived as a fainter lift of [background]

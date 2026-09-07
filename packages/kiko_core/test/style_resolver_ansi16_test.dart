@@ -46,10 +46,32 @@ void main() {
       expect(resolver.resolve(null, {WidgetState.hover}, cls: PaintClass.wash), equals(const Style()));
     });
 
-    test('hover leaves a fill unchanged under ansi16', () {
+    test('hover lifts a fill one step to the bright variant under ansi16', () {
       final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       final result = resolver.resolve(fill, {WidgetState.hover}, cls: PaintClass.fill);
-      expect(result, fill);
+      expect(result.fg, fill.fg);
+      expect(result.bg, fill.bg!.lighten(Theme.hoverLift));
+    });
+
+    test('cursor over a selected fill maps to the bright variant under ansi16', () {
+      final result = resolver.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
+      expect(result.fg, derived.selection.on);
+      expect(result.bg, derived.selection.color!.lighten(Theme.stateLift));
+      expect(result.addModifier.has(Modifier.bold), isTrue);
+    });
+
+    test('a second lift under ansi16 is idempotent — a bright slot stays bright', () {
+      final onceLifted = resolver.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
+      final twiceLifted = resolver.resolve(onceLifted, {WidgetState.hover}, cls: PaintClass.fill);
+      expect(twiceLifted.bg, onceLifted.bg);
+    });
+
+    test('disabled keeps the named pair and adds dim under ansi16', () {
+      final selectedFill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
+      final result = resolver.resolve(selectedFill, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(result.fg, selectedFill.fg);
+      expect(result.bg, selectedFill.bg);
+      expect(result.addModifier.has(Modifier.dim), isTrue);
     });
 
     test('pressed inverts the named pair under ansi16', () {

@@ -70,6 +70,22 @@ void main() {
       expect(s.addModifier.has(Modifier.bold), isTrue);
     });
 
+    test('cursor over an authored base with a background stays unchanged, plus bold', () {
+      const authored = Style(fg: Color.white, bg: Color.rgb(0x224466));
+      final s = resolver.resolve(authored, {WidgetState.cursor}, cls: PaintClass.fill);
+      expect(s.fg, authored.fg);
+      expect(s.bg, authored.bg);
+      expect(s.addModifier.has(Modifier.bold), isTrue);
+    });
+
+    test('disabled mixes nothing under NO_COLOR — a filled base keeps its pair and adds dim', () {
+      const authored = Style(fg: Color.white, bg: Color.rgb(0x224466));
+      final s = resolver.resolve(authored, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(s.fg, authored.fg);
+      expect(s.bg, authored.bg);
+      expect(s.addModifier.has(Modifier.dim), isTrue);
+    });
+
     test('the border helper drops color but a focused border stays bold', () {
       final resting = resolver.border(const {});
       expect(resting.fg, isNull);

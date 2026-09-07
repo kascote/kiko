@@ -55,15 +55,23 @@ enum RenderPolicy {
 
 /// Resolves a [Style] from a [Theme], active [WidgetState]s, and a [PaintClass].
 ///
-/// This is the single place the built-in look lives: for each active tone
-/// state, in priority order, it patches the state's contribution for the
-/// requested paint class onto a base style. Tone states pick tones from the
-/// theme; the [PaintClass] decides how each tone lands, so the same state
-/// looks right on chrome, on a surface, or as a tint without any per-widget
-/// code. [WidgetState.hover] and [WidgetState.pressed] are not in that
-/// matrix: they transform the patched result afterward, hover then pressed.
-/// A theme picks the colors the matrix reads; the matrix itself picks every
-/// modifier, including [Theme.hoverLift].
+/// This is the single place the built-in look lives. [WidgetState.selected],
+/// [WidgetState.loading] and [WidgetState.error] patch one matrix cell each,
+/// in priority order, onto a base style; the [PaintClass] decides how each
+/// tone lands, so the same state looks right on chrome, on a surface, or as a
+/// tint without any per-widget code. [WidgetState.cursor],
+/// [WidgetState.focused] and [WidgetState.disabled] are not in that matrix:
+/// they transform the patched result afterward, in that order, so a state
+/// that lands on a colored base lifts or blends it instead of replacing it.
+/// [WidgetState.hover] and [WidgetState.pressed] transform last, and do
+/// nothing once [WidgetState.disabled] is active. A theme picks the colors
+/// every step reads; the resolver itself picks every modifier, including
+/// [Theme.hoverLift].
+///
+/// A `slots` argument on [resolve] lets a widget hand in an authored style
+/// for one state — a widget's own cursor-row slot, say —
+/// which replaces the theme's own contribution for that state without
+/// touching any other.
 ///
 /// ```dart
 /// final resolver = StyleResolver(theme);
@@ -113,50 +121,185 @@ class StyleResolver {
   /// Resolves a [Style] by applying state styles on top of [base].
   ///
   /// 1. Starts with [base] (or an empty style if null).
-  /// 2. Walks the tone states — every value but [WidgetState.hover] and
-  ///    [WidgetState.pressed] — in priority order ([WidgetState.values]
-  ///    declaration order). For each active one, patches in the built-in
-  ///    default for that state and [cls]. States whose row is empty for
-  ///    [cls] contribute nothing. Patches each contribution via
-  ///    [Style.patch], so later (higher-priority) states win.
-  /// 3. If [WidgetState.hover] is active: under [RenderPolicy.color], lifts
-  ///    a background by [Theme.hoverLift] or, on a result with none,
-  ///    patches the hover wash.
-  /// 4. If [WidgetState.pressed] is active: inverts the result, or, under
-  ///    [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
+  /// 2. Walks [WidgetState.selected], [WidgetState.loading] and
+  ///    [WidgetState.error] in declaration order. For each active one,
+  ///    patches [slots] for that state, or the built-in matrix cell for that
+  ///    state and [cls] when there is no slot. States whose cell is empty for
+  ///    [cls] contribute nothing.
+  /// 3. If [WidgetState.cursor] is active: lifts a colored result or patches
+  ///    [slots] for [WidgetState.cursor] (or the built-in cursor fallback) on
+  ///    a bare one — see [_liftOrFallback]. Adds bold in [PaintClass.fill].
+  /// 4. If [WidgetState.focused] is active: the same lift-or-fallback in
+  ///    [PaintClass.fill], with bold. In [PaintClass.ink] the focus ink plus
+  ///    bold patches in step 2 instead, at the state's declaration position,
+  ///    so an error ink still wins over it on chrome.
+  /// 5. If [WidgetState.disabled] is active: blends a filled result toward
+  ///    the ground and adds dim, or swaps in the disabled ink on a bare one.
+  ///    Ends the chain: steps 6 and 7 are skipped.
+  /// 6. Otherwise, if [WidgetState.hover] is active: lifts a background by
+  ///    [Theme.hoverLift] or, on a result with none, patches the hover wash.
+  /// 7. Otherwise, if [WidgetState.pressed] is active: inverts the result, or,
+  ///    under [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
   ///
   /// [cls] names the paint class the call site paints — the part picks the
-  /// projection, so there is no default.
-  Style resolve(Style? base, Set<WidgetState> states, {required PaintClass cls}) {
+  /// projection, so there is no default. [slots] carries per-state authored
+  /// styles: a widget's own row/item/cell style for a state, keyed by that
+  /// state. A slot for [WidgetState.selected], [WidgetState.loading] or
+  /// [WidgetState.error] replaces its matrix cell; a slot for
+  /// [WidgetState.cursor] or [WidgetState.focused] replaces the fallback used
+  /// on a bare base and is ignored on a colored one. Slots for any other
+  /// state are ignored.
+  Style resolve(
+    Style? base,
+    Set<WidgetState> states, {
+    required PaintClass cls,
+    Map<WidgetState, Style> slots = const {},
+  }) {
     var result = base ?? const Style();
     if (states.isEmpty) return result;
 
     for (final state in WidgetState.values) {
       if (!states.contains(state)) continue;
-      if (state == WidgetState.hover || state == WidgetState.pressed) continue;
+      // In the ink class, focused stays a matrix cell at its declaration
+      // position: chrome keeps error ink over focus ink, as an ink has no
+      // background to lift.
+      if (state == WidgetState.focused && cls == PaintClass.ink) {
+        result = result.patch(slots[state] ?? ink(tones.focus)).incModifier(Modifier.bold);
+        continue;
+      }
+      if (!_matrixStates.contains(state)) continue;
 
-      final contribution = _cell(state, cls);
+      final contribution = slots[state] ?? _cell(state, cls);
       if (contribution != null) result = result.patch(contribution);
     }
 
-    if (states.contains(WidgetState.hover) && policy == RenderPolicy.color) {
-      final bg = result.bg;
-      result = bg != null && bg != Color.reset
-          ? result.copyWith(bg: bg.lift(Theme.hoverLift))
-          : result.patch(wash(theme.hover));
-    }
-
-    if (states.contains(WidgetState.pressed)) {
-      result = switch (policy) {
-        RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
-        RenderPolicy.noColor =>
-          result.addModifier.has(Modifier.reversed)
-              ? result.removeModifier(Modifier.reversed)
-              : result.incModifier(Modifier.reversed),
+    if (states.contains(WidgetState.cursor)) {
+      result = switch (cls) {
+        PaintClass.fill => _liftOrFallback(
+          result,
+          slots[WidgetState.cursor] ?? fill(tones.cursor),
+        ).incModifier(Modifier.bold),
+        PaintClass.wash => _liftOrFallback(result, slots[WidgetState.cursor] ?? wash(tones.cursor)),
+        PaintClass.ink => result,
       };
     }
 
+    if (states.contains(WidgetState.focused)) {
+      result = switch (cls) {
+        PaintClass.fill => _liftOrFallback(
+          result,
+          slots[WidgetState.focused] ?? fill(tones.focus),
+        ).incModifier(Modifier.bold),
+        PaintClass.ink || PaintClass.wash => result,
+      };
+    }
+
+    final disabled = states.contains(WidgetState.disabled);
+    if (disabled) {
+      result = _applyDisabled(result, cls);
+    } else {
+      if (states.contains(WidgetState.hover)) {
+        result = _applyHover(result);
+      }
+
+      if (states.contains(WidgetState.pressed)) {
+        result = switch (policy) {
+          RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
+          RenderPolicy.noColor =>
+            result.addModifier.has(Modifier.reversed)
+                ? result.removeModifier(Modifier.reversed)
+                : result.incModifier(Modifier.reversed),
+        };
+      }
+    }
+
     return result;
+  }
+
+  /// The states [resolve] still walks as matrix cells, in priority order.
+  static const Set<WidgetState> _matrixStates = {
+    WidgetState.selected,
+    WidgetState.loading,
+    WidgetState.error,
+  };
+
+  /// Lifts [color] toward the ground, or brightens it under [RenderPolicy.ansi16].
+  ///
+  /// Under [RenderPolicy.ansi16] a lift always brightens: darkening an ANSI
+  /// slot can leave it unchanged, which would hide the step. Under
+  /// [RenderPolicy.color] the ground decides direction — `tones.background`'s
+  /// color lightens when dark (or absent) and darkens when light — so a
+  /// second lift continues the first instead of reversing it. Never called
+  /// under [RenderPolicy.noColor].
+  Color _lift(Color color, double amount) {
+    if (policy == RenderPolicy.ansi16) return color.lighten(amount);
+    final ground = tones.background.color;
+    final dark = ground == null || ground.luminance < 0.5;
+    return dark ? color.lighten(amount) : color.darken(amount);
+  }
+
+  /// Lifts a colored [result] by [Theme.stateLift], or patches [fallback] onto a
+  /// bare one.
+  ///
+  /// [result] is bare when its `bg` is null or [Color.reset]. A bare result
+  /// patches [fallback] and keeps whatever modifiers [result] already
+  /// carries — including a [RenderPolicy.noColor] reversed fill. A result
+  /// with a background lifts it through [_lift] and keeps `fg`, except under
+  /// [RenderPolicy.noColor], where nothing can lift without color and
+  /// [result] is returned unchanged.
+  Style _liftOrFallback(Style result, Style fallback) {
+    final bg = result.bg;
+    if (bg == null || bg == Color.reset) return result.patch(fallback);
+    if (policy == RenderPolicy.noColor) return result;
+    return result.copyWith(bg: _lift(bg, Theme.stateLift));
+  }
+
+  /// The [WidgetState.disabled] transform for [cls].
+  ///
+  /// A wash is left as it is — disabled has no wash contribution. An ink
+  /// keeps today's swap to the disabled tone plus dim, whatever [result]
+  /// carries. A fill on a bare [result] does the same swap plus dim; a fill
+  /// on a colored one blends `fg` and `bg` toward the ground by
+  /// [Theme.disabledMix] under [RenderPolicy.color] with a ground color, or adds
+  /// dim alone otherwise (ansi16, noColor, or a themeless ground).
+  Style _applyDisabled(Style result, PaintClass cls) {
+    switch (cls) {
+      case PaintClass.wash:
+        return result;
+
+      case PaintClass.ink:
+        return result.patch(ink(tones.disabled)).incModifier(Modifier.dim);
+
+      case PaintClass.fill:
+        final bg = result.bg;
+        if (bg == null || bg == Color.reset) {
+          return result.patch(ink(tones.disabled)).incModifier(Modifier.dim);
+        }
+
+        final ground = tones.background.color;
+        if (policy == RenderPolicy.color && ground != null) {
+          final fg = result.fg;
+          return result
+              .copyWith(fg: fg?.mix(ground, Theme.disabledMix), bg: bg.mix(ground, Theme.disabledMix))
+              .incModifier(Modifier.dim);
+        }
+        return result.incModifier(Modifier.dim);
+    }
+  }
+
+  /// The [WidgetState.hover] transform, shared across every [PaintClass].
+  ///
+  /// A colored [result] lifts its background by [Theme.hoverLift] through
+  /// [_lift] under [RenderPolicy.color] and [RenderPolicy.ansi16]; under
+  /// [RenderPolicy.noColor] it is left unchanged. A bare [result] patches the
+  /// hover wash, which already drops under [RenderPolicy.ansi16] and
+  /// [RenderPolicy.noColor].
+  Style _applyHover(Style result) {
+    final bg = result.bg;
+    if (bg != null && bg != Color.reset) {
+      return policy == RenderPolicy.noColor ? result : result.copyWith(bg: _lift(bg, Theme.hoverLift));
+    }
+    return result.patch(wash(theme.hover));
   }
 
   /// Border style for a set of [states] — the fix for hand-rolled
@@ -216,13 +359,17 @@ class StyleResolver {
   /// that state does not affect that paint class. This table is the built-in
   /// look of kiko; modifiers ride on top of the projection.
   ///
-  /// [resolve] never calls this with [WidgetState.hover] or
-  /// [WidgetState.pressed]: it applies both as transforms after the matrix,
-  /// not as matrix cells.
+  /// [resolve] only calls this with [_matrixStates]: [WidgetState.cursor],
+  /// [WidgetState.focused], [WidgetState.disabled], [WidgetState.hover] and
+  /// [WidgetState.pressed] are transforms over the patched result instead,
+  /// not matrix cells, so they always return `null` here.
   Style? _cell(WidgetState state, PaintClass cls) {
     switch (state) {
       case WidgetState.hover:
+      case WidgetState.cursor:
+      case WidgetState.focused:
       case WidgetState.pressed:
+      case WidgetState.disabled:
         return null;
 
       case WidgetState.selected:
@@ -230,20 +377,6 @@ class StyleResolver {
           PaintClass.ink => ink(tones.selection),
           PaintClass.fill => fill(tones.selection),
           PaintClass.wash => wash(tones.selection),
-        };
-
-      case WidgetState.cursor:
-        return switch (cls) {
-          PaintClass.ink => null,
-          PaintClass.fill => fill(tones.cursor).incModifier(Modifier.bold),
-          PaintClass.wash => wash(tones.cursor),
-        };
-
-      case WidgetState.focused:
-        return switch (cls) {
-          PaintClass.ink => ink(tones.focus).incModifier(Modifier.bold),
-          PaintClass.fill => fill(tones.focus).incModifier(Modifier.bold),
-          PaintClass.wash => null,
         };
 
       case WidgetState.loading:
@@ -257,12 +390,6 @@ class StyleResolver {
           PaintClass.ink => ink(tones.error),
           PaintClass.fill => fill(tones.error),
           PaintClass.wash => wash(tones.error),
-        };
-
-      case WidgetState.disabled:
-        return switch (cls) {
-          PaintClass.ink || PaintClass.fill => ink(tones.disabled).incModifier(Modifier.dim),
-          PaintClass.wash => null,
         };
     }
   }

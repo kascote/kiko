@@ -261,6 +261,28 @@ class Color {
   /// split point is mid-[luminance]; [amount] is passed straight to [lighten]
   /// or [darken].
   Color lift(double amount) => luminance < 0.5 ? lighten(amount) : darken(amount);
+
+  /// Blends this color toward [other] by [amount].
+  ///
+  /// Both colors convert to RGB first, then each channel moves from this
+  /// color's value toward [other]'s by [amount] — 0.0 keeps this color, 1.0
+  /// becomes [other]. Rounds and clamps each channel; the result is RGB.
+  Color mix(Color other, double amount) {
+    final from = toRgb();
+    final to = other.toRgb();
+    final fr = (from.value >> 16) & 0xFF;
+    final fg = (from.value >> 8) & 0xFF;
+    final fb = from.value & 0xFF;
+    final tr = (to.value >> 16) & 0xFF;
+    final tg = (to.value >> 8) & 0xFF;
+    final tb = to.value & 0xFF;
+    final r = fr + (tr - fr) * amount;
+    final g = fg + (tg - fg) * amount;
+    final b = fb + (tb - fb) * amount;
+    return Color.rgb(
+      (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
+    );
+  }
 }
 
 /// ANSI-16 lighten lookup: dark → bright variant.

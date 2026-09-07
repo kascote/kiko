@@ -26,8 +26,11 @@ void main() {
   group('StyleResolver / state x class matrix', () {
     const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
 
-    test('hover lifts a background, the same for every class', () {
-      final lifted = base.bg!.lift(Theme.hoverLift);
+    test('hover lifts a background toward the ground, not toward the color itself', () {
+      // Theme.dark's ground is dark, so hover lightens here even though the
+      // base color's own luminance (0x808080) sits past the midpoint that
+      // Color.lift would have darkened by.
+      final lifted = base.bg!.lighten(Theme.hoverLift);
       for (final cls in PaintClass.values) {
         final result = resolver.resolve(base, {WidgetState.hover}, cls: cls);
         expect(result.bg, lifted, reason: '$cls');
@@ -56,30 +59,53 @@ void main() {
       expect(wash.fg, base.fg);
     });
 
-    test('cursor: fill (+bold) and wash, nothing for ink', () {
+    test('cursor on a colored base lifts it instead of replacing it, nothing for ink', () {
       expect(resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.ink), base);
 
       final fill = resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.fill);
+      expect(fill.fg, base.fg);
+      expect(fill.bg, base.bg!.lighten(Theme.stateLift));
+      expect(fill.addModifier.has(Modifier.bold), isTrue);
+
+      final wash = resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.wash);
+      expect(wash.fg, base.fg);
+      expect(wash.bg, base.bg!.lighten(Theme.stateLift));
+      expect(wash.addModifier.has(Modifier.bold), isFalse);
+    });
+
+    test('cursor on a bare base is the cursor fill (+bold) and wash, unchanged', () {
+      const bare = Style(fg: Color.white);
+
+      final fill = resolver.resolve(bare, {WidgetState.cursor}, cls: PaintClass.fill);
       expect(fill.fg, theme.cursor.on);
       expect(fill.bg, theme.cursor.color);
       expect(fill.addModifier.has(Modifier.bold), isTrue);
 
-      final wash = resolver.resolve(base, {WidgetState.cursor}, cls: PaintClass.wash);
+      final wash = resolver.resolve(bare, {WidgetState.cursor}, cls: PaintClass.wash);
       expect(wash.bg, theme.cursor.color);
+      expect(wash.addModifier.has(Modifier.bold), isFalse);
     });
 
-    test('focused: ink and fill both bold, nothing for wash', () {
+    test('focused on a colored base lifts it instead of replacing it; ink still tints', () {
       final ink = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.ink);
       expect(ink.fg, theme.focus.color);
       expect(ink.bg, base.bg);
       expect(ink.addModifier.has(Modifier.bold), isTrue);
 
       final fill = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
-      expect(fill.fg, theme.focus.on);
-      expect(fill.bg, theme.focus.color);
+      expect(fill.fg, base.fg);
+      expect(fill.bg, base.bg!.lighten(Theme.stateLift));
       expect(fill.addModifier.has(Modifier.bold), isTrue);
 
       expect(resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.wash), base);
+    });
+
+    test('focused on a bare base is the focus fill, bold (unchanged)', () {
+      const bare = Style(fg: Color.white);
+      final fill = resolver.resolve(bare, {WidgetState.focused}, cls: PaintClass.fill);
+      expect(fill.fg, theme.focus.on);
+      expect(fill.bg, theme.focus.color);
+      expect(fill.addModifier.has(Modifier.bold), isTrue);
     });
 
     test('loading: warning ink + slowBlink for ink and fill', () {
@@ -105,30 +131,57 @@ void main() {
       expect(wash.bg, theme.error.color);
     });
 
-    test('disabled: disabled ink + dim for ink and fill, nothing for wash', () {
-      for (final cls in [PaintClass.ink, PaintClass.fill]) {
-        final r = resolver.resolve(base, {WidgetState.disabled}, cls: cls);
-        expect(r.fg, theme.disabled.color, reason: '$cls');
-        expect(r.bg, base.bg, reason: '$cls');
-        expect(r.addModifier.has(Modifier.dim), isTrue, reason: '$cls');
-      }
+    test('disabled ink keeps the swap to the disabled tone, plus dim', () {
+      final ink = resolver.resolve(base, {WidgetState.disabled}, cls: PaintClass.ink);
+      expect(ink.fg, theme.disabled.color);
+      expect(ink.bg, base.bg);
+      expect(ink.addModifier.has(Modifier.dim), isTrue);
+    });
+
+    test('disabled on a filled base mixes both fg and bg toward the ground, plus dim', () {
+      final ground = theme.background.color!;
+      final fill = resolver.resolve(base, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(fill.fg, base.fg!.mix(ground, Theme.disabledMix));
+      expect(fill.bg, base.bg!.mix(ground, Theme.disabledMix));
+      expect(fill.addModifier.has(Modifier.dim), isTrue);
+    });
+
+    test('disabled does nothing for wash', () {
       expect(resolver.resolve(base, {WidgetState.disabled}, cls: PaintClass.wash), base);
+    });
+
+    test('disabled on a bare base swaps in the disabled ink, plus dim (unchanged)', () {
+      const bare = Style(fg: Color.white);
+      final fill = resolver.resolve(bare, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(fill.fg, theme.disabled.color);
+      expect(fill.bg, isNull);
+      expect(fill.addModifier.has(Modifier.dim), isTrue);
+    });
+
+    test('disabled on a filled base only adds dim when the ground has no color', () {
+      final groundless = theme.copyWith(background: const SurfaceTone(on: Color.rgb(0xc9d1d9)));
+      final r = StyleResolver(groundless, policy: RenderPolicy.color);
+      final fill = r.resolve(base, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(fill.fg, base.fg);
+      expect(fill.bg, base.bg);
+      expect(fill.addModifier.has(Modifier.dim), isTrue);
     });
   });
 
   group('StyleResolver / priority order', () {
     const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
 
-    test('disabled overrides focused', () {
-      final result = resolver.resolve(base, {WidgetState.focused, WidgetState.disabled}, cls: PaintClass.fill);
-      expect(result.fg, theme.disabled.color);
-      expect(result.addModifier.has(Modifier.dim), isTrue);
+    test('cursor over a selected fill keeps the selection fg and lifts its bg, bold', () {
+      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
+      expect(result.fg, theme.selection.on);
+      expect(result.bg, theme.selection.color!.lighten(Theme.stateLift));
+      expect(result.addModifier.has(Modifier.bold), isTrue);
     });
 
-    test('cursor shows through selected (cursor applied last)', () {
-      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
-      expect(result.fg, theme.cursor.on);
-      expect(result.bg, theme.cursor.color);
+    test('cursor in the wash class lifts a selected fill, no bold', () {
+      final result = resolver.resolve(base, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.wash);
+      expect(result.bg, theme.selection.color!.lighten(Theme.stateLift));
+      expect(result.addModifier.has(Modifier.bold), isFalse);
     });
 
     test('error patches over selected without clearing its bg', () {
@@ -138,10 +191,122 @@ void main() {
       expect(result.bg, theme.error.color);
     });
 
-    test('hover lifts the focus fill', () {
-      final both = resolver.resolve(base, {WidgetState.hover, WidgetState.focused}, cls: PaintClass.fill);
+    test("hover lifts the focus fill a second step, in the ground's direction", () {
       final focusOnly = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
-      expect(both, focusOnly.copyWith(bg: focusOnly.bg!.lift(Theme.hoverLift)));
+      final both = resolver.resolve(base, {WidgetState.hover, WidgetState.focused}, cls: PaintClass.fill);
+      expect(both, focusOnly.copyWith(bg: focusOnly.bg!.lighten(Theme.hoverLift)));
+    });
+
+    test("hover lifts a cursor-lifted selection a second step, in the ground's direction", () {
+      void expectSecondLift(Theme t, Color Function(Color color, double amount) step) {
+        final r = StyleResolver(t, policy: RenderPolicy.color);
+        final result = r.resolve(base, {
+          WidgetState.selected,
+          WidgetState.cursor,
+          WidgetState.hover,
+        }, cls: PaintClass.fill);
+        final expectedBg = step(step(t.selection.color!, Theme.stateLift), Theme.hoverLift);
+        expect(result.fg, t.selection.on);
+        expect(result.bg, expectedBg);
+      }
+
+      expectSecondLift(Theme.dark, (color, amount) => color.lighten(amount));
+      expectSecondLift(Theme.light, (color, amount) => color.darken(amount));
+    });
+
+    test('hover and pressed leave a disabled result unchanged', () {
+      final disabledOnly = resolver.resolve(base, {WidgetState.disabled}, cls: PaintClass.fill);
+      final withHover = resolver.resolve(base, {WidgetState.disabled, WidgetState.hover}, cls: PaintClass.fill);
+      final withPressed = resolver.resolve(base, {WidgetState.disabled, WidgetState.pressed}, cls: PaintClass.fill);
+      final withBoth = resolver.resolve(base, {
+        WidgetState.disabled,
+        WidgetState.hover,
+        WidgetState.pressed,
+      }, cls: PaintClass.fill);
+      expect(withHover, disabledOnly);
+      expect(withPressed, disabledOnly);
+      expect(withBoth, disabledOnly);
+    });
+
+    test('disabled runs after focused, blending the already-lifted fill', () {
+      final ground = theme.background.color!;
+      final focusOnly = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
+      final result = resolver.resolve(base, {WidgetState.focused, WidgetState.disabled}, cls: PaintClass.fill);
+      expect(result.fg, focusOnly.fg!.mix(ground, Theme.disabledMix));
+      expect(result.bg, focusOnly.bg!.mix(ground, Theme.disabledMix));
+      expect(result.addModifier.has(Modifier.dim), isTrue);
+    });
+  });
+
+  group('StyleResolver / ink class order', () {
+    test('error ink wins over focus ink on chrome, focus ink wins over selection ink', () {
+      final errorFocused = resolver.resolve(null, {WidgetState.focused, WidgetState.error}, cls: PaintClass.ink);
+      expect(errorFocused.fg, theme.error.color);
+      expect(errorFocused.addModifier.has(Modifier.bold), isTrue);
+
+      final selectedFocused = resolver.resolve(null, {WidgetState.selected, WidgetState.focused}, cls: PaintClass.ink);
+      expect(selectedFocused.fg, theme.focus.color);
+      expect(selectedFocused.addModifier.has(Modifier.bold), isTrue);
+    });
+  });
+
+  group('StyleResolver / slots', () {
+    const base = Style(fg: Color.white, bg: Color.rgb(0x808080));
+    const slot = Style(fg: Color.green, bg: Color.rgb(0x224422));
+
+    test('a slot for cursor replaces the fallback on a bare base', () {
+      const bare = Style(fg: Color.white);
+      final result = resolver.resolve(
+        bare,
+        {WidgetState.cursor},
+        cls: PaintClass.fill,
+        slots: {WidgetState.cursor: slot},
+      );
+      expect(result.fg, slot.fg);
+      expect(result.bg, slot.bg);
+    });
+
+    test('a slot for cursor is ignored on a colored base — the lift still runs', () {
+      final result = resolver.resolve(
+        base,
+        {WidgetState.cursor},
+        cls: PaintClass.fill,
+        slots: {WidgetState.cursor: slot},
+      );
+      expect(result.fg, base.fg);
+      expect(result.bg, base.bg!.lighten(Theme.stateLift));
+    });
+
+    test('a slot for selected replaces the matrix cell', () {
+      final result = resolver.resolve(
+        base,
+        {WidgetState.selected},
+        cls: PaintClass.fill,
+        slots: {WidgetState.selected: slot},
+      );
+      expect(result.fg, slot.fg);
+      expect(result.bg, slot.bg);
+    });
+
+    test('a slot for hover is ignored — only selected, loading, error, cursor and focused read slots', () {
+      final withoutSlot = resolver.resolve(base, {WidgetState.hover}, cls: PaintClass.fill);
+      final withSlot = resolver.resolve(
+        base,
+        {WidgetState.hover},
+        cls: PaintClass.fill,
+        slots: {WidgetState.hover: slot},
+      );
+      expect(withSlot, withoutSlot);
+    });
+  });
+
+  group('StyleResolver / bare base rules', () {
+    test('an authored base with a Color.reset background is bare', () {
+      const resetBase = Style(fg: Color.white, bg: Color.reset);
+      final result = resolver.resolve(resetBase, {WidgetState.cursor}, cls: PaintClass.fill);
+      expect(result.fg, theme.cursor.on);
+      expect(result.bg, theme.cursor.color);
+      expect(result.addModifier.has(Modifier.bold), isTrue);
     });
   });
 

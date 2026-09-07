@@ -1,10 +1,12 @@
 /// Visual states a widget can be in.
 ///
-/// Declaration order is priority order: when several states are active, later
-/// values are applied last and win. For example, [disabled] overrides every
-/// other state, and [cursor] shows through a [selected] item so the moving bar
-/// stays visible over a selected run. [hover] and [pressed] transform the
-/// result after every other state has patched.
+/// Declaration order is the order `StyleResolver.resolve` walks the states,
+/// so a later state's transform runs after an earlier one's. [cursor] lifts
+/// the background of whatever it lands on — a [selected] row keeps its
+/// selection color, one step brighter or darker — instead of replacing it.
+/// [disabled] blends a filled background toward the ground, or swaps the
+/// foreground on a bare one, and ends the chain: [hover] and [pressed] do
+/// nothing once [disabled] is active.
 enum WidgetState {
   /// The mouse pointer is over the widget. Mouse only — never set by keyboard.
   hover,

@@ -127,3 +127,137 @@ String colorLabel(Color? color) {
 /// contributions (error, focus, disabled) patched over it.
 Style titleInk(StyleResolver resolver, Set<WidgetState> states) =>
     resolver.resolve(resolver.ink(resolver.tones.muted), states, cls: PaintClass.ink);
+
+// ── the state strip ──
+
+/// One column of the state strip: a chip label and the states it resolves.
+///
+/// The third field forces a paint class for that one column, regardless of
+/// the row it sits in; every other column resolves in the row's own class.
+typedef _StripColumn = (String label, Set<WidgetState> states, PaintClass? forceCls);
+
+/// The state strip's columns, in the doc matrix's own order. `cur wash`
+/// always resolves in [PaintClass.wash] — see [_stripChip].
+const _stripColumns = <_StripColumn>[
+  ('rest', {}, null),
+  ('sel', {WidgetState.selected}, null),
+  ('cur', {WidgetState.cursor}, null),
+  ('sel+cur', {WidgetState.selected, WidgetState.cursor}, null),
+  ('cur wash', {WidgetState.cursor}, PaintClass.wash),
+  ('hover', {WidgetState.hover}, null),
+  ('dis', {WidgetState.disabled}, null),
+  ('sel+dis', {WidgetState.selected, WidgetState.disabled}, null),
+  ('cur+dis', {WidgetState.cursor, WidgetState.disabled}, null),
+  ('focus', {WidgetState.focused}, null),
+  ('error', {WidgetState.error}, null),
+  ('load', {WidgetState.loading}, null),
+];
+
+/// Whether every state in [states] affects [cls] in the resolver's matrix.
+///
+/// The doc matrix (docs/theming.md, "The state × class matrix") marks some
+/// state × class pairs with an em dash: `cursor` does not affect `ink`, and
+/// `focused`, `loading`, and `disabled` do not affect `wash`. A chip whose
+/// states include one of those pairs would just echo its base back
+/// unchanged, so the strip leaves it blank instead.
+bool _applies(Set<WidgetState> states, PaintClass cls) {
+  const noInk = {WidgetState.cursor};
+  const noWash = {WidgetState.focused, WidgetState.loading, WidgetState.disabled};
+  return switch (cls) {
+    PaintClass.ink => !states.any(noInk.contains),
+    PaintClass.wash => !states.any(noWash.contains),
+    PaintClass.fill => true,
+  };
+}
+
+/// One chip of the state strip: a label painted by a single `resolve` call
+/// over [base], or a blank cell of the same width when [column]'s states do
+/// not apply to [rowCls] (see [_applies]).
+///
+/// Tags a non-blank chip with its label, spaces replaced by `-`. The
+/// enclosing ground and row scopes ([_stripGroup], [_stripRow]) turn that
+/// into the full hit path `strip/<ground>/<class>/<label>` a test reads.
+View _stripChip(StyleResolver resolver, PaintClass rowCls, Style? base, _StripColumn column) {
+  final (label, states, forceCls) = column;
+  final width = label.length + 2;
+  if (forceCls == null && !_applies(states, rowCls)) return col(width, Line(''));
+
+  final style = resolver.resolve(base, states, cls: forceCls ?? rowCls);
+  return Tagged(label.replaceAll(' ', '-'), col(width, Line(' $label ', style: style)));
+}
+
+/// One row of the state strip: every column resolved in [cls] over [base],
+/// with [groupLabel] and the class name as its two leading columns.
+///
+/// Scopes every chip's tag under [cls]'s name, so a chip's hit path reads
+/// `<ground scope>/<class>/<label>`.
+View _stripRow(StyleResolver resolver, String groupLabel, PaintClass cls, Style? base) {
+  final label = resolver.ink(resolver.tones.muted);
+  final chips = [for (final column in _stripColumns) _stripChip(resolver, cls, base, column)];
+  return Tagged.scope(
+    cls.name,
+    Row(
+      children: [
+        col(13, Line(groupLabel, style: label)),
+        const SizedBox(width: 1),
+        col(4, Line(cls.name, style: label)),
+        const SizedBox(width: 1),
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0) const SizedBox(width: 1),
+          chips[i],
+        ],
+      ],
+    ),
+  );
+}
+
+/// One ground group of the state strip: the fill, wash, and ink rows,
+/// painted over [ground] — [groupLabel] names the group on the first row.
+///
+/// The fill and wash rows resolve over a bare base, the way a widget row
+/// does; the ink row resolves over [borderInk], the resting border tone.
+/// Scopes the group under [groundTag] (`bg` or `sf`).
+View _stripGroup(StyleResolver resolver, String groundTag, String groupLabel, Style ground, Style borderInk) =>
+    Tagged.scope(
+      groundTag,
+      Container(
+        ground: ground,
+        child: Column(
+          children: [
+            _stripRow(resolver, groupLabel, PaintClass.fill, null),
+            _stripRow(resolver, '', PaintClass.wash, null),
+            _stripRow(resolver, '', PaintClass.ink, borderInk),
+          ],
+        ),
+      ),
+    );
+
+/// The state strip: the resolver's state × class matrix made visible, one
+/// chip per state combination.
+///
+/// Page 1 places it as the last section of the reference page; page 2 places
+/// it as a band above the live gallery. Every chip is exactly one `resolve`
+/// call painted over its row's ground — the strip adds no color of its own.
+View stateStrip(StyleResolver resolver) {
+  final t = resolver.tones;
+  final borderInk = resolver.ink(t.border);
+  return Tagged.scope(
+    'strip',
+    Container(
+      border: BorderType.plain,
+      borderStyle: resolver.border(const {}),
+      padding: const EdgeInsets.symmetric(horizontal: 1),
+      topTitles: [Line(' States — one resolve() per chip, over both grounds ', style: resolver.ink(t.secondary))],
+      child: Column(
+        children: [
+          _stripGroup(resolver, 'bg', 'on background', resolver.ground(t.background), borderInk),
+          _stripGroup(resolver, 'sf', 'on surface', resolver.ground(t.surface), borderInk),
+          Line(
+            'sel selected · cur cursor · dis disabled · load loading · cur wash: cursor in the wash class',
+            style: resolver.ink(t.muted),
+          ),
+        ],
+      ),
+    ),
+  );
+}

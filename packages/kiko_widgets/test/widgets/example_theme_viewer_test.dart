@@ -97,4 +97,90 @@ void main() {
     viewer.view(model, frame);
     expect(_screenText(frame.buffer), contains('Page 2/3: Gallery'));
   });
+
+  test('the state strip paints each chip as one resolve call over its ground', () {
+    final model = viewer.Model();
+    final frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final buffer = frame.buffer;
+    final resolver = StyleResolver(Theme.dark, policy: RenderPolicy.color);
+
+    // "selected + cursor" resolves to the same fill on both grounds: the fill
+    // row's base is bare, so the resolved style carries its own fg and bg and
+    // never falls back to the ground underneath it. The chip proves the
+    // resolve call, not the ground.
+    final selCurRect = frame.hits.rectOf('strip/bg/fill/sel+cur');
+    expect(selCurRect, isNotNull, reason: 'the sel+cur chip paints under its own tag');
+    final selCurCell = buffer[(x: selCurRect!.x + 1, y: selCurRect.y)];
+    final selCurStyle = resolver.resolve(
+      null,
+      const {WidgetState.selected, WidgetState.cursor},
+      cls: PaintClass.fill,
+    );
+    expect(selCurCell.fg, equals(selCurStyle.fg));
+    expect(selCurCell.bg, equals(selCurStyle.bg));
+    expect(selCurCell.modifier.has(Modifier.bold), isTrue, reason: 'the cursor adds bold in the fill class');
+
+    // "rest" resolves to an untouched, bare style, so its cell shows whatever
+    // ground the group painted underneath it — the one chip where the two
+    // groups differ.
+    final bgRestRect = frame.hits.rectOf('strip/bg/fill/rest');
+    final sfRestRect = frame.hits.rectOf('strip/sf/fill/rest');
+    expect(bgRestRect, isNotNull, reason: "the background group's rest chip paints under its own tag");
+    expect(sfRestRect, isNotNull, reason: "the surface group's rest chip paints under its own tag");
+    final bgRestBg = buffer[(x: bgRestRect!.x + 1, y: bgRestRect.y)].bg;
+    final sfRestBg = buffer[(x: sfRestRect!.x + 1, y: sfRestRect.y)].bg;
+    expect(bgRestBg, equals(Theme.dark.background.color));
+    expect(sfRestBg, equals(Theme.dark.surface.color));
+    expect(bgRestBg, isNot(equals(sfRestBg)));
+
+    // "cur" on the surface row lifts nothing — its base is bare — so its bg
+    // is the cursor fill's own color, landing on the surface row.
+    final sfCurRect = frame.hits.rectOf('strip/sf/fill/cur');
+    expect(sfCurRect, isNotNull, reason: "the surface group's cur chip paints under its own tag");
+    final sfCurBg = buffer[(x: sfCurRect!.x + 1, y: sfCurRect.y)].bg;
+    expect(sfCurBg, equals(Theme.dark.cursor.color));
+
+    // A wash keeps the ground's own text: the "sel" wash chip sets only a
+    // background, so its fg still reads back as the background row's own
+    // default text.
+    final washSelRect = frame.hits.rectOf('strip/bg/wash/sel');
+    expect(washSelRect, isNotNull, reason: "the wash row's sel chip paints under its own tag");
+    final washSelCell = buffer[(x: washSelRect!.x + 1, y: washSelRect.y)];
+    expect(washSelCell.bg, equals(Theme.dark.selection.color));
+    expect(washSelCell.fg, equals(Theme.dark.background.on));
+  });
+
+  test('the state strip also paints on the reference page', () {
+    final model = viewer.Model();
+    var frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+    // Two F4 presses land on page 1, following the same cycle the header
+    // test walks: gallery, contrast, reference.
+    viewer.update(model, const KeyMsg('f4'), ctx);
+    viewer.update(model, const KeyMsg('f4'), ctx);
+    frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    expect(_screenText(frame.buffer), contains('Page 1/3: Reference'));
+    expect(
+      frame.hits.rectOf('strip/bg/fill/rest'),
+      isNotNull,
+      reason: 'the reference page carries the same state strip as the gallery',
+    );
+  });
+
+  test('the state strip renders without throwing under ANSI-16 and NO_COLOR', () {
+    for (final policy in [RenderPolicy.ansi16, RenderPolicy.noColor]) {
+      final model = viewer.Model()..policy = policy;
+      final frame = _testFrame(160, 50);
+      expect(() => viewer.view(model, frame), returnsNormally, reason: 'policy: $policy');
+      expect(
+        frame.hits.rectOf('strip/bg/fill/rest'),
+        isNotNull,
+        reason: 'the rest chip still paints under policy: $policy',
+      );
+    }
+  });
 }

@@ -30,19 +30,24 @@ import 'shared.dart';
 // one chip per anatomy slot, each chip painted in the style the widget
 // derives when the slot is left null. A widget never adds a color of its
 // own, so the chips re-color as the theme and the tier change
-// (docs/theming.md, "Theming a widget"). Page 1 is static: nothing on it
-// takes focus.
+// (docs/theming.md, "Theming a widget"). The state strip (shared.dart's
+// `stateStrip`) closes the page: the resolver's state × class matrix, one
+// chip per state combination, painted over both the background and the
+// surface ground with a single `resolve` call each. Page 1 is static:
+// nothing on it takes focus.
 //
 // Page 2, gallery (gallery_page.dart), is a live gallery: the shipped
 // widgets rendered under the same theme, so each tone can be watched doing
-// its job. Tab and the widget keys reach the gallery only on this page.
-// The editor starts with a selection, the list and the table both start
-// with their first row selected under the cursor, and the Dialog… button
-// keeps an error face — so the selection, lifted-selection, and
-// error-under-focus looks all show on the first frame. The table also
-// shows its crosshair from the first frame. The tree, and every table page
-// after the first, load through a deliberately slow fetch, so the loading
-// tone stays on screen long enough to see.
+// its job. The state strip sits as a thin band above it, the same view
+// page 1 uses, so the matrix and the live widgets read side by side. Tab
+// and the widget keys reach the gallery only on this page. The editor
+// starts with a selection, the list and the table both start with their
+// first row selected under the cursor, and the Dialog… button keeps an
+// error face — so the selection, lifted-selection, and error-under-focus
+// looks all show on the first frame. The table also shows its crosshair
+// from the first frame. The tree, and every table page after the first,
+// load through a deliberately slow fetch, so the loading tone stays on
+// screen long enough to see.
 //
 // Page 3, contrast (contrast_page.dart), is a placeholder: it renders only
 // its title until a later task fills it in.
@@ -404,6 +409,7 @@ void view(Model model, Frame frame) {
     2 => Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
+        stateStrip(resolver),
         Expanded(child: galleryPage(model, theme, resolver, comboView)),
         Line(
           model.status.isEmpty ? 'Interact with any widget — its last command shows here' : model.status,

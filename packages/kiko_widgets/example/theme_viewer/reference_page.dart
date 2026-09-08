@@ -2,17 +2,19 @@ import 'package:kiko/kiko.dart';
 
 import 'shared.dart';
 
-// Page 1: the tone tables, the intent strip, and the anatomy band. The page
-// is static — nothing on it takes focus.
+// Page 1: the tone tables, the intent strip, the anatomy band, and the state
+// strip. The page is static — nothing on it takes focus.
 
-/// Page 1 of the theme viewer: the tone tables, the intent strip, and the
-/// anatomy band.
+/// Page 1 of the theme viewer: the tone tables, the intent strip, the
+/// anatomy band, and the state strip.
 ///
 /// The tone tables lay each theme out as its tones, grouped the way the
 /// theme itself groups them (Intent / Neutral / Interaction), with every
 /// tone's two halves and all three projections side by side. They read the
 /// resolver's effective set, so under ANSI-16 they show the theme's
-/// `tones16` table instead of its RGB tones.
+/// `tones16` table instead of its RGB tones. The state strip
+/// ([stateStrip]) closes the page: the resolver's state × class matrix,
+/// painted over both the background and the surface ground.
 View referencePage(Theme theme, StyleResolver resolver) {
   final t = resolver.tones;
   return Column(
@@ -39,6 +41,7 @@ View referencePage(Theme theme, StyleResolver resolver) {
       ),
       _intentStrip(resolver),
       _anatomyBand(resolver),
+      stateStrip(resolver),
     ],
   );
 }

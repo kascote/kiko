@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:meta/meta.dart';
 import 'package:termansi/termansi.dart' as ansi;
 
@@ -246,12 +248,51 @@ class Color {
   ///
   /// ANSI and indexed colors are resolved to RGB first, then weighted by how
   /// the eye responds to each channel (green counts most, blue least).
+  ///
+  /// This is the perceptual weight [lift] reads, not a contrast measure. Use
+  /// [relativeLuminance] for contrast.
   double get luminance {
     final rgb = toRgb();
     final r = (rgb.value >> 16) & 0xFF;
     final g = (rgb.value >> 8) & 0xFF;
     final b = rgb.value & 0xFF;
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+  }
+
+  /// WCAG 2 relative luminance of this color, for measuring contrast.
+  ///
+  /// Call [contrastRatio] to compare two colors. Read this directly only to
+  /// feed a contrast formula of your own.
+  ///
+  /// ANSI and indexed colors resolve to RGB first. Each sRGB channel divides
+  /// by 255, then linearizes: by 12.92 at or below 0.03928, else through the
+  /// sRGB power curve. The channels weigh 0.2126, 0.7152, 0.0722.
+  double get relativeLuminance {
+    final rgb = toRgb();
+    double linearize(int channel) {
+      final c = channel / 255.0;
+      return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4).toDouble();
+    }
+
+    final r = linearize((rgb.value >> 16) & 0xFF);
+    final g = linearize((rgb.value >> 8) & 0xFF);
+    final b = linearize(rgb.value & 0xFF);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  /// Contrast ratio between this color and [other], from 1 (no contrast) to 21 (black on white).
+  ///
+  /// Divides the lighter [relativeLuminance] by the darker, each offset by
+  /// 0.05. The result is the same whichever color calls it.
+  ///
+  /// Grade a text pair against 4.5:1 or 3:1. A separation such as a border
+  /// or a cursor bar has no fixed floor; compare the ratio on its own.
+  double contrastRatio(Color other) {
+    final a = relativeLuminance;
+    final b = other.relativeLuminance;
+    final lighter = a > b ? a : b;
+    final darker = a > b ? b : a;
+    return (lighter + 0.05) / (darker + 0.05);
   }
 
   /// Shifts this color away from its own background by [amount].

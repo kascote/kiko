@@ -213,6 +213,37 @@ void main() {
       });
     });
 
+    group('relativeLuminance', () {
+      test('black is 0 and white is 1', () {
+        expect(const Color.rgb(0x000000).relativeLuminance, closeTo(0.0, 1e-9));
+        expect(const Color.rgb(0xffffff).relativeLuminance, closeTo(1.0, 1e-9));
+      });
+    });
+
+    group('contrastRatio', () {
+      test('white on black is 21:1', () {
+        expect(const Color.rgb(0xffffff).contrastRatio(const Color.rgb(0x000000)), closeTo(21.0, 0.01));
+      });
+
+      test('a color against itself is 1:1', () {
+        const color = Color.rgb(0x808080);
+        expect(color.contrastRatio(color), closeTo(1.0, 1e-9));
+      });
+
+      test('is symmetric', () {
+        const a = Color.rgb(0xcaa356);
+        const b = Color.rgb(0x14100b);
+        expect(a.contrastRatio(b), equals(b.contrastRatio(a)));
+      });
+
+      test('a known pair rounds to 8.0:1', () {
+        const foreground = Color.rgb(0xcaa356);
+        const background = Color.rgb(0x14100b);
+        final rounded = double.parse(foreground.contrastRatio(background).toStringAsFixed(1));
+        expect(rounded, equals(8.0));
+      });
+    });
+
     group('lift', () {
       test('lightens a dark base', () {
         const dark = Color.rgb(0x0d1117);

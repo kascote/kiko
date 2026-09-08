@@ -183,4 +183,58 @@ void main() {
       );
     }
   });
+
+  test('the contrast page prints the ratio Color.contrastRatio returns for default text', () {
+    final model = viewer.Model();
+    var frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+
+    // The viewer starts on the gallery (page 2); one F4 press reaches the
+    // contrast page (page 3), the same step the header-cycling test takes.
+    viewer.update(model, const KeyMsg('f4'), ctx);
+    frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final screen = _screenText(frame.buffer);
+
+    expect(screen, contains('Contrast: RGB tones'));
+    final ratio = Theme.dark.background.on.contrastRatio(Theme.dark.background.color!).toStringAsFixed(2);
+    expect(screen, contains('$ratio:1'), reason: 'default text over background measures $ratio:1');
+  });
+
+  test('the contrast page renders for every theme under every render tier', () {
+    for (var i = 0; i < viewer.Model.themes.length; i++) {
+      for (final policy in RenderPolicy.values) {
+        final model = viewer.Model()
+          ..themeIndex = i
+          ..page = 3
+          ..policy = policy;
+        final frame = _testFrame(160, 50);
+        final label = '${viewer.Model.themeNames[i]} / $policy';
+        expect(() => viewer.view(model, frame), returnsNormally, reason: label);
+        expect(_screenText(frame.buffer), contains('Contrast: RGB tones'), reason: label);
+      }
+    }
+  });
+
+  test('the contrast page shows the Lantern review ratios for muted, disabled, and border', () {
+    final model = viewer.Model()
+      ..themeIndex = viewer.Model.themes.indexOf(Theme.lantern)
+      ..page = 3;
+    final frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final screen = _screenText(frame.buffer);
+
+    // Computed the way the page computes them, from the theme as it is, so
+    // the assertion never hard-codes a number the theme could still change.
+    // The three neutrals the review measured all read against the background.
+    final ground = Theme.lantern.background.color!;
+    final mutedRatio = Theme.lantern.muted.color!.contrastRatio(ground).toStringAsFixed(2);
+    final disabledRatio = Theme.lantern.disabled.color!.contrastRatio(ground).toStringAsFixed(2);
+    final borderRatio = Theme.lantern.border.color!.contrastRatio(ground).toStringAsFixed(2);
+
+    expect(screen, contains('$mutedRatio:1'), reason: 'muted / background measures $mutedRatio:1');
+    expect(screen, contains('$disabledRatio:1'), reason: 'disabled / background measures $disabledRatio:1');
+    expect(screen, contains('$borderRatio:1'), reason: 'background / border measures $borderRatio:1');
+  });
 }

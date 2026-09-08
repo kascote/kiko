@@ -49,8 +49,14 @@ import 'shared.dart';
 // load through a deliberately slow fetch, so the loading tone stays on
 // screen long enough to see.
 //
-// Page 3, contrast (contrast_page.dart), is a placeholder: it renders only
-// its title until a later task fills it in.
+// Page 3, contrast (contrast_page.dart), audits contrast. Three tables —
+// text on a ground, fills and composed states, and separation between two
+// grounds — each row a pair painted as a swatch, its hex values, the
+// ratio, and a grade. Every pair reads the theme's RGB
+// tones through its own resolver, locked to `RenderPolicy.color`, since a
+// ratio against a terminal's own ANSI-16 or NO_COLOR palette cannot be
+// measured; the page's own chrome (title, borders) still follows F3 like
+// the rest of the screen.
 //
 // Theme keys are alt+[ / alt+] with F1/F2 as a fallback: a legacy terminal
 // sends alt+[ as a bare `ESC [` — the CSI introducer — so only the kitty
@@ -422,7 +428,7 @@ void view(Model model, Frame frame) {
         ),
       ],
     ),
-    _ => contrastPage(resolver),
+    _ => contrastPage(theme, resolver),
   };
 
   final ui = Column(

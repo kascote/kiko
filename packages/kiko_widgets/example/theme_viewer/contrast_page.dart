@@ -4,9 +4,13 @@ import 'shared.dart';
 
 // Page 3: the contrast audit. Three tables — text on a ground, fills and
 // composed states, and separation between two grounds — each row a measured
-// pair with its swatch, hex values, ratio, and grade. The text and the
-// separation tables stack on the left, the fills table stands on the right,
-// so the page fits a 120-column terminal.
+// pair with its swatch, hex values, and ratio. Every ratio is the WCAG 2
+// contrast ratio [Color.contrastRatio] returns. The text and fill tables
+// grade it against the WCAG 2 text thresholds; the separation table asks a
+// different question of the same number (can two grounds be told apart?),
+// so its rows carry no grade. The text and the separation tables stack on
+// the left, the fills table stands on the right, so the page fits a
+// 120-column terminal.
 
 /// One measured pair: a label and the resolver call that yields its `fg`
 /// over its `bg`.
@@ -119,8 +123,8 @@ final List<_Pair> _separationPairs = [
   ('muted / disabled', (rgb) => Style(fg: rgb.tones.muted.color, bg: rgb.tones.disabled.color)),
 ];
 
-/// A grade for [ratio] against the text thresholds: `AAA` at 7, `AA` at 4.5,
-/// `large` at 3, `fail` below.
+/// A grade for [ratio] against the WCAG 2 text thresholds: `AAA` at 7, `AA`
+/// at 4.5, `large` at 3 (readable only as large or bold text), `fail` below.
 String _grade(double ratio) {
   if (ratio >= 7) return 'AAA';
   if (ratio >= 4.5) return 'AA';
@@ -148,62 +152,66 @@ String _hexOrDash(Color? color) => (color == null || color == Color.reset) ? '�
 ///
 /// Either side missing or [Color.reset] makes the pair unmeasurable: the
 /// ratio reads an em dash and the grade reads `n/a`, in muted ink.
-/// [separation] pairs never grade — they read `sep` in muted ink instead.
-({String ratio, String grade, Style gradeStyle}) _readout(
-  StyleResolver chrome,
-  Color? fg,
-  Color? bg, {
-  required bool separation,
-}) {
+({String ratio, String grade, Style gradeStyle}) _readout(StyleResolver chrome, Color? fg, Color? bg) {
   final muted = chrome.ink(chrome.tones.muted);
   if (fg == null || fg == Color.reset || bg == null || bg == Color.reset) {
     return (ratio: '—', grade: 'n/a', gradeStyle: muted);
   }
   final value = fg.contrastRatio(bg);
   final ratio = '${value.toStringAsFixed(2)}:1';
-  if (separation) return (ratio: ratio, grade: 'sep', gradeStyle: muted);
   final grade = _grade(value);
   return (ratio: ratio, grade: grade, gradeStyle: _gradeInk(chrome, grade));
 }
 
-/// The header row of a section's table, in muted ink.
-View _pairHeader(StyleResolver chrome) {
+/// The header row of a section's table, in muted ink. A [graded] table
+/// ends with the grade column; a separation table stops at the ratio.
+View _pairHeader(StyleResolver chrome, {required bool graded}) {
   final muted = chrome.ink(chrome.tones.muted);
   return Row(
     children: [
       col(22, Line('pair', style: muted)),
-      col(4, Line('Ab', style: muted)),
+      col(5, Line(' Ab', style: muted)),
       col(8, Line('fg', style: muted)),
       col(8, Line('bg', style: muted)),
       col(8, Line('ratio', style: muted)),
-      col(5, Line('grade', style: muted)),
+      if (graded) col(5, Line('grade', style: muted)),
     ],
   );
 }
 
-/// One row: the pair's label, its swatch, both hex values, the ratio, and
-/// the grade — every measured value read straight off [pair]'s style.
-View _pairRow(StyleResolver chrome, StyleResolver rgb, _Pair pair, {required bool separation}) {
+/// One row: the pair's label, its swatch, both hex values, the ratio, and —
+/// in a [graded] table — the grade, every measured value read straight off
+/// [pair]'s style.
+View _pairRow(StyleResolver chrome, StyleResolver rgb, _Pair pair, {required bool graded}) {
   final (label, styleOf) = pair;
   final style = styleOf(rgb);
-  final readout = _readout(chrome, style.fg, style.bg, separation: separation);
+  final readout = _readout(chrome, style.fg, style.bg);
   final muted = chrome.ink(chrome.tones.muted);
   final defaultText = chrome.ink(Tone(color: chrome.tones.background.on));
   return Row(
     children: [
       col(22, Line(label, style: muted)),
       swatch(4, style),
+      const SizedBox(width: 1),
       col(8, Line(_hexOrDash(style.fg), style: defaultText)),
       col(8, Line(_hexOrDash(style.bg), style: defaultText)),
       col(8, Line(readout.ratio, style: muted)),
-      col(5, Line(readout.grade, style: readout.gradeStyle)),
+      if (graded) col(5, Line(readout.grade, style: readout.gradeStyle)),
     ],
   );
 }
 
-/// One bordered, titled table: a header row over [pairs], each measured
-/// through [rgb] and painted with [chrome]'s tier-following chrome.
-View _section(StyleResolver chrome, StyleResolver rgb, String title, List<_Pair> pairs, {bool separation = false}) {
+/// One bordered, titled table: a one-line [question] the table answers, a
+/// header row, then [pairs], each measured through [rgb] and painted with
+/// [chrome]'s tier-following chrome. A separation table is not [graded].
+View _section(
+  StyleResolver chrome,
+  StyleResolver rgb,
+  String title,
+  String question,
+  List<_Pair> pairs, {
+  bool graded = true,
+}) {
   final t = chrome.tones;
   return Container(
     border: BorderType.plain,
@@ -212,8 +220,9 @@ View _section(StyleResolver chrome, StyleResolver rgb, String title, List<_Pair>
     topTitles: [Line(title, style: chrome.ink(t.secondary))],
     child: Column(
       children: [
-        _pairHeader(chrome),
-        for (final pair in pairs) _pairRow(chrome, rgb, pair, separation: separation),
+        Line(question, style: chrome.ink(t.muted)),
+        _pairHeader(chrome, graded: graded),
+        for (final pair in pairs) _pairRow(chrome, rgb, pair, graded: graded),
       ],
     ),
   );
@@ -223,22 +232,29 @@ View _section(StyleResolver chrome, StyleResolver rgb, String title, List<_Pair>
 ///
 /// Three tables — text on a ground, fills and composed states, and
 /// separation between two grounds — each row a pair painted as a swatch,
-/// its hex values, the ratio [Color.contrastRatio] returns, and a grade. The
-/// text and separation tables stack on the left; the fills table stands on
-/// the right. [chrome] paints the page's own title, section titles, and
-/// borders, so they degrade with the render tier like the rest of the
-/// screen; every measured pair instead reads a resolver locked to
-/// [RenderPolicy.color], since a ratio against a terminal's own ANSI-16 or
-/// NO_COLOR palette cannot be measured.
+/// its hex values, and the ratio [Color.contrastRatio] returns; the first
+/// two tables also grade it. The text and separation tables stack on the
+/// left; the fills table stands on the right. [chrome] paints the page's
+/// own title, section titles, and borders, so they degrade with the render
+/// tier like the rest of the screen; every measured pair instead reads a
+/// resolver locked to [RenderPolicy.color], since a ratio against a
+/// terminal's own ANSI-16 or NO_COLOR palette cannot be measured.
 View contrastPage(Theme theme, StyleResolver chrome) {
   final t = chrome.tones;
   final rgb = StyleResolver(theme, policy: RenderPolicy.color);
   return Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
-      Line("Contrast: RGB tones; the terminal's own palette cannot be measured", style: chrome.ink(t.secondary)),
       Line(
-        'ratios stay put while F3 cycles the tier; grades: AAA ≥ 7, AA ≥ 4.5, large ≥ 3, fail below',
+        "Contrast: ratio is the WCAG 2 contrast ratio of a pair's two colors, 1:1 (same color) to 21:1 (black on white)",
+        style: chrome.ink(t.secondary),
+      ),
+      Line(
+        'grade: the ratio against the WCAG 2 text thresholds: AAA ≥ 7 · AA ≥ 4.5 · large ≥ 3 (large or bold text only) · fail',
+        style: chrome.ink(t.muted),
+      ),
+      Line(
+        "RGB tones only, so F3 changes no number: a terminal's own ANSI-16 or NO_COLOR palette cannot be measured",
         style: chrome.ink(t.muted),
       ),
       Expanded(
@@ -249,18 +265,33 @@ View contrastPage(Theme theme, StyleResolver chrome) {
               child: Column(
                 crossAxis: CrossAxisAlignment.stretch,
                 children: [
-                  _section(chrome, rgb, ' Text on a ground ', _textPairs),
                   _section(
                     chrome,
                     rgb,
-                    ' Separation — ground against ground; text thresholds do not apply ',
+                    ' Text on a ground ',
+                    'ink over a ground: is the text readable?',
+                    _textPairs,
+                  ),
+                  _section(
+                    chrome,
+                    rgb,
+                    ' Separation ',
+                    'ground next to ground: can you tell them apart? no grade',
                     _separationPairs,
-                    separation: true,
+                    graded: false,
                   ),
                 ],
               ),
             ),
-            Expanded(child: _section(chrome, rgb, ' Fills and composed states ', _fillPairs)),
+            Expanded(
+              child: _section(
+                chrome,
+                rgb,
+                ' Fills and composed states ',
+                "the tone's \"on\" ink over its color: readable on a fill?",
+                _fillPairs,
+              ),
+            ),
           ],
         ),
       ),

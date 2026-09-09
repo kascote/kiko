@@ -197,7 +197,7 @@ void main() {
     viewer.view(model, frame);
     final screen = _screenText(frame.buffer);
 
-    expect(screen, contains('Contrast: RGB tones'));
+    expect(screen, contains('Contrast: ratio is the WCAG 2 contrast ratio'));
     final ratio = Theme.dark.background.on.contrastRatio(Theme.dark.background.color!).toStringAsFixed(2);
     expect(screen, contains('$ratio:1'), reason: 'default text over background measures $ratio:1');
   });
@@ -212,7 +212,7 @@ void main() {
         final frame = _testFrame(160, 50);
         final label = '${viewer.Model.themeNames[i]} / $policy';
         expect(() => viewer.view(model, frame), returnsNormally, reason: label);
-        expect(_screenText(frame.buffer), contains('Contrast: RGB tones'), reason: label);
+        expect(_screenText(frame.buffer), contains('Contrast: ratio is the WCAG 2 contrast ratio'), reason: label);
       }
     }
   });

@@ -50,12 +50,17 @@ View galleryPage(Model model, Theme theme, StyleResolver resolver, View comboVie
   ],
 );
 
-/// The form column: text inputs in three states, the combobox, the editor,
-/// the button row, and a checkbox row.
+/// The form column: text inputs in three states, the combobox, the button
+/// row, the checkbox group, and the editor taking the rest of the height.
 View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboView) {
   final requiredStates = {
     if (model.requiredInput.focused) WidgetState.focused,
     if (model.requiredInput.error) WidgetState.error,
+  };
+  final checkboxes = [model.agree, model.notify, model.partial, model.terms, model.locked];
+  final checkboxStates = {
+    if (checkboxes.any((box) => box.focused)) WidgetState.focused,
+    if (checkboxes.any((box) => box.error)) WidgetState.error,
   };
   return ConstrainedBox(
     additionalConstraints: const BoxConstraints(minW: 36, maxW: 36),
@@ -81,17 +86,6 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           TextInput(model: model.disabledInput, theme: theme),
         ),
         _field(resolver, 'Combobox', {if (model.combo.focused) WidgetState.focused}, comboView),
-        Expanded(
-          child: Container(
-            border: BorderType.plain,
-            borderStyle: resolver.border({if (model.editor.focused) WidgetState.focused}),
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            topTitles: [
-              Line(' TextArea ', style: titleInk(resolver, {if (model.editor.focused) WidgetState.focused})),
-            ],
-            child: TextArea(model: model.editor, theme: theme),
-          ),
-        ),
         Row(
           children: [
             Button(model: model.okButton, theme: theme),
@@ -105,7 +99,30 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
             ),
           ],
         ),
-        Checkbox(model: model.agree, theme: theme),
+        // Five boxes, one per look: checked, unchecked, mixed, unchecked with
+        // the error fact set, and disabled. The border carries focus and
+        // error like a field's, read from whichever box holds them.
+        Container(
+          border: BorderType.plain,
+          borderStyle: resolver.border(checkboxStates),
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          topTitles: [Line(' Checkbox ', style: titleInk(resolver, checkboxStates))],
+          child: Column(
+            crossAxis: CrossAxisAlignment.stretch,
+            children: [for (final box in checkboxes) Checkbox(model: box, theme: theme)],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            border: BorderType.plain,
+            borderStyle: resolver.border({if (model.editor.focused) WidgetState.focused}),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            topTitles: [
+              Line(' TextArea ', style: titleInk(resolver, {if (model.editor.focused) WidgetState.focused})),
+            ],
+            child: TextArea(model: model.editor, theme: theme),
+          ),
+        ),
       ],
     ),
   );

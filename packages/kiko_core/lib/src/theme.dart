@@ -391,19 +391,22 @@ class Theme implements ToneSet {
   /// hierarchy — muted text is a darker amber, focus is a brighter one, and
   /// the only departures from the hue are the intent tones (error, success).
   static const Theme lantern = Theme(
-    primary: SurfaceTone(color: Color.rgb(0x008080), on: Color.rgb(0x221a10)), // 0xc8933f
-    secondary: SurfaceTone(color: Color.rgb(0xb3854d), on: Color.rgb(0x221a10)),
-    accent: SurfaceTone(color: Color.rgb(0xf5d9a0), on: Color.rgb(0x221a10)),
-    error: SurfaceTone(color: Color.rgb(0xd06048), on: Color.rgb(0x221a10)),
-    warning: SurfaceTone(color: Color.rgb(0xe0b040), on: Color.rgb(0x221a10)),
-    success: SurfaceTone(color: Color.rgb(0x9aa548), on: Color.rgb(0x221a10)),
-    background: SurfaceTone(color: Color.rgb(0x14100B), on: Color.rgb(0xcaa356)),
-    surface: SurfaceTone(color: Color.rgb(0x2a2113), on: Color.rgb(0xcaa356)),
-    border: Tone(color: Color.rgb(0x3a2e1e)),
-    muted: Tone(color: Color.rgb(0x4A3F30)),
-    disabled: Tone(color: Color.rgb(0x57492a)),
-    focus: SurfaceTone(color: Color.rgb(0xffb63d), on: Color.rgb(0x221a10)), // 6c5638
-    selection: SurfaceTone(color: Color.rgb(0x4a3a1e), on: Color.rgb(0xf2d9a5)),
+    // One hue family (78° in OKLCH). Each tone's lightness is set by a target
+    // contrast ratio against the background, and chroma grows with lightness;
+    // error, warning, and success keep their own hues at the same rule.
+    primary: SurfaceTone(color: Color.rgb(0xc89234), on: Color.rgb(0x21190d)),
+    secondary: SurfaceTone(color: Color.rgb(0xb0812c), on: Color.rgb(0x21190d)),
+    accent: SurfaceTone(color: Color.rgb(0xf5ce93), on: Color.rgb(0x21190d)),
+    error: SurfaceTone(color: Color.rgb(0xc36d5a), on: Color.rgb(0x21190d)),
+    warning: SurfaceTone(color: Color.rgb(0xca7d45), on: Color.rgb(0x21190d)),
+    success: SurfaceTone(color: Color.rgb(0x98a340), on: Color.rgb(0x21190d)),
+    background: SurfaceTone(color: Color.rgb(0x120d05), on: Color.rgb(0xc3a26d)),
+    surface: SurfaceTone(color: Color.rgb(0x2c2314), on: Color.rgb(0xc3a26d)),
+    border: Tone(color: Color.rgb(0x413420)),
+    muted: Tone(color: Color.rgb(0x91784f)),
+    disabled: Tone(color: Color.rgb(0x776240)),
+    focus: SurfaceTone(color: Color.rgb(0xf9b843), on: Color.rgb(0x21190d)),
+    selection: SurfaceTone(color: Color.rgb(0x4a3c25), on: Color.rgb(0xf8ce8c)),
     // cursor, hover: derived washes over background.
     //
     // Nearly every tone lives in the yellow family, so this table leans on

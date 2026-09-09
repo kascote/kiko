@@ -42,21 +42,23 @@ import 'shared.dart';
 // page 1 uses, so the matrix and the live widgets read side by side. Tab
 // and the widget keys reach the gallery only on this page. The editor
 // starts with a selection, the list and the table both start with their
-// first row selected under the cursor, and the Dialog… button keeps an
-// error face — so the selection, lifted-selection, and error-under-focus
-// looks all show on the first frame. The table also shows its crosshair
+// first row selected under the cursor, the Dialog… button keeps an error
+// face, and the checkbox group shows every look at once (checked,
+// unchecked, mixed, error, disabled) — so the selection, lifted-selection,
+// and error-under-focus looks all show on the first frame. The table also shows its crosshair
 // from the first frame. The tree, and every table page after the first,
 // load through a deliberately slow fetch, so the loading tone stays on
 // screen long enough to see.
 //
 // Page 3, contrast (contrast_page.dart), audits contrast. Three tables —
 // text on a ground, fills and composed states, and separation between two
-// grounds — each row a pair painted as a swatch, its hex values, the
-// ratio, and a grade. Every pair reads the theme's RGB
-// tones through its own resolver, locked to `RenderPolicy.color`, since a
-// ratio against a terminal's own ANSI-16 or NO_COLOR palette cannot be
-// measured; the page's own chrome (title, borders) still follows F3 like
-// the rest of the screen.
+// grounds — each row a pair painted as a swatch, its hex values, and its
+// WCAG 2 contrast ratio; the first two tables grade the ratio against the
+// text thresholds, the separation table does not. Every pair reads the
+// theme's RGB tones through its own resolver, locked to
+// `RenderPolicy.color`, since a ratio against a terminal's own ANSI-16 or
+// NO_COLOR palette cannot be measured; the page's own chrome (title,
+// borders) still follows F3 like the rest of the screen.
 //
 // Theme keys are alt+[ / alt+] with F1/F2 as a fallback: a legacy terminal
 // sends alt+[ as a bare `ESC [` — the CSI introducer — so only the kitty
@@ -202,8 +204,31 @@ class Model {
   /// Seeded checked, so the checked mark shows on the first frame.
   final agree = CheckboxModel(
     id: 'agree-check',
-    label: Line('I have read the theme doctrine'),
+    label: Line('I read the theme doctrine'),
     state: CheckState.checked,
+  );
+
+  /// A plain unchecked box, to toggle beside the checked one.
+  final notify = CheckboxModel(id: 'notify-check', label: Line('Send me release notes'));
+
+  /// Seeded mixed, so the mixed mark shows; the first toggle checks it.
+  final partial = CheckboxModel(
+    id: 'partial-check',
+    label: Line('Some mail kinds picked'),
+    state: CheckState.mixed,
+  );
+
+  /// Unchecked with the error fact set, the way a required box reads before
+  /// the user accepts; the first toggle clears the error.
+  final terms = CheckboxModel(id: 'terms-check', label: Line('Accept the terms (required)'), error: true);
+
+  /// Disabled and checked: a disabled box keeps its mark, dimmed with the
+  /// rest of the row.
+  final locked = CheckboxModel(
+    id: 'locked-check',
+    label: Line('Disabled, keeps its mark'),
+    state: CheckState.checked,
+    disabled: true,
   );
 
   final list = ListViewModel<String, String>(
@@ -241,16 +266,20 @@ class Model {
     selectionEnabled: true,
   );
 
-  /// Tab order of the gallery. The disabled button and the disabled field
-  /// are not members: neither can take focus.
+  /// Tab order of the gallery, top to bottom then left to right. The
+  /// disabled button, the disabled field, and the disabled checkbox are not
+  /// members: none of them can take focus.
   late final FocusGroup<Component> focus = FocusGroup<Component>(<Component>[
     name,
     requiredInput,
     combo,
-    editor,
     okButton,
     dialogButton,
     agree,
+    notify,
+    partial,
+    terms,
+    editor,
     list,
     tree,
     table,
@@ -308,6 +337,8 @@ Cmd? onEvent(Model model, WidgetEvent event) {
       model.modal = ModalModel(id: 'demo-dialog');
     case ButtonPressEvent(:final id):
       model.status = 'Button: $id pressed';
+    case CheckboxChangeEvent(:final id, :final checked):
+      model.status = 'Checkbox: $id ${checked ? 'checked' : 'unchecked'}';
     case ComboboxSelectEvent():
       model.status = 'Combobox: ${model.combo.value}';
     case ListActivateEvent():
@@ -380,8 +411,10 @@ Cmd? onEvent(Model model, WidgetEvent event) {
     switch (model.router.route(msg, ctx)) {
       case Handled(:final events, :final cmd):
         // Empty means invalid here, so this keeps the required field's own
-        // error fact in sync with its text on every handled interaction.
+        // error fact in sync with its text on every handled interaction; the
+        // required checkbox reads the same way from its own value.
         model.requiredInput.error = model.requiredInput.value.trim().isEmpty;
+        model.terms.error = model.terms.state != CheckState.checked;
         return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
       case Declined():
         break; // not interaction traffic the router owns — fall through

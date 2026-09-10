@@ -332,6 +332,32 @@ void main() {
       expect(router.capturing, isFalse);
     });
 
+    test(
+      'a cancelled gesture delivers nothing more: its drags and its release never reach the widget now under the cursor',
+      () {
+        router.route(_at(1, 1, _down(), hits), hits);
+
+        // The captor is painted out and another widget now sits under the
+        // cursor, as when a press closes a popup over a button.
+        final newest = _twoPanes(swap: true, dropLeft: true);
+        expect(newest.hitId(1, 1), 'right');
+
+        final onDrag = router.route(_at(1, 1, _drag(), newest), newest);
+        expect(onDrag.first, const PointerCancelMsg('left'));
+        expect(onDrag.whereType<PointerMsg>(), isEmpty, reason: 'the drag belongs to the gesture that was cancelled');
+
+        final onUp = router.route(_at(1, 1, _up(), newest), newest);
+        expect(onUp.whereType<PointerMsg>(), isEmpty, reason: 'so does the release');
+        expect(router.capturing, isFalse, reason: 'the release still ends the gesture');
+
+        // The button is up: the next event is a fresh interaction and routes
+        // normally.
+        final onMove = router.route(_at(1, 1, _move(), newest), newest);
+        expect(_only(onMove).targetId, 'right');
+      },
+      skip: 'pending: the router re-targets the tail of a cancelled gesture at the widget now under the cursor',
+    );
+
     test('losing terminal focus ends the gesture, the hover, and then reports itself', () {
       router.route(_at(1, 1, _down(), hits), hits);
 

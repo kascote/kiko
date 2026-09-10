@@ -52,7 +52,8 @@ backend, so the render loop and the full MVU drain run under `dart test`.
 against it to check what was rendered. `lastDiff` records the cells the last
 draw changed; assert against it to check the double buffer redrew only what
 changed. `emit(event)` feeds the event loop a raw termparser event, and the
-`emitKey`/`emitClick`/`emitWheel` helpers build the common ones.
+`emitKey`/`emitClick`/`emitPress`/`emitRelease`/`emitWheel` helpers build the
+common ones.
 
 `TestBackend` is not a terminal emulator. It parses no escape sequences, and
 every call but `draw` is recorded, not simulated. How to test widgets and

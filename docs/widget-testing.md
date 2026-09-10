@@ -250,7 +250,8 @@ test('a resize is picked up on the next draw', () async {
 with the exit code — the framework never calls `exit()`.
 
 Input is driven with `TestBackend`'s emit helpers: `emitKey`, `emitClick`,
-`emitMove`, `emitDrag`, `emitWheel`, `emitPaste`, `emitFocus`. The helpers
+`emitPress`, `emitRelease`, `emitMove`, `emitDrag`, `emitWheel`, `emitPaste`,
+`emitFocus`. The helpers
 take kiko's own types. `emitKey` takes the same spec strings
 `KeyMsg.key` and `KeyBinding` use (`'q'`, `'ctrl+a'`, `'shift+tab'`); the
 pointer helpers take 0-based buffer cells and the same `PointerButton` and
@@ -383,9 +384,11 @@ would have sent.
 
 ### Raw `emit`
 
-The helpers cover a click (a paired press and release), a drag, a wheel notch,
-a paste, a focus change, and a plain key press. Some events no helper builds:
-a key repeat, a key release, a press and release split across separate ticks.
+The helpers cover a click (a paired press and release), a press and a release
+on their own, a drag, a wheel notch, a paste, a focus change, and a plain key
+press. A press and a release emitted from separate steps model a gesture whose
+press changes the screen before the release arrives. Some events no helper
+builds: a key repeat, a key release.
 Those go through `emit(event)`, which takes a raw `termparser` event
 (`KeyEvent`, `MouseEvent`, `PasteEvent`, `FocusEvent`, `WindowResizeEvent`)
 and feeds it to the backend untranslated. `emit` is the only path that needs a

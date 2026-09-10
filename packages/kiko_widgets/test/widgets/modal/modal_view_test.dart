@@ -66,6 +66,29 @@ void main() {
       final corner = frame.buffer[(x: 0, y: 0)];
       expect(corner.bg, isNot(equals(const Color.rgb(0xC8C8C8))));
     });
+
+    test(
+      'a press outside the dialog resolves to the modal, never to the base tree under the backdrop',
+      () {
+        // A tagged widget in the top-left corner of the base, well outside
+        // the centred dialog.
+        final base = Column(children: [Tagged('ok', Line('OK'))]).build();
+        final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+        final frame = _frame(20, 8);
+        renderModalOverlay(frame, base: base, width: 10, height: 4, dialog: dialog);
+
+        final outside = frame.hits.hitId(0, 0);
+        expect(outside, isNotNull, reason: 'the modal claims the whole frame');
+        expect(outside, isNot('ok'), reason: 'the widget under the backdrop is unreachable while the modal is open');
+        expect(
+          HitTag.resolve(outside!, {'confirm'}),
+          'confirm',
+          reason: 'the outside press is addressed to the modal, so the app routes it like any other',
+        );
+      },
+      skip:
+          'pending: the dialog layer covers only its own rect, so the base tree stays hit-testable through the backdrop',
+    );
   });
 
   group('renderModalOverlay / layer compositing', () {

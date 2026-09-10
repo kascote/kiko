@@ -251,8 +251,9 @@ class TestBackend implements Backend {
   /// release of the same [button], at the same cell.
   ///
   /// [x] and [y] are 0-based buffer cells, carried straight through with no
-  /// translation. For a press and release split across separate ticks, or a
-  /// button held down while the pointer travels, use raw [emit].
+  /// translation. Both events are queued together, so both resolve against
+  /// the same frame. For a press and a release the app sees in separate
+  /// frames, emit [emitPress] and [emitRelease] from separate steps.
   void emitClick(
     int x,
     int y, {
@@ -261,10 +262,37 @@ class TestBackend implements Backend {
     bool ctrl = false,
     bool alt = false,
   }) {
-    final kind = _mouseButtonKind(button);
+    emitPress(x, y, button: button, shift: shift, ctrl: ctrl, alt: alt);
+    emitRelease(x, y, button: button, shift: shift, ctrl: ctrl, alt: alt);
+  }
+
+  /// Emits a press of [button] at cell ([x], [y]), with no release.
+  ///
+  /// Pair it with [emitRelease] from a later step to model a gesture whose
+  /// press changes what is on screen before the release arrives.
+  void emitPress(
+    int x,
+    int y, {
+    PointerButton button = PointerButton.left,
+    bool shift = false,
+    bool ctrl = false,
+    bool alt = false,
+  }) {
     final mods = _keyModifiers(shift: shift, ctrl: ctrl, alt: alt);
-    emit(evt.MouseEvent(x, y, evt.MouseButton.down(kind), modifiers: mods));
-    emit(evt.MouseEvent(x, y, evt.MouseButton.up(kind), modifiers: mods));
+    emit(evt.MouseEvent(x, y, evt.MouseButton.down(_mouseButtonKind(button)), modifiers: mods));
+  }
+
+  /// Emits a release of [button] at cell ([x], [y]). See [emitPress].
+  void emitRelease(
+    int x,
+    int y, {
+    PointerButton button = PointerButton.left,
+    bool shift = false,
+    bool ctrl = false,
+    bool alt = false,
+  }) {
+    final mods = _keyModifiers(shift: shift, ctrl: ctrl, alt: alt);
+    emit(evt.MouseEvent(x, y, evt.MouseButton.up(_mouseButtonKind(button)), modifiers: mods));
   }
 
   /// Emits pointer motion to cell ([x], [y]) with no button held.

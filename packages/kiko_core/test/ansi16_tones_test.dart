@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('Ansi16Tones.derive', () {
     const theme = Theme(
+      name: 'extremes',
       primary: SurfaceTone(color: Color.rgb(0x000000), on: Color.white), // pure black: darkest slot
       secondary: SurfaceTone(color: Color.rgb(0xffffff), on: Color.black), // pure white: lightest slot
       accent: SurfaceTone(color: Color.yellow, on: Color.black), // already an ANSI-16 color
@@ -90,6 +91,7 @@ void main() {
 
     test('a transparent background derives with reset passed through unchanged', () {
       const transparent = Theme(
+        name: 'transparent',
         primary: SurfaceTone(color: Color.rgb(0x000000), on: Color.white),
         secondary: SurfaceTone(color: Color.rgb(0xffffff), on: Color.black),
         accent: SurfaceTone(color: Color.yellow, on: Color.black),

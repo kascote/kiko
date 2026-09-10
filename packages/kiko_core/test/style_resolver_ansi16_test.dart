@@ -7,6 +7,7 @@ void main() {
     // itself now hand-authors one, so a fresh theme is needed here to
     // exercise the derivation fallback this group is testing.
     final theme = Theme(
+      name: 'bare dark',
       primary: Theme.dark.primary,
       secondary: Theme.dark.secondary,
       accent: Theme.dark.accent,
@@ -176,16 +177,33 @@ void main() {
 
     test('a hand-authored table can still collapse two states onto the same named color — the '
         'modifier is what tells them apart, same as NO_COLOR', () {
-      // Theme.ansiDark hand-authors muted and disabled as the SAME named
-      // color (darkGray): an accepted collapse, since disabled still carries
-      // its dim modifier on top. This is the ansi16 analogue of NO_COLOR's
-      // modifier floor — verified here against a real built-in table, not a
-      // constructed one.
-      final ansiDarkResolver = StyleResolver(Theme.ansiDark, policy: RenderPolicy.ansi16);
-      final muted = ansiDarkResolver.ink(ansiDarkResolver.tones.muted);
-      final disabled = ansiDarkResolver.resolve(null, {WidgetState.disabled}, cls: PaintClass.fill);
+      // A table that hand-authors muted and disabled as the SAME named color
+      // (darkGray) is an accepted collapse, since disabled still carries its
+      // dim modifier on top. This is the ansi16 analogue of NO_COLOR's
+      // modifier floor.
+      final collapsed = Theme.dark.copyWith(
+        tones16: Ansi16Tones(
+          primary: Theme.dark.tones16!.primary,
+          secondary: Theme.dark.tones16!.secondary,
+          accent: Theme.dark.tones16!.accent,
+          error: Theme.dark.tones16!.error,
+          warning: Theme.dark.tones16!.warning,
+          success: Theme.dark.tones16!.success,
+          background: Theme.dark.tones16!.background,
+          surface: Theme.dark.tones16!.surface,
+          border: Theme.dark.tones16!.border,
+          muted: const Tone(color: Color.darkGray),
+          disabled: const Tone(color: Color.darkGray),
+          focus: Theme.dark.tones16!.focus,
+          selection: Theme.dark.tones16!.selection,
+          cursor: Theme.dark.tones16!.cursor,
+        ),
+      );
+      final collapsedResolver = StyleResolver(collapsed, policy: RenderPolicy.ansi16);
+      final muted = collapsedResolver.ink(collapsedResolver.tones.muted);
+      final disabled = collapsedResolver.resolve(null, {WidgetState.disabled}, cls: PaintClass.fill);
 
-      expect(muted.fg, equals(disabled.fg), reason: 'ansiDark hand-authors both as darkGray');
+      expect(muted.fg, equals(disabled.fg), reason: 'the table hand-authors both as darkGray');
       expect(muted.addModifier.has(Modifier.dim), isFalse);
       expect(disabled.addModifier.has(Modifier.dim), isTrue);
       expect(muted, isNot(equals(disabled)), reason: 'the dim modifier is the only thing telling them apart');
@@ -211,6 +229,7 @@ void main() {
     // themes' RGB tones, stripped of their hand-authored tones16 so
     // derivation actually runs.
     Theme bareRgb(Theme source) => Theme(
+      name: source.name,
       primary: source.primary,
       secondary: source.secondary,
       accent: source.accent,
@@ -226,7 +245,7 @@ void main() {
       selection: source.selection,
     );
 
-    final sources = <String, Theme>{'dark': bareRgb(Theme.dark), 'ember': bareRgb(Theme.ember)};
+    final sources = <String, Theme>{'dark': bareRgb(Theme.dark), 'gruvbox': bareRgb(Theme.gruvbox)};
 
     for (final MapEntry(key: name, value: bare) in sources.entries) {
       test('$name: every derived `on` is black or bright white', () {

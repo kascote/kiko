@@ -400,8 +400,8 @@ void main() {
         final darkCell = renderBuffer(model, width: 11, height: 5)[(x: 0, y: 2)];
         expect(darkCell.fg, equals(Theme.dark.success.color));
 
-        final lightCell = renderBuffer(model, width: 11, height: 5, theme: Theme.light)[(x: 0, y: 2)];
-        expect(lightCell.fg, equals(Theme.light.success.color));
+        final gruvboxCell = renderBuffer(model, width: 11, height: 5, theme: Theme.gruvbox)[(x: 0, y: 2)];
+        expect(gruvboxCell.fg, equals(Theme.gruvbox.success.color));
       });
 
       test('a column style that sets only a foreground keeps the row slot background', () {

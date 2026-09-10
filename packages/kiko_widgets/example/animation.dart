@@ -1279,7 +1279,7 @@ View _status(AppModel model, StyleResolver resolver) {
     crossAxis: CrossAxisAlignment.stretch,
     children: [
       Line(
-        'theme: ${model.themeName}   focus: ${model.focusGroup.focused.id}   last started: ${model.lastStarted ?? '—'}',
+        'theme: ${model.theme.name}   focus: ${model.focusGroup.focused.id}   last started: ${model.lastStarted ?? '—'}',
         style: muted,
       ),
       Line('proves: ${model.focusedCase.proves}', style: muted),

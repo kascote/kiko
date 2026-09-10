@@ -217,8 +217,8 @@ void main() {
 
       // Same model, rebuilt style, second theme: the view carries no state of
       // its own, so the new frame reflects the new theme with nothing to reset.
-      final lightBuffer = _render(model, theme: Theme.light, style: styleFor(Theme.light));
-      expect(lightBuffer[(x: 0, y: 0)].bg, equals(Theme.light.success.color));
+      final gruvboxBuffer = _render(model, theme: Theme.gruvbox, style: styleFor(Theme.gruvbox));
+      expect(gruvboxBuffer[(x: 0, y: 0)].bg, equals(Theme.gruvbox.success.color));
     });
   });
 }

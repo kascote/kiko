@@ -4,9 +4,15 @@ import 'package:test/test.dart';
 void main() {
   const themes = <String, Theme>{
     'dark': Theme.dark,
-    'light': Theme.light,
-    'ember': Theme.ember,
-    'ansiDark': Theme.ansiDark,
+    'catppuccin': Theme.catppuccin,
+    'rosePine': Theme.rosePine,
+    'gruvbox': Theme.gruvbox,
+    'monokai': Theme.monokai,
+    'nord': Theme.nord,
+    'tokyoNight': Theme.tokyoNight,
+    'oneDark': Theme.oneDark,
+    'dracula': Theme.dracula,
+    'solarized': Theme.solarized,
   };
 
   group('built-in themes: tones16 completeness', () {

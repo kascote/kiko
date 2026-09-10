@@ -114,6 +114,7 @@ on `Theme` alone.
 
 ```dart
 static const dark = Theme(
+  name:       'Kiko Dark',
   primary:    SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
   background: SurfaceTone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
   surface:    SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
@@ -126,6 +127,10 @@ static const dark = Theme(
 );
 ```
 
+`name` is the one member that is not a tone. It is the label a theme
+picker or a status line shows, so a list of themes needs no parallel list
+of names.
+
 **Transparent-background themes.** `background.color == null` keeps the
 terminal's own background: fills over it set `bg: null`, and the frame's
 ground carries only its foreground, `background.on`. Such a theme should
@@ -135,13 +140,24 @@ unknown background: `hover` comes out fully empty, and `cursor` keeps
 
 ### Shipped themes
 
-| Theme       | Intent                                                                   |
-| ----------- | ------------------------------------------------------------------------- |
-| `dark`      | Deep slate base with muted warm accents.                                |
-| `light`     | Warm white base with deeper accents.                                    |
-| `ember`     | Warm orange palette with teal accents on a near-black base.             |
-| `ansiDark`  | The palette theme for a dark terminal. It paints no background, so the terminal's own background shows through. Pick it from `InitMsg.hasDarkBackground`. It looks the same on every render tier. |
-| `lantern`   | Monochrome amber on a dark warm-brown base, like text lit by lamplight. |
+Every shipped theme is a dark theme. The palette themes use only colors
+from their source palette, and each takes the palette's darkest variant
+and darkest background; each doc comment in
+`packages/kiko_core/lib/src/theme.dart` records how the palette's roles map
+onto the tones.
+
+| Theme        | Intent                                                                  |
+| ------------ | ----------------------------------------------------------------------- |
+| `dark`       | Kiko's own: deep slate base with muted warm accents.                    |
+| `catppuccin` | Catppuccin Mocha: soft pastel accents on a cool near-black base.        |
+| `rosePine`   | Rosé Pine main: muted rose, gold, and teal on a deep violet-black base. |
+| `gruvbox`    | Gruvbox dark: retro-groove pastels on a warm dark-gray base.            |
+| `monokai`    | Monokai Pro default filter: vivid accents on a muted plum-gray base.    |
+| `nord`       | Nord: arctic, bluish pastels on a dark blue-gray base.                  |
+| `tokyoNight` | Tokyo Night, night variant: neon-tinted pastels on a deep blue-black base. |
+| `oneDark`    | One Dark, Atom's default: soft syntax hues on a cool charcoal base.     |
+| `dracula`    | Dracula: vivid candy hues on a dark purple-gray base.                   |
+| `solarized`  | Solarized Dark: low-contrast accents on a deep teal-black base.         |
 
 ## Projections
 
@@ -605,15 +621,15 @@ color is stripped.
 
 ## Picking dark or light at startup
 
-Choosing which `Theme` to render — `Theme.dark` vs `Theme.light` — is a
-different question from the color tier, and it is the app's call. Kiko
-never switches a theme on its own. The startup capability probe reports the
-terminal's background as a tri-state on `InitMsg.hasDarkBackground`
-(mirrored on `Backend.hasDarkBackground`): `true` for dark, `false` for
-light, `null` when the terminal never answered. Treat `null` as dark; most
-terminal defaults are. A typical app reads it once, in `update` on the
-first `InitMsg`, and picks its starting theme. See "Shipped themes" above
-for which built-in theme suits a dark or a light terminal.
+Choosing which `Theme` to render is a different question from the color
+tier, and it is the app's call. Kiko never switches a theme on its own. The
+startup capability probe reports the terminal's background as a tri-state
+on `InitMsg.hasDarkBackground` (mirrored on `Backend.hasDarkBackground`):
+`true` for dark, `false` for light, `null` when the terminal never
+answered. Treat `null` as dark; most terminal defaults are. A typical app
+reads it once, in `update` on the first `InitMsg`, and picks its starting
+theme. Every shipped theme is dark; an app that wants a light theme authors
+one (see "Authoring a theme" above) and picks it here.
 
 ## Which knob serves which user
 

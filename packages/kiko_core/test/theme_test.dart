@@ -25,32 +25,40 @@ void main() {
       expect(theme.selection.on, isNotNull);
     });
 
-    test('light preset has all required tones', () {
-      const theme = Theme.light;
+    for (final (name, theme) in [
+      ('catppuccin', Theme.catppuccin),
+      ('rosePine', Theme.rosePine),
+      ('gruvbox', Theme.gruvbox),
+      ('monokai', Theme.monokai),
+      ('nord', Theme.nord),
+      ('tokyoNight', Theme.tokyoNight),
+      ('oneDark', Theme.oneDark),
+      ('dracula', Theme.dracula),
+      ('solarized', Theme.solarized),
+    ]) {
+      test('$name preset has all required tones', () {
+        expect(theme.primary.color, isNotNull);
+        expect(theme.primary.on, isNotNull);
+        expect(theme.secondary.color, isNotNull);
+        expect(theme.accent.color, isNotNull);
+        expect(theme.error.color, isNotNull);
+        expect(theme.warning.color, isNotNull);
+        expect(theme.success.color, isNotNull);
+        expect(theme.background.color, isNotNull);
+        expect(theme.background.on, isNotNull);
+        expect(theme.surface.color, isNotNull);
+        expect(theme.surface.on, isNotNull);
+        expect(theme.border.color, isNotNull);
+        expect(theme.muted.color, isNotNull);
+        expect(theme.disabled.color, isNotNull);
+        expect(theme.focus.color, isNotNull);
+        expect(theme.selection.color, isNotNull);
+        expect(theme.selection.on, isNotNull);
+      });
+    }
 
-      expect(theme.primary.color, isNotNull);
-      expect(theme.primary.on, isNotNull);
-      expect(theme.background.color, isNotNull);
-      expect(theme.background.on, isNotNull);
-      expect(theme.surface.color, isNotNull);
-      expect(theme.selection.color, isNotNull);
-      expect(theme.selection.on, isNotNull);
-    });
-
-    test('ansiDark preset uses ANSI colors', () {
-      const theme = Theme.ansiDark;
-
-      expect(theme.primary.color, equals(Color.cyan));
-      expect(theme.primary.on, equals(Color.black));
-      expect(theme.error.color, equals(Color.red));
-      expect(theme.success.color, equals(Color.green));
-      // Transparent: no background color, default text is the terminal's own.
-      expect(theme.background.color, isNull);
-      expect(theme.background.on, equals(Color.reset));
-    });
-
-    test('ansiDark grounds fg-only and sets cursor and hover by hand', () {
-      const theme = Theme.ansiDark;
+    test('a transparent theme grounds fg-only and sets cursor and hover by hand', () {
+      const theme = _transparent;
       final resolver = StyleResolver(theme, policy: RenderPolicy.color);
       final ground = resolver.ground(theme.background);
 
@@ -91,8 +99,10 @@ void main() {
         expect(theme.hover.color, equals(base.lift(0.08)));
       });
 
-      test('light theme derives washes by lifting (darkening) the background', () {
-        const theme = Theme.light;
+      test('a light theme derives washes by lifting (darkening) the background', () {
+        final theme = Theme.dark.copyWith(
+          background: const SurfaceTone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
+        );
         final base = theme.background.color!;
 
         // On a light base, lift darkens.
@@ -115,6 +125,7 @@ void main() {
 
       test('terminal-default background derives an empty cursor that keeps its on', () {
         const theme = Theme(
+          name: 'transparent',
           primary: SurfaceTone(color: Color.cyan, on: Color.black),
           secondary: SurfaceTone(color: Color.magenta, on: Color.black),
           accent: SurfaceTone(color: Color.yellow, on: Color.black),
@@ -138,18 +149,18 @@ void main() {
     group('copyWith', () {
       test('replaces a single tone', () {
         const customPrimary = SurfaceTone(color: Color.red, on: Color.white);
-        final theme = Theme.ansiDark.copyWith(primary: customPrimary);
+        final theme = Theme.gruvbox.copyWith(primary: customPrimary);
 
         expect(theme.primary, equals(customPrimary));
-        expect(theme.secondary, equals(Theme.ansiDark.secondary));
-        expect(theme.error, equals(Theme.ansiDark.error));
+        expect(theme.secondary, equals(Theme.gruvbox.secondary));
+        expect(theme.error, equals(Theme.gruvbox.error));
       });
 
       test('null values keep the original', () {
-        final theme = Theme.ansiDark.copyWith();
+        final theme = Theme.gruvbox.copyWith();
 
-        expect(theme.primary, equals(Theme.ansiDark.primary));
-        expect(theme.background, equals(Theme.ansiDark.background));
+        expect(theme.primary, equals(Theme.gruvbox.primary));
+        expect(theme.background, equals(Theme.gruvbox.background));
       });
 
       test('changing no tone keeps the hand-authored ANSI-16 table', () {
@@ -170,8 +181,8 @@ void main() {
       });
 
       test('a passed table stays in control when a tone changes', () {
-        final theme = Theme.dark.copyWith(focus: Theme.dark.error, tones16: Theme.light.tones16);
-        expect(theme.tones16, same(Theme.light.tones16));
+        final theme = Theme.dark.copyWith(focus: Theme.dark.error, tones16: Theme.gruvbox.tones16);
+        expect(theme.tones16, same(Theme.gruvbox.tones16));
       });
 
       test('a variant paints its changed tone under ANSI-16', () {
@@ -198,12 +209,12 @@ void main() {
 
     group('equality', () {
       test('same presets are equal', () {
-        expect(Theme.ansiDark, equals(Theme.ansiDark));
-        expect(Theme.ansiDark.hashCode, equals(Theme.ansiDark.hashCode));
+        expect(Theme.gruvbox, equals(Theme.gruvbox));
+        expect(Theme.gruvbox.hashCode, equals(Theme.gruvbox.hashCode));
       });
 
-      test('dark and light are different', () {
-        expect(Theme.dark, isNot(equals(Theme.light)));
+      test('two presets are different', () {
+        expect(Theme.dark, isNot(equals(Theme.catppuccin)));
       });
 
       test('differing in one tone is unequal', () {
@@ -223,14 +234,14 @@ void main() {
 
     group('projection usage patterns', () {
       test('primary.fill for buttons (fg: on, bg: color)', () {
-        final buttonStyle = Theme.ansiDark.primary.fill;
+        final buttonStyle = _transparent.primary.fill;
 
         expect(buttonStyle.fg, equals(Color.black));
         expect(buttonStyle.bg, equals(Color.cyan));
       });
 
       test('background.on for default text', () {
-        expect(Theme.ansiDark.background.on, equals(Color.reset));
+        expect(_transparent.background.on, equals(Color.reset));
       });
 
       test('border.ink for chrome carries no background', () {
@@ -266,3 +277,25 @@ void main() {
     });
   });
 }
+
+/// A theme on the terminal's own background: no base color, default text is
+/// the terminal's default foreground, cursor and hover set by hand because
+/// nothing can derive a wash from an unknown background.
+const _transparent = Theme(
+  name: 'transparent',
+  primary: SurfaceTone(color: Color.cyan, on: Color.black),
+  secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+  accent: SurfaceTone(color: Color.yellow, on: Color.black),
+  error: SurfaceTone(color: Color.red, on: Color.white),
+  warning: SurfaceTone(color: Color.yellow, on: Color.black),
+  success: SurfaceTone(color: Color.green, on: Color.black),
+  background: SurfaceTone(on: Color.reset),
+  surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+  border: Tone(color: Color.gray),
+  muted: Tone(color: Color.darkGray),
+  disabled: Tone(color: Color.darkGray),
+  focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+  selection: SurfaceTone(color: Color.yellow, on: Color.black),
+  cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
+  hover: Tone(color: Color.darkGray),
+);

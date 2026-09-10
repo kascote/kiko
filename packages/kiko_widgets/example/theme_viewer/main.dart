@@ -105,13 +105,20 @@ class Model {
   int themeIndex = 0;
 
   /// The themes the viewer cycles through.
-  static const List<Theme> themes = [Theme.dark, Theme.light, Theme.ember, Theme.ansiDark, Theme.lantern];
-
-  /// Display names for [themes], in the same order.
-  static const themeNames = ['Kiko Dark', 'Kiko Light', 'Ember', 'ANSI-16 Dark', 'Lantern'];
+  static const List<Theme> themes = [
+    Theme.dark,
+    Theme.catppuccin,
+    Theme.rosePine,
+    Theme.gruvbox,
+    Theme.monokai,
+    Theme.nord,
+    Theme.tokyoNight,
+    Theme.oneDark,
+    Theme.dracula,
+    Theme.solarized,
+  ];
 
   Theme get theme => themes[themeIndex];
-  String get themeName => themeNames[themeIndex];
 
   void nextTheme() => themeIndex = (themeIndex + 1) % themes.length;
   void prevTheme() => themeIndex = (themeIndex - 1 + themes.length) % themes.length;
@@ -503,7 +510,7 @@ View _header(Model model, StyleResolver resolver) => Container(
     children: [
       Expanded(
         child: Line(
-          ' Theme: ${model.themeName} · ${model.tierName} · Page ${model.page}/3: ${model.pageName}',
+          ' Theme: ${model.theme.name} · ${model.tierName} · Page ${model.page}/3: ${model.pageName}',
           style: resolver.ink(resolver.tones.primary).copyWith(addModifier: Modifier.bold),
         ),
       ),

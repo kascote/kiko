@@ -210,31 +210,38 @@ void main() {
           ..page = 3
           ..policy = policy;
         final frame = _testFrame(160, 50);
-        final label = '${viewer.Model.themeNames[i]} / $policy';
+        final label = '${viewer.Model.themes[i].name} / $policy';
         expect(() => viewer.view(model, frame), returnsNormally, reason: label);
         expect(_screenText(frame.buffer), contains('Contrast: ratio is the WCAG 2 contrast ratio'), reason: label);
       }
     }
   });
 
-  test('the contrast page shows the Lantern review ratios for muted, disabled, and border', () {
-    final model = viewer.Model()
-      ..themeIndex = viewer.Model.themes.indexOf(Theme.lantern)
-      ..page = 3;
-    final frame = _testFrame(160, 50);
-    viewer.view(model, frame);
-    final screen = _screenText(frame.buffer);
+  test("the contrast page shows every theme's muted, disabled, and border ratios", () {
+    for (var i = 0; i < viewer.Model.themes.length; i++) {
+      final theme = viewer.Model.themes[i];
+      final model = viewer.Model()
+        ..themeIndex = i
+        ..page = 3;
+      final frame = _testFrame(160, 50);
+      viewer.view(model, frame);
+      final screen = _screenText(frame.buffer);
 
-    // Computed the way the page computes them, from the theme as it is, so
-    // the assertion never hard-codes a number the theme could still change.
-    // The three neutrals the review measured all read against the background.
-    final ground = Theme.lantern.background.color!;
-    final mutedRatio = Theme.lantern.muted.color!.contrastRatio(ground).toStringAsFixed(2);
-    final disabledRatio = Theme.lantern.disabled.color!.contrastRatio(ground).toStringAsFixed(2);
-    final borderRatio = Theme.lantern.border.color!.contrastRatio(ground).toStringAsFixed(2);
+      // Computed the way the page computes them, from the theme as it is, so
+      // the assertion never hard-codes a number a theme could still change.
+      // The three neutrals all read against the background.
+      final ground = theme.background.color!;
+      final mutedRatio = theme.muted.color!.contrastRatio(ground).toStringAsFixed(2);
+      final disabledRatio = theme.disabled.color!.contrastRatio(ground).toStringAsFixed(2);
+      final borderRatio = theme.border.color!.contrastRatio(ground).toStringAsFixed(2);
 
-    expect(screen, contains('$mutedRatio:1'), reason: 'muted / background measures $mutedRatio:1');
-    expect(screen, contains('$disabledRatio:1'), reason: 'disabled / background measures $disabledRatio:1');
-    expect(screen, contains('$borderRatio:1'), reason: 'background / border measures $borderRatio:1');
+      expect(screen, contains('$mutedRatio:1'), reason: '${theme.name}: muted / background measures $mutedRatio:1');
+      expect(
+        screen,
+        contains('$disabledRatio:1'),
+        reason: '${theme.name}: disabled / background measures $disabledRatio:1',
+      );
+      expect(screen, contains('$borderRatio:1'), reason: '${theme.name}: background / border measures $borderRatio:1');
+    }
   });
 }

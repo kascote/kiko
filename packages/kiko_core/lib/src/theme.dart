@@ -11,7 +11,8 @@ import 'tone.dart';
 /// becomes cells only through a projection ([Tone.ink] / [SurfaceTone.fill] /
 /// [Tone.wash]), usually via `StyleResolver`. Nothing else belongs on a theme —
 /// per-widget parts are anatomy (widget style slots) and interaction facts are
-/// widget states, so this set stays frozen while widgets grow freely.
+/// widget states, so this set stays frozen while widgets grow freely. The one
+/// non-tone member is [name], the label a theme picker shows.
 ///
 /// ## Tone groups
 ///
@@ -43,6 +44,9 @@ import 'tone.dart';
 /// hand-authored table gets one derived automatically ([Ansi16Tones.derive]).
 @immutable
 class Theme implements ToneSet {
+  /// The display name, for a theme picker or a status line.
+  final String name;
+
   // === Intent ===
 
   /// Main brand color for primary actions.
@@ -120,6 +124,7 @@ class Theme implements ToneSet {
   /// the terminal's default background (`background.color == null`) cannot
   /// derive a wash and should pass [cursor]/[hover] explicitly.
   const Theme({
+    required this.name,
     required this.primary,
     required this.secondary,
     required this.accent,
@@ -199,6 +204,7 @@ class Theme implements ToneSet {
 
   /// Kiko Dark theme - deep slate base with muted warm accents.
   static const Theme dark = Theme(
+    name: 'Kiko Dark',
     primary: SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
     secondary: SurfaceTone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
     accent: SurfaceTone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),
@@ -256,74 +262,88 @@ class Theme implements ToneSet {
     ),
   );
 
-  /// Kiko Light theme - warm white base with deeper accents.
-  static const Theme light = Theme(
-    primary: SurfaceTone(color: Color.rgb(0x1a7f8e), on: Color.rgb(0xf6f8fa)),
-    secondary: SurfaceTone(color: Color.rgb(0x6b5ba8), on: Color.rgb(0xf6f8fa)),
-    accent: SurfaceTone(color: Color.rgb(0xb87a4a), on: Color.rgb(0xf6f8fa)),
-    error: SurfaceTone(color: Color.rgb(0xb54343), on: Color.rgb(0xf6f8fa)),
-    warning: SurfaceTone(color: Color.rgb(0xa68830), on: Color.rgb(0xf6f8fa)),
-    success: SurfaceTone(color: Color.rgb(0x3d8b48), on: Color.rgb(0xf6f8fa)),
-    background: SurfaceTone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
-    surface: SurfaceTone(color: Color.rgb(0xeef1f5), on: Color.rgb(0x1f2328)),
-    border: Tone(color: Color.rgb(0xd0d7de)),
-    muted: Tone(color: Color.rgb(0x8b949e)),
-    disabled: Tone(color: Color.rgb(0xafb8c1)),
-    focus: SurfaceTone(color: Color.rgb(0x2a8a9a), on: Color.rgb(0xf6f8fa)),
-    selection: SurfaceTone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
-    // Named ANSI colors paint on the user's own terminal background, so a
-    // light theme cannot force a light terminal here — this table just
-    // stays coherent with the theme's own intent (a white base, dark text).
-    // Muted text needs to stay readable against that white base, so it
-    // takes the darker of the two grays even though border and disabled
-    // (mere chrome, not text) take the lighter one — the opposite ordering
-    // from a dark theme, where dim text needs the lighter gray.
+  /// Catppuccin Mocha - the darkest Catppuccin flavor: soft pastel accents on
+  /// a cool near-black base.
+  ///
+  /// Every color is a Mocha palette entry. Intent tones take the palette's
+  /// own hues (blue, mauve, peach, red, yellow, green) with `crust` as their
+  /// text; neutrals climb the palette's crust → base → surface → overlay →
+  /// subtext ladder, with `crust` as the ground and `base` as the raised
+  /// surface.
+  static const Theme catppuccin = Theme(
+    name: 'Catppuccin Mocha',
+    primary: SurfaceTone(color: Color.rgb(0x89b4fa), on: Color.rgb(0x11111b)),
+    secondary: SurfaceTone(color: Color.rgb(0xcba6f7), on: Color.rgb(0x11111b)),
+    accent: SurfaceTone(color: Color.rgb(0xfab387), on: Color.rgb(0x11111b)),
+    error: SurfaceTone(color: Color.rgb(0xf38ba8), on: Color.rgb(0x11111b)),
+    warning: SurfaceTone(color: Color.rgb(0xf9e2af), on: Color.rgb(0x11111b)),
+    success: SurfaceTone(color: Color.rgb(0xa6e3a1), on: Color.rgb(0x11111b)),
+    background: SurfaceTone(color: Color.rgb(0x11111b), on: Color.rgb(0xcdd6f4)),
+    surface: SurfaceTone(color: Color.rgb(0x1e1e2e), on: Color.rgb(0xcdd6f4)),
+    border: Tone(color: Color.rgb(0x45475a)),
+    muted: Tone(color: Color.rgb(0xa6adc8)),
+    disabled: Tone(color: Color.rgb(0x6c7086)),
+    focus: SurfaceTone(color: Color.rgb(0x89dceb), on: Color.rgb(0x11111b)),
+    selection: SurfaceTone(color: Color.rgb(0x585b70), on: Color.rgb(0xcdd6f4)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Blue primary and the
+    // gray selection both land on plain blue — an accepted collapse, since
+    // only the four interaction tones need to stay apart. Sky focus takes
+    // brightCyan; peach accent takes brightRed, the orange stand-in.
     tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.blue, on: Color.white),
+      primary: SurfaceTone(color: Color.blue, on: Color.white),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
       accent: SurfaceTone(color: Color.brightRed, on: Color.white),
       error: SurfaceTone(color: Color.red, on: Color.white),
       warning: SurfaceTone(color: Color.yellow, on: Color.black),
       success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.white, on: Color.black),
-      surface: SurfaceTone(color: Color.white, on: Color.black),
-      border: Tone(color: Color.gray),
-      muted: Tone(color: Color.darkGray),
-      disabled: Tone(color: Color.gray),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
       focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
       selection: SurfaceTone(color: Color.blue, on: Color.white),
       cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
-  /// Ember theme - warm orange palette with teal accents on near-black base.
+  /// Rosé Pine - the main (darkest) variant: muted rose, gold, and teal on a
+  /// deep violet-black base.
   ///
-  /// Uses complementary color theory: orange primary with teal accent.
-  /// Warm-tinted intents (coral error, olive success) maintain cohesion.
-  static const Theme ember = Theme(
-    primary: SurfaceTone(color: Color.rgb(0xe07830), on: Color.rgb(0x0a0908)),
-    secondary: SurfaceTone(color: Color.rgb(0xa85545), on: Color.rgb(0x0a0908)),
-    accent: SurfaceTone(color: Color.rgb(0x45a5a5), on: Color.rgb(0x0a0908)),
-    error: SurfaceTone(color: Color.rgb(0xcc5555), on: Color.rgb(0x0a0908)),
-    warning: SurfaceTone(color: Color.rgb(0xd5a030), on: Color.rgb(0x0a0908)),
-    success: SurfaceTone(color: Color.rgb(0x88a540), on: Color.rgb(0x0a0908)),
-    background: SurfaceTone(color: Color.rgb(0x0a0908), on: Color.rgb(0xcdc0b4)),
-    surface: SurfaceTone(color: Color.rgb(0x16120f), on: Color.rgb(0xcdc0b4)),
-    border: Tone(color: Color.rgb(0x2a2420)),
-    muted: Tone(color: Color.rgb(0x6a6055)),
-    disabled: Tone(color: Color.rgb(0x4a4540)),
-    focus: SurfaceTone(color: Color.rgb(0x55c5c5), on: Color.rgb(0x0a0908)),
-    selection: SurfaceTone(color: Color.rgb(0x1a3535), on: Color.rgb(0xcdc0b4)),
-    // Primary and secondary are both warm reds in RGB, so the vivid one
-    // (primary) takes the bright slot and the quieter one (secondary)
-    // shares plain red with error — an accepted collapse, since staying
-    // distinct from error only matters for the interaction tones below.
-    // Accent keeps its complementary teal identity as plain cyan, leaving
-    // brightCyan free for focus.
+  /// Every color is a Rosé Pine palette entry, placed by the palette's own
+  /// role guide: `love` for errors, `gold` for warnings, `pine` as the
+  /// green, `subtle` and `muted` for the two text ranks, `highlightMed` for
+  /// selection, `highlightHigh` for borders. The palette has six hues for
+  /// seven slots, so [focus] shares `foam` with [primary]; the resolver's
+  /// bold and state lift keep a focused element apart from a resting one.
+  static const Theme rosePine = Theme(
+    name: 'Rosé Pine',
+    primary: SurfaceTone(color: Color.rgb(0x9ccfd8), on: Color.rgb(0x191724)),
+    secondary: SurfaceTone(color: Color.rgb(0xc4a7e7), on: Color.rgb(0x191724)),
+    accent: SurfaceTone(color: Color.rgb(0xebbcba), on: Color.rgb(0x191724)),
+    error: SurfaceTone(color: Color.rgb(0xeb6f92), on: Color.rgb(0x191724)),
+    warning: SurfaceTone(color: Color.rgb(0xf6c177), on: Color.rgb(0x191724)),
+    success: SurfaceTone(color: Color.rgb(0x31748f), on: Color.rgb(0xe0def4)),
+    background: SurfaceTone(color: Color.rgb(0x191724), on: Color.rgb(0xe0def4)),
+    surface: SurfaceTone(color: Color.rgb(0x1f1d2e), on: Color.rgb(0xe0def4)),
+    border: Tone(color: Color.rgb(0x524f67)),
+    muted: Tone(color: Color.rgb(0x908caa)),
+    disabled: Tone(color: Color.rgb(0x6e6a86)),
+    focus: SurfaceTone(color: Color.rgb(0x9ccfd8), on: Color.rgb(0x191724)),
+    selection: SurfaceTone(color: Color.rgb(0x403d52), on: Color.rgb(0xe0def4)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table, with the palette's
+    // own terminal mapping: foam is cyan, iris is magenta, rose is
+    // brightMagenta, love is red, gold is yellow, pine is green. Focus takes
+    // brightCyan so it stays apart from the plain-cyan primary here even
+    // though the two share one RGB color.
     tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.brightRed, on: Color.white),
-      secondary: SurfaceTone(color: Color.red, on: Color.white),
-      accent: SurfaceTone(color: Color.cyan, on: Color.black),
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightMagenta, on: Color.black),
       error: SurfaceTone(color: Color.red, on: Color.white),
       warning: SurfaceTone(color: Color.yellow, on: Color.black),
       success: SurfaceTone(color: Color.green, on: Color.black),
@@ -333,93 +353,44 @@ class Theme implements ToneSet {
       muted: Tone(color: Color.gray),
       disabled: Tone(color: Color.darkGray),
       focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
-      selection: SurfaceTone(color: Color.cyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
       cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
-  /// The palette theme for a dark terminal.
+  /// Gruvbox dark - retro-groove pastels on a warm dark-gray base.
   ///
-  /// Authored entirely in named ANSI colors, so it looks the same on every
-  /// render tier. It paints no background of its own: [background] carries
-  /// no color, so the terminal's own background shows through, and default
-  /// text is the terminal's default foreground. Pick it from
-  /// `InitMsg.hasDarkBackground`.
-  static const Theme ansiDark = Theme(
-    primary: SurfaceTone(color: Color.cyan, on: Color.black),
-    secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-    accent: SurfaceTone(color: Color.yellow, on: Color.black),
-    error: SurfaceTone(color: Color.red, on: Color.white),
-    warning: SurfaceTone(color: Color.yellow, on: Color.black),
-    success: SurfaceTone(color: Color.green, on: Color.black),
-    background: SurfaceTone(on: Color.reset),
-    surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-    border: Tone(color: Color.gray),
-    muted: Tone(color: Color.darkGray),
-    disabled: Tone(color: Color.darkGray),
-    focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
-    selection: SurfaceTone(color: Color.yellow, on: Color.black),
-    // The background carries no color, so nothing can derive a wash from
-    // it; cursor and hover are set by hand instead.
-    cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
-    hover: Tone(color: Color.darkGray),
-    // Already authored in named ANSI colors, so this table just restates
-    // this theme's own tones.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.yellow, on: Color.black),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(on: Color.reset),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.gray),
-      muted: Tone(color: Color.darkGray),
-      disabled: Tone(color: Color.darkGray),
-      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
-      selection: SurfaceTone(color: Color.yellow, on: Color.black),
-      cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
-    ),
-  );
-
-  /// Lantern theme - monochrome amber on a dark warm-brown base, like text
-  /// lit by lamplight.
-  ///
-  /// The signature is that *default* text is amber rather than gray-white:
-  /// everything on screen sits on one warm hue, with brightness carrying the
-  /// hierarchy — muted text is a darker amber, focus is a brighter one, and
-  /// the only departures from the hue are the intent tones (error, success).
-  static const Theme lantern = Theme(
-    // One hue family (78° in OKLCH). Each tone's lightness is set by a target
-    // contrast ratio against the background, and chroma grows with lightness;
-    // error, warning, and success keep their own hues at the same rule.
-    primary: SurfaceTone(color: Color.rgb(0xc89234), on: Color.rgb(0x21190d)),
-    secondary: SurfaceTone(color: Color.rgb(0xb0812c), on: Color.rgb(0x21190d)),
-    accent: SurfaceTone(color: Color.rgb(0xf5ce93), on: Color.rgb(0x21190d)),
-    error: SurfaceTone(color: Color.rgb(0xc36d5a), on: Color.rgb(0x21190d)),
-    warning: SurfaceTone(color: Color.rgb(0xca7d45), on: Color.rgb(0x21190d)),
-    success: SurfaceTone(color: Color.rgb(0x98a340), on: Color.rgb(0x21190d)),
-    background: SurfaceTone(color: Color.rgb(0x120d05), on: Color.rgb(0xc3a26d)),
-    surface: SurfaceTone(color: Color.rgb(0x2c2314), on: Color.rgb(0xc3a26d)),
-    border: Tone(color: Color.rgb(0x413420)),
-    muted: Tone(color: Color.rgb(0x91784f)),
-    disabled: Tone(color: Color.rgb(0x776240)),
-    focus: SurfaceTone(color: Color.rgb(0xf9b843), on: Color.rgb(0x21190d)),
-    selection: SurfaceTone(color: Color.rgb(0x4a3c25), on: Color.rgb(0xf8ce8c)),
+  /// Every color is a Gruvbox dark-mode palette entry. The bright variants
+  /// carry the intents (orange primary, blue secondary, purple accent, red,
+  /// yellow, green, aqua focus) with the hard-contrast `bg0_h` as their
+  /// text; the neutrals climb `bg0_h` → `bg0` → `bg2` → `bg3`, with `bg0_h`
+  /// as the ground and `bg0` as the raised surface, and the two text ranks
+  /// are `gray` and `bg4`.
+  static const Theme gruvbox = Theme(
+    name: 'Gruvbox',
+    primary: SurfaceTone(color: Color.rgb(0xfe8019), on: Color.rgb(0x1d2021)),
+    secondary: SurfaceTone(color: Color.rgb(0x83a598), on: Color.rgb(0x1d2021)),
+    accent: SurfaceTone(color: Color.rgb(0xd3869b), on: Color.rgb(0x1d2021)),
+    error: SurfaceTone(color: Color.rgb(0xfb4934), on: Color.rgb(0x1d2021)),
+    warning: SurfaceTone(color: Color.rgb(0xfabd2f), on: Color.rgb(0x1d2021)),
+    success: SurfaceTone(color: Color.rgb(0xb8bb26), on: Color.rgb(0x1d2021)),
+    background: SurfaceTone(color: Color.rgb(0x1d2021), on: Color.rgb(0xebdbb2)),
+    surface: SurfaceTone(color: Color.rgb(0x282828), on: Color.rgb(0xebdbb2)),
+    border: Tone(color: Color.rgb(0x504945)),
+    muted: Tone(color: Color.rgb(0x928374)),
+    disabled: Tone(color: Color.rgb(0x7c6f64)),
+    focus: SurfaceTone(color: Color.rgb(0x8ec07c), on: Color.rgb(0x1d2021)),
+    selection: SurfaceTone(color: Color.rgb(0x665c54), on: Color.rgb(0xfbf1c7)),
     // cursor, hover: derived washes over background.
     //
-    // Nearly every tone lives in the yellow family, so this table leans on
-    // the accepted collapses: primary, warning and selection share plain
-    // yellow, accent and focus share brightYellow (focus also picks up bold
-    // from the resolver's state matrix). Secondary drops to red alongside
-    // error — the quieter warm hue — and the grays follow the dark-theme
-    // ordering. Cursor is left out, so it derives from background the same
-    // way [Theme.cursor] does.
+    // Follows the pattern documented on [dark]'s table. Orange primary takes
+    // brightRed, the orange stand-in, leaving plain red for error; blue
+    // secondary and the gray selection share plain blue — an accepted
+    // collapse, since only the four interaction tones need to stay apart.
     tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.yellow, on: Color.black),
-      secondary: SurfaceTone(color: Color.red, on: Color.white),
-      accent: SurfaceTone(color: Color.brightYellow, on: Color.black),
+      primary: SurfaceTone(color: Color.brightRed, on: Color.white),
+      secondary: SurfaceTone(color: Color.blue, on: Color.white),
+      accent: SurfaceTone(color: Color.magenta, on: Color.black),
       error: SurfaceTone(color: Color.red, on: Color.white),
       warning: SurfaceTone(color: Color.yellow, on: Color.black),
       success: SurfaceTone(color: Color.green, on: Color.black),
@@ -428,14 +399,304 @@ class Theme implements ToneSet {
       border: Tone(color: Color.darkGray),
       muted: Tone(color: Color.gray),
       disabled: Tone(color: Color.darkGray),
-      focus: SurfaceTone(color: Color.brightYellow, on: Color.black),
-      selection: SurfaceTone(color: Color.yellow, on: Color.black),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// Monokai Pro - the default (dark) filter: vivid accents on a muted
+  /// plum-gray base.
+  ///
+  /// Every color is a Monokai Pro palette entry. The six accents carry the
+  /// intents (blue primary, purple secondary, orange accent, red, yellow,
+  /// green) with the base background as their text; `dark1` is the raised
+  /// surface, and the `dimmed` ramp supplies border, selection, and the two
+  /// text ranks. The palette has six hues for seven slots, so [focus]
+  /// shares blue with [primary]; the resolver's bold and state lift keep a
+  /// focused element apart from a resting one.
+  static const Theme monokai = Theme(
+    name: 'Monokai Pro',
+    primary: SurfaceTone(color: Color.rgb(0x78dce8), on: Color.rgb(0x2d2a2e)),
+    secondary: SurfaceTone(color: Color.rgb(0xab9df2), on: Color.rgb(0x2d2a2e)),
+    accent: SurfaceTone(color: Color.rgb(0xfc9867), on: Color.rgb(0x2d2a2e)),
+    error: SurfaceTone(color: Color.rgb(0xff6188), on: Color.rgb(0x2d2a2e)),
+    warning: SurfaceTone(color: Color.rgb(0xffd866), on: Color.rgb(0x2d2a2e)),
+    success: SurfaceTone(color: Color.rgb(0xa9dc76), on: Color.rgb(0x2d2a2e)),
+    background: SurfaceTone(color: Color.rgb(0x2d2a2e), on: Color.rgb(0xfcfcfa)),
+    surface: SurfaceTone(color: Color.rgb(0x221f22), on: Color.rgb(0xfcfcfa)),
+    border: Tone(color: Color.rgb(0x403e41)),
+    muted: Tone(color: Color.rgb(0x939293)),
+    disabled: Tone(color: Color.rgb(0x727072)),
+    focus: SurfaceTone(color: Color.rgb(0x78dce8), on: Color.rgb(0x2d2a2e)),
+    selection: SurfaceTone(color: Color.rgb(0x5b595c), on: Color.rgb(0xfcfcfa)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Focus takes
+    // brightCyan so it stays apart from the plain-cyan primary here even
+    // though the two share one RGB color; orange accent takes brightRed,
+    // the orange stand-in.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// Nord - arctic, bluish pastels on a dark blue-gray base.
+  ///
+  /// Every color is a Nord palette entry, placed by the palette's own role
+  /// guide: Polar Night `nord0` → `nord1` → `nord2` → `nord3` for ground,
+  /// surface, border, and selection; Snow Storm `nord4` as text; Frost
+  /// `nord8` and `nord9` as primary and focus; Aurora for the intents. Nord
+  /// has no mid gray, so muted text takes `nord3` brightened
+  /// (`#616e88`, the comment color of the palette's own Vim port) and
+  /// disabled text takes `nord3` itself, which also fills selection. Error
+  /// takes `nord6` as its text; `nord0` reads too faintly on `nord11`.
+  static const Theme nord = Theme(
+    name: 'Nord',
+    primary: SurfaceTone(color: Color.rgb(0x88c0d0), on: Color.rgb(0x2e3440)),
+    secondary: SurfaceTone(color: Color.rgb(0xb48ead), on: Color.rgb(0x2e3440)),
+    accent: SurfaceTone(color: Color.rgb(0xd08770), on: Color.rgb(0x2e3440)),
+    error: SurfaceTone(color: Color.rgb(0xbf616a), on: Color.rgb(0xeceff4)),
+    warning: SurfaceTone(color: Color.rgb(0xebcb8b), on: Color.rgb(0x2e3440)),
+    success: SurfaceTone(color: Color.rgb(0xa3be8c), on: Color.rgb(0x2e3440)),
+    background: SurfaceTone(color: Color.rgb(0x2e3440), on: Color.rgb(0xd8dee9)),
+    surface: SurfaceTone(color: Color.rgb(0x3b4252), on: Color.rgb(0xd8dee9)),
+    border: Tone(color: Color.rgb(0x434c5e)),
+    muted: Tone(color: Color.rgb(0x616e88)),
+    disabled: Tone(color: Color.rgb(0x4c566a)),
+    focus: SurfaceTone(color: Color.rgb(0x81a1c1), on: Color.rgb(0x2e3440)),
+    selection: SurfaceTone(color: Color.rgb(0x4c566a), on: Color.rgb(0xeceff4)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Frost primary is
+    // cyan; blue focus takes brightCyan rather than blue so it stays apart
+    // from the blue selection; orange accent takes brightRed, the orange
+    // stand-in.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.cyan, on: Color.black),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// Tokyo Night - the night variant: neon-tinted pastels on a deep
+  /// blue-black base.
+  ///
+  /// Every color is a Tokyo Night palette entry. The seven hues carry the
+  /// intents (blue primary, magenta secondary, orange accent, red, yellow,
+  /// green, cyan focus) with the darkest background as their text; the
+  /// ground is `bg_dark1`, the raised surface is `bg`, `fg_gutter` is the
+  /// border, `blue7` fills selection, and `dark5` and `comment` are the
+  /// two text ranks.
+  static const Theme tokyoNight = Theme(
+    name: 'Tokyo Night',
+    primary: SurfaceTone(color: Color.rgb(0x7aa2f7), on: Color.rgb(0x0c0e14)),
+    secondary: SurfaceTone(color: Color.rgb(0xbb9af7), on: Color.rgb(0x0c0e14)),
+    accent: SurfaceTone(color: Color.rgb(0xff9e64), on: Color.rgb(0x0c0e14)),
+    error: SurfaceTone(color: Color.rgb(0xf7768e), on: Color.rgb(0x0c0e14)),
+    warning: SurfaceTone(color: Color.rgb(0xe0af68), on: Color.rgb(0x0c0e14)),
+    success: SurfaceTone(color: Color.rgb(0x9ece6a), on: Color.rgb(0x0c0e14)),
+    background: SurfaceTone(color: Color.rgb(0x0c0e14), on: Color.rgb(0xc0caf5)),
+    surface: SurfaceTone(color: Color.rgb(0x1a1b26), on: Color.rgb(0xc0caf5)),
+    border: Tone(color: Color.rgb(0x3b4261)),
+    muted: Tone(color: Color.rgb(0x737aa2)),
+    disabled: Tone(color: Color.rgb(0x565f89)),
+    focus: SurfaceTone(color: Color.rgb(0x7dcfff), on: Color.rgb(0x0c0e14)),
+    selection: SurfaceTone(color: Color.rgb(0x394b70), on: Color.rgb(0xc0caf5)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Blue primary and
+    // the blue-tinted selection share plain blue — an accepted collapse,
+    // since only the four interaction tones need to stay apart. Orange
+    // accent takes brightRed, the orange stand-in.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.blue, on: Color.white),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// One Dark - Atom's default: soft syntax hues on a cool charcoal base.
+  ///
+  /// Every color is an Atom One Dark entry. The syntax hues carry the
+  /// intents (blue primary, purple secondary, orange accent, red, yellow,
+  /// green) and the UI accent color is focus, all with the darkest UI
+  /// level as their text; the ground is that darkest level, the raised
+  /// surface is the editor background, the selection color is both border
+  /// and selection, and the three `mono` grays are the text ranks.
+  static const Theme oneDark = Theme(
+    name: 'One Dark',
+    primary: SurfaceTone(color: Color.rgb(0x61afef), on: Color.rgb(0x21252b)),
+    secondary: SurfaceTone(color: Color.rgb(0xc678dd), on: Color.rgb(0x21252b)),
+    accent: SurfaceTone(color: Color.rgb(0xd19a66), on: Color.rgb(0x21252b)),
+    error: SurfaceTone(color: Color.rgb(0xe06c75), on: Color.rgb(0x21252b)),
+    warning: SurfaceTone(color: Color.rgb(0xe5c07b), on: Color.rgb(0x21252b)),
+    success: SurfaceTone(color: Color.rgb(0x98c379), on: Color.rgb(0x21252b)),
+    background: SurfaceTone(color: Color.rgb(0x21252b), on: Color.rgb(0xabb2bf)),
+    surface: SurfaceTone(color: Color.rgb(0x282c34), on: Color.rgb(0xabb2bf)),
+    border: Tone(color: Color.rgb(0x3e4451)),
+    muted: Tone(color: Color.rgb(0x828997)),
+    disabled: Tone(color: Color.rgb(0x5c6370)),
+    focus: SurfaceTone(color: Color.rgb(0x528bff), on: Color.rgb(0x21252b)),
+    selection: SurfaceTone(color: Color.rgb(0x3e4451), on: Color.rgb(0xabb2bf)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Blue primary and
+    // the gray selection share plain blue — an accepted collapse, since
+    // only the four interaction tones need to stay apart. Focus takes
+    // brightCyan rather than a second blue so it stays apart from both.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.blue, on: Color.white),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// Dracula - vivid candy hues on a dark purple-gray base.
+  ///
+  /// Every color is a Dracula palette entry. The seven hues carry the
+  /// intents (purple primary, pink secondary, orange accent, red, yellow,
+  /// green, cyan focus) with the darkest background as their text; the
+  /// ground is that darkest background, the raised surface is the editor
+  /// background, `comment` is muted text, and the selection color is both
+  /// disabled text and the selection fill, since the palette has no gray
+  /// between the two.
+  static const Theme dracula = Theme(
+    name: 'Dracula',
+    primary: SurfaceTone(color: Color.rgb(0xbd93f9), on: Color.rgb(0x191a21)),
+    secondary: SurfaceTone(color: Color.rgb(0xff79c6), on: Color.rgb(0x191a21)),
+    accent: SurfaceTone(color: Color.rgb(0xffb86c), on: Color.rgb(0x191a21)),
+    error: SurfaceTone(color: Color.rgb(0xff5555), on: Color.rgb(0x191a21)),
+    warning: SurfaceTone(color: Color.rgb(0xf1fa8c), on: Color.rgb(0x191a21)),
+    success: SurfaceTone(color: Color.rgb(0x50fa7b), on: Color.rgb(0x191a21)),
+    background: SurfaceTone(color: Color.rgb(0x191a21), on: Color.rgb(0xf8f8f2)),
+    surface: SurfaceTone(color: Color.rgb(0x282a36), on: Color.rgb(0xf8f8f2)),
+    border: Tone(color: Color.rgb(0x343746)),
+    muted: Tone(color: Color.rgb(0x6272a4)),
+    disabled: Tone(color: Color.rgb(0x44475a)),
+    focus: SurfaceTone(color: Color.rgb(0x8be9fd), on: Color.rgb(0x191a21)),
+    selection: SurfaceTone(color: Color.rgb(0x44475a), on: Color.rgb(0xf8f8f2)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Purple primary is
+    // magenta and pink secondary is brightMagenta; orange accent takes
+    // brightRed, the orange stand-in.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.magenta, on: Color.black),
+      secondary: SurfaceTone(color: Color.brightMagenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
+    ),
+  );
+
+  /// Solarized Dark - Ethan Schoonover's low-contrast palette on a deep
+  /// teal-black base.
+  ///
+  /// Every color is a Solarized entry. The accents carry the intents (blue
+  /// primary, violet secondary, magenta accent, red, yellow, green, cyan
+  /// focus); each takes `base03` or `base3` as its text, whichever reads
+  /// better on it. The neutral ladder is `base03` ground, `base02` surface,
+  /// `base01` border and selection, then `base00`, `base0`, and `base1` as
+  /// disabled, muted, and default text, so the three text ranks stay
+  /// apart.
+  static const Theme solarized = Theme(
+    name: 'Solarized Dark',
+    primary: SurfaceTone(color: Color.rgb(0x268bd2), on: Color.rgb(0x002b36)),
+    secondary: SurfaceTone(color: Color.rgb(0x6c71c4), on: Color.rgb(0xfdf6e3)),
+    accent: SurfaceTone(color: Color.rgb(0xd33682), on: Color.rgb(0xfdf6e3)),
+    error: SurfaceTone(color: Color.rgb(0xdc322f), on: Color.rgb(0xfdf6e3)),
+    warning: SurfaceTone(color: Color.rgb(0xb58900), on: Color.rgb(0x002b36)),
+    success: SurfaceTone(color: Color.rgb(0x859900), on: Color.rgb(0x002b36)),
+    background: SurfaceTone(color: Color.rgb(0x002b36), on: Color.rgb(0x93a1a1)),
+    surface: SurfaceTone(color: Color.rgb(0x073642), on: Color.rgb(0x93a1a1)),
+    border: Tone(color: Color.rgb(0x586e75)),
+    muted: Tone(color: Color.rgb(0x839496)),
+    disabled: Tone(color: Color.rgb(0x657b83)),
+    focus: SurfaceTone(color: Color.rgb(0x2aa198), on: Color.rgb(0x002b36)),
+    selection: SurfaceTone(color: Color.rgb(0x586e75), on: Color.rgb(0xfdf6e3)),
+    // cursor, hover: derived washes over background.
+    //
+    // Follows the pattern documented on [dark]'s table. Violet secondary is
+    // magenta and the magenta accent is brightMagenta; blue primary and the
+    // gray selection share plain blue — an accepted collapse, since only
+    // the four interaction tones need to stay apart.
+    tones16: Ansi16Tones(
+      primary: SurfaceTone(color: Color.blue, on: Color.white),
+      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
+      accent: SurfaceTone(color: Color.brightMagenta, on: Color.black),
+      error: SurfaceTone(color: Color.red, on: Color.white),
+      warning: SurfaceTone(color: Color.yellow, on: Color.black),
+      success: SurfaceTone(color: Color.green, on: Color.black),
+      background: SurfaceTone(color: Color.black, on: Color.white),
+      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
+      border: Tone(color: Color.darkGray),
+      muted: Tone(color: Color.gray),
+      disabled: Tone(color: Color.darkGray),
+      focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
+      selection: SurfaceTone(color: Color.blue, on: Color.white),
+      cursor: SurfaceTone(color: Color.brightBlue, on: Color.white),
     ),
   );
 
   /// Creates a copy of this theme with the given tones replaced.
   ///
-  /// Passing `null` for [cursor] or [hover] keeps this theme's current
+  /// The copy keeps this theme's [name] unless [name] is passed. Passing `null` for [cursor] or [hover] keeps this theme's current
   /// value (explicit or derived); to override them, pass a tone.
   ///
   /// The ANSI-16 table follows the tones. When a tone other than [hover]
@@ -444,6 +705,7 @@ class Theme implements ToneSet {
   /// [tones16] to keep a hand-authored table in control. A copy that changes
   /// no tone keeps this theme's table.
   Theme copyWith({
+    String? name,
     SurfaceTone? primary,
     SurfaceTone? secondary,
     SurfaceTone? accent,
@@ -478,6 +740,7 @@ class Theme implements ToneSet {
       cursor,
     ].any((tone) => tone != null);
     return Theme(
+      name: name ?? this.name,
       primary: primary ?? this.primary,
       secondary: secondary ?? this.secondary,
       accent: accent ?? this.accent,
@@ -501,6 +764,7 @@ class Theme implements ToneSet {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Theme &&
+        other.name == name &&
         other.primary == primary &&
         other.secondary == secondary &&
         other.accent == accent &&
@@ -521,6 +785,7 @@ class Theme implements ToneSet {
 
   @override
   int get hashCode => Object.hash(
+    name,
     primary,
     secondary,
     accent,

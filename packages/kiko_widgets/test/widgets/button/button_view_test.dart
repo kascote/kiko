@@ -196,19 +196,19 @@ void main() {
             theme: Theme.dark,
           ),
         );
-      final lightFrame = _frame(4, 1)
+      final gruvboxFrame = _frame(4, 1)
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.light,
+            theme: Theme.gruvbox,
           ),
         );
 
       final darkCell = darkFrame.buffer[(x: 1, y: 0)];
-      final lightCell = lightFrame.buffer[(x: 1, y: 0)];
+      final gruvboxCell = gruvboxFrame.buffer[(x: 1, y: 0)];
       expect(darkCell.bg, Theme.dark.primary.color);
-      expect(lightCell.bg, Theme.light.primary.color);
-      expect(darkCell.bg, isNot(equals(lightCell.bg)));
+      expect(gruvboxCell.bg, Theme.gruvbox.primary.color);
+      expect(darkCell.bg, isNot(equals(gruvboxCell.bg)));
     });
   });
 

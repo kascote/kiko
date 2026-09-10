@@ -507,7 +507,7 @@ View _status(AppModel model, StyleResolver resolver) {
   return Column(
     crossAxis: CrossAxisAlignment.stretch,
     children: [
-      Line('theme: ${model.themeName}   focus: ${model.focusGroup.focused.id}', style: muted),
+      Line('theme: ${model.theme.name}   focus: ${model.focusGroup.focused.id}', style: muted),
       Line('proves: ${model.focusedCase.proves}', style: muted),
     ],
   );

@@ -13,29 +13,25 @@ import 'package:kiko/kiko.dart';
 ///
 /// // In view:
 /// final theme = model.theme;
-/// // Use model.themeName for display
+/// // Use model.theme.name for display
 /// ```
 mixin ThemeSwitcher {
   int _themeIndex = 0;
 
   static const List<Theme> _themes = [
     Theme.dark,
-    Theme.light,
-    Theme.ember,
-    Theme.ansiDark,
-    Theme.lantern,
-  ];
-
-  static const List<String> _themeNames = [
-    'Kiko Dark',
-    'Kiko Light',
-    'Ember',
-    'ANSI-16',
-    'Lantern',
+    Theme.catppuccin,
+    Theme.rosePine,
+    Theme.gruvbox,
+    Theme.monokai,
+    Theme.nord,
+    Theme.tokyoNight,
+    Theme.oneDark,
+    Theme.dracula,
+    Theme.solarized,
   ];
 
   Theme get theme => _themes[_themeIndex];
-  String get themeName => _themeNames[_themeIndex];
 
   void nextTheme() => _themeIndex = (_themeIndex + 1) % _themes.length;
   void prevTheme() => _themeIndex = (_themeIndex - 1 + _themes.length) % _themes.length;

@@ -210,8 +210,14 @@ void main() {
         expect(result.bg, expectedBg);
       }
 
+      // A light ground: the same tones over a near-white base, so the lift
+      // runs the other way.
+      final light = Theme.dark.copyWith(
+        background: const SurfaceTone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
+        selection: const SurfaceTone(color: Color.rgb(0xddf4ff), on: Color.rgb(0x1f2328)),
+      );
       expectSecondLift(Theme.dark, (color, amount) => color.lighten(amount));
-      expectSecondLift(Theme.light, (color, amount) => color.darken(amount));
+      expectSecondLift(light, (color, amount) => color.darken(amount));
     });
 
     test('hover and pressed leave a disabled result unchanged', () {
@@ -406,6 +412,7 @@ void main() {
 
     test('a transparent theme (background.color == null) grounds fg-only', () {
       const transparent = Theme(
+        name: 'transparent',
         primary: SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
         secondary: SurfaceTone(color: Color.rgb(0x8b7ec8), on: Color.rgb(0x0d1117)),
         accent: SurfaceTone(color: Color.rgb(0xd4976c), on: Color.rgb(0x0d1117)),

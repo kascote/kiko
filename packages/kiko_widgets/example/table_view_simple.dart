@@ -257,7 +257,7 @@ void appView(AppModel model, Frame frame) {
       ),
       ConstrainedBox(
         additionalConstraints: const BoxConstraints(minW: 25, maxW: 25),
-        child: Line('Theme: ${model.themeName} (F1/F2)', style: resolver.ink(t.muted)),
+        child: Line('Theme: ${model.theme.name} (F1/F2)', style: resolver.ink(t.muted)),
       ),
     ],
   );

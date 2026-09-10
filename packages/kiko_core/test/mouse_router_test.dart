@@ -333,7 +333,7 @@ void main() {
     });
 
     test(
-      'a cancelled gesture delivers nothing more: its drags and its release never reach the widget now under the cursor',
+      'capture holds the resolution to the end: a captor painted out still receives its drags and its release',
       () {
         router.route(_at(1, 1, _down(), hits), hits);
 
@@ -343,19 +343,27 @@ void main() {
         expect(newest.hitId(1, 1), 'right');
 
         final onDrag = router.route(_at(1, 1, _drag(), newest), newest);
-        expect(onDrag.first, const PointerCancelMsg('left'));
-        expect(onDrag.whereType<PointerMsg>(), isEmpty, reason: 'the drag belongs to the gesture that was cancelled');
+        expect(onDrag.whereType<PointerCancelMsg>(), isEmpty, reason: 'the gesture is bound to an id, not to a rect');
+        final drag = _only(onDrag);
+        expect(drag.targetId, 'left');
+        expect(drag.captured, isTrue);
+        expect(drag.targetRect, isNull);
+        expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
 
         final onUp = router.route(_at(1, 1, _up(), newest), newest);
-        expect(onUp.whereType<PointerMsg>(), isEmpty, reason: 'so does the release');
-        expect(router.capturing, isFalse, reason: 'the release still ends the gesture');
+        final up = _only(onUp);
+        expect(up.targetId, 'left', reason: 'the release never re-targets at the widget now under the cursor');
+        expect(up.captured, isTrue);
+        expect(up.inside, isFalse, reason: 'so a press-activated widget cannot fire on it');
+        expect(router.capturing, isFalse, reason: 'the release ends the gesture');
 
         // The button is up: the next event is a fresh interaction and routes
         // normally.
         final onMove = router.route(_at(1, 1, _move(), newest), newest);
         expect(_only(onMove).targetId, 'right');
       },
-      skip: 'pending: the router re-targets the tail of a cancelled gesture at the widget now under the cursor',
+      skip:
+          'pending: the router cancels a gesture whose captor was painted out and re-targets its tail at the widget now under the cursor',
     );
 
     test('losing terminal focus ends the gesture, the hover, and then reports itself', () {

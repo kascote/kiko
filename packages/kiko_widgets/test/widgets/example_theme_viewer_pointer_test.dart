@@ -111,6 +111,5 @@ void main() {
       // not fire the button.
       expect(seen.whereType<PointerMsg>().where((p) => p.isDown && p.targetId == model.okButton.id), hasLength(1));
     },
-    skip: 'pending: a button fires on a release without having seen its own press',
   );
 }

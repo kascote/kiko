@@ -24,6 +24,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Widgets self-tag (`..tag = IdTag(model.id)` in `build`); never wrap a self-tagging widget in `Tagged` (`docs/mouse.md`).
 - The pointer cases sit above the focus gate; the keyboard sits behind it (`docs/mouse.md`, `docs/keyboard.md`).
 - A click emits the same id-addressed event Enter does; a widget never moves focus itself (`docs/mouse.md`).
+- A release activates only after the widget's own press; keep every press-activated widget in `test/widgets/press_before_release_test.dart` (`docs/mouse.md`).
 - A widget places its caret only from a press that carries a rect (`docs/mouse.md`).
 - Editors insert `msg.text`, never `msg.key`; decline `KeyReleaseMsg` and `ModifierKeyMsg` (`docs/keyboard.md`).
 - Address by stable `id` carried by value; thread both `id` and `key` into every async result (`docs/components.md`).

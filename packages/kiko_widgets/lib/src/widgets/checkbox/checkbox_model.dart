@@ -51,7 +51,8 @@ class CheckboxModel implements Component {
   /// Whether a pointer is currently pressing the checkbox.
   ///
   /// Set on a `down`, cleared on the `up`, on a [PointerCancelMsg], or on a
-  /// release that slid off.
+  /// release that slid off. An `up` toggles and fires
+  /// [CheckboxChangeEvent] only while this is set.
   bool pressed = false;
 
   /// Whether the pointer is over the checkbox.
@@ -113,9 +114,11 @@ class CheckboxModel implements Component {
   /// The pointer branch sits above the focus gate, so a click toggles whether
   /// or not the checkbox is focused (the app focuses it on the down). A wheel
   /// declines, so a scrollable ancestor gets it. A disabled checkbox consumes
-  /// the gesture but never toggles or hovers. A `down` begins the press; an
-  /// `up` toggles and fires [CheckboxChangeEvent] only when it lands
-  /// [PointerMsg.inside] — a press slid off and released does nothing — and a
+  /// the gesture but never toggles or hovers. A `down` begins the press,
+  /// setting [pressed]. An `up` toggles and fires [CheckboxChangeEvent] only
+  /// when [pressed] is true and the release lands [PointerMsg.inside] — a
+  /// press slid off, a release without its own press, and a cancelled gesture
+  /// all do nothing — and either way the `up` clears [pressed]. A
   /// [PointerCancelMsg] ends the gesture without toggling. Hover tracks any
   /// other pointer and clears on [PointerLeaveMsg]. The keyboard path stays
   /// behind the gate: [CheckboxAction.toggle] toggles and fires the same
@@ -133,8 +136,13 @@ class CheckboxModel implements Component {
         return const Handled();
       }
       if (pointer.isUp) {
+        // Toggle only when this checkbox saw the matching down and the
+        // release lands inside. A release with no press behind it reaches the
+        // checkbox when the app intercepted the down, as a modal does when a
+        // press outside it dismisses it.
+        final fires = pressed && pointer.inside;
         pressed = false;
-        if (!pointer.inside) return const Handled();
+        if (!fires) return const Handled();
         toggle();
         return Handled.event(CheckboxChangeEvent(id, checked: checked));
       }

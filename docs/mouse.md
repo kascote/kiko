@@ -367,6 +367,11 @@ to end. The rules:
   app cannot tell which device fired it. A widget never moves focus itself.
   Moving focus on a press belongs to whoever owns the `FocusGroup`;
   `FocusRouter` (or `focusOnPress`) does it in one line.
+- **A release activates only after the widget's own press.** A
+  press-activated widget fires its event on `up` only when it saw the
+  matching `down`. A release without that press is not a click on this
+  widget. It reaches the widget when the app intercepted the `down`, as a
+  modal does when a press outside it dismisses the modal.
 - **Read discrete parts from hit regions, not coordinates.** A view marks
   each row, header, or indicator as a `Region` while it paints
   (`markRegion`). The framework resolves the one under the pointer and

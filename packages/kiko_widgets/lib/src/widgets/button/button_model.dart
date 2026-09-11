@@ -40,6 +40,7 @@ class ButtonModel implements Component {
   ///
   /// Set on a `down`, cleared on the `up`, on a [PointerCancelMsg], or on a
   /// release that slid off. `button_view` folds it into [WidgetState.pressed].
+  /// An `up` fires [ButtonPressEvent] only while this is set.
   bool pressed = false;
 
   /// Whether the pointer is over the button.
@@ -84,18 +85,21 @@ class ButtonModel implements Component {
   ///
   /// The pointer branch sits above the focus gate, so a click presses and
   /// activates whether or not the button is focused (the app focuses it on the
-  /// down). A `down` begins the press; an `up` fires [ButtonPressEvent] only when it
-  /// lands [PointerMsg.inside] — a press slid off and released does nothing — and
-  /// a [PointerCancelMsg] ends the gesture without firing. Hover tracks any
-  /// pointer over the button and clears on [PointerLeaveMsg]. Capture
-  /// returns the `up`/`cancel` to this button even after the cursor leaves, and
-  /// [PointerMsg.targetRect] answers `inside` against its current cells, so the
-  /// model stores no grab state. The keyboard path stays behind the gate.
+  /// down). A `down` begins the press, setting [pressed]. An `up` fires
+  /// [ButtonPressEvent] only when [pressed] is true and the release lands
+  /// [PointerMsg.inside] — a press slid off, a release without its own press,
+  /// and a cancelled gesture all do nothing — and either way the `up` clears
+  /// [pressed]. A [PointerCancelMsg] ends the gesture without firing. Hover
+  /// tracks any pointer over the button and clears on [PointerLeaveMsg].
+  /// Capture returns the `up`/`cancel` to this button even after the cursor
+  /// leaves; [pressed] is the button's own record that it saw the matching
+  /// down. The keyboard path stays behind the gate.
   ///
-  /// Returns [Handled] with a [ButtonPressEvent] on a release inside; [Handled]
-  /// with no event for a press, a slid-off release, a cancel and hover
-  /// traffic; [Declined] for the wheel (nothing to scroll), for keys it does
-  /// not handle, for messages it does not know, and when not focused.
+  /// Returns [Handled] with a [ButtonPressEvent] on a release inside while
+  /// pressed; [Handled] with no event for a press, a slid-off release, a
+  /// release without its own press, a cancel and hover traffic; [Declined] for the wheel
+  /// (nothing to scroll), for keys it does not handle, for messages it does
+  /// not know, and when not focused.
   @override
   UpdateResult update(Msg msg) {
     if (msg case final PointerMsg pointer) {
@@ -109,10 +113,13 @@ class ButtonModel implements Component {
         return const Handled();
       }
       if (pointer.isUp) {
+        // Fire only when this button saw the matching down and the release
+        // lands inside. A release with no press behind it reaches the button
+        // when the app intercepted the down, as a modal does when a press
+        // outside it dismisses it.
+        final fires = pressed && pointer.inside;
         pressed = false;
-        // Fire only when the release lands inside: capture returns the up here
-        // even once the cursor has left, so a press slid off does not activate.
-        return pointer.inside ? Handled.event(ButtonPressEvent(id)) : const Handled();
+        return fires ? Handled.event(ButtonPressEvent(id)) : const Handled();
       }
       // A move or drag over the button only refreshes the hover.
       hovered = true;

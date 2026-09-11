@@ -37,7 +37,6 @@ void main() {
         final click = button.update(_pointer(PointerAction.up, 'btn'));
         expect(click, isA<Handled>().having((h) => h.events, 'events', [const ButtonPressEvent('btn')]));
       },
-      skip: 'pending: a button fires on a release without having seen its own press',
     );
 
     test(
@@ -58,7 +57,6 @@ void main() {
         );
         expect(checkbox.checked, isTrue);
       },
-      skip: 'pending: a checkbox toggles on a release without having seen its own press',
     );
 
     test('a cancel between the press and the release clears the press (ButtonModel)', () {
@@ -73,7 +71,6 @@ void main() {
         release,
         isA<Handled>().having((h) => h.events, 'events', isEmpty),
         reason: 'the cancel ended the gesture, so the release cannot fire it',
-        skip: 'pending: a button fires on a release without having seen its own press',
       );
     });
   });

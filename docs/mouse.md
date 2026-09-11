@@ -111,8 +111,7 @@ A press on a scope's own cells — no inner tag under the point — resolves to
 the scope's path and delivers with no region. `rectOf` answers `null` for a
 scope path, because a scope has no single rect. Presence is a separate
 question: `isLive(id)` is true for a leaf path while its rect is recorded,
-and for a scope path while any node carries the scope. Capture asks
-`isLive`, never `rectOf` (see "Capture").
+and for a scope path while any node carries the scope.
 
 **A scope's rect is its press claim, so a scope must hug its content.** A
 scope node laid out larger than what it paints swallows presses over
@@ -192,12 +191,8 @@ deliberately different questions:
 - **Presence follows visibility.** A tagged descendant whose rect falls
   entirely outside a `clipsHits` ancestor's window is absent from that
   frame's `HitMap`: `rectOf` answers `null`, exactly as if it had never
-  painted. This is not a convenience; it is what keeps capture's abnormal end
-  working (the captor stops being `isLive` → `PointerCancelMsg`). A `Viewport`
-  lays out its whole child every frame regardless of scroll, unlike the
-  windowed widgets, which never build off-screen rows. Without presence
-  clipping, a scrolled-away captor would look present forever and its gesture
-  would never cancel.
+  painted. A `Viewport` lays out its whole child every frame regardless of
+  scroll, unlike the windowed widgets, which never build off-screen rows.
 - **Geometry follows placement.** A *partially* visible widget's `rectOf` is
   its full, unclipped placement rect — including a negative top when scrolled
   above the window. That rect is the widget's coordinate origin:
@@ -244,21 +239,21 @@ a drag survive a cursor that leaves the widget mid-gesture.
 - **Capture is implicit, and there is one slot.** No widget asks for it. Any
   button captures, any button releases, and a second press while one is held
   goes to the captor.
-- **Capture holds the resolution, `null` included.** A drag that starts on
-  the background stays on the background; it does not re-target the instant
-  the cursor crosses a tagged widget.
+- **Capture holds the resolution to the end, `null` included.** A drag that
+  starts on the background stays on the background: it does not re-target the
+  instant the cursor crosses a tagged widget. Neither does a captor that
+  leaves the newest hit map: the router never re-targets a gesture at the
+  widget now under the cursor. Such a captor keeps receiving its events, with
+  a null `targetRect` and `local` equal to `global` — the same fallback a
+  captured bare scope already uses.
 - **Capture holds the hit path, and prefix routing applies while it is
   held.** The router replays what `hitId` answered, so a drag off a
   composite keeps the gesture on the captured path.
-- **Three conditions end capture abnormally.** Each drops capture and
+- **Two conditions end capture abnormally.** Each drops capture and
   delivers `PointerCancelMsg` to the captor: a bare `moved` arrives while
-  captured (the release happened off-window); the captor is absent from the
-  newest hit map (it unmounted or scrolled away); the terminal loses focus.
-  `up` ends the interaction. `cancel` ends it and means: do not commit it.
-  Absence asks `isLive`, never `rectOf`. A captured bare scope has no rect
-  but is still on screen; it survives, its messages carry a null
-  `targetRect`, and `local` equals `global`. A scope painted out entirely
-  still cancels.
+  captured (the release happened off-window), or the terminal loses focus.
+  `up` ends the interaction normally. `cancel` ends it and means: do not
+  commit it.
 - **The wheel bypasses capture.** A notch is not part of a button gesture, so
   it always addresses what is under the cursor. Wheel events are never
   coalesced: a notch is a delta, and merging two would eat one. Moves and

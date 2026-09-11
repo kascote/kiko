@@ -250,11 +250,11 @@ void main() {
       ], reason: 'nothing is left waiting for a release that will never come');
     });
 
-    test('a captor scrolled out of a Viewport is told its gesture is over', () async {
-      // The doctrine payoff (spec 0166 / task 0174): presence-clipping in
-      // HitMap is the only change needed — this drives the real router path
-      // (mouse_router.dart untouched) through a real Application loop.
-      late final Msg cancelMsg;
+    test('a captor scrolled out of a Viewport keeps receiving its drag, captured and rect-less', () async {
+      // Presence-clipping in HitMap does not end the gesture — this drives the
+      // real router path (mouse_router.dart untouched) through a real
+      // Application loop.
+      late final PointerMsg dragMsg;
       final backend = TestBackend(size: const TermSize(6, 3));
 
       // A 3-row viewport onto 6 rows of content: 'field' fills the window at
@@ -285,11 +285,11 @@ void main() {
               // Captured while 'field' fills the whole 3-row window.
               backend.emit(MouseEvent(0, 0, _down()));
               return (step, null);
-            case final PointerMsg p when p.targetId == 'field':
+            case final PointerMsg p when p.targetId == 'field' && p.isDown:
               // Button still down: scroll 'field' fully past the top.
               return (1, null);
-            case final PointerCancelMsg c:
-              cancelMsg = c;
+            case final PointerMsg p when p.targetId == 'field' && p.isDrag:
+              dragMsg = p;
               return (step, const Quit());
             default:
               return (step, null);
@@ -299,8 +299,9 @@ void main() {
       );
 
       expect(dragged, isTrue);
-
-      expect(cancelMsg, const PointerCancelMsg('field'));
+      expect(dragMsg.captured, isTrue, reason: 'the gesture is bound to the id, not to a rect');
+      expect(dragMsg.targetRect, isNull);
+      expect(dragMsg.local, dragMsg.global, reason: 'a rect-less captor falls back to absolute coordinates');
     });
   });
 }

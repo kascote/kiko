@@ -2,7 +2,6 @@ import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../layout/position.dart';
-import '../widgets/hit_map.dart';
 import 'msg.dart';
 import 'pointer_msg.dart';
 
@@ -21,17 +20,18 @@ import 'pointer_msg.dart';
 ///
 /// A button press hands the pointer to whatever was under it, and every move,
 /// drag and press that follows goes to the same place until the button comes up
-/// — even once the cursor has wandered off. So the release always reaches the
-/// widget that took the press, and a drag that begins on the background does not
-/// jump to the first widget the cursor crosses. What a press captures is the
-/// *answer* to "what is under the pointer", and `null` — the background — is one
-/// of the answers.
+/// — even once the cursor has wandered off, and even once the captor is gone
+/// from the newest frame. So the release always reaches the widget that took
+/// the press, and a drag that begins on the background does not jump to the
+/// first widget the cursor crosses. What a press captures is the *answer* to
+/// "what is under the pointer", and `null` — the background — is one of the
+/// answers. The router never re-targets a gesture at the widget now under the
+/// cursor.
 ///
-/// A release is not the only way a gesture ends. The cursor can leave the
-/// terminal window and come back with the button already up; the widget can
-/// scroll away; the terminal can lose focus. Each of those delivers a
-/// [PointerCancelMsg] to whoever was holding the pointer, so nothing is left
-/// waiting for a release that will never arrive.
+/// A gesture ends three ways: a release, a bare move while a button is held,
+/// or the terminal losing focus. A release ends it normally. The other two
+/// deliver a [PointerCancelMsg] to whoever was holding the pointer instead, so
+/// nothing is left waiting for a release that will never arrive.
 ///
 /// The wheel never joins a gesture: it always addresses what is under the
 /// pointer, and the router neither scales its notches nor reads its modifiers.
@@ -77,17 +77,13 @@ class MouseRouter {
   /// a gesture the wrong way. Losing terminal focus does both and then delivers
   /// the focus message itself. Everything else — keys, ticks, an already-routed
   /// message put back on the queue — passes through untouched.
-  ///
-  /// [latest] is the newest committed geometry. It answers one question only:
-  /// whether the widget holding the pointer is still on screen. Where the event
-  /// landed is answered by the map the event carries.
-  List<Msg> route(Msg msg, HitMap latest) {
-    if (msg is RawPointerMsg) return _routePointer(msg, latest);
+  List<Msg> route(Msg msg) {
+    if (msg is RawPointerMsg) return _routePointer(msg);
     if (msg is FocusMsg && !msg.hasFocus) return [..._abandon(), msg];
     return [msg];
   }
 
-  List<Msg> _routePointer(RawPointerMsg raw, HitMap latest) {
+  List<Msg> _routePointer(RawPointerMsg raw) {
     final event = raw.mouse;
     final action = event.button.action;
 
@@ -98,11 +94,11 @@ class MouseRouter {
 
     final out = <Msg>[];
 
-    // A gesture the router can no longer honour ends before the event that
-    // exposed it is resolved. A bare `moved` while a button is held is the
-    // terminal's way of saying the release happened where it could not see it:
-    // a held drag reports `drag`, never `moved`.
-    if (_capturing && (action == evt.MouseButtonAction.moved || _captorIsGone(latest))) {
+    // A bare `moved` while a button is held is the terminal's way of saying
+    // the release happened where it could not see it: a held drag reports
+    // `drag`, never `moved`. Cancel ends the gesture before the event that
+    // exposed it is resolved.
+    if (_capturing && action == evt.MouseButtonAction.moved) {
       out.add(PointerCancelMsg(_captureId));
       _release();
     }
@@ -184,17 +180,6 @@ class MouseRouter {
     final left = _hoverId;
     _hoverId = hit;
     return left == null ? const [] : [PointerLeaveMsg(left)];
-  }
-
-  /// Whether the widget holding the pointer has been painted out from under it.
-  ///
-  /// Asked of the newest frame, not of the one the event was aimed at: a widget
-  /// that has already left the screen cannot be handed a release. Checked with
-  /// [HitMap.isLive] rather than [HitMap.rectOf], because a captured scope has
-  /// no rect of its own but is still on screen.
-  bool _captorIsGone(HitMap latest) {
-    final id = _captureId;
-    return id != null && !latest.isLive(id);
   }
 
   void _release() {

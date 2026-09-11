@@ -130,7 +130,7 @@ void main() {
 
   group('resolution', () {
     test('addresses the widget under the pointer, in that widget’s own cells', () {
-      final p = _only(router.route(_at(5, 1, _move(), hits), hits));
+      final p = _only(router.route(_at(5, 1, _move(), hits)));
 
       expect(p.targetId, 'right');
       expect(p.global, const Position(5, 1));
@@ -141,7 +141,7 @@ void main() {
     });
 
     test('over no widget, the local position is the absolute one', () {
-      final p = _only(router.route(_at(8, 2, _move(), hits), hits));
+      final p = _only(router.route(_at(8, 2, _move(), hits)));
 
       expect(p.targetId, isNull);
       expect(p.targetRect, isNull);
@@ -152,7 +152,7 @@ void main() {
     test('carries the event’s button, action and modifiers in kiko’s own vocabulary', () {
       final event = MouseEvent(5, 1, _down(), modifiers: KeyModifiers.shift);
 
-      final p = _only(router.route(RawPointerMsg(event, hits), hits));
+      final p = _only(router.route(RawPointerMsg(event, hits)));
 
       expect(p.button, PointerButton.left);
       expect(p.action, PointerAction.down);
@@ -170,21 +170,21 @@ void main() {
         targetId: 'left',
       );
 
-      expect(router.route(routed, hits), [same(routed)]);
+      expect(router.route(routed), [same(routed)]);
       expect(router.hoverId, isNull, reason: 'a re-emitted event does not re-run the router');
     });
 
     test('a key press passes straight through', () {
-      expect(router.route(const KeyMsg('a'), hits), [const KeyMsg('a')]);
+      expect(router.route(const KeyMsg('a')), [const KeyMsg('a')]);
     });
   });
 
   group('capture', () {
     test('the release lands on the widget that took the press, wherever the cursor went', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final drag = _only(router.route(_at(6, 1, _drag(), hits), hits));
-      final up = _only(router.route(_at(6, 1, _up(), hits), hits));
+      final drag = _only(router.route(_at(6, 1, _drag(), hits)));
+      final up = _only(router.route(_at(6, 1, _up(), hits)));
 
       expect(drag.targetId, 'left');
       expect(drag.captured, isTrue);
@@ -197,7 +197,7 @@ void main() {
     });
 
     test('the press itself is not captured — it is a fresh hit', () {
-      final down = _only(router.route(_at(1, 1, _down(), hits), hits));
+      final down = _only(router.route(_at(1, 1, _down(), hits)));
 
       expect(down.targetId, 'left');
       expect(down.captured, isFalse);
@@ -206,11 +206,11 @@ void main() {
     });
 
     test('a press on the background captures the background', () {
-      router.route(_at(1, 2, _down(), hits), hits);
+      router.route(_at(1, 2, _down(), hits));
       expect(router.capturing, isTrue);
       expect(router.captureId, isNull);
 
-      final drag = _only(router.route(_at(1, 1, _drag(), hits), hits));
+      final drag = _only(router.route(_at(1, 1, _drag(), hits)));
 
       expect(drag.targetId, isNull, reason: 'a rubber band does not grab the first widget it crosses');
       expect(drag.captured, isTrue);
@@ -218,9 +218,9 @@ void main() {
     });
 
     test('a second press while a gesture is held goes to the widget holding it', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final second = _only(router.route(_at(6, 1, MouseButton.down(MouseButtonKind.right), hits), hits));
+      final second = _only(router.route(_at(6, 1, MouseButton.down(MouseButtonKind.right), hits)));
 
       expect(second.targetId, 'left');
       expect(second.captured, isTrue);
@@ -228,20 +228,20 @@ void main() {
     });
 
     test('any button releases, because legacy mode reports none on release', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final up = _only(router.route(_at(1, 1, MouseButton.up(), hits), hits));
+      final up = _only(router.route(_at(1, 1, MouseButton.up(), hits)));
 
       expect(up.targetId, 'left');
       expect(router.capturing, isFalse);
     });
 
     test('the captor’s rect is read from the frame the event was aimed at, not frozen at the press', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
       // The layout changed under the gesture: `left` is now the right-hand pane.
       final moved = _twoPanes(swap: true);
-      final drag = _only(router.route(_at(5, 1, _drag(), moved), moved));
+      final drag = _only(router.route(_at(5, 1, _drag(), moved)));
 
       expect(drag.targetId, 'left');
       expect(drag.targetRect, Rect.create(x: 4, y: 0, width: 4, height: 2));
@@ -250,11 +250,11 @@ void main() {
     });
 
     test('a captor painted out of the event’s own frame falls back to absolute coordinates', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      // Absent from the event's map, still present in the newest one, so the
-      // gesture is not cancelled — it simply has no rect to measure against.
-      final drag = _only(router.route(_at(6, 1, _drag(), _twoPanes(dropLeft: true)), hits));
+      // The event's own map carries no rect for the captor, so there is
+      // nothing to measure the drag against.
+      final drag = _only(router.route(_at(6, 1, _drag(), _twoPanes(dropLeft: true))));
 
       expect(drag.targetId, 'left');
       expect(drag.captured, isTrue);
@@ -271,24 +271,24 @@ void main() {
     });
 
     test('an inner leaf captures by its path; the gesture stays on it off the composite', () {
-      final down = _only(router.route(_at(2, 2, _down(), scoped), scoped));
+      final down = _only(router.route(_at(2, 2, _down(), scoped)));
       expect(down.targetId, 'cb/field');
 
-      final drag = _only(router.route(_at(8, 4, _drag(), scoped), scoped));
+      final drag = _only(router.route(_at(8, 4, _drag(), scoped)));
       expect(drag.targetId, 'cb/field');
       expect(drag.captured, isTrue);
       expect(drag.targetRect, Rect.create(x: 1, y: 1, width: 4, height: 2), reason: 'the field, not the scope');
 
-      final up = _only(router.route(_at(8, 4, _up(), scoped), scoped));
+      final up = _only(router.route(_at(8, 4, _up(), scoped)));
       expect(up.targetId, 'cb/field');
     });
 
     test('a captured bare scope survives rect-less, falling back to absolute coordinates', () {
-      final down = _only(router.route(_at(0, 0, _down(), scoped), scoped));
+      final down = _only(router.route(_at(0, 0, _down(), scoped)));
       expect(down.targetId, 'cb', reason: 'a press on the scope’s own cells, not on the field');
       expect(scoped.rectOf('cb'), isNull, reason: 'a scope has no rect of its own');
 
-      final msgs = router.route(_at(3, 3, _drag(), scoped), scoped);
+      final msgs = router.route(_at(3, 3, _drag(), scoped));
       expect(msgs.whereType<PointerCancelMsg>(), isEmpty, reason: 'the scope is still on screen');
       final drag = _only(msgs);
       expect(drag.targetId, 'cb');
@@ -296,80 +296,87 @@ void main() {
       expect(drag.targetRect, isNull);
       expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
 
-      final up = _only(router.route(_at(3, 3, _up(), scoped), scoped));
+      final up = _only(router.route(_at(3, 3, _up(), scoped)));
       expect(up.targetId, 'cb');
     });
 
-    test('a scope painted out from under the gesture still cancels', () {
-      router.route(_at(0, 0, _down(), scoped), scoped);
+    test('a scope painted out from under the gesture still addresses it, captured and rect-less', () {
+      router.route(_at(0, 0, _down(), scoped));
 
       final gone = _blank(9, 5).hits;
-      final msgs = router.route(_at(3, 3, _drag(), gone), gone);
+      final msgs = router.route(_at(3, 3, _drag(), gone));
 
-      expect(msgs.whereType<PointerCancelMsg>().single.targetId, 'cb');
-      expect(router.capturing, isFalse);
+      expect(msgs.whereType<PointerCancelMsg>(), isEmpty, reason: 'the scope’s gesture is bound to its path');
+      final drag = _only(msgs);
+      expect(drag.targetId, 'cb');
+      expect(drag.captured, isTrue);
+      expect(drag.targetRect, isNull);
+      expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
+
+      final up = _only(router.route(_at(3, 3, _up(), gone)));
+      expect(up.targetId, 'cb');
+      expect(router.capturing, isFalse, reason: 'the release ends the gesture');
     });
   });
 
   group('capture termination', () {
     test('a bare move while a button is held means the release happened off-window', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final msgs = router.route(_at(6, 1, _move(), hits), hits);
+      final msgs = router.route(_at(6, 1, _move(), hits));
 
       expect(msgs.first, const PointerCancelMsg('left'));
       expect(router.capturing, isFalse);
       expect(_only(msgs).targetId, 'right', reason: 'and the move itself routes as an ordinary one');
     });
 
-    test('a captor that has left the screen is told its gesture is over', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+    test('a captor that has left the screen still receives its drag, captured and rect-less', () {
+      router.route(_at(1, 1, _down(), hits));
 
       final newest = _twoPanes(dropLeft: true);
-      final msgs = router.route(_at(1, 1, _drag(), newest), newest);
+      final msgs = router.route(_at(1, 1, _drag(), newest));
 
-      expect(msgs.first, const PointerCancelMsg('left'));
-      expect(router.capturing, isFalse);
+      expect(msgs.whereType<PointerCancelMsg>(), isEmpty, reason: 'the gesture is bound to an id, not to a rect');
+      final drag = _only(msgs);
+      expect(drag.targetId, 'left');
+      expect(drag.captured, isTrue);
+      expect(drag.targetRect, isNull);
+      expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
     });
 
-    test(
-      'capture holds the resolution to the end: a captor painted out still receives its drags and its release',
-      () {
-        router.route(_at(1, 1, _down(), hits), hits);
+    test('capture holds the resolution to the end: a captor painted out still receives its drags and its release', () {
+      router.route(_at(1, 1, _down(), hits));
 
-        // The captor is painted out and another widget now sits under the
-        // cursor, as when a press closes a popup over a button.
-        final newest = _twoPanes(swap: true, dropLeft: true);
-        expect(newest.hitId(1, 1), 'right');
+      // The captor is painted out and another widget now sits under the
+      // cursor, as when a press closes a popup over a button.
+      final newest = _twoPanes(swap: true, dropLeft: true);
+      expect(newest.hitId(1, 1), 'right');
 
-        final onDrag = router.route(_at(1, 1, _drag(), newest), newest);
-        expect(onDrag.whereType<PointerCancelMsg>(), isEmpty, reason: 'the gesture is bound to an id, not to a rect');
-        final drag = _only(onDrag);
-        expect(drag.targetId, 'left');
-        expect(drag.captured, isTrue);
-        expect(drag.targetRect, isNull);
-        expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
+      final onDrag = router.route(_at(1, 1, _drag(), newest));
+      expect(onDrag.whereType<PointerCancelMsg>(), isEmpty, reason: 'the gesture is bound to an id, not to a rect');
+      final drag = _only(onDrag);
+      expect(drag.targetId, 'left');
+      expect(drag.captured, isTrue);
+      expect(drag.targetRect, isNull);
+      expect(drag.local, drag.global, reason: 'a rect-less captor falls back to absolute coordinates');
 
-        final onUp = router.route(_at(1, 1, _up(), newest), newest);
-        final up = _only(onUp);
-        expect(up.targetId, 'left', reason: 'the release never re-targets at the widget now under the cursor');
-        expect(up.captured, isTrue);
-        expect(up.inside, isFalse, reason: 'so a press-activated widget cannot fire on it');
-        expect(router.capturing, isFalse, reason: 'the release ends the gesture');
+      final onUp = router.route(_at(1, 1, _up(), newest));
+      final up = _only(onUp);
+      expect(up.targetId, 'left', reason: 'the release never re-targets at the widget now under the cursor');
+      expect(up.captured, isTrue);
+      expect(up.inside, isFalse, reason: 'so a press-activated widget cannot fire on it');
+      expect(router.capturing, isFalse, reason: 'the release ends the gesture');
 
-        // The button is up: the next event is a fresh interaction and routes
-        // normally.
-        final onMove = router.route(_at(1, 1, _move(), newest), newest);
-        expect(_only(onMove).targetId, 'right');
-      },
-      skip:
-          'pending: the router cancels a gesture whose captor was painted out and re-targets its tail at the widget now under the cursor',
-    );
+      // The button is up: the next event is a fresh interaction and routes
+      // normally.
+      final onMove = router.route(_at(1, 1, _move(), newest));
+      expect(_only(onMove).targetId, 'right');
+    });
 
     test('losing terminal focus ends the gesture, the hover, and then reports itself', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final msgs = router.route(const FocusMsg(hasFocus: false), hits);
+      final msgs = router.route(const FocusMsg(hasFocus: false));
 
       expect(msgs, [
         const PointerCancelMsg('left'),
@@ -381,13 +388,13 @@ void main() {
     });
 
     test('regaining focus reports itself and nothing else', () {
-      expect(router.route(const FocusMsg(hasFocus: true), hits), [const FocusMsg(hasFocus: true)]);
+      expect(router.route(const FocusMsg(hasFocus: true)), [const FocusMsg(hasFocus: true)]);
     });
 
     test('a gesture on the background is cancelled too, with a null target', () {
-      router.route(_at(1, 2, _down(), hits), hits);
+      router.route(_at(1, 2, _down(), hits));
 
-      final msgs = router.route(const FocusMsg(hasFocus: false), hits);
+      final msgs = router.route(const FocusMsg(hasFocus: false));
 
       expect(msgs.first, const PointerCancelMsg(null));
     });
@@ -395,16 +402,16 @@ void main() {
 
   group('hover', () {
     test('arriving over a widget says nothing — the pointer event is the news', () {
-      final msgs = router.route(_at(1, 1, _move(), hits), hits);
+      final msgs = router.route(_at(1, 1, _move(), hits));
 
       expect(msgs, hasLength(1), reason: 'there is no enter message');
       expect(router.hoverId, 'left');
     });
 
     test('the widget being left hears so before the event that left it', () {
-      router.route(_at(1, 1, _move(), hits), hits);
+      router.route(_at(1, 1, _move(), hits));
 
-      final msgs = router.route(_at(5, 1, _move(), hits), hits);
+      final msgs = router.route(_at(5, 1, _move(), hits));
 
       expect(msgs.first, const PointerLeaveMsg('left'));
       expect(_only(msgs).targetId, 'right');
@@ -412,36 +419,36 @@ void main() {
     });
 
     test('leaving for the background still says goodbye', () {
-      router.route(_at(1, 1, _move(), hits), hits);
+      router.route(_at(1, 1, _move(), hits));
 
-      final msgs = router.route(_at(8, 2, _move(), hits), hits);
+      final msgs = router.route(_at(8, 2, _move(), hits));
 
       expect(msgs.first, const PointerLeaveMsg('left'));
       expect(router.hoverId, isNull);
     });
 
     test('a press at a fresh position moves hover too, not only a move', () {
-      router.route(_at(1, 1, _move(), hits), hits);
+      router.route(_at(1, 1, _move(), hits));
 
-      final msgs = router.route(_at(5, 1, _down(), hits), hits);
+      final msgs = router.route(_at(5, 1, _down(), hits));
 
       expect(msgs.first, const PointerLeaveMsg('left'));
       expect(router.hoverId, 'right');
     });
 
     test('hover holds still for the length of a gesture', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final msgs = router.route(_at(5, 1, _drag(), hits), hits);
+      final msgs = router.route(_at(5, 1, _drag(), hits));
 
       expect(msgs.whereType<PointerLeaveMsg>(), isEmpty, reason: 'the pointer is in use, not browsing');
       expect(router.hoverId, 'left');
     });
 
     test('and picks up wherever the cursor is once the button comes up', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final msgs = router.route(_at(5, 1, _up(), hits), hits);
+      final msgs = router.route(_at(5, 1, _up(), hits));
 
       expect(msgs, [
         PointerMsg(
@@ -459,9 +466,9 @@ void main() {
     });
 
     test('a release inside the captor leaves hover where it is', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final msgs = router.route(_at(2, 1, _up(), hits), hits);
+      final msgs = router.route(_at(2, 1, _up(), hits));
 
       expect(msgs.whereType<PointerLeaveMsg>(), isEmpty);
       expect(router.hoverId, 'left');
@@ -470,9 +477,9 @@ void main() {
 
   group('wheel', () {
     test('turns for whatever is under the pointer, even while another widget holds a gesture', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+      router.route(_at(1, 1, _down(), hits));
 
-      final p = _only(router.route(_at(5, 1, MouseButton.wheelDown(), hits), hits));
+      final p = _only(router.route(_at(5, 1, MouseButton.wheelDown(), hits)));
 
       expect(p.targetId, 'right', reason: 'the wheel is not part of a button gesture');
       expect(p.captured, isFalse);
@@ -480,19 +487,16 @@ void main() {
       expect(router.captureId, 'left', reason: 'and it leaves the gesture alone');
     });
 
-    test('but it still notices that the widget holding a gesture has gone', () {
-      router.route(_at(1, 1, _down(), hits), hits);
+    test('and leaves a held gesture alone even once its captor is gone', () {
+      router.route(_at(1, 1, _down(), hits));
 
       final newest = _twoPanes(dropLeft: true);
-      final msgs = router.route(_at(5, 1, MouseButton.wheelDown(), newest), newest);
+      final msgs = router.route(_at(5, 1, MouseButton.wheelDown(), newest));
 
-      // The wheel takes no part in the gesture, but it is when the router first
-      // sees that the captor is gone — and telling it late is worse than never
-      // scaling a notch. The wheel itself still goes to what is under the
-      // pointer.
-      expect(msgs.first, const PointerCancelMsg('left'));
-      expect(router.capturing, isFalse);
-      expect(_only(msgs).targetId, 'right');
+      expect(msgs.whereType<PointerCancelMsg>(), isEmpty, reason: 'the wheel does not end a gesture');
+      expect(router.capturing, isTrue);
+      expect(router.captureId, 'left');
+      expect(_only(msgs).targetId, 'right', reason: 'the notch still addresses what is under the pointer');
     });
 
     test('all four directions arrive, unscaled and unread', () {
@@ -503,7 +507,7 @@ void main() {
         MouseButton.wheelRight(),
       ];
 
-      final routed = actions.map((b) => _only(router.route(_at(1, 1, b, hits), hits))).toList();
+      final routed = actions.map((b) => _only(router.route(_at(1, 1, b, hits)))).toList();
 
       expect(routed.map((p) => p.action), [
         PointerAction.wheelUp,
@@ -553,7 +557,7 @@ void main() {
   group('a fresh run', () {
     test('forgets the pointer', () {
       router
-        ..route(_at(1, 1, _down(), hits), hits)
+        ..route(_at(1, 1, _down(), hits))
         ..reset();
 
       expect(router.capturing, isFalse);
@@ -570,8 +574,8 @@ void main() {
     });
 
     test('a pointer over a marked part carries its region', () {
-      final p0 = _only(router.route(_at(1, 0, _move(), list), list));
-      final p1 = _only(router.route(_at(1, 4, _move(), list), list));
+      final p0 = _only(router.route(_at(1, 0, _move(), list)));
+      final p1 = _only(router.route(_at(1, 4, _move(), list)));
 
       expect(p0.targetId, 'list');
       expect(p0.region, const _Row(0));
@@ -579,7 +583,7 @@ void main() {
     });
 
     test('a pointer over an unmarked cell carries a null region', () {
-      final p = _only(router.route(_at(1, 2, _move(), list), list));
+      final p = _only(router.route(_at(1, 2, _move(), list)));
 
       expect(p.targetId, 'list', reason: 'still over the widget');
       expect(p.region, isNull, reason: 'but the separator is marked by nobody');
@@ -588,8 +592,8 @@ void main() {
     test('a tag-only widget and the background both carry a null region', () {
       // `_twoPanes` widgets mark nothing — the permanent tag-only tier — and the
       // bottom row belongs to no widget at all.
-      final onPane = _only(router.route(_at(1, 1, _move(), hits), hits));
-      final onBackground = _only(router.route(_at(8, 2, _move(), hits), hits));
+      final onPane = _only(router.route(_at(1, 1, _move(), hits)));
+      final onBackground = _only(router.route(_at(8, 2, _move(), hits)));
 
       expect(onPane.targetId, 'left');
       expect(onPane.region, isNull, reason: 'a widget that marks no regions delivers a null region');
@@ -598,11 +602,11 @@ void main() {
     });
 
     test('a captured gesture recomputes the region per event', () {
-      router.route(_at(1, 0, _down(), list), list);
+      router.route(_at(1, 0, _down(), list));
 
-      final onRow1 = _only(router.route(_at(1, 3, _drag(), list), list));
-      final onSeparator = _only(router.route(_at(1, 2, _drag(), list), list));
-      final offWidget = _only(router.route(_at(20, 1, _drag(), list), list));
+      final onRow1 = _only(router.route(_at(1, 3, _drag(), list)));
+      final onSeparator = _only(router.route(_at(1, 2, _drag(), list)));
+      final offWidget = _only(router.route(_at(20, 1, _drag(), list)));
 
       expect(onRow1.captured, isTrue);
       expect(onRow1.region, const _Row(1), reason: 'the captor resolves the part now under the pointer');
@@ -611,7 +615,7 @@ void main() {
     });
 
     test('a wheel over a marked part carries its region, harmless above region logic', () {
-      final p = _only(router.route(_at(1, 4, MouseButton.wheelDown(), list), list));
+      final p = _only(router.route(_at(1, 4, MouseButton.wheelDown(), list)));
 
       expect(p.isWheel, isTrue);
       expect(p.targetId, 'list');

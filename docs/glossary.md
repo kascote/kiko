@@ -103,6 +103,8 @@ A term of art added to a page gets its entry here in the same change.
   `rectOf` answers `null` (`docs/mouse.md`).
 - **hit geometry** — the rect the hit map stores for a present widget: the
   full, unclipped placement rect. `local` coordinates anchor to its top-left.
+- **gesture** — a press and every pointer event up to its release or cancel,
+  bound to the id the router resolved at the press.
 - **capture** — while a button is held, all pointer traffic goes to whatever
   was under the press, even if the cursor leaves it.
 - **captor** — the widget holding capture: the target resolved at button-down.

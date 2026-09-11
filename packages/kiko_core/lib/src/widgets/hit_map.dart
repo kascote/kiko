@@ -93,8 +93,8 @@ class HitMap {
   ///
   /// A leaf path is live exactly while [rectOf] answers a rect for it. A
   /// scope has no single rect, so its path is live while any node this frame
-  /// carries it — [rectOf] cannot answer that. Use this to check whether a
-  /// widget a pointer gesture is bound to is still on screen.
+  /// carries it — [rectOf] cannot answer that. `FrameScript` uses this to wait
+  /// for a widget's first frame.
   bool isLive(String id) => _rects.containsKey(id) || _scopePaths.contains(id);
 
   /// Returns the hit path of the innermost tagged node at cell ([x], [y]), or
@@ -180,10 +180,11 @@ class HitMap {
   ///
   /// Presence is visibility-true: a tagged node whose rect falls entirely
   /// outside [clip] (for example, scrolled off a `Viewport`) is omitted
-  /// rather than recorded, so [rectOf] answers `null` for it — the signal
-  /// capture-cancel relies on. A node that IS recorded still gets its full,
-  /// unclipped rect: that rect is the widget's coordinate origin, and clipping
-  /// it would corrupt `local` math for a partially visible widget.
+  /// rather than recorded, so [rectOf] answers `null` for it — a scrolled-off
+  /// widget is simply absent from the map. A node that IS recorded still gets
+  /// its full, unclipped rect: that rect is the widget's coordinate origin,
+  /// and clipping it would corrupt `local` math for a partially visible
+  /// widget.
   static void _collectRects(
     plume.RenderNode<PaintToken> node,
     Map<String, Rect> into,

@@ -77,7 +77,6 @@ void main() {
         reason: 'no release reaches the button',
       );
     },
-    skip: 'pending: the router re-targets the release of a cancelled gesture at the widget now under the cursor',
   );
 
   test(

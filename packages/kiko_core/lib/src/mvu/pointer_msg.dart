@@ -325,9 +325,9 @@ class PointerLeaveMsg extends Msg implements Routed {
 ///
 /// Where an `up` says *the user finished*, this says *the user never will*. It
 /// reaches the widget holding the pointer when the cursor leaves the terminal
-/// window mid-drag, when the widget itself is no longer on screen, or when the
-/// terminal loses focus. Without it a widget would sit at `dragging = true`
-/// forever, waiting for a release nobody can send.
+/// window mid-drag, or when the terminal loses focus. Without it a widget
+/// would sit at `dragging = true` forever, waiting for a release nobody can
+/// send.
 ///
 /// The router invents this one, so it carries no terminal event and no position.
 /// A `null` [targetId] means the gesture began on the background.

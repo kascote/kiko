@@ -163,7 +163,7 @@ class MvuRuntime {
   /// declined event to the next widget out therefore walks the very path that
   /// was hit.
   ({List<Msg> msgs, HitMap hits}) route(Msg msg) => (
-    msgs: _router.route(msg, lastHitMap),
+    msgs: _router.route(msg),
     hits: msg is RawPointerMsg ? msg.hits : lastHitMap,
   );
 

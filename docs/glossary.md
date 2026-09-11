@@ -110,6 +110,10 @@ A term of art added to a page gets its entry here in the same change.
 - **captor** — the widget holding capture: the target resolved at button-down.
   Every captured event addresses it until the button comes up or the gesture
   cancels.
+- **barrier** — a full-frame scope a modal renders beneath its dialog layer,
+  carrying the modal's own id, so every press outside the dialog addresses
+  the modal. It marks `ModalBarrierRegion` so the modal can tell it from the
+  dialog.
 - **reading mode** — how a widget reads a resolved pointer: switch on marked
   regions (discrete parts) or read `local` (a continuous surface). Both modes
   are permanent (`docs/mouse.md`).

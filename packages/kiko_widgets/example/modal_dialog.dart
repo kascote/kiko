@@ -20,9 +20,8 @@ class AppModel with ThemeSwitcher {
 // ═══════════════════════════════════════════════════════════
 
 /// Reads one of the modal's own events: a confirm applies the payload, a
-/// cancel just closes it. Both close the modal and set the status line —
-/// the same handling whether the event came from a key or from the app's own
-/// outside-click [ModalModel.dismiss].
+/// cancel just closes it. Both close the modal and set the status line, the
+/// same handling whether the cancel came from Escape or from a barrier press.
 Cmd? onModalEvent(AppModel model, WidgetEvent event) {
   switch (event) {
     case ModalConfirmEvent(:final payload):
@@ -41,20 +40,11 @@ Cmd? onModalEvent(AppModel model, WidgetEvent event) {
 (AppModel, Cmd?) appUpdate(AppModel model, Msg msg, UpdateContext ctx) {
   if (model.handleThemeSwitch(msg)) return (model, null);
 
-  // While a modal is open it captures all input: route to it and swallow
-  // anything that isn't a confirm/cancel result, so background keys ('q',
-  // 'm') don't leak through underneath it.
+  // While a modal is open, it owns every message addressed to it: it
+  // decides whether a press outside the dialog dismisses it, and it absorbs
+  // any key it does not bind, so background keys ('q', 'm') never leak
+  // through underneath it.
   if (model.modal case final modal?) {
-    // A down-click outside the dialog's rendered rect dismisses it — the
-    // same ModalCancelEvent Escape emits — before the capture below would
-    // otherwise swallow it as a click on the modal's own chrome.
-    if (msg case final PointerMsg pointer when pointer.isDown) {
-      final rect = ctx.hits.rectOf(modal.id);
-      if (rect == null || !rect.contains(pointer.global)) {
-        return (model, onModalEvent(model, modal.dismiss()));
-      }
-    }
-
     return switch (modal.update(msg)) {
       Handled(:final events, :final cmd) => (model, Batch([cmd, for (final e in events) onModalEvent(model, e)])),
       Declined() => (model, null),
@@ -120,7 +110,7 @@ void appView(AppModel model, Frame frame) {
     null => null,
   };
 
-  renderModalOverlay(frame, base: base.build(), width: 40, height: 7, dialog: dialog);
+  renderModalOverlay(frame, base: base.build(), width: 40, height: 7, dialog: dialog, id: model.modal?.id);
 }
 
 // ═══════════════════════════════════════════════════════════

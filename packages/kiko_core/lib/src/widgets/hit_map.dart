@@ -53,7 +53,7 @@ class Hit {
 class HitMap {
   final List<plume.RenderNode<PaintToken>> _roots;
   final Map<String, Rect> _rects;
-  final Map<String, plume.RenderNode<PaintToken>> _nodes;
+  final Map<String, List<plume.RenderNode<PaintToken>>> _nodes;
   final Set<String> _scopePaths;
 
   /// A map over nothing: every query answers `null` or empty.
@@ -75,7 +75,7 @@ class HitMap {
   factory HitMap.fromRoots(Iterable<plume.RenderNode<PaintToken>> roots) {
     final frozen = List<plume.RenderNode<PaintToken>>.unmodifiable(roots);
     final rects = <String, Rect>{};
-    final nodes = <String, plume.RenderNode<PaintToken>>{};
+    final nodes = <String, List<plume.RenderNode<PaintToken>>>{};
     final scopePaths = <String>{};
     for (final root in frozen) {
       _collectRects(root, rects, nodes, scopePaths, null, '');
@@ -84,7 +84,7 @@ class HitMap {
     return HitMap._(
       frozen,
       Map<String, Rect>.unmodifiable(rects),
-      Map<String, plume.RenderNode<PaintToken>>.unmodifiable(nodes),
+      Map<String, List<plume.RenderNode<PaintToken>>>.unmodifiable(nodes),
       Set<String>.unmodifiable(scopePaths),
     );
   }
@@ -128,19 +128,27 @@ class HitMap {
   /// Returns the region the widget at hit path [id] marked under cell ([x],
   /// [y]), or `null` when the pointer is over no marked part of it.
   ///
-  /// The search descends only [id]'s own subtree — found in one query through
-  /// the path-to-node index built with the map — and stops at any nested
-  /// tagged widget, so one widget's regions can never surface as another's.
-  /// `null` means the point is on a gap between marked parts, off the widget
-  /// entirely, or on a widget that marks nothing; and `null` too when [id] is
-  /// not on screen this frame, or names a scope rather than a leaf.
+  /// For a leaf path this descends only that node's own subtree — found in
+  /// one query through the path-to-node index built with the map — and stops
+  /// at any nested tagged widget, so one widget's regions can never surface as
+  /// another's. For a scope path, which may sit on several nodes in one
+  /// frame, this answers the marks of the topmost node whose rect contains
+  /// the point — the node painted last, matching what the viewer sees on top —
+  /// and never falls through to a node further back. `null` means the point
+  /// is on a gap between marked parts, off every node carrying [id] entirely,
+  /// or on a node that marks nothing; and `null` too when [id] is not on
+  /// screen this frame.
   ///
   /// The router calls this for the widget a pointer resolved to, or the widget
   /// holding a captured gesture.
   Region? regionAt(String id, int x, int y) {
-    final node = _nodes[id];
-    if (node == null) return null;
-    return _regionIn(node, plume.Offset(x, y), isRoot: true);
+    final nodes = _nodes[id];
+    if (nodes == null) return null;
+    final point = plume.Offset(x, y);
+    for (final node in nodes.reversed) {
+      if (node.rect.contains(point)) return _regionIn(node, point, isRoot: true);
+    }
+    return null;
   }
 
   /// Returns the tagged nodes covering cell ([x], [y]), outermost first.
@@ -178,6 +186,11 @@ class HitMap {
   /// earlier one, so writing over a repeated path leaves the innermost — and,
   /// on a tie, the topmost — which is the node [hitId] would have named.
   ///
+  /// Also appends every visible id-tagged or scope-tagged node to [nodes],
+  /// keyed by its hit path, in this same walk order — paint order. A scope
+  /// path may collect several nodes; [regionAt] searches a path's list back to
+  /// front, so the node painted last is tried first.
+  ///
   /// Presence is visibility-true: a tagged node whose rect falls entirely
   /// outside [clip] (for example, scrolled off a `Viewport`) is omitted
   /// rather than recorded, so [rectOf] answers `null` for it — a scrolled-off
@@ -188,7 +201,7 @@ class HitMap {
   static void _collectRects(
     plume.RenderNode<PaintToken> node,
     Map<String, Rect> into,
-    Map<String, plume.RenderNode<PaintToken>> nodes,
+    Map<String, List<plume.RenderNode<PaintToken>>> nodes,
     Set<String> scopePaths,
     plume.Rect? clip,
     String prefix,
@@ -204,10 +217,13 @@ class HitMap {
     var childPrefix = prefix;
     if (visible) {
       childPrefix = HitTag.scopeUnder(prefix, tag);
-      // A scope may legally sit on several nodes in one frame (a base tree
-      // plus an overlay pass), so — unlike an id path — it never asserts on
-      // repetition.
-      if (tag is ScopeTag) scopePaths.add(childPrefix);
+      if (tag is ScopeTag) {
+        // A scope may legally sit on several nodes in one frame (a base tree
+        // plus an overlay pass), so — unlike an id path — it never asserts on
+        // repetition.
+        scopePaths.add(childPrefix);
+        (nodes[childPrefix] ??= <plume.RenderNode<PaintToken>>[]).add(node);
+      }
     }
     if (tag is IdTag && visible) {
       final path = HitTag.join(prefix, tag.id);
@@ -221,7 +237,7 @@ class HitMap {
       into[path] = _rectOf(node);
       // The same visibility gate as the rect: a widget scrolled off a clipping
       // ancestor is absent, so no pointer resolves against its regions either.
-      nodes[path] = node;
+      (nodes[path] ??= <plume.RenderNode<PaintToken>>[]).add(node);
     }
     final childClip = node.clipsHits ? (clip == null ? ownRect : clip.intersect(ownRect)) : clip;
     node.visitChildren((child) => _collectRects(child, into, nodes, scopePaths, childClip, childPrefix));
@@ -286,25 +302,29 @@ class HitMap {
   ///
   /// Walks each on-screen tagged widget's own subtree (stopping at nested
   /// tagged widgets, the same boundary [_regionIn] respects) and trips if a key
-  /// repeats. Returns `true` so it can sit inside an `assert`; the real message
-  /// comes from the inner assert it trips.
-  static bool _regionKeysAreUnique(Map<String, plume.RenderNode<PaintToken>> nodes) {
+  /// repeats. A scope path may hold several nodes, each checked with its own
+  /// `seen` set: a scope may mark the same key once on each of its nodes.
+  /// Returns `true` so it can sit inside an `assert`; the real message comes
+  /// from the inner assert it trips.
+  static bool _regionKeysAreUnique(Map<String, List<plume.RenderNode<PaintToken>>> nodes) {
     for (final entry in nodes.entries) {
-      final seen = <Object>{};
-      void walk(plume.RenderNode<PaintToken> node, {required bool isRoot}) {
-        if (!isRoot && node.tag is IdTag) return;
-        for (final marked in node.markedRegions) {
-          assert(
-            seen.add(marked.key),
-            'Duplicate region key "${marked.key}" in widget "${entry.key}": a '
-            'widget may mark a region key at most once per frame, or the part '
-            'it names is ambiguous.',
-          );
+      for (final node in entry.value) {
+        final seen = <Object>{};
+        void walk(plume.RenderNode<PaintToken> n, {required bool isRoot}) {
+          if (!isRoot && n.tag is IdTag) return;
+          for (final marked in n.markedRegions) {
+            assert(
+              seen.add(marked.key),
+              'Duplicate region key "${marked.key}" in widget "${entry.key}": a '
+              'widget may mark a region key at most once per frame, or the part '
+              'it names is ambiguous.',
+            );
+          }
+          n.visitChildren((child) => walk(child, isRoot: false));
         }
-        node.visitChildren((child) => walk(child, isRoot: false));
-      }
 
-      walk(entry.value, isRoot: true);
+        walk(node, isRoot: true);
+      }
     }
     return true;
   }

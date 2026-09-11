@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 
 import 'modal_model.dart';
+import 'types.dart';
 
 /// Frames [content] as a dialog: a bordered box with a painted ground,
 /// tagged with [id] so a click inside it resolves back through
@@ -43,24 +44,51 @@ Rect centeredRect({required Rect area, required int width, required int height})
 }
 
 /// Renders [base], then — when [dialog] is non-null — dims the painted
-/// backdrop and layers [dialog] centred over it at [width]x[height].
+/// backdrop, renders a full-frame barrier under [id], and layers [dialog]
+/// centred over it at [width]x[height].
 ///
 /// [dialog] renders through [Frame.renderLayer]: a clean slate composited
 /// opaquely at the centred rect, so nothing painted underneath shows through
 /// it. [Frame.dimBackdrop] runs on the buffer between the base render and the
 /// layer, so it dims only what came before — never the dialog itself. Pass
 /// `dim: false` to skip the backdrop dim entirely.
+///
+/// The barrier is a [Tagged.scope] under [id] wrapping an empty
+/// [RegionMark], rendered through [Frame.render] between the dim and the
+/// dialog layer. A root lays out tight to the frame. A container with no
+/// ground paints no cell, so the barrier covers the frame without altering
+/// the dimmed backdrop.
+///
+/// `HitMap` answers [id] for both nodes: the dialog layer inside its own
+/// rect, the barrier everywhere else. A press anywhere on screen therefore
+/// addresses the modal, and [HitMap.regionAt] tells the two apart by
+/// [ModalBarrierRegion].
+///
+/// [id] must be the modal's id — the same id [dialog]'s root already carries
+/// as its [IdTag] — and non-null exactly when [dialog] is non-null.
 void renderModalOverlay(
   Frame frame, {
   required Node base,
   required int width,
   required int height,
   Node? dialog,
+  String? id,
   bool dim = true,
   double dimFactor = 0.3,
 }) {
+  assert(
+    (id == null) == (dialog == null),
+    'renderModalOverlay: id must be given exactly when dialog is, so the '
+    "barrier and the dialog layer can share the modal's id.",
+  );
+  assert(
+    dialog == null || dialog.tag == IdTag(id!),
+    "renderModalOverlay: dialog's root must carry IdTag(id) — build it with "
+    'modalDialog(id: id, ...) or tag it yourself.',
+  );
   frame.render(NodeView(base));
   if (dialog == null) return;
   if (dim) frame.dimBackdrop(factor: dimFactor);
+  frame.render(Tagged.scope(id!, const RegionMark(ModalBarrierRegion(), Container(child: SizedBox()))));
   frame.renderLayer(NodeView(dialog), centeredRect(area: frame.area, width: width, height: height));
 }

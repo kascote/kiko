@@ -1,5 +1,6 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko/testing.dart';
+import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
 import '../../example/theme_viewer/main.dart' as viewer;
@@ -83,6 +84,7 @@ void main() {
     'a press outside the dialog dismisses it and leaves the button behind the backdrop alone',
     () async {
       late Position pressAt;
+      late String modalId;
       final (model, seen) = await _drive(
         (script, model) => [
           // Open the dialog with a click on the Dialog… button.
@@ -91,10 +93,11 @@ void main() {
             b.emitClick(r.x, r.y);
           },
           // Press outside the dialog, over the OK button in the base tree. The
-          // app dismisses the dialog on this press.
+          // barrier claims the whole frame, so this press addresses the modal.
           (b) {
             final hits = script.lastFrame!.hits;
             expect(hits.isLive(model.modal!.id), isTrue, reason: 'the dialog is open');
+            modalId = model.modal!.id;
             final ok = hits.rectOf(model.okButton.id)!;
             pressAt = Position(ok.x, ok.y);
             b.emitPress(pressAt.x, pressAt.y);
@@ -105,10 +108,14 @@ void main() {
 
       expect(model.modal, isNull, reason: 'the press dismissed the dialog');
       expect(model.status, 'Dialog: cancelled', reason: 'the OK button never fired');
-      // The app's update does see the press, addressed to the button, and
-      // dismisses the dialog instead of routing it. The release is what must
-      // not fire the button.
-      expect(seen.whereType<PointerMsg>().where((p) => p.isDown && p.targetId == model.okButton.id), hasLength(1));
+      // The app's update sees exactly one down, addressed to the modal
+      // through the barrier, and the button behind the backdrop sees no
+      // PointerMsg at all.
+      expect(
+        seen.whereType<PointerMsg>().where((p) => p.isDown && p.targetId == modalId && p.region is ModalBarrierRegion),
+        hasLength(1),
+      );
+      expect(seen.whereType<PointerMsg>().where((p) => p.targetId == model.okButton.id), isEmpty);
     },
   );
 }

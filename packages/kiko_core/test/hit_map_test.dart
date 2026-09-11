@@ -107,6 +107,39 @@ class _MarkingLeaf extends plume.RenderNode<PaintToken> {
   }
 }
 
+/// A [w]×[h] node that marks [marks] like [_MarkingLeaf], but also lays out
+/// and paints [child] at [childOffset] — for nesting a tagged widget under a
+/// node this file tags as a scope.
+class _MarkingBox extends plume.SingleChildNode<PaintToken> {
+  _MarkingBox(
+    super.child, {
+    required this.w,
+    required this.h,
+    required this.marks,
+    this.childOffset = plume.Offset.zero,
+  });
+
+  final int w;
+  final int h;
+  final plume.Offset childOffset;
+  final List<(Region, plume.Rect)> marks;
+
+  @override
+  plume.Size performLayout(plume.BoxConstraints constraints, plume.LayoutContext context) {
+    child
+      ..layout(plume.BoxConstraints.loose(plume.Size(w, h)), context)
+      ..offset = childOffset;
+    return constraints.constrain(plume.Size(w, h));
+  }
+
+  @override
+  void paintSelf(plume.Surface<PaintToken> surface) {
+    for (final (region, r) in marks) {
+      markRegion(region, plume.Rect(rect.x + r.x, rect.y + r.y, r.width, r.height));
+    }
+  }
+}
+
 void main() {
   group('hitId', () {
     test('resolves a point to the innermost tagged widget', () {
@@ -350,11 +383,11 @@ void main() {
       expect(hits.hitPath(0, 0), [Hit('cb', Rect.create(x: 0, y: 0, width: 6, height: 4))]);
     });
 
-    test('rectOf and regionAt answer null for a scope path', () {
+    test('rectOf answers null for a scope path, and regionAt null when the scope marks nothing', () {
       final hits = _scopedFrame().hits;
 
       expect(hits.rectOf('cb'), isNull);
-      expect(hits.regionAt('cb', 0, 0), isNull);
+      expect(hits.regionAt('cb', 0, 0), isNull, reason: 'the scope node in _scopedFrame marks no region itself');
     });
   });
 
@@ -644,6 +677,48 @@ void main() {
       final frame = _frame(6, 4)..renderNode(plume.Viewport<PaintToken>(scrollOffset: 9, child: leaf));
 
       expect(frame.hits.regionAt('list', 0, 0), isNull);
+    });
+
+    test("a bare scope that marks its own region answers it, never a nested widget's mark", () {
+      // The scope covers 6×4 and marks its own top strip (rows 0-1). A nested
+      // leaf, tagged its own id, sits in the bottom strip (rows 2-3) and marks
+      // a different region there.
+      final inner = _MarkingLeaf('inner', w: 4, h: 2, marks: const [(_Indicator(0), plume.Rect(0, 0, 4, 2))]);
+      final scope = _MarkingBox(
+        inner,
+        w: 6,
+        h: 4,
+        marks: const [(_Row(0), plume.Rect(0, 0, 6, 2))],
+        childOffset: const plume.Offset(1, 2),
+      )..tag = ScopeTag('cb');
+      final hits = (_frame(6, 4)..renderNode(scope)).hits;
+
+      expect(hits.regionAt('cb', 3, 0), const _Row(0), reason: 'a bare-scope press answers the scope’s own mark');
+      expect(hits.regionAt('cb', 3, 3), isNull, reason: "the nested widget's mark does not surface on the scope");
+      expect(
+        hits.regionAt('cb/inner', 3, 3),
+        const _Indicator(0),
+        reason: 'the inner widget still answers its own path',
+      );
+    });
+
+    test('a scope and a layered leaf sharing one id: the scope answers outside the layer, null inside it', () {
+      // Mirrors how a modal barrier and its dialog share one id: a scope
+      // rendered first covers the whole frame and marks a region, then a
+      // leaf carrying the same id is layered over a smaller rect within it.
+      final barrier = _MarkingLeaf('confirm', w: 9, h: 5, marks: const [(_Row(0), plume.Rect(0, 0, 9, 5))])
+        ..tag = ScopeTag('confirm');
+      final frame = _frame(9, 5)
+        ..renderNode(barrier)
+        ..renderLayer(NodeView(_box('Dialog', 'confirm')), Rect.create(x: 2, y: 1, width: 4, height: 2));
+
+      final hits = frame.hits;
+      expect(hits.regionAt('confirm', 0, 0), const _Row(0), reason: 'outside the layer, the scope’s mark answers');
+      expect(
+        hits.regionAt('confirm', 3, 2),
+        isNull,
+        reason: 'inside the layer, the layered node answers for itself and marks nothing',
+      );
     });
   });
 }

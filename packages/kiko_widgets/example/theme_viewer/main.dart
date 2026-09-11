@@ -386,15 +386,10 @@ Cmd? onEvent(Model model, WidgetEvent event) {
     return (model, Batch([fetchFor(model, model.tree.loadRoots())]));
   }
 
-  // While the dialog is open it captures all input. A down-press outside its
-  // rendered rect dismisses it — the same ModalCancelEvent Escape emits.
+  // While the dialog is open, it owns every message addressed to it: it
+  // decides whether a press outside it dismisses it, and it absorbs any key
+  // it does not bind.
   if (model.modal case final modal?) {
-    if (msg case final PointerMsg pointer when pointer.isDown) {
-      final rect = ctx.hits.rectOf(modal.id);
-      if (rect == null || !rect.contains(pointer.global)) {
-        return (model, onEvent(model, modal.dismiss()));
-      }
-    }
     return switch (modal.update(msg)) {
       Handled(:final events, :final cmd) => (model, Batch([cmd, for (final e in events) onEvent(model, e)])),
       Declined() => (model, null),
@@ -496,7 +491,7 @@ void view(Model model, Frame frame) {
     null => null,
   };
 
-  renderModalOverlay(frame, base: ui.build(), width: 46, height: 8, dialog: dialog);
+  renderModalOverlay(frame, base: ui.build(), width: 46, height: 8, dialog: dialog, id: model.modal?.id);
 
   // Second pass: the popup paints over the tree that just rendered. A no-op
   // while the combobox is closed.

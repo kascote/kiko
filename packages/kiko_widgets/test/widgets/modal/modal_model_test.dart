@@ -34,9 +34,9 @@ void main() {
       );
     });
 
-    test('declines unbound keys', () {
+    test('absorbs unbound keys', () {
       final modal = ModalModel(id: 'm');
-      expect(modal.update(const KeyMsg('a')), isA<Declined>());
+      expect(modal.update(const KeyMsg('a')), isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
 
     test('declines when not focused', () {
@@ -50,14 +50,38 @@ void main() {
     });
   });
 
-  group('ModalModel.dismiss', () {
-    test('a click outside dismisses via the same cancel command as Escape', () {
+  group('ModalModel barrier press', () {
+    PointerMsg barrierDown(String id) => PointerMsg(
+      global: Position.origin,
+      local: Position.origin,
+      action: PointerAction.down,
+      targetId: id,
+      region: const ModalBarrierRegion(),
+    );
+
+    test('emits ModalCancelEvent, the same event Escape emits', () {
       final modal = ModalModel(id: 'm');
-      // The app detects the outside click (an app-side hitPath decision) and
-      // fires this — the same event, same id, that Escape emits.
-      final escapeEvent = (modal.update(const KeyMsg('escape')) as Handled).events.single;
-      expect(modal.dismiss(), equals(const ModalCancelEvent('m')));
-      expect(modal.dismiss(), equals(escapeEvent));
+      expect(
+        modal.update(barrierDown('m')),
+        isA<Handled>().having((h) => h.events, 'events', equals([const ModalCancelEvent('m')])),
+      );
+    });
+
+    test('a press on the dialog’s own cells is absorbed with no event', () {
+      final modal = ModalModel(id: 'm');
+      final onDialog = PointerMsg(
+        global: Position.origin,
+        local: Position.origin,
+        action: PointerAction.down,
+        targetId: 'm',
+        targetRect: Rect.create(x: 0, y: 0, width: 4, height: 2),
+      );
+      expect(modal.update(onDialog), isA<Handled>().having((h) => h.events, 'events', isEmpty));
+    });
+
+    test('emits nothing when dismissOnBarrierPress is off', () {
+      final modal = ModalModel(id: 'm', dismissOnBarrierPress: false);
+      expect(modal.update(barrierDown('m')), isA<Handled>().having((h) => h.events, 'events', isEmpty));
     });
   });
 }

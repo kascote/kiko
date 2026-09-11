@@ -58,7 +58,7 @@ void main() {
       ).build();
       final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
       final frame = _frame(10, 3);
-      renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog);
+      renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog, id: 'confirm');
 
       expect(frame.hits.rectOf('confirm'), isNotNull);
       // The backdrop's colour was dimmed before the dialog painted over it —
@@ -67,28 +67,28 @@ void main() {
       expect(corner.bg, isNot(equals(const Color.rgb(0xC8C8C8))));
     });
 
-    test(
-      'a press outside the dialog resolves to the modal, never to the base tree under the backdrop',
-      () {
-        // A tagged widget in the top-left corner of the base, well outside
-        // the centred dialog.
-        final base = Column(children: [Tagged('ok', Line('OK'))]).build();
-        final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
-        final frame = _frame(20, 8);
-        renderModalOverlay(frame, base: base, width: 10, height: 4, dialog: dialog);
+    test('a press outside the dialog resolves to the modal, never to the base tree under the backdrop', () {
+      // A tagged widget in the top-left corner of the base, well outside
+      // the centred dialog.
+      final base = Column(children: [Tagged('ok', Line('OK'))]).build();
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+      final frame = _frame(20, 8);
+      renderModalOverlay(frame, base: base, width: 10, height: 4, dialog: dialog, id: 'confirm');
 
-        final outside = frame.hits.hitId(0, 0);
-        expect(outside, isNotNull, reason: 'the modal claims the whole frame');
-        expect(outside, isNot('ok'), reason: 'the widget under the backdrop is unreachable while the modal is open');
-        expect(
-          HitTag.resolve(outside!, {'confirm'}),
-          'confirm',
-          reason: 'the outside press is addressed to the modal, so the app routes it like any other',
-        );
-      },
-      skip:
-          'pending: the dialog layer covers only its own rect, so the base tree stays hit-testable through the backdrop',
-    );
+      final outside = frame.hits.hitId(0, 0);
+      expect(outside, isNotNull, reason: 'the modal claims the whole frame');
+      expect(outside, isNot('ok'), reason: 'the widget under the backdrop is unreachable while the modal is open');
+      expect(
+        HitTag.resolve(outside!, {'confirm'}),
+        'confirm',
+        reason: 'the outside press is addressed to the modal, so the app routes it like any other',
+      );
+      expect(
+        frame.hits.regionAt(outside, 0, 0),
+        const ModalBarrierRegion(),
+        reason: 'the barrier marks itself, so the modal can tell an outside press from one on the dialog',
+      );
+    });
   });
 
   group('renderModalOverlay / layer compositing', () {
@@ -117,7 +117,14 @@ void main() {
         ).build();
 
         final frame = _frame(width, height);
-        renderModalOverlay(frame, base: buildBase(), width: dialogWidth, height: dialogHeight, dialog: buildDialog());
+        renderModalOverlay(
+          frame,
+          base: buildBase(),
+          width: dialogWidth,
+          height: dialogHeight,
+          dialog: buildDialog(),
+          id: 'confirm',
+        );
 
         final rect = centeredRect(area: frame.area, width: dialogWidth, height: dialogHeight);
 
@@ -149,7 +156,14 @@ void main() {
       ).build();
 
       final frame = _frame(width, height);
-      renderModalOverlay(frame, base: base, width: dialogWidth, height: dialogHeight, dialog: buildDialog());
+      renderModalOverlay(
+        frame,
+        base: base,
+        width: dialogWidth,
+        height: dialogHeight,
+        dialog: buildDialog(),
+        id: 'confirm',
+      );
 
       final rect = centeredRect(area: frame.area, width: dialogWidth, height: dialogHeight);
 

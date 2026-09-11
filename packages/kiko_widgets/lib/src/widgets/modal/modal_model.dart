@@ -11,7 +11,9 @@ import 'types.dart';
 /// this model exists only for the plain "are you sure?" shape.
 ///
 /// The app owns whether a modal is open at all (typically a nullable field
-/// holding this model); [update] only reacts to Enter/Escape while it exists.
+/// holding this model). While it is open, the modal owns every message
+/// addressed to it. A press on its barrier decides for itself whether to
+/// dismiss. An unknown key is absorbed rather than left for the app.
 class ModalModel implements Component {
   /// Unique identifier for the modal.
   @override
@@ -23,12 +25,20 @@ class ModalModel implements Component {
   /// Custom key bindings. Null uses [defaultModalBindings].
   final KeyBinding<ModalAction>? keyBinding;
 
+  /// Whether a press on the barrier dismisses the modal. Defaults to `true`.
+  final bool dismissOnBarrierPress;
+
   bool _focused;
 
   /// Creates a ModalModel.
-  ModalModel({String? id, this.confirmPayload, bool focused = true, this.keyBinding})
-    : id = id ?? autoId('modal'),
-      _focused = focused;
+  ModalModel({
+    String? id,
+    this.confirmPayload,
+    bool focused = true,
+    this.keyBinding,
+    this.dismissOnBarrierPress = true,
+  }) : id = id ?? autoId('modal'),
+       _focused = focused;
 
   /// Whether the modal is focused (captures input). Defaults to `true` since
   /// an open modal is normally the sole target of input while it exists.
@@ -40,36 +50,37 @@ class ModalModel implements Component {
   /// The effective key binding (custom or default).
   KeyBinding<ModalAction> get effectiveKeyBinding => keyBinding ?? defaultModalBindings;
 
-  /// The dismiss request the app fires when a click lands outside the modal.
-  ///
-  /// Reuses the same [ModalCancelEvent] the Escape key emits — same event, same
-  /// [id] — so a mouse dismiss and a keyboard dismiss are indistinguishable to
-  /// the app. Whether a click is "outside" is an app-side `hitPath` decision (a
-  /// widget's [update] never sees the hit map), so the app tests the click and
-  /// fires this; the modal only supplies the request.
-  ModalCancelEvent dismiss() => ModalCancelEvent(id);
-
   /// Updates the model based on the message.
   ///
-  /// Returns [Handled] with a [ModalConfirmEvent] on Enter and a [ModalCancelEvent]
-  /// on Escape, and [Declined] for any other key. A pointer addressed to the
-  /// modal (a click on its own chrome) is absorbed as [Handled] so it never
-  /// falls through to the dimmed backdrop; a click *outside* never reaches this
-  /// `update` (it addresses another id), so the app dismisses via [dismiss].
-  /// Any other message — one the modal does not know — is declined so the app
-  /// keeps it.
+  /// A `down` on the barrier — [PointerMsg.region] is a [ModalBarrierRegion] —
+  /// emits [ModalCancelEvent] when [dismissOnBarrierPress] is set. Otherwise
+  /// it is absorbed with no event. Every other pointer message addressed to
+  /// the modal is absorbed too, including a press on the dialog's own cells.
+  /// Nothing therefore falls through to the dimmed backdrop. These pointer
+  /// cases apply whether or not the modal is focused.
+  ///
+  /// Past the pointer cases, an unfocused modal declines. A focused modal
+  /// resolves a [KeyMsg] through [effectiveKeyBinding]. Enter returns
+  /// [ModalConfirmEvent] and Escape returns [ModalCancelEvent]. Any other key
+  /// is absorbed as [Handled], so nothing behind the modal reacts to it. A
+  /// message that is neither routed nor a key is declined.
   @override
   UpdateResult update(Msg msg) {
+    if (msg is PointerMsg) {
+      if (msg.isDown && msg.region is ModalBarrierRegion) {
+        return dismissOnBarrierPress ? Handled.event(ModalCancelEvent(id)) : const Handled();
+      }
+      return const Handled();
+    }
+    if (msg is PointerLeaveMsg || msg is PointerCancelMsg) return const Handled();
+
     if (!_focused) return const Declined();
-    // Pointer traffic on the modal's own chrome never falls through the
-    // dimmed backdrop.
-    if (msg is Routed) return const Handled();
     if (msg is! KeyMsg) return const Declined();
 
     return switch (effectiveKeyBinding.resolve(msg)) {
       ModalAction.confirm => Handled.event(ModalConfirmEvent(id, confirmPayload)),
       ModalAction.cancel => Handled.event(ModalCancelEvent(id)),
-      null => const Declined(),
+      null => const Handled(),
     };
   }
 }

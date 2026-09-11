@@ -62,3 +62,25 @@ class ModalCancelEvent extends WidgetEvent {
 final defaultModalBindings = KeyBinding<ModalAction>()
   ..map(['enter'], ModalAction.confirm)
   ..map(['escape'], ModalAction.cancel);
+
+/// The region a modal's barrier marks over the whole frame, outside the
+/// dialog's own rect.
+///
+/// `renderModalOverlay` paints the barrier under the dialog layer, carrying
+/// the modal's own id, so every press outside the dialog addresses the
+/// modal. `ModalModel.update` reads this region to tell a barrier press from
+/// a press on the dialog's own cells.
+@immutable
+class ModalBarrierRegion implements Region {
+  /// Marks the barrier region.
+  const ModalBarrierRegion();
+
+  @override
+  bool operator ==(Object other) => other is ModalBarrierRegion;
+
+  @override
+  int get hashCode => (ModalBarrierRegion).hashCode;
+
+  @override
+  String toString() => 'ModalBarrierRegion()';
+}

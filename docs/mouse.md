@@ -108,15 +108,20 @@ base tree and its popup in an overlay pass, and both areas belong to it.
 carried it.
 
 A press on a scope's own cells — no inner tag under the point — resolves to
-the scope's path and delivers with no region. `rectOf` answers `null` for a
-scope path, because a scope has no single rect. Presence is a separate
-question: `isLive(id)` is true for a leaf path while its rect is recorded,
-and for a scope path while any node carries the scope.
+the scope's path and carries the region the scope node marked there, if any.
+`rectOf` answers `null` for a scope path, because a scope has no single rect.
+Presence is a separate question: `isLive(id)` is true for a leaf path while
+its rect is recorded, and for a scope path while any node carries the scope.
 
 **A scope's rect is its press claim, so a scope must hug its content.** A
 scope node laid out larger than what it paints swallows presses over
 everything beneath it — an overlay scope above the base tree most of all.
 Size the scope to the content it owns.
+
+**A modal is the one deliberate exception: its content is the whole screen.**
+A modal renders a full-area barrier scope beneath its dialog layer, carrying
+the modal's own id, so a press anywhere on screen addresses the modal. The
+base tree under the dimmed backdrop is never reached.
 
 Delivery is the routers' half: a path resolves to the component registered
 under its longest prefix and arrives as-is, and the owner reads the segment
@@ -141,17 +146,20 @@ committed frame. Plume never reads the marks; kiko interprets them. `Region`
 is the key type kiko recognizes; any other key is ignored, exactly as a
 non-string `tag` is.
 
-**One walk, scoped by subtree.** `HitMap` construction records an id→node
+**One walk, scoped by subtree.** `HitMap` construction records a path→node
 index in the same walk that collects tag rects. A per-widget lookup —
 `regionAt(id, x, y)` — therefore descends only that widget's subtree, never
 the whole tree. It resolves the innermost marked region containing the point;
 a smaller part painted over a row wins the overlap. The descent stops at any
 nested tagged widget. A region can therefore only originate from the widget
 that receives it, and no model needs a defensive case for a neighbour's types.
-The router resolves the pointer's target (`hitId`) and its region (`regionAt`
-against that target) together, and attaches the region to the `PointerMsg` it
-already builds. A debug assert enforces one region key per widget per frame —
-the sibling of the one-tag-per-frame assert.
+A scope path may carry several nodes in one frame; the topmost node — the one
+painted last — whose rect contains the point answers, and the search never
+falls through to a node further back. The router resolves the pointer's
+target (`hitId`) and its region (`regionAt` against that target) together,
+and attaches the region to the `PointerMsg` it already builds. A debug assert
+enforces one region key per widget per frame — the sibling of the
+one-tag-per-frame assert.
 
 **Wheel, capture, the bare-scope press, leave:**
 

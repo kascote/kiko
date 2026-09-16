@@ -671,6 +671,29 @@ void main() {
       );
     });
 
+    test('changing the visual width re-wraps a cached line', () {
+      final component = TextAreaComponent(visualWidth: 10)..initBuffer('aaaa bbbb cccc dddd');
+      expect(
+        component.wrappedLines(0).first.map((c) => c.toString()).toList(),
+        ['aaaa bbbb ', 'cccc dddd '],
+        reason: 'populates the cache at width 10',
+      );
+
+      component.visualWidth = 20;
+      expect(
+        component.wrappedLines(0).first.map((c) => c.toString()).toList(),
+        ['aaaa bbbb cccc dddd '],
+        reason: 'a wider field must re-wrap, not reuse the rows cached at width 10',
+      );
+
+      component.visualWidth = 5;
+      expect(
+        component.wrappedLines(0).first.map((c) => c.toString()).toList(),
+        ['aaaa ', 'bbbb ', 'cccc ', 'dddd '],
+        reason: 'a narrower field must re-wrap too',
+      );
+    });
+
     test('re-assigning the same measurer instance leaves the wrap cache untouched', () {
       final counting = _CountingMeasurer(const TermUnicodeMeasurer());
       final component = TextAreaComponent(visualWidth: 4)

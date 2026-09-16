@@ -715,9 +715,11 @@ class WrapLine extends CacheItem {
   /// Creates a new WrapLine object
   WrapLine(this.lineItem);
 
+  /// The width is part of the key: the same line wraps differently at a
+  /// different width, and the view assigns the width on every paint.
   @override
   String get digest {
-    return sha256.convert(utf8.encode(lineItem.line.toString())).toString();
+    return sha256.convert(utf8.encode('${lineItem.width}:${lineItem.line}')).toString();
   }
 }
 

@@ -211,22 +211,7 @@ class TextInputModel implements Component {
     final action = keyBinding.resolve(msg);
 
     if (action != null) {
-      if (!disabled) {
-        final _ = switch (action) {
-          TextInputAction.home => _cursor = 0,
-          TextInputAction.end => _cursor = length,
-          TextInputAction.left => _cursor > 0 ? _cursor-- : null,
-          TextInputAction.right => _cursor < length ? _cursor++ : null,
-          TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
-          TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
-          TextInputAction.backspace => _deleteBeforeCursor(),
-          TextInputAction.delete => _deleteAfterCursor(),
-          TextInputAction.deleteWordLeft => _deleteWordLeft(),
-          TextInputAction.deleteWordRight => _deleteWordRight(),
-          TextInputAction.deleteToLineStart => _deleteToLineStart(),
-          TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
-        };
-      }
+      if (!disabled) _executeAction(action);
       return const Handled();
     }
 
@@ -244,6 +229,23 @@ class TextInputModel implements Component {
     }
 
     return const Declined(); // unhandled key
+  }
+
+  void _executeAction(TextInputAction action) {
+    final _ = switch (action) {
+      TextInputAction.home => _cursor = 0,
+      TextInputAction.end => _cursor = length,
+      TextInputAction.left => _cursor > 0 ? _cursor-- : null,
+      TextInputAction.right => _cursor < length ? _cursor++ : null,
+      TextInputAction.jumpWordLeft => _cursor = _findWordBoundaryLeft(_text, _cursor),
+      TextInputAction.jumpWordRight => _cursor = _findWordBoundaryRight(_text, _cursor),
+      TextInputAction.backspace => _deleteBeforeCursor(),
+      TextInputAction.delete => _deleteAfterCursor(),
+      TextInputAction.deleteWordLeft => _deleteWordLeft(),
+      TextInputAction.deleteWordRight => _deleteWordRight(),
+      TextInputAction.deleteToLineStart => _deleteToLineStart(),
+      TextInputAction.deleteToLineEnd => _deleteToLineEnd(),
+    };
   }
 
   void _insertAt(String input) {

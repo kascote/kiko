@@ -15,10 +15,10 @@ dependencies:
   kiko_log: ^0.0.1
   meta: ^1.16.0
   plume: ^0.0.1
-  termansi: ^0.3.1
-  termlib: ^0.4.0
-  termparser: ^0.3.0
-  termunicode: ^0.1.0
+  termansi: ^0.5.0
+  termlib: ^0.6.0
+  termparser: ^0.5.0
+  termunicode: ^0.3.0
 
 dev_dependencies:
   coverage: ^1.11.0

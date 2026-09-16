@@ -16,7 +16,7 @@ dependencies:
   kiko_log: ^0.0.1
   meta: ^1.16.0
   plume: ^0.0.1
-  termunicode: ^0.1.0
+  termunicode: ^0.3.0
 
 dev_dependencies:
   benchmark_harness: ^2.3.1

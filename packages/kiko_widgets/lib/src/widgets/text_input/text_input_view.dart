@@ -36,6 +36,10 @@ final class TextInput implements View {
   Node build() => _TextInputViewport(model: model, theme: theme, style: style)..tag = IdTag(model.id);
 }
 
+/// What painting the field's content left behind: the columns it used, and
+/// the caret position when this field owns the caret.
+typedef _Painted = ({int usedWidth, Position? cursor});
+
 /// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
@@ -88,78 +92,90 @@ class _TextInputViewport extends Node {
   }
 
   Position? _paint(Rect area, Surface surface) {
-    final visibleWidth = area.width;
-    final y = area.y;
     final m = model;
-
-    final showPlaceholder = m.length == 0 && m.placeholder.isNotEmpty;
-    int usedWidth;
-    Position? cursor;
-
     final disabledStates = <WidgetState>{if (m.disabled) WidgetState.disabled};
 
-    if (showPlaceholder) {
-      paintLine(
-        surface,
-        Line(m.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
-        x: area.x,
-        y: y,
-        width: area.width,
-        measurer: _measurer,
-      );
-      usedWidth = _measurer.widthOf(m.placeholder).clamp(0, visibleWidth);
-      if (m.focused && !m.disabled) cursor = Position(area.x, y);
-    } else {
-      final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(visibleWidth);
+    final showPlaceholder = m.length == 0 && m.placeholder.isNotEmpty;
+    final (:usedWidth, :cursor) = showPlaceholder
+        ? _paintPlaceholder(area, surface, disabledStates)
+        : _paintText(area, surface, disabledStates);
 
-      final textStyle = m.obscureText && _regionStyle.obscured != null
-          ? _resolver.resolve(_regionStyle.obscured, disabledStates, cls: PaintClass.ink)
-          : _resolveStyle();
-      paintLine(
-        surface,
-        Line(displayText.string, style: textStyle),
-        x: area.x,
-        y: y,
-        width: area.width,
-        skipColumns: scrollOffset,
-        measurer: _measurer,
-      );
-
-      final totalTextWidth = _measurer.widthOf(displayText.string);
-      usedWidth = (totalTextWidth - scrollOffset).clamp(0, visibleWidth);
-
-      if (m.focused && !m.disabled) {
-        cursor = Position(area.x + (cursorDisplayPos - scrollOffset), y);
-      }
-    }
-
-    // Fill remaining space with fillChar
     if (m.fillChar case final fillChar?) {
-      // If maxLength is set, fill up to maxLength; otherwise fill visible width
-      final targetWidth = m.maxLength != null ? m.maxLength!.clamp(0, visibleWidth) : visibleWidth;
-      final remainingWidth = targetWidth - usedWidth;
-      if (remainingWidth > 0) {
-        final charWidth = _measurer.widthOf(fillChar);
-        if (charWidth > 0) {
-          final fillCount = remainingWidth ~/ charWidth;
-          if (fillCount > 0) {
-            paintLine(
-              surface,
-              Line(
-                fillChar * fillCount,
-                style: _resolver.resolve(_regionStyle.fill, disabledStates, cls: PaintClass.ink),
-              ),
-              x: area.x + usedWidth,
-              y: y,
-              width: remainingWidth,
-              measurer: _measurer,
-            );
-          }
-        }
-      }
+      _paintFill(area, surface, disabledStates, fillChar: fillChar, usedWidth: usedWidth);
     }
 
     return cursor;
+  }
+
+  /// Paints the placeholder over the empty field. The caret, when this field
+  /// owns it, sits at the field's start.
+  _Painted _paintPlaceholder(Rect area, Surface surface, Set<WidgetState> disabledStates) {
+    final m = model;
+    paintLine(
+      surface,
+      Line(m.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      measurer: _measurer,
+    );
+    return (
+      usedWidth: _measurer.widthOf(m.placeholder).clamp(0, area.width),
+      cursor: m.focused && !m.disabled ? Position(area.x, area.y) : null,
+    );
+  }
+
+  /// Paints the text, scrolled so the caret stays in view. The caret, when
+  /// this field owns it, sits at its display column minus the scroll.
+  _Painted _paintText(Rect area, Surface surface, Set<WidgetState> disabledStates) {
+    final m = model;
+    final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(area.width);
+
+    final textStyle = m.obscureText && _regionStyle.obscured != null
+        ? _resolver.resolve(_regionStyle.obscured, disabledStates, cls: PaintClass.ink)
+        : _resolveStyle();
+    paintLine(
+      surface,
+      Line(displayText.string, style: textStyle),
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      skipColumns: scrollOffset,
+      measurer: _measurer,
+    );
+
+    final totalTextWidth = _measurer.widthOf(displayText.string);
+    return (
+      usedWidth: (totalTextWidth - scrollOffset).clamp(0, area.width),
+      cursor: m.focused && !m.disabled ? Position(area.x + (cursorDisplayPos - scrollOffset), area.y) : null,
+    );
+  }
+
+  /// Fills the space after [usedWidth] with [fillChar]: up to `maxLength`
+  /// when the model has one, else the visible width.
+  void _paintFill(
+    Rect area,
+    Surface surface,
+    Set<WidgetState> disabledStates, {
+    required String fillChar,
+    required int usedWidth,
+  }) {
+    final maxLength = model.maxLength;
+    final targetWidth = maxLength != null ? maxLength.clamp(0, area.width) : area.width;
+    final remainingWidth = targetWidth - usedWidth;
+    if (remainingWidth <= 0) return;
+    final charWidth = _measurer.widthOf(fillChar);
+    if (charWidth <= 0) return;
+    final fillCount = remainingWidth ~/ charWidth;
+    if (fillCount <= 0) return;
+    paintLine(
+      surface,
+      Line(fillChar * fillCount, style: _resolver.resolve(_regionStyle.fill, disabledStates, cls: PaintClass.ink)),
+      x: area.x + usedWidth,
+      y: area.y,
+      width: remainingWidth,
+      measurer: _measurer,
+    );
   }
 
   /// Resolves the input text style from the theme and the model's focus and

@@ -158,11 +158,29 @@ class StyleResolver {
     var result = base ?? const Style();
     if (states.isEmpty) return result;
 
+    result = _applyMatrix(result, states, cls, slots);
+    if (states.contains(WidgetState.cursor)) {
+      result = _applyCursor(result, cls, slots[WidgetState.cursor]);
+    }
+    if (states.contains(WidgetState.focused)) {
+      result = _applyFocus(result, cls, slots[WidgetState.focused]);
+    }
+    if (states.contains(WidgetState.disabled)) return _applyDisabled(result, cls);
+    if (states.contains(WidgetState.hover)) result = _applyHover(result);
+    if (states.contains(WidgetState.pressed)) result = _applyPressed(result);
+    return result;
+  }
+
+  /// Walks the matrix cells of [states] in declaration order and patches each
+  /// contribution — a slot or the [_cell] — onto [base].
+  ///
+  /// In the ink class, focused stays a matrix cell at its declaration
+  /// position: chrome keeps error ink over focus ink, as an ink has no
+  /// background to lift.
+  Style _applyMatrix(Style base, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    var result = base;
     for (final state in WidgetState.values) {
       if (!states.contains(state)) continue;
-      // In the ink class, focused stays a matrix cell at its declaration
-      // position: chrome keeps error ink over focus ink, as an ink has no
-      // background to lift.
       if (state == WidgetState.focused && cls == PaintClass.ink) {
         result = result.patch(slots[state] ?? ink(tones.focus)).incModifier(Modifier.bold);
         continue;
@@ -172,49 +190,38 @@ class StyleResolver {
       final contribution = slots[state] ?? _cell(state, cls);
       if (contribution != null) result = result.patch(contribution);
     }
-
-    if (states.contains(WidgetState.cursor)) {
-      result = switch (cls) {
-        PaintClass.fill => _liftOrFallback(
-          result,
-          slots[WidgetState.cursor] ?? fill(tones.cursor),
-        ).incModifier(Modifier.bold),
-        PaintClass.wash => _liftOrFallback(result, slots[WidgetState.cursor] ?? wash(tones.cursor)),
-        PaintClass.ink => result,
-      };
-    }
-
-    if (states.contains(WidgetState.focused)) {
-      result = switch (cls) {
-        PaintClass.fill => _liftOrFallback(
-          result,
-          slots[WidgetState.focused] ?? fill(tones.focus),
-        ).incModifier(Modifier.bold),
-        PaintClass.ink || PaintClass.wash => result,
-      };
-    }
-
-    final disabled = states.contains(WidgetState.disabled);
-    if (disabled) {
-      result = _applyDisabled(result, cls);
-    } else {
-      if (states.contains(WidgetState.hover)) {
-        result = _applyHover(result);
-      }
-
-      if (states.contains(WidgetState.pressed)) {
-        result = switch (policy) {
-          RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
-          RenderPolicy.noColor =>
-            result.addModifier.has(Modifier.reversed)
-                ? result.removeModifier(Modifier.reversed)
-                : result.incModifier(Modifier.reversed),
-        };
-      }
-    }
-
     return result;
   }
+
+  /// The [WidgetState.cursor] transform for [cls]: a lift on a colored
+  /// [result], or [slot] (else the cursor tone) on a bare one.
+  ///
+  /// A fill also gains bold. An ink has no cursor contribution.
+  Style _applyCursor(Style result, PaintClass cls, Style? slot) => switch (cls) {
+    PaintClass.fill => _liftOrFallback(result, slot ?? fill(tones.cursor)).incModifier(Modifier.bold),
+    PaintClass.wash => _liftOrFallback(result, slot ?? wash(tones.cursor)),
+    PaintClass.ink => result,
+  };
+
+  /// The [WidgetState.focused] transform for [cls]: a lift on a colored fill,
+  /// or [slot] (else the focus tone) plus bold on a bare one.
+  ///
+  /// An ink resolved focus as a matrix cell in [_applyMatrix]; a wash has no
+  /// focus contribution.
+  Style _applyFocus(Style result, PaintClass cls, Style? slot) => switch (cls) {
+    PaintClass.fill => _liftOrFallback(result, slot ?? fill(tones.focus)).incModifier(Modifier.bold),
+    PaintClass.ink || PaintClass.wash => result,
+  };
+
+  /// The [WidgetState.pressed] transform: inverts [result], or, under
+  /// [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
+  Style _applyPressed(Style result) => switch (policy) {
+    RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
+    RenderPolicy.noColor =>
+      result.addModifier.has(Modifier.reversed)
+          ? result.removeModifier(Modifier.reversed)
+          : result.incModifier(Modifier.reversed),
+  };
 
   /// The states [resolve] still walks as matrix cells, in priority order.
   static const Set<WidgetState> _matrixStates = {

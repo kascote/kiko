@@ -442,46 +442,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// widget.
   @override
   UpdateResult update(Msg msg) {
-    if (msg case final PointerMsg pointer) {
-      if (pointer.wheelDeltaY != 0) {
-        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
-        // Nothing moved in that direction (already at the edge) — decline so a
-        // nesting scroll ancestor gets the notch; consuming at the limit would
-        // make nesting permanently dead. A tree never pages on a wheel (only on
-        // expand), so there is no load-threshold check to run on the handled
-        // path.
-        return moved == 0 ? const Declined() : const Handled();
-      }
-      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
-
-      // The part under the pointer is resolved by the framework and carried on
-      // the message. A press on the expand indicator toggles the branch; every
-      // other row part (including a hover over the indicator) goes through the
-      // shared row handler, which moves the cursor and activates on a press.
-      final region = pointer.region;
-      if (region is TreeIndicatorRegion && pointer.isDown) {
-        _cursor = region.index;
-        _adjustScrollToCursor();
-        return Handled(events: _handleToggle());
-      }
-      if (region is RowScoped) {
-        return handleRowPointer(
-          pointer,
-          region.index,
-          setHover: (r) => hoverRow = r,
-          moveCursorTo: (r) {
-            _cursor = r;
-            _adjustScrollToCursor();
-          },
-          activate: _handleConfirm,
-        );
-      }
-      // No marked part — the blank tail below the last node. A press bubbles;
-      // a move clears the hover.
-      if (pointer.isDown) return const Declined();
-      hoverRow = null;
-      return const Handled();
-    }
+    if (msg case final PointerMsg pointer) return _handlePointer(pointer);
     if (msg is PointerLeaveMsg) {
       hoverRow = null;
       return const Handled();
@@ -492,42 +453,84 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
     if (!focused) return const Declined();
 
-    if (msg case KeyMsg()) {
-      final action = keyBinding.resolve(msg);
-      if (action == null) return const Declined();
+    if (msg case KeyMsg()) return _handleKey(msg);
+    return const Declined();
+  }
 
-      switch (action) {
-        case TreeViewAction.up:
-          _moveCursor(-1);
-        case TreeViewAction.down:
-          _moveCursor(1);
-        case TreeViewAction.first:
-          _cursor = 0;
-          _adjustScrollToCursor();
-        case TreeViewAction.last:
-          if (_flatNodes.isNotEmpty) {
-            _cursor = _flatNodes.length - 1;
-          }
-          _adjustScrollToCursor();
-        case TreeViewAction.pageUp:
-          _moveCursor(-_visibleCount.clamp(1, 100));
-        case TreeViewAction.pageDown:
-          _moveCursor(_visibleCount.clamp(1, 100));
-        case TreeViewAction.expand:
-          return Handled(events: _handleExpand());
-        case TreeViewAction.collapse:
-          return Handled(events: _handleCollapse());
-        case TreeViewAction.toggle:
-          return Handled(events: _handleToggle());
-        case TreeViewAction.confirm:
-          final event = _handleConfirm();
-          return event == null ? const Handled() : Handled.event(event);
-      }
+  UpdateResult _handlePointer(PointerMsg pointer) {
+    if (pointer.wheelDeltaY != 0) {
+      final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+      // Nothing moved in that direction (already at the edge) — decline so a
+      // nesting scroll ancestor gets the notch; consuming at the limit would
+      // make nesting permanently dead. A tree never pages on a wheel (only on
+      // expand), so there is no load-threshold check to run on the handled
+      // path.
+      return moved == 0 ? const Declined() : const Handled();
+    }
+    if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-      return const Handled();
+    // The part under the pointer is resolved by the framework and carried on
+    // the message. A press on the expand indicator toggles the branch; every
+    // other row part (including a hover over the indicator) goes through the
+    // shared row handler, which moves the cursor and activates on a press.
+    final region = pointer.region;
+    if (region is TreeIndicatorRegion && pointer.isDown) {
+      _cursor = region.index;
+      _adjustScrollToCursor();
+      return Handled(events: _handleToggle());
+    }
+    if (region is RowScoped) {
+      return handleRowPointer(
+        pointer,
+        region.index,
+        setHover: (r) => hoverRow = r,
+        moveCursorTo: (r) {
+          _cursor = r;
+          _adjustScrollToCursor();
+        },
+        activate: _handleConfirm,
+      );
+    }
+    // No marked part — the blank tail below the last node. A press bubbles;
+    // a move clears the hover.
+    if (pointer.isDown) return const Declined();
+    hoverRow = null;
+    return const Handled();
+  }
+
+  UpdateResult _handleKey(KeyMsg msg) {
+    final action = keyBinding.resolve(msg);
+    if (action == null) return const Declined();
+
+    switch (action) {
+      case TreeViewAction.up:
+        _moveCursor(-1);
+      case TreeViewAction.down:
+        _moveCursor(1);
+      case TreeViewAction.first:
+        _cursor = 0;
+        _adjustScrollToCursor();
+      case TreeViewAction.last:
+        if (_flatNodes.isNotEmpty) {
+          _cursor = _flatNodes.length - 1;
+        }
+        _adjustScrollToCursor();
+      case TreeViewAction.pageUp:
+        _moveCursor(-_visibleCount.clamp(1, 100));
+      case TreeViewAction.pageDown:
+        _moveCursor(_visibleCount.clamp(1, 100));
+      case TreeViewAction.expand:
+        return Handled(events: _handleExpand());
+      case TreeViewAction.collapse:
+        return Handled(events: _handleCollapse());
+      case TreeViewAction.toggle:
+        return Handled(events: _handleToggle());
+      case TreeViewAction.confirm:
+        final event = _handleConfirm();
+        return event == null ? const Handled() : Handled.event(event);
     }
 
-    return const Declined();
+    return const Handled();
   }
 
   // ─────────────────────────────────────────────

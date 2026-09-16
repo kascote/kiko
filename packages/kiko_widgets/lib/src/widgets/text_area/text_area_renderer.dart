@@ -123,61 +123,64 @@ class TextAreaRenderer {
     var screenY = 0; // current screen Y position
     Position? cursor;
 
-    // Iterate through buffer lines
-    for (var bufferRow = 0; bufferRow < ta.lineCount; bufferRow++) {
+    // Walk the buffer lines and their wraps until the visible area is full.
+    for (var bufferRow = 0; bufferRow < ta.lineCount && screenY < area.height; bufferRow++) {
       final wrappedLines = ta.wrappedLines(bufferRow, bufferRow + 1).first;
 
-      for (var wrapOffset = 0; wrapOffset < wrappedLines.length; wrapOffset++) {
+      for (var wrapOffset = 0; wrapOffset < wrappedLines.length && screenY < area.height; wrapOffset++) {
         // Skip lines before scroll offset
         if (visualRow < m.scrollOffset) {
           visualRow++;
           continue;
         }
 
-        // Stop if past visible area
-        if (screenY >= area.height) break;
-
-        final y = area.y + screenY;
-        final line = wrappedLines[wrapOffset];
-
-        // Render line number (only on first wrap of each buffer line)
-        if (m.showLineNumbers) {
-          _renderLineNumber(
-            surface,
-            area.x,
-            y,
-            gutterWidth,
-            wrapOffset == 0 ? bufferRow + 1 : null,
-          );
-        }
-
-        // Render text content
-        final textX = area.x + gutterWidth;
-
-        _renderLine(
+        // Only the caret's own row answers with a position, so the first
+        // answer is the only one.
+        cursor ??= _renderVisualRow(
+          area,
           surface,
-          Rect.create(x: textX, y: y, width: textAreaWidth, height: 1),
-          line,
-          bufferRow,
-          wrapOffset,
+          gutterWidth,
+          textAreaWidth,
+          y: area.y + screenY,
+          line: wrappedLines[wrapOffset],
+          bufferRow: bufferRow,
+          wrapOffset: wrapOffset,
         );
-
-        // Position cursor if on this line
-        if (m.focused && !m.disabled && bufferRow == ta.row && wrapOffset == m.currentLineInfo.rowOffset) {
-          final cursorX = textX + m.currentLineInfo.visualOffset;
-          if (cursorX < textX + textAreaWidth) {
-            cursor = Position(cursorX, y);
-          }
-        }
 
         screenY++;
         visualRow++;
       }
-
-      if (screenY >= area.height) break;
     }
 
     return cursor;
+  }
+
+  /// Paints one visual row at [y]: the line number (on the first wrap of a
+  /// buffer line), then [line]. Returns the caret position when the caret
+  /// sits on this row and inside the text width, else `null`.
+  Position? _renderVisualRow(
+    Rect area,
+    Surface surface,
+    int gutterWidth,
+    int textAreaWidth, {
+    required int y,
+    required Characters line,
+    required int bufferRow,
+    required int wrapOffset,
+  }) {
+    final m = model;
+    if (m.showLineNumbers) {
+      _renderLineNumber(surface, area.x, y, gutterWidth, wrapOffset == 0 ? bufferRow + 1 : null);
+    }
+
+    final textX = area.x + gutterWidth;
+    _renderLine(surface, Rect.create(x: textX, y: y, width: textAreaWidth, height: 1), line, bufferRow, wrapOffset);
+
+    final onCaretRow =
+        m.focused && !m.disabled && bufferRow == m.textArea.row && wrapOffset == m.currentLineInfo.rowOffset;
+    if (!onCaretRow) return null;
+    final cursorX = textX + m.currentLineInfo.visualOffset;
+    return cursorX < textX + textAreaWidth ? Position(cursorX, y) : null;
   }
 
   void _renderLineNumber(

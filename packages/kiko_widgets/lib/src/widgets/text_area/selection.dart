@@ -140,6 +140,10 @@ class SelectedBlock {
   }
 
   /// Returns the lineParts of the selection
+  // The branches rebuild the visual row's geometry from the row info the
+  // cursor movers recorded; the shape is the recorded model's, and the widget
+  // is slated for replacement rather than a rewrite here.
+  // ignore: dmetrics_cognitive
   List<SelectionPart>? getLineParts(int row, int offset, Characters line) {
     final n = getNormalizedSelection();
     final rowInfo = getRowInfo((row: row, offset: offset));

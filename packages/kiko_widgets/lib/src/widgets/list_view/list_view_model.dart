@@ -429,40 +429,7 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
   /// nothing — the list understands the key and has nothing to act on.
   @override
   UpdateResult update(Msg msg) {
-    if (msg case final PointerMsg pointer) {
-      if (pointer.wheelDeltaY != 0) {
-        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
-        // Nothing moved in that direction (already at the edge) — decline so a
-        // nesting scroll ancestor gets the notch; consuming at the limit would
-        // make nesting permanently dead.
-        if (moved == 0) return const Declined();
-        return Handled(events: demand());
-      }
-      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
-
-      // The row under the pointer is resolved by the framework and carried on
-      // the message — no cursor arithmetic here. A click activates like Enter;
-      // any other pointer just refreshes the hover.
-      if (pointer.region case final RowScoped row) {
-        return handleRowPointer(
-          pointer,
-          row.index,
-          setHover: (r) => hoverRow = r,
-          moveCursorTo: (r) {
-            _cursor = r;
-            _adjustScrollToCursor();
-          },
-          // An item the window does not hold cannot be activated: the cursor
-          // still moves, the press stays consumed, and no event is emitted.
-          activate: () => cursorItem == null ? null : ListActivateEvent(id),
-        );
-      }
-      // No marked part under the pointer — a separator or the blank tail below
-      // the last item. A press is not ours, so it bubbles; a move clears hover.
-      if (pointer.isDown) return const Declined();
-      hoverRow = null;
-      return const Handled();
-    }
+    if (msg case final PointerMsg pointer) return _handlePointer(pointer);
     if (msg is PointerLeaveMsg) {
       hoverRow = null;
       return const Handled();
@@ -473,49 +440,85 @@ class ListViewModel<T, K> with ScrollableModel implements Component {
 
     if (!focused) return const Declined();
 
-    if (msg case KeyMsg()) {
-      final action = keyBinding.resolve(msg);
-      if (action == null) return const Declined();
+    if (msg case KeyMsg()) return _handleKey(msg);
+    return const Declined();
+  }
 
-      switch (action) {
-        case ListViewAction.up:
-          _moveCursor(-1);
-          _selectionAnchor = null;
-        case ListViewAction.down:
-          _moveCursor(1);
-          _selectionAnchor = null;
-        case ListViewAction.first:
-          _cursor = 0;
-          _adjustScrollToCursor();
-          _selectionAnchor = null;
-        case ListViewAction.last:
-          if (itemLimit > 0) _cursor = itemLimit - 1;
-          _adjustScrollToCursor();
-          _selectionAnchor = null;
-        case ListViewAction.pageUp:
-          _moveCursor(-_visibleCount.clamp(1, 100));
-          _selectionAnchor = null;
-        case ListViewAction.pageDown:
-          _moveCursor(_visibleCount.clamp(1, 100));
-          _selectionAnchor = null;
-        case ListViewAction.toggleSelect:
-          _toggleSelectAtCursor();
-        case ListViewAction.confirm:
-          // An item the window does not hold cannot be confirmed: the key is
-          // consumed — a declined confirm would fire the app's fallback
-          // bindings — and no event is emitted.
-          if (cursorItem == null) return const Handled();
-          return Handled.event(ListActivateEvent(id));
-        case ListViewAction.selectUp:
-          if (multiSelect) _rangeSelect(-1);
-        case ListViewAction.selectDown:
-          if (multiSelect) _rangeSelect(1);
-      }
-
+  UpdateResult _handlePointer(PointerMsg pointer) {
+    if (pointer.wheelDeltaY != 0) {
+      final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+      // Nothing moved in that direction (already at the edge) — decline so a
+      // nesting scroll ancestor gets the notch; consuming at the limit would
+      // make nesting permanently dead.
+      if (moved == 0) return const Declined();
       return Handled(events: demand());
     }
+    if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-    return const Declined();
+    // The row under the pointer is resolved by the framework and carried on
+    // the message — no cursor arithmetic here. A click activates like Enter;
+    // any other pointer just refreshes the hover.
+    if (pointer.region case final RowScoped row) {
+      return handleRowPointer(
+        pointer,
+        row.index,
+        setHover: (r) => hoverRow = r,
+        moveCursorTo: (r) {
+          _cursor = r;
+          _adjustScrollToCursor();
+        },
+        // An item the window does not hold cannot be activated: the cursor
+        // still moves, the press stays consumed, and no event is emitted.
+        activate: () => cursorItem == null ? null : ListActivateEvent(id),
+      );
+    }
+    // No marked part under the pointer — a separator or the blank tail below
+    // the last item. A press is not ours, so it bubbles; a move clears hover.
+    if (pointer.isDown) return const Declined();
+    hoverRow = null;
+    return const Handled();
+  }
+
+  UpdateResult _handleKey(KeyMsg msg) {
+    final action = keyBinding.resolve(msg);
+    if (action == null) return const Declined();
+
+    switch (action) {
+      case ListViewAction.up:
+        _moveCursor(-1);
+        _selectionAnchor = null;
+      case ListViewAction.down:
+        _moveCursor(1);
+        _selectionAnchor = null;
+      case ListViewAction.first:
+        _cursor = 0;
+        _adjustScrollToCursor();
+        _selectionAnchor = null;
+      case ListViewAction.last:
+        if (itemLimit > 0) _cursor = itemLimit - 1;
+        _adjustScrollToCursor();
+        _selectionAnchor = null;
+      case ListViewAction.pageUp:
+        _moveCursor(-_visibleCount.clamp(1, 100));
+        _selectionAnchor = null;
+      case ListViewAction.pageDown:
+        _moveCursor(_visibleCount.clamp(1, 100));
+        _selectionAnchor = null;
+      case ListViewAction.toggleSelect:
+        _toggleSelectAtCursor();
+      case ListViewAction.confirm:
+        // An item the window does not hold cannot be confirmed: the key is
+        // consumed — a declined confirm would fire the app's fallback
+        // bindings — and no event is emitted.
+        if (cursorItem == null) return const Handled();
+        return Handled.event(ListActivateEvent(id));
+      case ListViewAction.selectUp:
+        if (multiSelect) _rangeSelect(-1);
+      case ListViewAction.selectDown:
+        if (multiSelect) _rangeSelect(1);
+    }
+
+    return Handled(events: demand());
   }
 
   // ─────────────────────────────────────────────

@@ -250,6 +250,8 @@ class TextAreaModel implements Component {
     return const Declined(); // unhandled key
   }
 
+  // A dispatch table, one arm per action: its size is the action set's.
+  // ignore: dmetrics_cyclomatic
   void _executeAction(TextAreaAction action) {
     final _ = switch (action) {
       TextAreaAction.up => textArea.moveCursorUp(),

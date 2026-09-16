@@ -136,18 +136,7 @@ class _TreeViewport<T> extends Node {
     final nodes = m.flatNodes;
 
     if (!m.isLoaded || nodes.isEmpty) {
-      final placeholder = emptyPlaceholder;
-      if (placeholder != null) {
-        paintLine(
-          surface,
-          placeholder,
-          x: area.x,
-          y: area.y,
-          width: area.width,
-          base: _placeholderStyle(),
-          measurer: _measurer,
-        );
-      }
+      _paintEmpty(area, surface);
       return;
     }
 
@@ -163,67 +152,95 @@ class _TreeViewport<T> extends Node {
 
     var y = area.y;
     for (var i = startIndex; i < endIndex; i++) {
-      final node = nodes[i];
-      final isCursor = i == m.cursor;
-      final isExpanded = m.isExpanded(node.path);
-      final isLoading = m.isPathLoading(node.path);
-
       final rowArea = Rect.create(x: area.x, y: y, width: area.width, height: 1);
       if (rowArea.isEmpty) break;
 
       // Mark the whole node row first, so a pointer anywhere on it resolves to
       // the node.
       markRegion(RowRegion(i), rowArea.toPlume());
-
-      // The row base goes to the resolver with its active states, so the
-      // resolver — not this widget — decides how a state lands on it. The
-      // cursor paints as a fill when the tree owns focus and as a wash when
-      // it does not; a colored base lifts either way instead of one state's
-      // fill replacing another's. Hover applies last, inside the resolver, in
-      // its own call. The loading state paints the indicator glyph alone,
-      // never the row.
-      final isHover = m.hoverRow == i;
-      var rowStyle = style.item ?? const Style();
-      final styled = style.item != null || isCursor || isHover;
-      rowStyle = _resolver.resolve(
-        rowStyle,
-        {if (isCursor) WidgetState.cursor},
-        cls: m.focused ? PaintClass.fill : PaintClass.wash,
-        slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
-      );
-      rowStyle = _resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
-      if (styled) {
-        fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
-      }
-
-      final state = (cursor: isCursor, hover: isHover, loading: isLoading, expanded: isExpanded);
-      final placeholder = node.placeholder;
-      final nodeLine = placeholder != null
-          ? _placeholderLine(placeholder)
-          : nodeBuilder != null
-          ? nodeBuilder!(node, node.depth, state)
-          : _defaultNode(node, state, m);
-
-      final indent = node.depth * m.indentWidth;
-      final contentWidth = (area.width - indent).clamp(0, area.width);
-      if (contentWidth > 0) {
-        paintLine(surface, nodeLine, x: area.x + indent, y: y, width: contentWidth, measurer: _measurer);
-      }
-
-      // The default builder draws a two-cell expand indicator at the indent for
-      // a non-leaf node. Mark it — on top of the row, so a click on it wins the
-      // overlap — only when it is actually painted: a custom nodeBuilder draws
-      // no indicator, so none exists to hit, and a press there falls through to
-      // the row and activates instead of toggling geometry that was never drawn.
-      if (nodeBuilder == null && !node.isLeaf) {
-        final indicator = Rect.create(x: area.x + indent, y: y, width: 2, height: 1).intersection(rowArea);
-        if (!indicator.isEmpty) {
-          markRegion(TreeIndicatorRegion(i), indicator.toPlume());
-        }
-      }
-
+      _paintRow(surface, rowArea, i, nodes[i]);
       y++;
     }
+  }
+
+  /// Paints the empty-state line, when there is one.
+  void _paintEmpty(Rect area, Surface surface) {
+    final placeholder = emptyPlaceholder;
+    if (placeholder == null) return;
+    paintLine(
+      surface,
+      placeholder,
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      base: _placeholderStyle(),
+      measurer: _measurer,
+    );
+  }
+
+  /// Paints [node], the row at [index], into [rowArea]: its state fill first,
+  /// then its line at the node's indent, then the expand indicator's region.
+  void _paintRow(Surface surface, Rect rowArea, int index, TreeNode<T> node) {
+    final m = model;
+    final isCursor = index == m.cursor;
+    final isHover = m.hoverRow == index;
+    final styled = style.item != null || isCursor || isHover;
+    if (styled) {
+      final rowStyle = _rowStyle(isCursor: isCursor, isHover: isHover);
+      fillRow(surface, x: rowArea.x, y: rowArea.y, width: rowArea.width, style: rowStyle);
+    }
+
+    final state = (
+      cursor: isCursor,
+      hover: isHover,
+      loading: m.isPathLoading(node.path),
+      expanded: m.isExpanded(node.path),
+    );
+    final nodeLine = _nodeLine(node, state);
+    final indent = node.depth * m.indentWidth;
+    final contentWidth = (rowArea.width - indent).clamp(0, rowArea.width);
+    if (contentWidth > 0) {
+      paintLine(surface, nodeLine, x: rowArea.x + indent, y: rowArea.y, width: contentWidth, measurer: _measurer);
+    }
+
+    // The default builder draws a two-cell expand indicator at the indent for
+    // a non-leaf node. Mark it — on top of the row, so a click on it wins the
+    // overlap — only when it is actually painted: a custom nodeBuilder draws
+    // no indicator, so none exists to hit, and a press there falls through to
+    // the row and activates instead of toggling geometry that was never drawn.
+    if (nodeBuilder == null && !node.isLeaf) {
+      final indicator = Rect.create(x: rowArea.x + indent, y: rowArea.y, width: 2, height: 1).intersection(rowArea);
+      if (!indicator.isEmpty) {
+        markRegion(TreeIndicatorRegion(index), indicator.toPlume());
+      }
+    }
+  }
+
+  /// Resolves the row base through its cursor and hover states.
+  ///
+  /// The row base goes to the resolver with its active states, so the
+  /// resolver — not this widget — decides how a state lands on it. The cursor
+  /// paints as a fill when the tree owns focus and as a wash when it does not;
+  /// a colored base lifts either way instead of one state's fill replacing
+  /// another's. Hover applies last, inside the resolver, in its own call. The
+  /// loading state paints the indicator glyph alone, never the row.
+  Style _rowStyle({required bool isCursor, required bool isHover}) {
+    final rowStyle = _resolver.resolve(
+      style.item ?? const Style(),
+      {if (isCursor) WidgetState.cursor},
+      cls: model.focused ? PaintClass.fill : PaintClass.wash,
+      slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
+    );
+    return _resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
+  }
+
+  /// The line for [node]: a placeholder row's label, the caller's builder, or
+  /// the default node.
+  Line _nodeLine(TreeNode<T> node, NodeState state) {
+    final placeholder = node.placeholder;
+    if (placeholder != null) return _placeholderLine(placeholder);
+    if (nodeBuilder case final build?) return build(node, node.depth, state);
+    return _defaultNode(node, state, model);
   }
 
   Line _defaultNode(TreeNode<T> node, NodeState state, TreeViewModel<T> m) {

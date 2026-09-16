@@ -461,47 +461,7 @@ class TableViewModel with ScrollableModel implements Component {
   /// the table understands the key and has nothing to act on.
   @override
   UpdateResult update(Msg msg) {
-    if (msg case final PointerMsg pointer) {
-      if (pointer.wheelDeltaY != 0) {
-        final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
-        // Nothing moved in that direction (already at the edge) — decline so a
-        // nesting scroll ancestor gets the notch; consuming at the limit would
-        // make nesting permanently dead.
-        if (moved == 0) return const Declined();
-        return Handled(events: demand());
-      }
-      if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
-
-      // The part under the pointer is resolved by the framework and carried on
-      // the message. A data row activates like Enter.
-      final region = pointer.region;
-      if (region is RowScoped) {
-        return handleRowPointer(
-          pointer,
-          region.index,
-          setHover: (r) => hoverRow = r,
-          moveCursorTo: (r) {
-            _cursorRow = r;
-            _adjustScrollToCursor();
-          },
-          // A row the window does not hold cannot be activated: the cursor
-          // still moves, the press stays consumed, and no event is emitted.
-          activate: () => cursorRowData == null ? null : TableActivateEvent(id, 'primary'),
-        );
-      }
-      if (region is TableHeaderRegion) {
-        // Marked from day one so a future column sort hangs off the region
-        // instead of new geometry. For now a press declines and bubbles,
-        // exactly as before regions existed, and any pointer clears the hover.
-        hoverRow = null;
-        return pointer.isDown ? const Declined() : const Handled();
-      }
-      // No marked part — the empty-state line or the blank tail. A press
-      // bubbles; a move clears the hover.
-      if (pointer.isDown) return const Declined();
-      hoverRow = null;
-      return const Handled();
-    }
+    if (msg case final PointerMsg pointer) return _handlePointer(pointer);
     if (msg is PointerLeaveMsg) {
       hoverRow = null;
       return const Handled();
@@ -512,49 +472,92 @@ class TableViewModel with ScrollableModel implements Component {
 
     if (!focused) return const Declined();
 
-    if (msg case KeyMsg()) {
-      final action = keyBinding.resolve(msg);
-      if (action == null) return const Declined();
+    if (msg case KeyMsg()) return _handleKey(msg);
+    return const Declined();
+  }
 
-      switch (action) {
-        case TableViewAction.up:
-          _moveCursorRow(-1);
-        case TableViewAction.down:
-          _moveCursorRow(1);
-        case TableViewAction.left:
-          _moveCursorCol(-1);
-        case TableViewAction.right:
-          _moveCursorCol(1);
-        case TableViewAction.pageUp:
-          _moveCursorRow(-_visibleRows.clamp(1, 100));
-        case TableViewAction.pageDown:
-          _moveCursorRow(_visibleRows.clamp(1, 100));
-        case TableViewAction.home:
-          _cursorRow = 0;
-          _adjustScrollToCursor();
-        case TableViewAction.end:
-          _cursorRow = (rowLimit - 1).clamp(0, rowLimit);
-          _adjustScrollToCursor();
-        case TableViewAction.firstCol:
-          _cursorCol = 0;
-          _adjustHorizontalScroll();
-        case TableViewAction.lastCol:
-          _cursorCol = (_visibleColumns.length - 1).clamp(0, 999);
-          _adjustHorizontalScroll();
-        case TableViewAction.toggleSelect:
-          if (selectionEnabled) _toggleSelectAtCursor();
-        case TableViewAction.confirm:
-          // A row the window does not hold cannot be confirmed: the key is
-          // consumed — a declined confirm would fire the app's fallback
-          // bindings — and no event is emitted.
-          if (cursorRowData == null) return const Handled();
-          return Handled.event(TableActivateEvent(id, 'primary'));
-      }
-
+  UpdateResult _handlePointer(PointerMsg pointer) {
+    if (pointer.wheelDeltaY != 0) {
+      final moved = scrollBy(wheelScrollLines * pointer.wheelDeltaY);
+      // Nothing moved in that direction (already at the edge) — decline so a
+      // nesting scroll ancestor gets the notch; consuming at the limit would
+      // make nesting permanently dead.
+      if (moved == 0) return const Declined();
       return Handled(events: demand());
     }
+    if (pointer.isWheel) return const Declined(); // a horizontal wheel is not ours
 
-    return const Declined();
+    // The part under the pointer is resolved by the framework and carried on
+    // the message. A data row activates like Enter.
+    final region = pointer.region;
+    if (region is RowScoped) {
+      return handleRowPointer(
+        pointer,
+        region.index,
+        setHover: (r) => hoverRow = r,
+        moveCursorTo: (r) {
+          _cursorRow = r;
+          _adjustScrollToCursor();
+        },
+        // A row the window does not hold cannot be activated: the cursor
+        // still moves, the press stays consumed, and no event is emitted.
+        activate: () => cursorRowData == null ? null : TableActivateEvent(id, 'primary'),
+      );
+    }
+    if (region is TableHeaderRegion) {
+      // Marked from day one so a future column sort hangs off the region
+      // instead of new geometry. For now a press declines and bubbles,
+      // exactly as before regions existed, and any pointer clears the hover.
+      hoverRow = null;
+      return pointer.isDown ? const Declined() : const Handled();
+    }
+    // No marked part — the empty-state line or the blank tail. A press
+    // bubbles; a move clears the hover.
+    if (pointer.isDown) return const Declined();
+    hoverRow = null;
+    return const Handled();
+  }
+
+  UpdateResult _handleKey(KeyMsg msg) {
+    final action = keyBinding.resolve(msg);
+    if (action == null) return const Declined();
+
+    switch (action) {
+      case TableViewAction.up:
+        _moveCursorRow(-1);
+      case TableViewAction.down:
+        _moveCursorRow(1);
+      case TableViewAction.left:
+        _moveCursorCol(-1);
+      case TableViewAction.right:
+        _moveCursorCol(1);
+      case TableViewAction.pageUp:
+        _moveCursorRow(-_visibleRows.clamp(1, 100));
+      case TableViewAction.pageDown:
+        _moveCursorRow(_visibleRows.clamp(1, 100));
+      case TableViewAction.home:
+        _cursorRow = 0;
+        _adjustScrollToCursor();
+      case TableViewAction.end:
+        _cursorRow = (rowLimit - 1).clamp(0, rowLimit);
+        _adjustScrollToCursor();
+      case TableViewAction.firstCol:
+        _cursorCol = 0;
+        _adjustHorizontalScroll();
+      case TableViewAction.lastCol:
+        _cursorCol = (_visibleColumns.length - 1).clamp(0, 999);
+        _adjustHorizontalScroll();
+      case TableViewAction.toggleSelect:
+        if (selectionEnabled) _toggleSelectAtCursor();
+      case TableViewAction.confirm:
+        // A row the window does not hold cannot be confirmed: the key is
+        // consumed — a declined confirm would fire the app's fallback
+        // bindings — and no event is emitted.
+        if (cursorRowData == null) return const Handled();
+        return Handled.event(TableActivateEvent(id, 'primary'));
+    }
+
+    return Handled(events: demand());
   }
 
   // ─────────────────────────────────────────────

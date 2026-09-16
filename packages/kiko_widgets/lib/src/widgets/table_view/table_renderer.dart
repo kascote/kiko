@@ -265,18 +265,8 @@ class TableRenderer {
 
   /// Renders a data row.
   ///
-  /// The cell base is the `row` slot, patched by the column's own
-  /// [TableColumn.style] when set. Three calls to [StyleResolver.resolve]
-  /// then carry it through its states, in order. First, a fill call resolves
-  /// `selected`, and `cursor` when the cell is the exact cursor cell and the
-  /// table owns focus — `style.selectedRow` and `style.cursorCell` ride in
-  /// as slots. Second, a wash call resolves `cursor` on a cell that sits on
-  /// the cursor row or, with [showCrosshair] on, the cursor column, as long
-  /// as the cell was not already resolved as a focused cursor cell in the
-  /// first call — an unfocused cursor cell washes here instead. The row's
-  /// own slot wins when a cell is on both the cursor row and the crosshair
-  /// column. Third, a fill call resolves `hover`. The resulting style goes
-  /// into `paintLine` as `base`, never patched onto the cell's content: the
+  /// Each cell's state style comes from [_cellStyle] and goes into
+  /// `paintLine` as `base`, never patched onto the cell's content: the
   /// cell's content patches last, so a line-level or span-level color a
   /// column paints always wins over the row's own state.
   void _renderRow(
@@ -314,39 +304,13 @@ class TableRenderer {
 
       final isCursorColumn = (scrollCol + colIdx) == model.cursorCol;
       final isCursorCell = isCursorRow && isCursorColumn;
-
-      var cellStyle = style.row ?? const Style();
-      if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
-
-      final isFocusedCursorCell = isCursorCell && model.focused;
-      cellStyle = _resolver.resolve(
-        cellStyle,
-        {
-          if (isSelected) WidgetState.selected,
-          if (isFocusedCursorCell) WidgetState.cursor,
-        },
-        cls: PaintClass.fill,
-        slots: {
-          if (style.selectedRow != null) WidgetState.selected: style.selectedRow!,
-          if (style.cursorCell != null) WidgetState.cursor: style.cursorCell!,
-        },
+      final cellStyle = _cellStyle(
+        col,
+        isCursorRow: isCursorRow,
+        isCursorColumn: isCursorColumn,
+        isSelected: isSelected,
+        isHover: isHover,
       );
-
-      // An unfocused cursor cell washes here too: it never resolved `cursor`
-      // above, since that call only fires the cursor state when the table
-      // owns focus.
-      final onCrosshairColumn = showCrosshair && isCursorColumn;
-      if ((isCursorRow || onCrosshairColumn) && !isFocusedCursorCell) {
-        final washSlot = isCursorRow ? style.cursorRow : style.cursorColumn;
-        cellStyle = _resolver.resolve(
-          cellStyle,
-          const {WidgetState.cursor},
-          cls: PaintClass.wash,
-          slots: {WidgetState.cursor: ?washSlot},
-        );
-      }
-
-      cellStyle = _resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
 
       // Build render context
       final ctx = CellRenderContext(
@@ -370,6 +334,60 @@ class TableRenderer {
 
       x += col.width;
     }
+  }
+
+  /// Resolves the state style of one cell in [col].
+  ///
+  /// The cell base is the `row` slot, patched by the column's own
+  /// [TableColumn.style] when set. Three calls to [StyleResolver.resolve]
+  /// then carry it through its states, in order. First, a fill call resolves
+  /// `selected`, and `cursor` when the cell is the exact cursor cell and the
+  /// table owns focus — `style.selectedRow` and `style.cursorCell` ride in
+  /// as slots. Second, a wash call resolves `cursor` on a cell that sits on
+  /// the cursor row or, with [showCrosshair] on, the cursor column, as long
+  /// as the cell was not already resolved as a focused cursor cell in the
+  /// first call — an unfocused cursor cell washes here instead. The row's
+  /// own slot wins when a cell is on both the cursor row and the crosshair
+  /// column. Third, a fill call resolves `hover`.
+  Style _cellStyle(
+    TableColumn col, {
+    required bool isCursorRow,
+    required bool isCursorColumn,
+    required bool isSelected,
+    required bool isHover,
+  }) {
+    var cellStyle = style.row ?? const Style();
+    if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
+
+    final isFocusedCursorCell = isCursorRow && isCursorColumn && model.focused;
+    cellStyle = _resolver.resolve(
+      cellStyle,
+      {
+        if (isSelected) WidgetState.selected,
+        if (isFocusedCursorCell) WidgetState.cursor,
+      },
+      cls: PaintClass.fill,
+      slots: {
+        if (style.selectedRow != null) WidgetState.selected: style.selectedRow!,
+        if (style.cursorCell != null) WidgetState.cursor: style.cursorCell!,
+      },
+    );
+
+    // An unfocused cursor cell washes here too: it never resolved `cursor`
+    // above, since that call only fires the cursor state when the table
+    // owns focus.
+    final onCrosshairColumn = showCrosshair && isCursorColumn;
+    if ((isCursorRow || onCrosshairColumn) && !isFocusedCursorCell) {
+      final washSlot = isCursorRow ? style.cursorRow : style.cursorColumn;
+      cellStyle = _resolver.resolve(
+        cellStyle,
+        const {WidgetState.cursor},
+        cls: PaintClass.wash,
+        slots: {WidgetState.cursor: ?washSlot},
+      );
+    }
+
+    return _resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
   }
 
   // ─────────────────────────────────────────────

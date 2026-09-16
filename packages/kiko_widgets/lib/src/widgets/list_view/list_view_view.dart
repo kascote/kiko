@@ -133,41 +133,15 @@ class _ListViewport<T, K> extends Node {
     // any of them arrive: they paint as placeholders below.
     final itemLimit = m.itemLimit;
     if (itemLimit == 0) {
-      final placeholder = emptyPlaceholder;
-      if (placeholder != null) {
-        paintLine(
-          surface,
-          placeholder,
-          x: area.x,
-          y: area.y,
-          width: area.width,
-          base: _placeholderStyle(),
-          measurer: _measurer,
-        );
-      }
+      _paintEmpty(area, surface);
       return;
     }
 
-    // While a fetch is in flight and the cursor is off screen, the nearest run
-    // of items the window holds whole reads better than a screen of
-    // placeholders. With the cursor on screen the true position paints instead:
-    // the cursor is where selection acts, so nothing may stand in for the items
-    // it sits over. Any other incomplete status also paints the true position,
-    // so a fetch that never lands stops the view showing older items on its own
-    // — no timer decides when.
-    final cursorVisible = m.cursor >= m.scrollOffset && m.cursor < m.scrollOffset + visibleCount;
-    final startIndex = m.viewportStatus == SliceStatus.filling && !cursorVisible
-        ? m.nearestHeldStart(visibleCount) ?? m.scrollOffset
-        : m.scrollOffset;
+    final startIndex = _startIndex(visibleCount);
     final endIndex = (startIndex + visibleCount).clamp(0, itemLimit);
 
     var y = area.y;
     for (var i = startIndex; i < endIndex; i++) {
-      final item = m.getItem(i);
-      final isCursor = i == m.cursor;
-      final isSelected = m.isSelected(i);
-      final isDisabled = m.isDisabled?.call(i) ?? false;
-
       final itemArea = Rect.create(x: area.x, y: y, width: area.width, height: m.itemHeight).intersection(area);
       if (itemArea.isEmpty) break;
 
@@ -176,102 +150,157 @@ class _ListViewport<T, K> extends Node {
       // item resolves to it — a placeholder too, carrying its real index.
       // Separator lines and the blank tail stay unmarked.
       markRegion(RowRegion(i), itemArea.toPlume());
-
-      // The row base goes to the resolver with its active states, so the
-      // resolver — not this widget — decides how a state lands on it. A
-      // colored base lifts under the cursor and blends toward the ground
-      // under disabled, instead of one state's fill replacing another's.
-      // The cursor paints as a fill when the list owns focus and as a wash
-      // when it does not, in its own call after selected and before disabled
-      // and hover. Hover applies last, inside the resolver. A placeholder row
-      // layers the same way, so the cursor stays visible over items still
-      // filling in.
-      final isHover = m.hoverRow == i;
-      var rowStyle = style.item ?? const Style();
-      final styled = style.item != null || isSelected || isCursor || isDisabled || isHover;
-      final slots = <WidgetState, Style>{
-        if (style.selectedItem != null) WidgetState.selected: style.selectedItem!,
-        if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
-      };
-      if (m.focused) {
-        rowStyle = _resolver.resolve(
-          rowStyle,
-          {
-            if (isSelected) WidgetState.selected,
-            if (isCursor) WidgetState.cursor,
-            if (isDisabled) WidgetState.disabled,
-            if (isHover) WidgetState.hover,
-          },
-          cls: PaintClass.fill,
-          slots: slots,
-        );
-      } else {
-        rowStyle = _resolver.resolve(
-          rowStyle,
-          {if (isSelected) WidgetState.selected},
-          cls: PaintClass.fill,
-          slots: slots,
-        );
-        rowStyle = _resolver.resolve(
-          rowStyle,
-          {if (isCursor) WidgetState.cursor},
-          cls: PaintClass.wash,
-          slots: slots,
-        );
-        rowStyle = _resolver.resolve(
-          rowStyle,
-          {
-            if (isDisabled) WidgetState.disabled,
-            if (isHover) WidgetState.hover,
-          },
-          cls: PaintClass.fill,
-        );
-      }
-      if (styled) {
-        for (var dy = 0; dy < itemArea.height; dy++) {
-          fillRow(surface, x: itemArea.x, y: itemArea.y + dy, width: itemArea.width, style: rowStyle);
-        }
-      }
-
-      if (item == null && pendingBuilder == null) {
-        // An item whose page isn't held: the item builder cannot run without
-        // an item, so a dim run stands in on each of its lines. Short of the
-        // full width, so the run reads as content pending, not content.
-        final runWidth = itemArea.width <= 2 ? itemArea.width : (itemArea.width * 3) ~/ 4;
-        final run = Line('░' * runWidth);
-        for (var li = 0; li < itemArea.height; li++) {
-          paintLine(
-            surface,
-            run,
-            x: itemArea.x,
-            y: itemArea.y + li,
-            width: itemArea.width,
-            base: _pendingStyle(),
-            measurer: _measurer,
-          );
-        }
-      } else {
-        // A held item builds its rows; an unheld one builds the caller's
-        // placeholder from the index alone. Both paint the same way, over the
-        // same state fill.
-        final lines = item != null
-            ? itemBuilder(item, i, (
-                selected: isSelected,
-                cursor: isCursor,
-                hover: isHover,
-                disabled: isDisabled,
-              ))
-            : pendingBuilder!(i);
-        for (var li = 0; li < lines.length && li < itemArea.height; li++) {
-          paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
-        }
-      }
+      _paintItem(surface, itemArea, i);
       y += m.itemHeight;
 
       if (hasSeparator && i < endIndex - 1) {
         paintLine(surface, separatorBuilder!(), x: area.x, y: y, width: area.width, measurer: _measurer);
         y += 1;
       }
+    }
+  }
+
+  /// The first item index to paint for a window of [visibleCount] rows.
+  ///
+  /// While a fetch is in flight and the cursor is off screen, the nearest run
+  /// of items the window holds whole reads better than a screen of
+  /// placeholders. With the cursor on screen the true position paints instead:
+  /// the cursor is where selection acts, so nothing may stand in for the items
+  /// it sits over. Any other incomplete status also paints the true position,
+  /// so a fetch that never lands stops the view showing older items on its own
+  /// — no timer decides when.
+  int _startIndex(int visibleCount) {
+    final m = model;
+    final cursorVisible = m.cursor >= m.scrollOffset && m.cursor < m.scrollOffset + visibleCount;
+    if (m.viewportStatus != SliceStatus.filling || cursorVisible) return m.scrollOffset;
+    return m.nearestHeldStart(visibleCount) ?? m.scrollOffset;
+  }
+
+  /// Paints the empty-state line, when there is one.
+  void _paintEmpty(Rect area, Surface surface) {
+    final placeholder = emptyPlaceholder;
+    if (placeholder == null) return;
+    paintLine(
+      surface,
+      placeholder,
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      base: _placeholderStyle(),
+      measurer: _measurer,
+    );
+  }
+
+  /// Paints the item at [index] into [itemArea]: its state fill first, then
+  /// its lines — the built item, the caller's pending placeholder, or the
+  /// built-in dim run.
+  void _paintItem(Surface surface, Rect itemArea, int index) {
+    final m = model;
+    final item = m.getItem(index);
+    final state = (
+      selected: m.isSelected(index),
+      cursor: index == m.cursor,
+      hover: m.hoverRow == index,
+      disabled: m.isDisabled?.call(index) ?? false,
+    );
+
+    // A placeholder row layers the same way as a held one, so the cursor
+    // stays visible over items still filling in.
+    final styled = style.item != null || state.selected || state.cursor || state.disabled || state.hover;
+    if (styled) {
+      final rowStyle = _rowStyle(state);
+      for (var dy = 0; dy < itemArea.height; dy++) {
+        fillRow(surface, x: itemArea.x, y: itemArea.y + dy, width: itemArea.width, style: rowStyle);
+      }
+    }
+
+    // A held item builds its rows; an unheld one builds the caller's
+    // placeholder from the index alone. Both paint the same way, over the
+    // same state fill. Without a pending builder the dim run stands in.
+    if (item != null) {
+      _paintLines(surface, itemArea, itemBuilder(item, index, state));
+    } else if (pendingBuilder case final build?) {
+      _paintLines(surface, itemArea, build(index));
+    } else {
+      _paintPendingRun(surface, itemArea);
+    }
+  }
+
+  /// Resolves the row base through [state].
+  ///
+  /// The row base goes to the resolver with its active states, so the
+  /// resolver — not this widget — decides how a state lands on it. A colored
+  /// base lifts under the cursor and blends toward the ground under disabled,
+  /// instead of one state's fill replacing another's. The cursor paints as a
+  /// fill when the list owns focus and as a wash when it does not, in its own
+  /// call after selected and before disabled and hover. Hover applies last,
+  /// inside the resolver.
+  Style _rowStyle(ItemState state) {
+    final base = style.item ?? const Style();
+    final slots = <WidgetState, Style>{
+      if (style.selectedItem != null) WidgetState.selected: style.selectedItem!,
+      if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
+    };
+    if (model.focused) {
+      return _resolver.resolve(
+        base,
+        {
+          if (state.selected) WidgetState.selected,
+          if (state.cursor) WidgetState.cursor,
+          if (state.disabled) WidgetState.disabled,
+          if (state.hover) WidgetState.hover,
+        },
+        cls: PaintClass.fill,
+        slots: slots,
+      );
+    }
+    var rowStyle = _resolver.resolve(
+      base,
+      {if (state.selected) WidgetState.selected},
+      cls: PaintClass.fill,
+      slots: slots,
+    );
+    rowStyle = _resolver.resolve(
+      rowStyle,
+      {if (state.cursor) WidgetState.cursor},
+      cls: PaintClass.wash,
+      slots: slots,
+    );
+    return _resolver.resolve(
+      rowStyle,
+      {
+        if (state.disabled) WidgetState.disabled,
+        if (state.hover) WidgetState.hover,
+      },
+      cls: PaintClass.fill,
+    );
+  }
+
+  /// Paints [lines] into [itemArea], one per row, dropping any past its height.
+  void _paintLines(Surface surface, Rect itemArea, List<Line> lines) {
+    for (var li = 0; li < lines.length && li < itemArea.height; li++) {
+      paintLine(surface, lines[li], x: itemArea.x, y: itemArea.y + li, width: itemArea.width, measurer: _measurer);
+    }
+  }
+
+  /// Paints the dim run that stands in for an item whose page isn't held.
+  ///
+  /// The item builder cannot run without an item, so the run takes each of
+  /// its lines. Short of the full width, so the run reads as content pending,
+  /// not content.
+  void _paintPendingRun(Surface surface, Rect itemArea) {
+    final runWidth = itemArea.width <= 2 ? itemArea.width : (itemArea.width * 3) ~/ 4;
+    final run = Line('░' * runWidth);
+    for (var li = 0; li < itemArea.height; li++) {
+      paintLine(
+        surface,
+        run,
+        x: itemArea.x,
+        y: itemArea.y + li,
+        width: itemArea.width,
+        base: _pendingStyle(),
+        measurer: _measurer,
+      );
     }
   }
 

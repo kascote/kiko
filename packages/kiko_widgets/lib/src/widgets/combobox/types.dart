@@ -45,6 +45,12 @@ class ComboboxStyle {
   final TextInputStyle field;
 
   /// The popup list's anatomy.
+  ///
+  /// With `item` and `cursorItem` both null the popup ground ([popupGround],
+  /// or the theme's `surface`) is the row base, so the cursor and hover lift
+  /// that ground instead of patching a fill derived from `background`. A
+  /// `cursorItem` lands only on a bare row, so setting one keeps the rows
+  /// bare.
   final ListViewStyle list;
 
   /// Creates a ComboboxStyle.

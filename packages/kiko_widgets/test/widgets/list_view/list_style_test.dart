@@ -113,6 +113,33 @@ void main() {
       expect(disabledCell.modifier.has(Modifier.dim), isTrue);
     });
 
+    test('a disabled row shows the same ink with and without the unfocused cursor on it', () {
+      const shipped = [
+        Theme.dark,
+        Theme.catppuccin,
+        Theme.rosePine,
+        Theme.gruvbox,
+        Theme.monokai,
+        Theme.nord,
+        Theme.tokyoNight,
+        Theme.oneDark,
+        Theme.dracula,
+        Theme.solarized,
+      ];
+      for (final theme in shipped) {
+        final offCursor = _list(<String>['Apple', 'Banana'], isDisabled: (i) => i == 1)..focused = false;
+        final underCursor = _list(<String>['Apple', 'Banana'], isDisabled: (i) => i == 1)
+          ..moveCursorTo(1)
+          ..focused = false;
+
+        final off = _render(offCursor, theme: theme)[(x: 7, y: 1)];
+        final under = _render(underCursor, theme: theme)[(x: 7, y: 1)];
+        expect(off.fg, equals(theme.disabled.color), reason: theme.name);
+        expect(under.fg, equals(off.fg), reason: '${theme.name}: the cursor wash changed the disabled ink');
+        expect(under.bg, isNot(equals(off.bg)), reason: '${theme.name}: the cursor wash still marks the row');
+      }
+    });
+
     test('a disabled selected row blends both colors toward the ground, dim', () {
       // Toggling selection on a disabled row is refused, so row 1 is
       // selected first, then marked disabled for painting — leaving it

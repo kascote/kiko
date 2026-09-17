@@ -155,6 +155,26 @@ final class Combobox<T> implements View {
   /// The rows [popupBorder] adds to the popup box: its top and bottom edges.
   int get _chromeRows => popupBorder == BorderType.none ? 0 : 2;
 
+  /// The popup list's anatomy, with the popup ground as the row base when
+  /// [ComboboxStyle.list] styles neither `item` nor `cursorItem`.
+  ///
+  /// A row that starts from the ground it sits on lifts that ground under
+  /// the cursor and under hover. A bare row would patch the cursor fill the
+  /// theme derives from `background`, which barely reads on `surface`. A
+  /// caller's own `cursorItem` only lands on a bare row, so a list that sets
+  /// one keeps its bare base.
+  ListViewStyle _rowStyle(Style fill) {
+    final list = style.list;
+    if (list.item != null || list.cursorItem != null) return list;
+    return ListViewStyle(
+      item: fill,
+      selectedItem: list.selectedItem,
+      cursorItem: list.cursorItem,
+      pending: list.pending,
+      placeholder: list.placeholder,
+    );
+  }
+
   /// Builds one open popup's node at [height]: the combobox's scope hugging
   /// exactly the rows the list (or its status row) occupies, painted over a
   /// full-height background fill.
@@ -201,7 +221,7 @@ final class Combobox<T> implements View {
                 model: list,
                 theme: theme,
                 itemBuilder: rowBuilder,
-                style: style.list,
+                style: _rowStyle(fill),
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
               ),
             ),

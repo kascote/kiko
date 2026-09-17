@@ -94,9 +94,14 @@ void main() {
         const theme = Theme.dark;
         final base = theme.background.color!;
 
-        expect(theme.cursor.color, equals(base.lift(0.10)));
+        expect(theme.cursor.color, equals(base.lift(Theme.stateLift)));
         expect(theme.cursor.on, equals(theme.background.on));
-        expect(theme.hover.color, equals(base.lift(0.08)));
+        expect(theme.hover.color, equals(base.lift(Theme.hoverLift)));
+      });
+
+      test('the derived cursor takes one state step and hover half of it', () {
+        expect(Theme.hoverLift * 2, equals(Theme.stateLift));
+        expect(Theme.dark.cursor.color, equals(Theme.dark.background.color!.lift(Theme.stateLift)));
       });
 
       test('a light theme derives washes by lifting (darkening) the background', () {
@@ -106,8 +111,8 @@ void main() {
         final base = theme.background.color!;
 
         // On a light base, lift darkens.
-        expect(theme.cursor.color, equals(base.lift(0.10)));
-        expect(theme.cursor.color, equals(base.darken(0.10)));
+        expect(theme.cursor.color, equals(base.lift(Theme.stateLift)));
+        expect(theme.cursor.color, equals(base.darken(Theme.stateLift)));
       });
 
       test('explicit cursor/hover win over derivation', () {
@@ -116,7 +121,7 @@ void main() {
 
         expect(theme.cursor, equals(custom));
         // hover is still derived.
-        expect(theme.hover.color, equals(theme.background.color!.lift(0.08)));
+        expect(theme.hover.color, equals(theme.background.color!.lift(Theme.hoverLift)));
       });
 
       test('deriveCursor matches the getter it backs', () {

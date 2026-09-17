@@ -146,6 +146,15 @@ void main() {
       expect(fill.addModifier.has(Modifier.dim), isTrue);
     });
 
+    test('disabled on a washed base takes the disabled ink and blends only the background', () {
+      final ground = theme.background.color!;
+      final washed = Style(bg: theme.cursor.color);
+      final fill = resolver.resolve(washed, {WidgetState.disabled}, cls: PaintClass.fill);
+      expect(fill.fg, theme.disabled.color);
+      expect(fill.bg, theme.cursor.color!.mix(ground, Theme.disabledMix));
+      expect(fill.addModifier.has(Modifier.dim), isTrue);
+    });
+
     test('disabled does nothing for wash', () {
       expect(resolver.resolve(base, {WidgetState.disabled}, cls: PaintClass.wash), base);
     });

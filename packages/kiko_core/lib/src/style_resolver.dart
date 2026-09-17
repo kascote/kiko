@@ -268,7 +268,9 @@ class StyleResolver {
   /// carries. A fill on a bare [result] does the same swap plus dim; a fill
   /// on a colored one blends `fg` and `bg` toward the ground by
   /// [Theme.disabledMix] under [RenderPolicy.color] with a ground color, or adds
-  /// dim alone otherwise (ansi16, noColor, or a themeless ground).
+  /// dim alone otherwise (ansi16, noColor, or a themeless ground). A colored
+  /// [result] with no `fg` — a wash a widget already applied — has no pair
+  /// to keep: it takes the disabled ink and blends only its `bg`.
   Style _applyDisabled(Style result, PaintClass cls) {
     switch (cls) {
       case PaintClass.wash:
@@ -287,7 +289,10 @@ class StyleResolver {
         if (policy == RenderPolicy.color && ground != null) {
           final fg = result.fg;
           return result
-              .copyWith(fg: fg?.mix(ground, Theme.disabledMix), bg: bg.mix(ground, Theme.disabledMix))
+              .copyWith(
+                fg: fg == null ? tones.disabled.color : fg.mix(ground, Theme.disabledMix),
+                bg: bg.mix(ground, Theme.disabledMix),
+              )
               .incModifier(Modifier.dim);
         }
         return result.incModifier(Modifier.dim);

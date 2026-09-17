@@ -237,6 +237,37 @@ void main() {
       expect(frame.buffer[(x: 0, y: 1)].bg, cursorStyle.bg);
     });
 
+    test('popup rows start from the popup ground, so the cursor lifts the surface', () {
+      final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
+      final view = Combobox(model: combo, theme: _theme);
+      final frame = _frame(10, 6);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      final surface = _theme.surface.color!;
+      // Row 0 holds the cursor: one state step up from the popup ground.
+      expect(frame.buffer[(x: 8, y: 1)].bg, equals(surface.lighten(Theme.stateLift)));
+      // Row 1 rests on the popup ground itself.
+      expect(frame.buffer[(x: 8, y: 2)].bg, equals(surface));
+    });
+
+    test('a ComboboxStyle.list item base wins over the popup ground', () {
+      const item = Style(fg: Color.indexed(7), bg: Color.indexed(3));
+      final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
+      final view = Combobox(
+        model: combo,
+        theme: _theme,
+        style: const ComboboxStyle(list: ListViewStyle(item: item)),
+      );
+      final frame = _frame(10, 6);
+      _renderRow(frame, view);
+
+      view.renderPopup(frame);
+
+      expect(frame.buffer[(x: 8, y: 2)].bg, equals(item.bg));
+    });
+
     test('a custom itemBuilder paints instead of the default', () {
       final combo = _fruitBox(options: const ['Apple'])..update(_pressOn('combo/toggle'));
       final view = Combobox(

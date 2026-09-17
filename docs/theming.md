@@ -97,10 +97,11 @@ fill or a ground of a chrome tone, as it rejects a raw tone as a style.
 a tone.
 
 `cursor` and `hover` are derived by default, so a theme author writes
-thirteen tones, not fifteen. The defaults are subtle lifts of the
-background: `cursor` is `background.color.lift(0.10)` and `hover` is
-`background.color.lift(0.08)`. `lift` lightens on a dark theme and darkens
-on a light one. `lift`, `lighten`, and `darken` are public `Color` methods,
+thirteen tones, not fifteen. The defaults are lifts of the background:
+`cursor` is `background.color.lift(Theme.stateLift)`, the same step a
+state takes from any colored base, and `hover` is
+`background.color.lift(Theme.hoverLift)`, half that step. `lift` lightens
+on a dark theme and darkens on a light one. `lift`, `lighten`, and `darken` are public `Color` methods,
 so themes, anatomy slots, and apps can do their own derivations. A theme
 may set `cursor` and `hover` explicitly instead. An ANSI-16 table
 (`Ansi16Tones`) derives a missing `cursor` from its own `background` by
@@ -159,6 +160,43 @@ onto the tones.
 | `dracula`    | Dracula: vivid candy hues on a dark purple-gray base.                   |
 | `solarized`  | Solarized Dark: low-contrast accents on a deep teal-black base.         |
 
+## Authoring a theme
+
+A theme has two kinds of tones. The intent and interaction tones are hues:
+`primary`, `focus`, `error` and the rest each carry a color of their own.
+The neutral tones are rungs on one ladder from the background to the text:
+only brightness separates them, so their spacing decides whether the app
+reads. Space the ladder in this order, darkest first on a dark theme:
+
+    background < hover < cursor < surface < border < disabled < muted < text
+
+`text` is `background.on`. `selection` is a fill, not a rung; it must
+separate from `cursor`, and from `cursor` over `selection`, since the
+resolver lifts a selected row by one step under the cursor.
+
+Check each rung against `background` with `Color.contrastRatio`:
+
+| rung                | target                                                |
+| ------------------- | ----------------------------------------------------- |
+| `muted`             | at least 4.5:1, it is text                            |
+| `disabled`          | at least 3:1 before the resolver adds dim             |
+| `cursor`, `surface` | visibly apart from the ground; one `Theme.stateLift` is the floor |
+| `border`            | readable on `background` and on `surface`             |
+
+The `border` rule matters because chrome lands on both grounds: a dialog
+draws its border on `surface`, a pane draws it on `background`. A border
+that only reads on one of them vanishes on the other.
+
+A monochrome theme has one hue, so brightness is the only separator. Author
+it the way the ANSI-16 tables do: collapse tones on purpose, and lean on
+the matrix modifiers (bold, dim, reversed) to keep `focus` and `loading`
+distinct.
+
+A palette theme takes its colors from the palette as they are, so a rung
+can miss a target; that is the palette's choice, not a bug. The contrast
+page of the theme viewer (`packages/kiko_widgets/example/theme_viewer`,
+F4) prints every rung's ratio and is the check for a new theme.
+
 ## Projections
 
 | Projection | Produces            | Use for                                                       |
@@ -202,7 +240,12 @@ frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
 ```
 
 A pane that changes surface re-grounds locally. A dialog or a popup paints
-the `surface` ground behind its own content, the same way.
+the `surface` ground behind its own content, the same way. A part that
+sits on that surface takes the same ground as its base style, so a state
+lifts the surface instead of patching a fill derived from `background`.
+The combobox hands its popup ground to the embedded list as
+`ListViewStyle.item` for this reason: the cursor fill the theme derives
+from `background` barely reads on `surface`.
 
 The clean slate these rules assume is per **layer** — a render pass with
 its own buffer (`docs/glossary.md`). The base pass is simply the first
@@ -276,7 +319,9 @@ is `tones.background.color`. A dark ground — luminance below 0.5, or no
 color — lightens; a light ground darkens. A second lift then continues the
 first instead of reversing it, so hover on top of a state lift always reads
 as a further step. A state lifts by `Theme.stateLift`; hover lifts by
-`Theme.hoverLift`, the smaller step.
+`Theme.hoverLift`, half a step. The derived `cursor` tone takes the same
+`Theme.stateLift` from the background, so the cursor bar is one step
+whether the row was bare or already selected.
 
 The ink class is the exception: an ink has no background to lift, so
 `focused` × `ink` patches the focus ink plus bold at its declaration
@@ -286,10 +331,12 @@ Under full color, when the ground has a color, `disabled` blends both `fg`
 and `bg` of a filled base toward it by `Theme.disabledMix` and adds dim,
 keeping the pair. Moving one half of an authored pair would break its
 contrast; moving both toward one target scales the contrast down evenly.
-Otherwise — under a plainer
-tier, or when the ground has no color — `disabled` keeps the pair and adds
-dim alone. On a bare base `disabled` swaps in the disabled ink and adds
-dim. Either way, `disabled` ends the chain: `hover` and `pressed` do
+A base with a background and no foreground — a cursor wash an unfocused
+list already applied — has no pair to keep: it takes the disabled ink and
+blends only the background, so a disabled row shows one ink with or
+without the cursor on it. Otherwise — under a plainer tier, or when the
+ground has no color — `disabled` keeps the pair and adds dim alone. On a
+bare base `disabled` swaps in the disabled ink and adds dim. Either way, `disabled` ends the chain: `hover` and `pressed` do
 nothing once it is active.
 
 **Use honest states.** The keyboard-current item is `WidgetState.cursor`,

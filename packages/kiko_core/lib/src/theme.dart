@@ -34,6 +34,10 @@ import 'tone.dart';
 /// - [cursor]: the current row/column tint (derived from [background] by default)
 /// - [hover]: the mouse-over tint (derived from [background] by default)
 ///
+/// The neutral tones are rungs on one ladder from [background] to its `on`.
+/// How to space them, and the contrast each rung needs, is the "Authoring
+/// a theme" section of `docs/theming.md`.
+///
 /// ## The ANSI-16 tier
 ///
 /// A theme is authored once, in RGB. On a plain 16-color terminal the
@@ -155,26 +159,27 @@ class Theme implements ToneSet {
   /// Derives a cursor tone from a surface tone, when one is not set
   /// explicitly.
   ///
-  /// Lifts [background]'s color by 10% and keeps its `on`; carries no color
-  /// when [background] has none. [Theme.cursor] and [Ansi16Tones.cursor]
-  /// both call this, so a theme and its ANSI-16 table derive a missing
-  /// cursor by the same rule.
+  /// Lifts [background]'s color by [stateLift] and keeps its `on`; carries
+  /// no color when [background] has none. [Theme.cursor] and
+  /// [Ansi16Tones.cursor] both call this, so a theme and its ANSI-16 table
+  /// derive a missing cursor by the same rule.
   static SurfaceTone deriveCursor(SurfaceTone background) {
     final base = background.color;
     if (base == null) return SurfaceTone(on: background.on);
-    return SurfaceTone(color: base.lift(0.10), on: background.on);
+    return SurfaceTone(color: base.lift(stateLift), on: background.on);
   }
 
   /// The fraction a hovered background lifts by, shared by the derived
-  /// [hover] tone and the resolver's hover transform.
+  /// [hover] tone and the resolver's hover transform: half a [stateLift].
   static const double hoverLift = 0.08;
 
-  /// The fraction a background lifts by when a state lands on a base that
-  /// already has one.
+  /// The one step a state takes from its base.
   ///
   /// `StyleResolver` lifts a colored base by this much for
-  /// `WidgetState.cursor` and `WidgetState.focused`; [hoverLift] is hover's
-  /// own, smaller step on top.
+  /// `WidgetState.cursor` and `WidgetState.focused`, and [deriveCursor]
+  /// takes the same step from [background], so a cursor bar reads the same
+  /// on a bare row and on a selected one. [hoverLift] is hover's own,
+  /// smaller step on top.
   static const double stateLift = 0.16;
 
   /// The fraction a disabled fill's `fg` and `bg` move toward the ground

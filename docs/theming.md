@@ -784,9 +784,11 @@ Notes the table cannot carry:
   styles through `ComboboxStyle.popupBorder` (`docs/combobox.md`).
 - **Checkbox** — hover washes the whole row: the box, the gap, the label,
   and any spare cells, as the row's ground. Focused puts focus ink and bold
-  on `open`, `mark`, and `close`. Error puts error ink on `open` and `close`
-  only. Disabled dims every part. A set `checkedMark` slot keeps its own
-  color; the `selected` state fills in only a null slot. A press inverts
+  on `open`, `close`, and whichever mark is showing, `mark` or
+  `checkedMark`, so a checked box reads focused too. Error puts error ink on
+  `open` and `close` only. Disabled dims every part. A set `checkedMark`
+  slot keeps its own color while unfocused; the `selected` state fills in
+  only a null slot. A press inverts
   `open`, `close`, `mark`, and `checkedMark`; the label does not react.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,

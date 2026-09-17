@@ -130,8 +130,11 @@ typedef NodeState = ({
 
 /// TreeView's anatomy: one nullable style slot per part.
 ///
-/// A `null` slot is derived from the theme's tones by the rule below; a
-/// non-null slot is the caller's exact style and wins verbatim.
+/// A `null` slot is derived from the theme's tones by the rule below. A
+/// non-null slot is the caller's exact style. `cursorItem` lands on a bare
+/// base only: a base that already carries a background lifts by
+/// [Theme.stateLift] instead, and the slot is not read. See
+/// [StyleResolver.resolve].
 ///
 /// | slot          | derived default               | matrix source     |
 /// | ------------- | ------------------------------ | ----------------- |
@@ -143,8 +146,9 @@ typedef NodeState = ({
 /// A failed placeholder row patches `error` × `ink` over the `placeholder`
 /// base.
 ///
-/// Per-row paint order is: `item` base, then `cursorItem` (a fill) if the
-/// keyboard cursor is on the node. The tree has no selection set, so no
+/// Per-row paint order is: `item` base, then the cursor step if the keyboard
+/// cursor is on the node: a lift when `item` has a background, `cursorItem`
+/// (a fill) when the row is bare. The tree has no selection set, so no
 /// `selectedItem`. Hover applies last, as a transform over that patched row:
 /// a row with a background lifts it, a bare row takes the hover wash. A node
 /// whose children are being fetched carries the `loading` state on its

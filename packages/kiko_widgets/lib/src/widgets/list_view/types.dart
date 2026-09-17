@@ -102,8 +102,11 @@ typedef ItemState = ({bool selected, bool cursor, bool hover, bool disabled});
 
 /// ListView's anatomy: one nullable style slot per part.
 ///
-/// A `null` slot is derived from the theme's tones by the rule below; a
-/// non-null slot is the caller's exact style and wins verbatim.
+/// A `null` slot is derived from the theme's tones by the rule below. A
+/// non-null slot is the caller's exact style. `selectedItem` patches over
+/// any base. `cursorItem` lands on a bare base only: a base that already
+/// carries a background lifts by [Theme.stateLift] instead, and the slot is
+/// not read. See [StyleResolver.resolve].
 ///
 /// | slot           | derived default              | matrix source     |
 /// | -------------- | ---------------------------- | ----------------- |
@@ -114,10 +117,13 @@ typedef ItemState = ({bool selected, bool cursor, bool hover, bool disabled});
 /// | `placeholder`  | `resolver.ink(muted)`        | anatomy-specific  |
 ///
 /// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
-/// row is in the selection set, then `cursorItem` (a fill) if the keyboard
-/// cursor is on it, then the disabled dim if the row is disabled — later layers
-/// patch over earlier ones, so the cursor stays visible over a selected run and
-/// disabled dims everything. Hover applies last, as a transform over that
+/// row is in the selection set, then the cursor step if the keyboard cursor
+/// is on it, then the disabled dim if the row is disabled. Later layers
+/// patch over earlier ones, so disabled dims everything. The cursor step is
+/// a lift when the row already has a background — from `item` or
+/// `selectedItem` — so the cursor stays visible over a selected run as the
+/// selection color one step apart. The cursor step is `cursorItem` (a fill)
+/// only when the row is bare. Hover applies last, as a transform over that
 /// patched row: a row with a background lifts it, a bare row takes the hover
 /// wash. The row's content — the lines `itemBuilder` returns — patches last of
 /// all, over every slot above, hover included. There is no `indicator` slot: a

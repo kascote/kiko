@@ -46,8 +46,9 @@ final List<Map<String, Object?>> employees = [
 // ═══════════════════════════════════════════════════════════
 
 // A fixed, theme-independent look for the crosshair — the "this table gets
-// an orange crosshair" tier: an anatomy override wins outright over whatever
-// the current theme would derive, ember or not.
+// an orange crosshair" tier: an anatomy override replaces whatever the
+// current theme would derive on a bare cell. A selected row already carries
+// the selection fill, so its cursor cell lifts that fill instead.
 const _emberTableStyle = TableViewStyle(
   cursorRow: Style(bg: Color.rgb(0x2a1d10)),
   cursorColumn: Style(bg: Color.rgb(0x2a1d10)),

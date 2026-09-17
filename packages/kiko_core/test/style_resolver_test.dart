@@ -146,13 +146,56 @@ void main() {
       expect(fill.addModifier.has(Modifier.dim), isTrue);
     });
 
-    test('disabled on a washed base takes the disabled ink and blends only the background', () {
-      final ground = theme.background.color!;
+    test('disabled on a washed base takes the disabled ink and keeps the background', () {
       final washed = Style(bg: theme.cursor.color);
       final fill = resolver.resolve(washed, {WidgetState.disabled}, cls: PaintClass.fill);
       expect(fill.fg, theme.disabled.color);
-      expect(fill.bg, theme.cursor.color!.mix(ground, Theme.disabledMix));
+      expect(fill.bg, theme.cursor.color);
       expect(fill.addModifier.has(Modifier.dim), isTrue);
+    });
+
+    test('disabled under the cursor keeps the cursor bar and blends the ink', () {
+      final ground = theme.background.color!;
+      final cursorOnly = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
+      final fill = resolver.resolve(null, {WidgetState.cursor, WidgetState.disabled}, cls: PaintClass.fill);
+      expect(fill.bg, cursorOnly.bg);
+      expect(fill.fg, cursorOnly.fg!.mix(ground, Theme.disabledMix));
+      expect(fill.addModifier.has(Modifier.dim), isTrue);
+      expect(fill.addModifier.has(Modifier.bold), isTrue);
+    });
+
+    test('a selected row under the cursor keeps its lifted selection when disabled', () {
+      final ground = theme.background.color!;
+      final lifted = resolver.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
+      final fill = resolver.resolve(null, {
+        WidgetState.selected,
+        WidgetState.cursor,
+        WidgetState.disabled,
+      }, cls: PaintClass.fill);
+      expect(fill.bg, lifted.bg);
+      expect(fill.fg, lifted.fg!.mix(ground, Theme.disabledMix));
+    });
+
+    test('the disabled cursor bar keeps the cursor contrast against the ground in every shipped theme', () {
+      const shipped = [
+        Theme.dark,
+        Theme.catppuccin,
+        Theme.rosePine,
+        Theme.gruvbox,
+        Theme.monokai,
+        Theme.nord,
+        Theme.tokyoNight,
+        Theme.oneDark,
+        Theme.dracula,
+        Theme.solarized,
+      ];
+      for (final t in shipped) {
+        final r = StyleResolver(t);
+        final ground = t.background.color!;
+        final bar = r.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill).bg!;
+        final disabledBar = r.resolve(null, {WidgetState.cursor, WidgetState.disabled}, cls: PaintClass.fill).bg!;
+        expect(disabledBar.contrastRatio(ground), bar.contrastRatio(ground), reason: t.name);
+      }
     });
 
     test('disabled does nothing for wash', () {
@@ -243,12 +286,12 @@ void main() {
       expect(withBoth, disabledOnly);
     });
 
-    test('disabled runs after focused, blending the already-lifted fill', () {
+    test('disabled runs after focused, keeping the lifted fill and blending its ink', () {
       final ground = theme.background.color!;
       final focusOnly = resolver.resolve(base, {WidgetState.focused}, cls: PaintClass.fill);
       final result = resolver.resolve(base, {WidgetState.focused, WidgetState.disabled}, cls: PaintClass.fill);
       expect(result.fg, focusOnly.fg!.mix(ground, Theme.disabledMix));
-      expect(result.bg, focusOnly.bg!.mix(ground, Theme.disabledMix));
+      expect(result.bg, focusOnly.bg);
       expect(result.addModifier.has(Modifier.dim), isTrue);
     });
   });

@@ -331,13 +331,18 @@ Under full color, when the ground has a color, `disabled` blends both `fg`
 and `bg` of a filled base toward it by `Theme.disabledMix` and adds dim,
 keeping the pair. Moving one half of an authored pair would break its
 contrast; moving both toward one target scales the contrast down evenly.
-A base with a background and no foreground — a cursor wash an unfocused
-list already applied — has no pair to keep: it takes the disabled ink and
-blends only the background, so a disabled row shows one ink with or
+The exception is a background that marks a position: under `cursor` or
+`focused`, `disabled` blends the ink alone and leaves the lifted
+background at its full contrast. Position is a navigation fact and
+disabled is an item fact, so the row the user stands on never fades into
+the ground. A base with a background and no foreground — the cursor wash
+an unfocused list already applied — is the same case: it takes the
+disabled ink and keeps the wash, so a disabled row shows one ink with or
 without the cursor on it. Otherwise — under a plainer tier, or when the
 ground has no color — `disabled` keeps the pair and adds dim alone. On a
-bare base `disabled` swaps in the disabled ink and adds dim. Either way, `disabled` ends the chain: `hover` and `pressed` do
-nothing once it is active.
+bare base `disabled` swaps in the disabled ink and adds dim. Either way,
+`disabled` ends the chain: `hover` and `pressed` do nothing once it is
+active.
 
 **Use honest states.** The keyboard-current item is `WidgetState.cursor`,
 never `focused` or `hover`. `focused` means the widget owns keyboard input.
@@ -469,6 +474,9 @@ Reading examples:
 - A disabled selected row is `selected` × `fill` then `disabled` × `fill`:
   disabled blends the selection's `fg` and `bg` toward the ground and adds
   dim, keeping the pair readable.
+- A disabled row under the cursor is `cursor` × `fill` then `disabled` ×
+  `fill`: disabled blends the ink alone, so the cursor bar keeps its
+  contrast against the ground and the row stays findable.
 - An error input's border is `error` × `ink`; its text keeps the base
   style. The matrix only patches what a state owns.
 

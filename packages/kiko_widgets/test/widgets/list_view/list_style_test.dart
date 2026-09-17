@@ -136,8 +136,19 @@ void main() {
         final under = _render(underCursor, theme: theme)[(x: 7, y: 1)];
         expect(off.fg, equals(theme.disabled.color), reason: theme.name);
         expect(under.fg, equals(off.fg), reason: '${theme.name}: the cursor wash changed the disabled ink');
-        expect(under.bg, isNot(equals(off.bg)), reason: '${theme.name}: the cursor wash still marks the row');
+        expect(under.bg, equals(theme.cursor.color), reason: '${theme.name}: the cursor wash marks the row in full');
       }
+    });
+
+    test('a disabled row under the focused cursor keeps the cursor bar and blends the ink', () {
+      final model = _list(<String>['Apple', 'Banana'], isDisabled: (i) => i == 1)..moveCursorTo(1);
+      final buffer = _render(model);
+
+      final ground = Theme.dark.background.color!;
+      final cell = buffer[(x: 7, y: 1)];
+      expect(cell.bg, equals(Theme.dark.cursor.color));
+      expect(cell.fg, equals(Theme.dark.cursor.on.mix(ground, Theme.disabledMix)));
+      expect(cell.modifier.has(Modifier.dim), isTrue);
     });
 
     test('a disabled selected row blends both colors toward the ground, dim', () {

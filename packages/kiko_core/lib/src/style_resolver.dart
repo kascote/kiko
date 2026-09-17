@@ -135,7 +135,9 @@ class StyleResolver {
   ///    so an error ink still wins over it on chrome.
   /// 5. If [WidgetState.disabled] is active: blends a filled result toward
   ///    the ground and adds dim, or swaps in the disabled ink on a bare one.
-  ///    Ends the chain: steps 6 and 7 are skipped.
+  ///    A background that marks a position — the cursor or focus lift, or a
+  ///    cursor wash — stays; only the ink blends. Ends the chain: steps 6
+  ///    and 7 are skipped.
   /// 6. Otherwise, if [WidgetState.hover] is active: lifts a background by
   ///    [Theme.hoverLift] or, on a result with none, patches the hover wash.
   /// 7. Otherwise, if [WidgetState.pressed] is active: inverts the result, or,
@@ -165,7 +167,7 @@ class StyleResolver {
     if (states.contains(WidgetState.focused)) {
       result = _applyFocus(result, cls, slots[WidgetState.focused]);
     }
-    if (states.contains(WidgetState.disabled)) return _applyDisabled(result, cls);
+    if (states.contains(WidgetState.disabled)) return _applyDisabled(result, cls, states);
     if (states.contains(WidgetState.hover)) result = _applyHover(result);
     if (states.contains(WidgetState.pressed)) result = _applyPressed(result);
     return result;
@@ -263,15 +265,17 @@ class StyleResolver {
 
   /// The [WidgetState.disabled] transform for [cls].
   ///
-  /// A wash is left as it is — disabled has no wash contribution. An ink
-  /// keeps today's swap to the disabled tone plus dim, whatever [result]
-  /// carries. A fill on a bare [result] does the same swap plus dim; a fill
-  /// on a colored one blends `fg` and `bg` toward the ground by
-  /// [Theme.disabledMix] under [RenderPolicy.color] with a ground color, or adds
-  /// dim alone otherwise (ansi16, noColor, or a themeless ground). A colored
-  /// [result] with no `fg` — a wash a widget already applied — has no pair
-  /// to keep: it takes the disabled ink and blends only its `bg`.
-  Style _applyDisabled(Style result, PaintClass cls) {
+  /// A wash is left as it is. An ink swaps to the disabled tone plus dim. A
+  /// fill on a bare [result] does the same. A fill on a colored [result]
+  /// blends toward the ground by [Theme.disabledMix] and adds dim, under
+  /// [RenderPolicy.color] with a ground color; elsewhere it adds dim alone.
+  ///
+  /// The blend moves both `fg` and `bg` when the background is the item's
+  /// own, and `fg` alone when it marks a position: [states] carries
+  /// [WidgetState.cursor] or [WidgetState.focused], or [result] has no `fg`
+  /// (the cursor wash an unfocused list already applied, which takes the
+  /// disabled ink). The row stays findable that way.
+  Style _applyDisabled(Style result, PaintClass cls, Set<WidgetState> states) {
     switch (cls) {
       case PaintClass.wash:
         return result;
@@ -286,16 +290,16 @@ class StyleResolver {
         }
 
         final ground = tones.background.color;
-        if (policy == RenderPolicy.color && ground != null) {
-          final fg = result.fg;
-          return result
-              .copyWith(
-                fg: fg == null ? tones.disabled.color : fg.mix(ground, Theme.disabledMix),
-                bg: bg.mix(ground, Theme.disabledMix),
-              )
-              .incModifier(Modifier.dim);
-        }
-        return result.incModifier(Modifier.dim);
+        if (policy != RenderPolicy.color || ground == null) return result.incModifier(Modifier.dim);
+
+        final fg = result.fg;
+        final positional = fg == null || states.contains(WidgetState.cursor) || states.contains(WidgetState.focused);
+        return result
+            .copyWith(
+              fg: fg == null ? tones.disabled.color : fg.mix(ground, Theme.disabledMix),
+              bg: positional ? bg : bg.mix(ground, Theme.disabledMix),
+            )
+            .incModifier(Modifier.dim);
     }
   }
 

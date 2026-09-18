@@ -369,6 +369,7 @@ produces, and which part of it each state lands on.
 | --------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Button    | focused, hover, pressed, loading, disabled           | the face, every state                                                                                                                    |
 | Checkbox  | focused, hover, pressed, error, disabled, selected    | focused/pressed/disabled: brackets and mark; error: brackets; selected: checked mark; disabled: label too; hover: the row                |
+| RadioGroup | focused, hover, pressed, error, disabled, selected  | focused: the cursor option's brackets and mark; error: every option's brackets; disabled: the option's row, or every row; selected: the chosen mark; hover: one row; pressed: one row's box |
 | TextInput | focused, error, disabled                             | focused: the text (ink + bold), and the composed border; error: no part of its own, the composed border reads it; disabled: text, placeholder, fill, obscured |
 | TextArea  | focused, error, disabled                             | as TextInput; disabled also dims the gutter and the selection                                                                            |
 | Combobox  | focused, hover, error, disabled                      | focused/hover/error: the toggle; disabled: field and toggle                                                                              |
@@ -743,6 +744,11 @@ doc comment; that copy is the widget's contract.
 |           | `mark`            | none (inherits the ground)          | —                |
 |           | `checkedMark`     | `resolver.ink(selection)`           | selected × ink   |
 |           | `label`           | none (inherits the ground)          | —                |
+| RadioGroup | `open`           | `resolver.ink(border)`              | resting chrome   |
+|            | `close`          | `resolver.ink(border)`              | resting chrome   |
+|            | `mark`           | none (inherits the ground)          | —                |
+|            | `checkedMark`    | `resolver.ink(selection)`           | selected × ink   |
+|            | `label`          | none (inherits the ground)          | —                |
 
 Notes the table cannot carry:
 
@@ -790,6 +796,14 @@ Notes the table cannot carry:
   slot keeps its own color while unfocused; the `selected` state fills in
   only a null slot. A press inverts
   `open`, `close`, `mark`, and `checkedMark`; the label does not react.
+- **RadioGroup** — the group is one widget. Focus lands on one option, the
+  option at the cursor. It never lands on a cursor bar. Error is a group
+  fact. It paints on every option's brackets. On the cursor row, error ink
+  wins over focus ink. The focus bold stays. A disabled option dims its
+  own parts. A disabled group dims every option's parts. Hover washes one
+  option's row, spare cells included. Pressed inverts one option's box. A
+  set `checkedMark` slot keeps its own color, like the checkbox's.
+  `labelAlign` has no visible effect in a horizontal group.
 
 `ItemState` and `NodeState`, the records passed to item/node builders,
 use `cursor` (not `focused`) for the current-item flag. `ItemState` carries

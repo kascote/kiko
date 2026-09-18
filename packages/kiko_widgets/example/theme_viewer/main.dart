@@ -45,8 +45,10 @@ import 'shared.dart';
 // first row selected under the cursor, the Dialog… button keeps an error
 // face, and the checkbox group shows every look at once (checked,
 // unchecked, mixed, error, disabled) — so the selection, lifted-selection,
-// and error-under-focus looks all show on the first frame. The table also shows its crosshair
-// from the first frame. The tree, and every table page after the first,
+// and error-under-focus looks all show on the first frame. The radio groups
+// show the same idea: a chosen mark, a disabled option, and a group with
+// its error fact set. The table also shows its crosshair from the first
+// frame. The tree, and every table page after the first,
 // load through a deliberately slow fetch, so the loading tone stays on
 // screen long enough to see.
 //
@@ -238,6 +240,32 @@ class Model {
     disabled: true,
   );
 
+  /// Three options, one chosen and one disabled: the arrows skip the
+  /// disabled option and a click on it does nothing.
+  final delivery = RadioGroupModel<String>(
+    id: 'delivery-radio',
+    options: [
+      RadioOption(value: 'pickup', label: Line('Pickup')),
+      RadioOption(value: 'home', label: Line('Home delivery')),
+      RadioOption(value: 'locker', label: Line('Locker'), disabled: true),
+    ],
+    value: 'home',
+  );
+
+  /// Three options, nothing chosen, the error fact set: the way a required
+  /// question reads before the user picks. `update` clears the error on the
+  /// first choice, the way `terms` clears its own.
+  final priority = RadioGroupModel<String>(
+    id: 'priority-radio',
+    options: [
+      RadioOption(value: 'low', label: Line('Low')),
+      RadioOption(value: 'medium', label: Line('Medium')),
+      RadioOption(value: 'high', label: Line('High')),
+    ],
+    error: true,
+    direction: Axis.horizontal,
+  );
+
   final list = ListViewModel<String, String>(
     items: chores,
     itemKey: (chore) => chore,
@@ -286,6 +314,8 @@ class Model {
     notify,
     partial,
     terms,
+    delivery,
+    priority,
     editor,
     list,
     tree,
@@ -346,6 +376,8 @@ Cmd? onEvent(Model model, WidgetEvent event) {
       model.status = 'Button: $id pressed';
     case CheckboxChangeEvent(:final id, :final checked):
       model.status = 'Checkbox: $id ${checked ? 'checked' : 'unchecked'}';
+    case RadioChangeEvent(:final id, :final value):
+      model.status = 'Radio: $id $value';
     case ComboboxSelectEvent():
       model.status = 'Combobox: ${model.combo.value}';
     case ListActivateEvent():
@@ -417,6 +449,7 @@ Cmd? onEvent(Model model, WidgetEvent event) {
         // required checkbox reads the same way from its own value.
         model.requiredInput.error = model.requiredInput.value.trim().isEmpty;
         model.terms.error = model.terms.state != CheckState.checked;
+        model.priority.error = model.priority.value == null;
         return (model, Batch([cmd, for (final e in events) onEvent(model, e)]));
       case Declined():
         break; // not interaction traffic the router owns — fall through

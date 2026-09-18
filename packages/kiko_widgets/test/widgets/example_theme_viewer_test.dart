@@ -63,6 +63,13 @@ void main() {
     expect(box, isNotNull, reason: 'the checkbox paints under its own id');
     expect(buffer[(x: box!.x + 1, y: box.y)].symbol, 'x', reason: 'seeded checked, so the mark shows');
 
+    final radio = frame.hits.rectOf(model.delivery.id);
+    expect(radio, isNotNull, reason: 'the radio group paints under its own id');
+    final chosenRow = model.delivery.options.indexWhere((option) => option.value == model.delivery.value);
+    final chosenMark = buffer[(x: radio!.x + 1, y: radio.y + chosenRow)];
+    expect(chosenMark.symbol, '*', reason: 'seeded chosen, so the chosen option shows its mark');
+    expect(chosenMark.fg, equals(Theme.dark.selection.color));
+
     expect(model.table.getSelectedKeys(), equals({'R001'}));
     final table = frame.hits.rectOf(model.table.id);
     expect(table, isNotNull, reason: 'the table paints under its own id');

@@ -51,7 +51,8 @@ View galleryPage(Model model, Theme theme, StyleResolver resolver, View comboVie
 );
 
 /// The form column: text inputs in three states, the combobox, the button
-/// row, the checkbox group, and the editor taking the rest of the height.
+/// row, the checkbox group, the radio group box, and the editor taking the
+/// rest of the height.
 View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboView) {
   final requiredStates = {
     if (model.requiredInput.focused) WidgetState.focused,
@@ -61,6 +62,11 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
   final checkboxStates = {
     if (checkboxes.any((box) => box.focused)) WidgetState.focused,
     if (checkboxes.any((box) => box.error)) WidgetState.error,
+  };
+  final radios = [model.delivery, model.priority];
+  final radioStates = {
+    if (radios.any((group) => group.focused)) WidgetState.focused,
+    if (radios.any((group) => group.error)) WidgetState.error,
   };
   return ConstrainedBox(
     additionalConstraints: const BoxConstraints(minW: 36, maxW: 36),
@@ -110,6 +116,23 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           child: Column(
             crossAxis: CrossAxisAlignment.stretch,
             children: [for (final box in checkboxes) Checkbox(model: box, theme: theme)],
+          ),
+        ),
+        // Two groups: delivery shows a chosen mark beside a disabled option;
+        // priority starts with nothing chosen and its error fact set. The
+        // border carries focus and error like the checkbox box's, read from
+        // whichever group holds them.
+        Container(
+          border: BorderType.plain,
+          borderStyle: resolver.border(radioStates),
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          topTitles: [Line(' RadioGroup ', style: titleInk(resolver, radioStates))],
+          child: Column(
+            crossAxis: CrossAxisAlignment.stretch,
+            children: [
+              RadioGroup(model: model.delivery, theme: theme),
+              RadioGroup(model: model.priority, theme: theme),
+            ],
           ),
         ),
         Expanded(

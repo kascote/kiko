@@ -11,7 +11,7 @@ import 'types.dart';
 /// Records that [region] was painted at [rect] — the seam a table's viewport
 /// wires to its node's region store so marks are written by the same code that
 /// paints the parts they name.
-typedef RegionMark = void Function(Region region, Rect rect);
+typedef RegionMarker = void Function(Region region, Rect rect);
 
 /// Paints a [TableViewModel] through a plume [Surface].
 ///
@@ -70,7 +70,7 @@ class TableRenderer {
   /// its parts were painted. Marks are emitted in the same loop that computes
   /// the rects, so the geometry a pointer resolves against cannot drift from
   /// what was drawn.
-  void paint(Rect area, Surface surface, {RegionMark? mark}) {
+  void paint(Rect area, Surface surface, {RegionMarker? mark}) {
     if (area.isEmpty) return;
 
     // Calculate visible columns that fit in area width

@@ -25,6 +25,8 @@ export 'src/widgets/offer_outward.dart';
 export 'src/widgets/popup/popup_placed.dart';
 export 'src/widgets/popup/popup_placement.dart';
 export 'src/widgets/popup/popup_view.dart';
+export 'src/widgets/radio_group/radio_group_model.dart';
+export 'src/widgets/radio_group/types.dart';
 export 'src/widgets/row_region.dart';
 export 'src/widgets/scroll_view/scroll_metrics.dart';
 export 'src/widgets/scroll_view/scroll_view_model.dart';

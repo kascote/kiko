@@ -19,6 +19,17 @@ PointerMsg _pointer(PointerAction action, String id) => PointerMsg(
   targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
 );
 
+/// A pointer over row 0 of a 6×1 radio group at the origin, addressed to
+/// [id]. `local` doubles as the in-row position, so the release is `inside`.
+PointerMsg _radioPointer(PointerAction action, String id) => PointerMsg(
+  global: const Position(1, 0),
+  action: action,
+  local: const Position(1, 0),
+  targetId: id,
+  targetRect: Rect.create(x: 0, y: 0, width: 6, height: 1),
+  region: const RowRegion(0),
+);
+
 void main() {
   group('a release without the widget’s own press does nothing', () {
     test(
@@ -56,6 +67,29 @@ void main() {
           isA<Handled>().having((h) => h.events, 'events', [const CheckboxChangeEvent('cb', checked: true)]),
         );
         expect(checkbox.checked, isTrue);
+      },
+    );
+
+    test(
+      'RadioGroupModel',
+      () {
+        final radioGroup = RadioGroupModel<String>(
+          id: 'rg',
+          options: [
+            RadioOption(value: 'a', label: Line('A')),
+            RadioOption(value: 'b', label: Line('B')),
+          ],
+        );
+
+        final orphan = radioGroup.update(_radioPointer(PointerAction.up, 'rg'));
+
+        expect(orphan, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+        expect(radioGroup.value, isNull, reason: 'an orphan release never chooses');
+
+        radioGroup.update(_radioPointer(PointerAction.down, 'rg'));
+        final click = radioGroup.update(_radioPointer(PointerAction.up, 'rg'));
+        expect(click, isA<Handled>().having((h) => h.events, 'events', [const RadioChangeEvent('rg', 'a')]));
+        expect(radioGroup.value, equals('a'));
       },
     );
 

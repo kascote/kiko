@@ -46,6 +46,14 @@ void main() {
       focused: true,
     ).update(msg),
     'TreeViewModel': (msg) => TreeViewModel<String>(focused: true).update(msg),
+    'RadioGroupModel': (msg) => RadioGroupModel<String>(
+      options: [
+        RadioOption(value: 'a', label: Line('A')),
+        RadioOption(value: 'b', label: Line('B')),
+        RadioOption(value: 'c', label: Line('C')),
+      ],
+      focused: true,
+    ).update(msg),
     'FocusSlot': (msg) => FocusSlot().update(msg),
   };
 

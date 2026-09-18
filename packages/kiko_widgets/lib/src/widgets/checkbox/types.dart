@@ -28,6 +28,13 @@ enum CheckState {
 /// | `square` | `◻`       | `◼`     | `▬`   | 1     | no brackets                   |
 /// | `block`  | `▐ ▌`     | `▐X▌`   | `▐-▌` | 3     | half blocks, filled mark cell |
 /// | `emoji`  | `⬜`      | `✅`    | `➖`  | 2     | two cells on every tier       |
+/// | `paren`  | `( )`     | `(*)`   | `( )` | 3     | radio default; every terminal, every font |
+/// | `dot`    | `( )`     | `(•)`   | `( )` | 3     | radio; U+2022 is East Asian ambiguous width |
+/// | `circle` | `◌`       | `◉`     | `◌`   | 1     | radio; no brackets            |
+/// | `orb`    | `⚪`      | `🔘`    | `⚪`  | 2     | radio; emoji presentation on every tier |
+///
+/// The four radio presets set [mixed] to [unchecked], so [markWidth] never
+/// widens a radio box.
 ///
 /// Each part is a plain string, so an app swaps it for a preset below, an
 /// empty string (no brackets), or a wider glyph such as an emoji. The widget
@@ -73,6 +80,18 @@ class CheckGlyphs {
 
   /// `⬜` / `✅` / `➖`.
   static const emoji = CheckGlyphs(open: '', close: '', unchecked: '⬜', checked: '✅', mixed: '➖');
+
+  /// `( )` / `(*)` / `( )`. A radio preset: [mixed] equals [unchecked].
+  static const paren = CheckGlyphs(open: '(', close: ')', checked: '*', mixed: ' ');
+
+  /// `( )` / `(•)` / `( )`. A radio preset: [mixed] equals [unchecked].
+  static const dot = CheckGlyphs(open: '(', close: ')', checked: '•', mixed: ' ');
+
+  /// `◌` / `◉` / `◌`. A radio preset: [mixed] equals [unchecked].
+  static const circle = CheckGlyphs(open: '', close: '', unchecked: '◌', checked: '◉', mixed: '◌');
+
+  /// `⚪` / `🔘` / `⚪`. A radio preset: [mixed] equals [unchecked].
+  static const orb = CheckGlyphs(open: '', close: '', unchecked: '⚪', checked: '🔘', mixed: '⚪');
 
   /// The width of the widest mark, as measured by [measurer].
   ///

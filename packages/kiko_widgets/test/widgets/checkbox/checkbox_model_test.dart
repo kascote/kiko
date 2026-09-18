@@ -261,6 +261,26 @@ void main() {
     test('emoji: 2-cell marks, no brackets, a 2-cell box', () {
       expectWidths(CheckGlyphs.emoji, mark: 2, box: 2);
     });
+
+    test('paren: bracketed to a 3-cell box, mixed equals unchecked', () {
+      expectWidths(CheckGlyphs.paren, mark: 1, box: 3);
+      expect(CheckGlyphs.paren.mixed, equals(CheckGlyphs.paren.unchecked));
+    });
+
+    test('dot: bracketed to a 3-cell box, mixed equals unchecked', () {
+      expectWidths(CheckGlyphs.dot, mark: 1, box: 3);
+      expect(CheckGlyphs.dot.mixed, equals(CheckGlyphs.dot.unchecked));
+    });
+
+    test('circle: no brackets, a 1-cell box, mixed equals unchecked', () {
+      expectWidths(CheckGlyphs.circle, mark: 1, box: 1);
+      expect(CheckGlyphs.circle.mixed, equals(CheckGlyphs.circle.unchecked));
+    });
+
+    test('orb: no brackets, a 2-cell box, mixed equals unchecked', () {
+      expectWidths(CheckGlyphs.orb, mark: 2, box: 2);
+      expect(CheckGlyphs.orb.mixed, equals(CheckGlyphs.orb.unchecked));
+    });
   });
 
   group('CheckboxModel Focusable', () {

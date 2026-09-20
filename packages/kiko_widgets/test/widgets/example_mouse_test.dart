@@ -65,10 +65,15 @@ void main() {
         final table = hits.rectOf('employees')!; // header at row 0, data below
         final list = hits.rectOf('departments')!; // items from row 0
         return [
-          // A click on a table data row: focuses the table, activates the row.
+          // A click on a table data row: the table activates on a single
+          // press, focusing it and activating the row.
           (b) => b.emitClick(table.x + 1, table.y + 1),
-          // A click on a list item: focus moves to the list, same activation path.
-          (b) => b.emitClick(list.x + 1, list.y),
+          // A double-click on a list item: the list activates only on the
+          // second press of a chain, so this step emits two clicks. Focus
+          // still moves to the list on the first press.
+          (b) => b
+            ..emitClick(list.x + 1, list.y)
+            ..emitClick(list.x + 1, list.y),
         ];
       },
     );

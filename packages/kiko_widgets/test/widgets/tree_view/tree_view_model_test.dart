@@ -17,12 +17,26 @@ PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
 
 /// A routed button/move message over the node at [row]'s body, the way the
 /// framework delivers it once the view marked the row and the router resolved it.
-PointerMsg pointerOnRow(PointerAction action, int row) =>
-    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
+/// [clickCount] defaults to 0, the way a hand-built message reads under the
+/// `press` activation policy.
+PointerMsg pointerOnRow(PointerAction action, int row, {int clickCount = 0}) => PointerMsg(
+  global: Position.origin,
+  action: action,
+  local: Position.origin,
+  region: RowRegion(row),
+  clickCount: clickCount,
+);
 
-/// A routed button/move message over the expand indicator of the node at [row].
-PointerMsg pointerOnIndicator(PointerAction action, int row) =>
-    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: TreeIndicatorRegion(row));
+/// A routed button/move message over the expand indicator of the node at
+/// [row]. [clickCount] defaults to 0; the indicator toggles whatever the
+/// count.
+PointerMsg pointerOnIndicator(PointerAction action, int row, {int clickCount = 0}) => PointerMsg(
+  global: Position.origin,
+  action: action,
+  local: Position.origin,
+  region: TreeIndicatorRegion(row),
+  clickCount: clickCount,
+);
 
 /// [count] leaf roots, enough to fill more than one viewport.
 List<TreeNode<String>> leaves(int count) =>
@@ -210,6 +224,75 @@ void main() {
 
       model.update(const PointerLeaveMsg('nav'));
       expect(model.hoverRow, isNull);
+    });
+  });
+
+  group('pointer activation policy', () {
+    // Same shape as the `mouse click + hover` tree, with the policy set.
+    TreeViewModel<String> doubleClickTree() => TreeViewModel<String>(id: 'nav', focused: true)
+      ..viewport(rows: 10)
+      ..loadRoots()
+      ..applyRoots(<TreeNode<String>>[
+        TreeNode(path: '/A', label: Line('Alpha')),
+        TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
+        TreeNode(path: '/c', label: Line('Gamma'), isLeaf: true),
+      ])
+      ..pointerActivation = PointerActivation.doubleClick;
+
+    test('doubleClick: a single press moves the cursor and emits no activate event', () {
+      final model = doubleClickTree();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 1, clickCount: 1));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursor, equals(1));
+    });
+
+    test('doubleClick: a press with clickCount 2 activates with the same event Enter emits', () {
+      final model = doubleClickTree();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 1, clickCount: 2));
+
+      expect(
+        down,
+        isA<Handled>().having(
+          (h) => h.events,
+          'events',
+          [isA<TreeActivateEvent<String>>().having((c) => c.path, 'path', '/b')],
+        ),
+      );
+      expect(model.cursor, equals(1));
+    });
+
+    test('doubleClick: a press with clickCount 3 does not activate', () {
+      final model = doubleClickTree();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 1, clickCount: 3));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursor, equals(1));
+    });
+
+    test('doubleClick: the indicator still toggles on a press of any count', () {
+      final model = doubleClickTree();
+
+      final down = model.update(pointerOnIndicator(PointerAction.down, 0, clickCount: 2));
+      expect(model.isExpanded('/A'), isTrue, reason: 'a count-2 indicator press still expands the node');
+      expect(
+        down,
+        isA<Handled>().having((h) => h.events, 'events', [isA<TreeExpandEvent<String>>(), isA<LoadRequest>()]),
+      );
+
+      final again = model.update(pointerOnIndicator(PointerAction.down, 0, clickCount: 3));
+      expect(model.isExpanded('/A'), isFalse, reason: 'a count-3 indicator press still collapses the node');
+      expect(
+        again,
+        isA<Handled>().having(
+          (h) => h.events,
+          'events',
+          [isA<TreeCollapseEvent<String>>().having((c) => c.path, 'path', '/A')],
+        ),
+      );
     });
   });
 

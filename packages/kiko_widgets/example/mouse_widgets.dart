@@ -19,14 +19,19 @@
 //      siblings — and the router is app-side glue doing exactly that), and
 //      reserves the traversal key before any widget sees it.
 //
-// Everything else is already there. A click emits the SAME `TableActivateEvent` /
-// `ListActivateEvent` an Enter emits, addressed by the same id, and key and pointer
-// results converge in the router's answer — one switch handles both devices,
-// and the app never grew a second, mouse-only path. The wheel scrolls whichever
-// widget is under the cursor; hovering highlights a row. The router does not
-// care that a Table and a List are different widgets.
+// Everything else is already there. The table activates on a single click —
+// `PointerActivation.press`, the default — and the list activates only on a
+// double-click, set on its model with `pointerActivation =
+// PointerActivation.doubleClick`. Either way the event is the SAME
+// `TableActivateEvent` / `ListActivateEvent` an Enter emits, addressed by the
+// same id, and key and pointer results converge in the router's answer — one
+// switch handles both devices, and the app never grew a second, mouse-only
+// path. The wheel scrolls whichever widget is under the cursor; hovering
+// highlights a row. The router does not care that a Table and a List are
+// different widgets.
 //
-// tab/shift+tab switch focus · ↑/↓ or the wheel moves · enter or a click activates · q quits
+// tab/shift+tab switch focus · ↑/↓ or the wheel moves · enter activates ·
+// a click activates the table, a double-click activates the list · q quits
 
 import 'dart:io';
 
@@ -73,7 +78,8 @@ class AppModel {
     ],
   );
 
-  late final list = ListViewModel<String, String>(id: 'departments', items: departments);
+  late final list = ListViewModel<String, String>(id: 'departments', items: departments)
+    ..pointerActivation = PointerActivation.doubleClick;
 
   late final FocusGroup<Component> focus = FocusGroup([table, list]);
 
@@ -142,7 +148,7 @@ void view(AppModel model, Frame frame) {
     children: [
       Center(
         child: Line(
-          'Mouse-driven widgets — tab · ↑/↓ · wheel · enter · click · q quits',
+          'Mouse-driven widgets — tab · ↑/↓ · wheel · enter · click table / double-click list · q quits',
           style: resolver.ink(t.muted),
         ),
       ),
@@ -154,7 +160,7 @@ void view(AppModel model, Frame frame) {
             Expanded(
               flex: 2,
               child: _pane(
-                'Employees',
+                'Employees (click)',
                 model.focus.focused.id == model.table.id,
                 resolver,
                 TableView(model: model.table, theme: _theme),
@@ -162,7 +168,7 @@ void view(AppModel model, Frame frame) {
             ),
             Expanded(
               child: _pane(
-                'Departments',
+                'Departments (double-click)',
                 model.focus.focused.id == model.list.id,
                 resolver,
                 ListView(model: model.list, theme: _theme, itemBuilder: (item, i, _) => [Line(' $item')]),
@@ -197,7 +203,7 @@ View _log(AppModel model, StyleResolver resolver) {
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         if (model.log.isEmpty)
-          Line(' click a row, or press enter on one', style: resolver.ink(t.muted))
+          Line(' click the table, double-click the list, or press enter', style: resolver.ink(t.muted))
         else
           for (final line in model.log) Line(' $line'),
       ],

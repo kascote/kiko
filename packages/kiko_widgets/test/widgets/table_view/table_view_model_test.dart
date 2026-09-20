@@ -13,8 +13,15 @@ PointerMsg pointer(PointerAction action) => PointerMsg(global: Position.origin, 
 
 /// A routed button/move message over data row [row], the way the framework
 /// delivers it once the view has marked the row and the router resolved it.
-PointerMsg pointerOnRow(PointerAction action, int row) =>
-    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
+/// [clickCount] defaults to 0, the way a hand-built message reads under the
+/// `press` activation policy.
+PointerMsg pointerOnRow(PointerAction action, int row, {int clickCount = 0}) => PointerMsg(
+  global: Position.origin,
+  action: action,
+  local: Position.origin,
+  region: RowRegion(row),
+  clickCount: clickCount,
+);
 
 /// A routed button/move message over the sticky header.
 PointerMsg pointerOnHeader(PointerAction action) => PointerMsg(
@@ -235,6 +242,44 @@ void main() {
 
       model.update(const PointerLeaveMsg('grid'));
       expect(model.hoverRow, isNull);
+    });
+  });
+
+  group('pointer activation policy', () {
+    TableViewModel doubleClickTable() =>
+        TableViewModel(id: 'grid', rows: sampleRows(10), keyField: 'id', columns: sampleColumns(), focused: true)
+          ..viewport(rows: 6, cols: 3)
+          ..insertRows(sampleRows(10), 0)
+          ..pointerActivation = PointerActivation.doubleClick;
+
+    test('doubleClick: a single press moves the cursor and emits no activate event', () {
+      final model = doubleClickTable();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 2, clickCount: 1));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursorRow, equals(2));
+    });
+
+    test('doubleClick: a press with clickCount 2 activates with the same event Enter emits', () {
+      final model = doubleClickTable();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 2, clickCount: 2));
+
+      expect(
+        down,
+        isA<Handled>().having((h) => h.events, 'events', [const TableActivateEvent('grid', 'primary')]),
+      );
+      expect(model.cursorRow, equals(2));
+    });
+
+    test('doubleClick: a press with clickCount 3 does not activate', () {
+      final model = doubleClickTable();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 2, clickCount: 3));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursorRow, equals(2));
     });
   });
 

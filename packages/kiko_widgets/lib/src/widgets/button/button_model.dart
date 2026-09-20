@@ -7,7 +7,8 @@ import 'types.dart';
 /// Model for a single button.
 ///
 /// Holds both state and config. Use [update] to handle messages.
-/// Returns [ButtonPressEvent] when activated.
+/// Returns [ButtonPressEvent] when activated. A double-click is two presses,
+/// and fires [ButtonPressEvent] twice.
 ///
 /// Has `copyWith` for creating modified copies. Mutable fields are
 /// `focused` (required by [Focusable] interface), `loading`, and `disabled`.

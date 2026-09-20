@@ -17,8 +17,15 @@ PointerMsg pointerAt(PointerAction action, {int x = 0, int y = 0}) =>
 
 /// A routed button/move message over row [row], the way the framework delivers
 /// it once the view has marked the row and the router has resolved it.
-PointerMsg pointerOnRow(PointerAction action, int row) =>
-    PointerMsg(global: Position.origin, action: action, local: Position.origin, region: RowRegion(row));
+/// [clickCount] defaults to 0, the way a hand-built message reads under the
+/// `press` activation policy.
+PointerMsg pointerOnRow(PointerAction action, int row, {int clickCount = 0}) => PointerMsg(
+  global: Position.origin,
+  action: action,
+  local: Position.origin,
+  region: RowRegion(row),
+  clickCount: clickCount,
+);
 
 /// A message no model understands: the probe for the decline path.
 class _UnknownMsg extends Msg {
@@ -180,6 +187,40 @@ void main() {
 
       model.update(const PointerLeaveMsg('menu'));
       expect(model.hoverRow, isNull, reason: 'a leave clears the hover');
+    });
+  });
+
+  group('pointer activation policy', () {
+    ListViewModel<String, String> doubleClickMenu() =>
+        ListViewModel<String, String>(id: 'menu', items: List.generate(6, (i) => 'item$i'), focused: true)
+          ..viewport(rows: 6)
+          ..pointerActivation = PointerActivation.doubleClick;
+
+    test('doubleClick: a single press moves the cursor and emits no activate event', () {
+      final model = doubleClickMenu();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 3, clickCount: 1));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursor, equals(3));
+    });
+
+    test('doubleClick: a press with clickCount 2 activates with the same event Enter emits', () {
+      final model = doubleClickMenu();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 3, clickCount: 2));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', [const ListActivateEvent('menu')]));
+      expect(model.cursor, equals(3));
+    });
+
+    test('doubleClick: a press with clickCount 3 does not activate', () {
+      final model = doubleClickMenu();
+
+      final down = model.update(pointerOnRow(PointerAction.down, 3, clickCount: 3));
+
+      expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(model.cursor, equals(3));
     });
   });
 

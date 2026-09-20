@@ -184,6 +184,13 @@ class PointerMsg extends Msg implements Routed {
   /// rather than merely sitting under it.
   final bool captured;
 
+  /// The count of this press in a chain of clicks, or the chain it ended.
+  ///
+  /// 1 for a lone press or its release, 2 for the second press of a chain,
+  /// and so on with no cap. 0 on anything that is not a press or release —
+  /// a move, a drag, a wheel notch — and 0 on a message built by hand.
+  final int clickCount;
+
   /// The painted part of the target widget under the pointer, or `null` when
   /// the pointer is over no marked part.
   ///
@@ -214,6 +221,7 @@ class PointerMsg extends Msg implements Routed {
     this.targetRect,
     this.captured = false,
     this.region,
+    this.clickCount = 0,
   });
 
   /// Whether a button went down.
@@ -221,6 +229,13 @@ class PointerMsg extends Msg implements Routed {
 
   /// Whether a button came up.
   bool get isUp => action == PointerAction.up;
+
+  /// Whether this press is the second of a chain of clicks.
+  ///
+  /// False on the third press of a chain, and false on the `up` that ends a
+  /// double-click: a widget that wants "double-click" reads it from the
+  /// press, not the release.
+  bool get isDoubleClick => isDown && clickCount == 2;
 
   /// Whether the pointer moved with no button held.
   bool get isMove => action == PointerAction.move;
@@ -282,16 +297,18 @@ class PointerMsg extends Msg implements Routed {
           local == other.local &&
           targetRect == other.targetRect &&
           captured == other.captured &&
-          region == other.region;
+          region == other.region &&
+          clickCount == other.clickCount;
 
   @override
   int get hashCode =>
-      Object.hash(global, action, button, shift, ctrl, alt, targetId, local, targetRect, captured, region);
+      Object.hash(global, action, button, shift, ctrl, alt, targetId, local, targetRect, captured, region, clickCount);
 
   @override
   String toString() =>
       'PointerMsg(${action.name} at $global, target: $targetId, local: $local'
-      '${region == null ? '' : ', region: $region'}${captured ? ', captured' : ''})';
+      '${region == null ? '' : ', region: $region'}${captured ? ', captured' : ''}'
+      '${clickCount == 0 ? '' : ', clicks: $clickCount'})';
 }
 
 /// The pointer has left a widget: no further event will address it.

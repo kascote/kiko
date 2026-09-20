@@ -53,6 +53,9 @@ class MouseModel {
   int mouseX = 0;
   int mouseY = 0;
   String lastWheel = '—';
+
+  /// The click count of the last press seen, 0 before the first one.
+  int clickCount = 0;
 }
 
 (MouseModel, Cmd?) update(MouseModel model, Msg msg, UpdateContext _) {
@@ -97,6 +100,7 @@ class MouseModel {
       // grab offset — the cursor counted from the panel's own top-left cell —
       // and the router keeps no such offset for us.
       if (m.isDown) {
+        model.clickCount = m.clickCount;
         if (m.targetId == 'panel') {
           model
             ..dragging = true
@@ -236,6 +240,7 @@ View _readout(MouseModel model) => Container(
       ]),
       Line('selected rect: ${_rectLabel(model.selectedRect)}'),
       Line('last wheel   : ${model.lastWheel}'),
+      Line('click count  : ${model.clickCount}'),
     ],
   ),
 );

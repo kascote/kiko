@@ -108,8 +108,10 @@ Frame _blank(int width, int height) {
 /// of x=5 and the bottom row belong to the background.
 HitMap _compositeHits() => (_blank(9, 5)..renderNode(_pinned(_composite(), 0, 0, 6, 4))).hits;
 
-/// A mouse event as it waits in the queue, aimed at [hits].
-RawPointerMsg _at(int x, int y, MouseButton button, HitMap hits) => RawPointerMsg(MouseEvent(x, y, button), hits);
+/// A mouse event as it waits in the queue, aimed at [hits] and stamped with
+/// the arrival time [at].
+RawPointerMsg _at(int x, int y, MouseButton button, HitMap hits, {Duration at = Duration.zero}) =>
+    RawPointerMsg(MouseEvent(x, y, button), hits, at: at);
 
 MouseButton _down() => MouseButton.down(MouseButtonKind.left);
 MouseButton _up() => MouseButton.up(MouseButtonKind.left);
@@ -124,7 +126,7 @@ void main() {
   late HitMap hits;
 
   setUp(() {
-    router = MouseRouter();
+    router = MouseRouter(doubleClickInterval: const Duration(milliseconds: 400));
     hits = _twoPanes();
   });
 
@@ -459,6 +461,7 @@ void main() {
           local: const Position(5, 1),
           targetRect: Rect.create(x: 0, y: 0, width: 4, height: 2),
           captured: true,
+          clickCount: 1,
         ),
         const PointerLeaveMsg('left'),
       ], reason: 'the release reaches the captor first, and only then does hover catch up');
@@ -517,6 +520,153 @@ void main() {
       ]);
       expect(routed.every((p) => p.isWheel && p.targetId == 'left'), isTrue);
       expect(routed.every((p) => p.button == PointerButton.none), isTrue, reason: 'wheel carries no button');
+    });
+  });
+
+  group('click count', () {
+    test('a second press on the same cell within the interval counts 2, and its release carries the same count', () {
+      final down1 = _only(router.route(_at(1, 1, _down(), hits)));
+      router.route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+      final up2 = _only(router.route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 150))));
+
+      expect(down1.clickCount, 1);
+      expect(down2.clickCount, 2);
+      expect(up2.clickCount, 2);
+    });
+
+    test('a third press in time counts 3', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)))
+        ..route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100)))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 150)));
+
+      final down3 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 200))));
+
+      expect(down3.clickCount, 3);
+    });
+
+    test('past the interval, the count is 1', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 500))));
+
+      expect(down2.clickCount, 1);
+    });
+
+    test('a press on a different cell resets the count to 1', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(router.route(_at(2, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+
+      expect(down2.targetId, 'left', reason: 'still the same widget');
+      expect(down2.clickCount, 1);
+    });
+
+    test('a press on a different target resets the count to 1, even at the same cell', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      // The layout changed under the cursor: the same cell now belongs to
+      // the other pane.
+      final swapped = _twoPanes(swap: true);
+      final down2 = _only(router.route(_at(1, 1, _down(), swapped, at: const Duration(milliseconds: 100))));
+
+      expect(down2.targetId, 'right');
+      expect(down2.clickCount, 1);
+    });
+
+    test('a press with a different button resets the count to 1', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(
+        router.route(
+          _at(1, 1, MouseButton.down(MouseButtonKind.right), hits, at: const Duration(milliseconds: 100)),
+        ),
+      );
+
+      expect(down2.clickCount, 1);
+    });
+
+    test('the interval is press to press, so a slow release does not break a chain', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 350)));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 380))));
+
+      expect(down2.clickCount, 2);
+    });
+
+    test('a move, a drag and a wheel notch carry no count and leave a chain intact', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final move = _only(router.route(_at(1, 1, _move(), hits, at: const Duration(milliseconds: 60))));
+      final drag = _only(router.route(_at(1, 1, _drag(), hits, at: const Duration(milliseconds: 70))));
+      final wheel = _only(router.route(_at(1, 1, MouseButton.wheelDown(), hits, at: const Duration(milliseconds: 80))));
+
+      expect(move.clickCount, 0);
+      expect(drag.clickCount, 0);
+      expect(wheel.clickCount, 0);
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+      expect(down2.clickCount, 2);
+    });
+
+    test('a bare move while held cancels the gesture and resets the chain', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        // A held gesture that sees a bare `moved` treats it as the release
+        // happening off-window: the router cancels it.
+        ..route(_at(1, 1, _move(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+
+      expect(down2.clickCount, 1);
+    });
+
+    test('losing terminal focus resets the chain', () {
+      router
+        ..route(_at(1, 1, _down(), hits))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 50)))
+        ..route(const FocusMsg(hasFocus: false));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+
+      expect(down2.clickCount, 1);
+    });
+
+    test('the background chains with itself', () {
+      final down1 = _only(router.route(_at(1, 2, _down(), hits)));
+      router.route(_at(1, 2, _up(), hits, at: const Duration(milliseconds: 50)));
+
+      final down2 = _only(router.route(_at(1, 2, _down(), hits, at: const Duration(milliseconds: 100))));
+
+      expect(down1.targetId, isNull);
+      expect(down1.clickCount, 1);
+      expect(down2.targetId, isNull);
+      expect(down2.clickCount, 2);
+    });
+
+    test('a press with an earlier time than the last press counts 1', () {
+      router
+        ..route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 200)))
+        ..route(_at(1, 1, _up(), hits, at: const Duration(milliseconds: 250)));
+
+      final down2 = _only(router.route(_at(1, 1, _down(), hits, at: const Duration(milliseconds: 100))));
+
+      expect(down2.clickCount, 1);
     });
   });
 

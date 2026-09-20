@@ -830,6 +830,65 @@ void main() {
     });
   });
 
+  group('click count', () {
+    test('two emitClick calls in one step deliver the second press with clickCount 2', () async {
+      final downCounts = <int>[];
+
+      await Application(
+        backend: backend,
+        mouseEvents: true,
+        onFrame: (frame) {
+          if (frame.count != 0) return;
+          final box = frame.hits.rectOf('ok')!;
+          backend
+            ..emitClick(box.x + 1, box.y)
+            ..emitClick(box.x + 1, box.y);
+        },
+      ).run<int>(
+        init: 0,
+        update: (step, msg, _) {
+          if (msg is PointerMsg && msg.isDown) {
+            downCounts.add(msg.clickCount);
+            if (downCounts.length == 2) return (step, const Quit());
+          }
+          return (step, null);
+        },
+        view: tagWholeArea,
+      );
+
+      expect(downCounts, [1, 2]);
+    });
+
+    test('with now advanced past the interval between two steps, both presses count 1', () async {
+      var t = Duration.zero;
+      final downCounts = <int>[];
+
+      await Application(
+        backend: backend,
+        mouseEvents: true,
+        now: () => t,
+        onFrame: (frame) {
+          if (frame.count > 1) return;
+          t += const Duration(milliseconds: 500);
+          final box = frame.hits.rectOf('ok')!;
+          backend.emitClick(box.x + 1, box.y);
+        },
+      ).run<int>(
+        init: 0,
+        update: (step, msg, _) {
+          if (msg is PointerMsg && msg.isDown) {
+            downCounts.add(msg.clickCount);
+            if (downCounts.length == 2) return (step, const Quit());
+          }
+          return (step, null);
+        },
+        view: tagWholeArea,
+      );
+
+      expect(downCounts, [1, 1]);
+    });
+  });
+
   group('frame reports', () {
     test('a report appended during paint reaches update on the loop iteration after the draw, '
         'carrying its id', () async {

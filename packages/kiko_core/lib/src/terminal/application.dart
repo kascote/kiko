@@ -9,6 +9,7 @@ import '../backend/backend.dart' show Backend, ColorProfile;
 import '../mvu/cmd.dart';
 import '../mvu/msg.dart';
 import '../mvu/mvu_runtime.dart';
+import '../mvu/pointer_msg.dart' show PointerMsg;
 import '../mvu/update_context.dart';
 import '../plume/term_unicode_measurer.dart';
 import '../style_resolver.dart';
@@ -163,6 +164,13 @@ class Application {
   /// 60 (about 16 ms between frames).
   final int fps;
 
+  /// How long after a press a matching next press still counts as the next
+  /// click of the same chain — see [PointerMsg.clickCount].
+  ///
+  /// One value for the whole app, so the feel of a double click does not
+  /// drift from one widget to another. Default is 400 ms.
+  final Duration doubleClickInterval;
+
   /// Path to log file. If null, logging is disabled.
   final String? logPath;
 
@@ -213,6 +221,7 @@ class Application {
     @visibleForTesting this.now,
     this.measurer = const TermUnicodeMeasurer(),
     this.fps = 60,
+    this.doubleClickInterval = const Duration(milliseconds: 400),
     this.logPath,
     this.logLevel = LogLevel.info,
     this.logFormatter,
@@ -290,7 +299,7 @@ class Application {
 
   Future<int> _runLoop<M>(M init, Update<M> update, Render<M> view) async {
     final terminal = _terminal!;
-    final runtime = _runtime = MvuRuntime(now: now)
+    final runtime = _runtime = MvuRuntime(now: now, doubleClickInterval: doubleClickInterval)
       ..reset()
       ..subscribeToEvents(terminal.events)
       // The initial draw below is now genuinely asynchronous, so an event a

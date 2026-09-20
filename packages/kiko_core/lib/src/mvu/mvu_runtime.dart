@@ -39,7 +39,7 @@ typedef OnMsgQueued = void Function();
 /// control.
 class MvuRuntime {
   final Queue<Msg> _msgQueue = Queue<Msg>();
-  final MouseRouter _router = MouseRouter();
+  final MouseRouter _router;
   _CancellationToken _token = _CancellationToken();
 
   /// The one-shot timers armed by [Tick] and not yet fired.
@@ -84,9 +84,16 @@ class MvuRuntime {
   final Duration Function() _now;
 
   /// Creates a new MVU runtime.
-  MvuRuntime({OnMsgQueued? onMsgQueued, Duration Function()? now})
-    : _onMsgQueued = onMsgQueued,
-      _now = now ?? _defaultNow();
+  ///
+  /// [doubleClickInterval] is the longest gap the router still counts as a
+  /// chained click; see [MouseRouter].
+  MvuRuntime({
+    OnMsgQueued? onMsgQueued,
+    Duration Function()? now,
+    Duration doubleClickInterval = const Duration(milliseconds: 400),
+  }) : _onMsgQueued = onMsgQueued,
+       _now = now ?? _defaultNow(),
+       _router = MouseRouter(doubleClickInterval: doubleClickInterval);
 
   static Duration Function() _defaultNow() {
     final stopwatch = Stopwatch()..start();

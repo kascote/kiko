@@ -7,14 +7,15 @@ import 'pointer_msg.dart';
 
 /// Resolves a mouse event to the widget it belongs to, before `update` sees it.
 ///
-/// The router sits between the queue and `update`. It answers the three
+/// The router sits between the queue and `update`. It answers the four
 /// questions no other layer can: whose event is this, where did it land in that
-/// widget's own coordinates, and has the pointer left the widget it was over.
-/// It hands `update` a [PointerMsg] with all three already settled.
+/// widget's own coordinates, has the pointer left the widget it was over, and
+/// which click of a chain is this. It hands `update` a [PointerMsg] with all
+/// four already settled.
 ///
-/// It carries exactly two things across frames — the widget holding the pointer
-/// and the widget under it. Everything else it needs comes from the event, which
-/// arrives stamped with the geometry it was aimed at.
+/// It carries the captor, the hover id and the last press across frames.
+/// Everything else it needs comes from the event, which arrives stamped with
+/// the geometry it was aimed at and the time it arrived.
 ///
 /// ## Capture
 ///
@@ -44,11 +45,35 @@ import 'pointer_msg.dart';
 /// learns it is hovered from the first [PointerMsg] addressed to it. Hover holds
 /// still for the length of a gesture — the pointer is being used, not moved
 /// about — and picks up wherever the cursor is once the button comes up.
+///
+/// ## Click count
+///
+/// A press chains onto the last one when its target, button and cell all
+/// match and it lands within [doubleClickInterval] of it. The count
+/// increments on each chained press; anything else starts a new chain at 1.
+/// The `down` carries the count, and the `up` that ends the gesture carries
+/// the same number. A release does not break the chain, so a slow release
+/// still lets the next press join it. Only a cancelled gesture, lost
+/// terminal focus, or [reset] clears the chain.
 @internal
 class MouseRouter {
+  /// Creates a router that counts two presses as a chain when they land
+  /// within [doubleClickInterval] of each other.
+  MouseRouter({required this.doubleClickInterval});
+
+  /// How long after a press a matching next press still chains onto it.
+  final Duration doubleClickInterval;
+
   bool _capturing = false;
   String? _captureId;
   String? _hoverId;
+
+  /// The last press recorded, for deciding whether the next one chains onto
+  /// it. `null` before any press, and after [reset] or a cancelled gesture.
+  ({Duration at, String? target, PointerButton button, Position cell})? _lastPress;
+
+  /// The running length of the current chain of clicks.
+  int _clickCount = 0;
 
   /// Whether a button gesture owns the pointer.
   ///
@@ -68,6 +93,7 @@ class MouseRouter {
     _capturing = false;
     _captureId = null;
     _hoverId = null;
+    _clearChain();
   }
 
   /// Expands one dequeued [msg] into the messages `update` should see.
@@ -101,6 +127,7 @@ class MouseRouter {
     if (_capturing && action == evt.MouseButtonAction.moved) {
       out.add(PointerCancelMsg(_captureId));
       _release();
+      _clearChain();
     }
 
     final hit = raw.hits.hitId(event.x, event.y);
@@ -121,6 +148,9 @@ class MouseRouter {
       _captureId = hit;
     }
 
+    final fields = pointerFieldsFrom(event);
+    final clickCount = _countClick(action, target, fields.button, Position(event.x, event.y), raw.at);
+
     // Local coordinates come from the event's own map, never from a rect frozen
     // when the button went down: the user aims at the cells now on screen. A
     // captor that has since been painted out has no rect, and its events fall
@@ -132,7 +162,6 @@ class MouseRouter {
     // addresses what is under the pointer, so its region is that widget's part —
     // harmless, since wheel handling sits above region logic.
     final region = target == null ? null : raw.hits.regionAt(target, event.x, event.y);
-    final fields = pointerFieldsFrom(event);
     out.add(
       PointerMsg(
         global: Position(event.x, event.y),
@@ -146,6 +175,7 @@ class MouseRouter {
         targetRect: rect,
         captured: captured,
         region: region,
+        clickCount: clickCount,
       ),
     );
 
@@ -166,6 +196,7 @@ class MouseRouter {
       out.add(PointerCancelMsg(_captureId));
       _release();
     }
+    _clearChain();
     final left = _hoverId;
     if (left != null) {
       out.add(PointerLeaveMsg(left));
@@ -185,5 +216,35 @@ class MouseRouter {
   void _release() {
     _capturing = false;
     _captureId = null;
+  }
+
+  /// Counts [action] against the [target] already settled for this event,
+  /// and records a press so the next one has something to compare against.
+  ///
+  /// A `down` that matches the last press's target, button and cell, and
+  /// lands within [doubleClickInterval] of it, continues the chain; anything
+  /// else starts a new one at 1. An `up` reuses the count its `down` set. A
+  /// move, a drag or a wheel notch counts 0 and leaves the chain untouched.
+  int _countClick(evt.MouseButtonAction action, String? target, PointerButton button, Position cell, Duration at) {
+    if (action == evt.MouseButtonAction.up) return _clickCount;
+    if (action != evt.MouseButtonAction.down) return 0;
+
+    final last = _lastPress;
+    final chains =
+        last != null &&
+        last.target == target &&
+        last.button == button &&
+        last.cell == cell &&
+        at >= last.at &&
+        at - last.at <= doubleClickInterval;
+    _clickCount = chains ? _clickCount + 1 : 1;
+    _lastPress = (at: at, target: target, button: button, cell: cell);
+    return _clickCount;
+  }
+
+  /// Forgets the last press, so the next one starts a fresh chain.
+  void _clearChain() {
+    _lastPress = null;
+    _clickCount = 0;
   }
 }

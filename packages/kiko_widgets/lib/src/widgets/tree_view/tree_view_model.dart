@@ -19,7 +19,7 @@ import 'types.dart';
 /// [LoadRequest] when a node's children aren't loaded yet. The app turns each
 /// request into a runtime `Task` whose outcome is a [LoadResult] carrying the
 /// tree's id, and the router delivers it to [update]. Roots load again only
-/// after a `reset()`, which starts the tree over.
+/// after a [reset], which starts the tree over.
 ///
 /// ```dart
 /// final tree = TreeViewModel<FileInfo>(focused: true);
@@ -180,7 +180,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   ///
   /// The roots load once per cold start. Calling this on a tree whose roots
   /// are loaded and whose slot is idle is a contract violation and asserts in
-  /// debug: call `reset()` first, then load the roots again.
+  /// debug: call [reset] first, then load the roots again.
   LoadRequest loadRoots() {
     const key = RootsKey();
     if (!_loads.isLoading(key)) {
@@ -199,7 +199,7 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   ///
   /// Every result is guarded: only a slot still in flight accepts one, so a
   /// late reply for a collapsed or already-loaded node, or for the roots of a
-  /// tree that was `reset()` since, is dropped rather than corrupting the tree.
+  /// tree that was [reset] since, is dropped rather than corrupting the tree.
   ///
   /// A successful result must carry a `List<TreeNode<T>>`. Any other payload,
   /// null included, fails the slot with a [PayloadMismatch] and installs no
@@ -351,6 +351,60 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     }
 
     return [TreeCollapseEvent<T>(id, path, node)];
+  }
+
+  /// Starts the tree over: drops the roots, every cached branch, the expanded
+  /// set, every load slot, the rows, the cursor, the scroll offset and the
+  /// hover row, so [isLoaded] reads false.
+  ///
+  /// Call it before loading the roots again: `reset()`, then fetch the request
+  /// [loadRoots] returns, exactly as at init. A result for a fetch that was in
+  /// flight is dropped when it lands. The tree keeps its [id], [focused],
+  /// [keyBinding], the glyph configuration and [visibleCount], a layout fact
+  /// the view reports.
+  void reset() {
+    _roots = null;
+    _rootsLoaded = false;
+    _childrenCache.clear();
+    _expanded.clear();
+    _loads.clear();
+    _flatNodes = [];
+    _cursor = 0;
+    _scrollOffset = 0;
+    hoverRow = null;
+  }
+
+  /// Refreshes the branch at [path] in place.
+  ///
+  /// An expanded branch that is not loading forgets its children and every
+  /// descendant's children, expansion and load slot. It stays expanded, paints
+  /// its loading placeholder, and the returned list holds one [LoadRequest]
+  /// for the app to fetch; the children it brings install through [update].
+  /// A failed or refused branch counts as not loading, so this is also its
+  /// retry. A collapsed or never-loaded branch only forgets, and returns an
+  /// empty list: the next [expand] re-fetches. A branch already loading, a
+  /// leaf, a placeholder row and a missing path return an empty list.
+  ///
+  /// The cursor is tracked by node: a cursor inside the reloaded subtree moves
+  /// to the branch, any other stays on the node it was on. The scroll offset
+  /// follows the cursor, and the hover row is cleared.
+  List<WidgetEvent> reload(String path) {
+    final node = _findNode(path);
+    if (node == null || node.isLeaf) return const [];
+    if (_loads.isLoading(PathKey(path))) return const [];
+
+    final wasExpanded = _expanded.contains(path);
+    final cursorPath = cursorNode?.path;
+    _forget(path);
+    hoverRow = null;
+    if (!wasExpanded) return const [];
+
+    // The branch itself stays open; only what hangs beneath it is forgotten.
+    _expanded.add(path);
+    _loads.begin(PathKey(path));
+    _rebuildFlatNodes();
+    _restoreCursor(cursorPath, branch: path);
+    return [LoadRequest(id, key: PathKey(path))];
   }
 
   /// Toggle expand/collapse.
@@ -599,6 +653,40 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       }
     }
     return null;
+  }
+
+  /// Drops what the tree holds for [path] and every path beneath it: the
+  /// cached children, the expansion and the load slot.
+  void _forget(String path) {
+    final prefix = '$path/';
+    bool under(String p) => p == path || p.startsWith(prefix);
+    final paths = <String>{
+      path,
+      ..._childrenCache.keys.where(under),
+      ..._expanded.where(under),
+      for (final key in _loads.loading)
+        if (key case PathKey(path: final p) when under(p)) p,
+    };
+    for (final p in paths) {
+      _childrenCache.remove(p);
+      _expanded.remove(p);
+      _loads.complete(PathKey(p));
+    }
+  }
+
+  /// Puts the cursor back on the node it was on before the rows were rebuilt.
+  ///
+  /// [cursorPath] is that node's path, or null when the tree was empty. A
+  /// cursor that was inside [branch] lands on the branch itself; a path no
+  /// longer in the rows clamps the index instead.
+  void _restoreCursor(String? cursorPath, {required String branch}) {
+    if (cursorPath != null) {
+      final target = cursorPath.startsWith('$branch/') ? branch : cursorPath;
+      final index = _flatNodes.indexWhere((n) => n.path == target);
+      _cursor = index >= 0 ? index : _cursor.clamp(0, _flatNodes.isEmpty ? 0 : _flatNodes.length - 1);
+    }
+    scrollBy(0); // clamp the offset to the shorter row list
+    _adjustScrollToCursor();
   }
 
   void _moveCursor(int delta) {

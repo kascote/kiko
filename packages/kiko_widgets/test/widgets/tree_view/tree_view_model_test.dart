@@ -617,6 +617,234 @@ void main() {
       });
     });
 
+    group('reset', () {
+      test('clears every observable and keeps the viewport count', () {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/b', label: Line('B')),
+        ], visibleCount: 3);
+        expandLoaded(model, '/a', [
+          TreeNode(path: '/a/1', label: Line('A1'), isLeaf: true),
+          TreeNode(path: '/a/2', label: Line('A2'), isLeaf: true),
+        ]);
+        model
+          ..expand('/b') // a child fetch in flight
+          ..update(keyMsg('end'))
+          ..hoverRow = 1;
+        expect(model.scrollOffset, greaterThan(0));
+
+        model.reset();
+
+        expect(model.isLoaded, isFalse);
+        expect(model.flatNodes, isEmpty);
+        expect(model.isExpanded('/a'), isFalse);
+        expect(model.isExpanded('/b'), isFalse);
+        expect(model.isLoading(), isFalse, reason: 'every slot is retired');
+        expect(model.cursor, equals(0));
+        expect(model.cursorNode, isNull);
+        expect(model.scrollOffset, equals(0));
+        expect(model.hoverRow, isNull);
+        expect(model.visibleCount, equals(3), reason: 'the viewport is a layout fact, not data');
+        expect(model.focused, isTrue);
+      });
+
+      test('roots load again after a reset, exactly as at init', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..reset();
+
+        expect(model.loadRoots(), equals(LoadRequest(model.id, key: const RootsKey())));
+        expect(model.isLoading(const RootsKey()), isTrue);
+
+        model.applyRoots([TreeNode(path: '/z', label: Line('Z'))]);
+        expect(model.flatNodes.map((n) => n.path), equals(['/z']));
+      });
+
+      test('a late child result after a reset is dropped', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..expand('/a');
+        expect(model.isPathLoading('/a'), isTrue);
+
+        model
+          ..reset()
+          ..loadRoots()
+          ..applyRoots([TreeNode(path: '/a', label: Line('A'))])
+          ..applyChildren('/a', [TreeNode(path: '/a/1', label: Line('A1'), isLeaf: true)]);
+
+        expect(model.isExpanded('/a'), isFalse);
+        expect(model.flatNodes.map((n) => n.path), equals(['/a']));
+        expect(model.expand('/a'), contains(isA<LoadRequest>()), reason: 'nothing was cached by the late result');
+      });
+
+      test('a late roots result after a reset is dropped', () {
+        final model = TreeViewModel<String>()
+          ..loadRoots()
+          ..reset()
+          ..applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+
+        expect(model.isLoaded, isFalse);
+        expect(model.flatNodes, isEmpty);
+      });
+    });
+
+    group('reload', () {
+      final kids = <TreeNode<String>>[
+        TreeNode(path: '/a/1', label: Line('A1'), isLeaf: true),
+        TreeNode(path: '/a/2', label: Line('A2'), isLeaf: true),
+      ];
+
+      /// `/a` expanded with [kids] cached, then `/b`, on a five-row viewport.
+      TreeViewModel<String> openTree() {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/b', label: Line('B')),
+        ], visibleCount: 5);
+        expandLoaded(model, '/a', kids);
+        return model;
+      }
+
+      List<String> paths(TreeViewModel<String> m) => m.flatNodes.map((n) => n.path).toList();
+
+      test('an expanded branch paints its loading placeholder, asks once, and installs in place', () {
+        final model = openTree()
+          ..update(keyMsg('down'))
+          ..update(keyMsg('down')) // on /a/2
+          ..hoverRow = 3;
+
+        final events = model.reload('/a');
+
+        expect(events, equals([LoadRequest(model.id, key: const PathKey('/a'))]));
+        expect(model.isExpanded('/a'), isTrue, reason: 'the branch stays open');
+        expect(model.branchStatus('/a'), SliceStatus.filling);
+        expect(paths(model), equals(['/a', '/a/_loading', '/b']));
+        expect(model.cursorNode?.path, equals('/a'), reason: 'a cursor inside the subtree lands on the branch');
+        expect(model.hoverRow, isNull);
+
+        model.applyChildren('/a', [TreeNode(path: '/a/3', label: Line('A3'), isLeaf: true)]);
+
+        expect(paths(model), equals(['/a', '/a/3', '/b']));
+        expect(model.branchStatus('/a'), SliceStatus.ready);
+        expect(model.cursorNode?.path, equals('/a'));
+      });
+
+      test('a cursor outside the branch stays on its node, not its row', () {
+        final model = openTree()
+          ..update(keyMsg('end')) // on /b, row 3
+          ..reload('/a');
+
+        expect(model.cursorNode?.path, equals('/b'));
+        expect(model.cursor, equals(2), reason: 'two child rows became one placeholder row');
+      });
+
+      test('the scroll offset follows the cursor onto the shorter row list', () {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/b', label: Line('B'), isLeaf: true),
+        ], visibleCount: 2);
+        expandLoaded(model, '/a', [
+          for (final n in leaves(6)) TreeNode<String>(path: '/a${n.path}', label: n.label, isLeaf: true),
+        ]);
+        model.update(keyMsg('end')); // /b at row 7, offset 6
+        expect(model.scrollOffset, equals(6));
+
+        model.reload('/a');
+
+        expect(paths(model), equals(['/a', '/a/_loading', '/b']));
+        expect(model.cursorNode?.path, equals('/b'));
+        expect(model.scrollOffset, equals(1), reason: 'the cursor row is in view and the offset is in range');
+      });
+
+      test('a failed branch reloads: one request, then the children install', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..expand('/a');
+        model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a'), error: 'boom'));
+        expect(model.branchStatus('/a'), SliceStatus.failed);
+
+        expect(model.reload('/a'), equals([LoadRequest(model.id, key: const PathKey('/a'))]));
+        expect(model.branchStatus('/a'), SliceStatus.filling);
+        expect(model.errorFor(const PathKey('/a')), isNull);
+
+        model.applyChildren('/a', kids);
+        expect(paths(model), equals(['/a', '/a/1', '/a/2']));
+      });
+
+      test('a refused branch reloads the same way', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..expand('/a');
+        model.update(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
+        expect(model.branchStatus('/a'), SliceStatus.stalled);
+
+        expect(model.reload('/a'), hasLength(1));
+        expect(model.branchStatus('/a'), SliceStatus.filling);
+      });
+
+      test('a collapsed branch only forgets; the next expand re-fetches', () {
+        final model = openTree()..collapse('/a');
+
+        expect(model.reload('/a'), isEmpty);
+        expect(model.isExpanded('/a'), isFalse);
+        expect(paths(model), equals(['/a', '/b']));
+
+        expect(model.expand('/a'), contains(LoadRequest(model.id, key: const PathKey('/a'))));
+        expect(model.branchStatus('/a'), SliceStatus.filling);
+      });
+
+      test('a branch already loading returns nothing and keeps its one request', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))])..expand('/a');
+
+        expect(model.reload('/a'), isEmpty);
+        expect(model.isPathLoading('/a'), isTrue);
+
+        model.applyChildren('/a', kids);
+        expect(paths(model), equals(['/a', '/a/1', '/a/2']), reason: 'the in-flight result still installs');
+      });
+
+      test('a leaf, a placeholder row and a missing path return nothing', () {
+        final model = modelWith([
+          TreeNode(path: '/a', label: Line('A')),
+          TreeNode(path: '/leaf', label: Line('Leaf'), isLeaf: true),
+        ])..expand('/a');
+        expect(paths(model), equals(['/a', '/a/_loading', '/leaf']));
+
+        expect(model.reload('/leaf'), isEmpty);
+        expect(model.reload('/a/_loading'), isEmpty);
+        expect(model.reload('/nope'), isEmpty);
+        expect(model.isPathLoading('/a'), isTrue, reason: 'nothing was disturbed');
+      });
+
+      test('descendants are collapsed and uncached, and a late result for one is dropped', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
+        expandLoaded(model, '/a', [TreeNode(path: '/a/x', label: Line('X'))]);
+        expandLoaded(model, '/a/x', [TreeNode(path: '/a/x/y', label: Line('Y'))]);
+        model.expand('/a/x/y'); // in flight
+        expect(paths(model), equals(['/a', '/a/x', '/a/x/y', '/a/x/y/_loading']));
+
+        model.reload('/a');
+
+        expect(model.isExpanded('/a/x'), isFalse);
+        expect(model.isExpanded('/a/x/y'), isFalse);
+        expect(model.isPathLoading('/a/x/y'), isFalse, reason: 'the descendant slot is retired');
+        expect(model.isLoading(), isTrue, reason: 'only the branch itself loads');
+
+        model
+          ..applyChildren('/a/x/y', [TreeNode(path: '/a/x/y/z', label: Line('Z'), isLeaf: true)]) // late, dropped
+          ..applyChildren('/a', [TreeNode(path: '/a/x', label: Line('X'))]);
+        expect(paths(model), equals(['/a', '/a/x']));
+
+        expect(model.expand('/a/x'), contains(isA<LoadRequest>()), reason: 'the old children are gone');
+        model.applyChildren('/a/x', [TreeNode(path: '/a/x/y', label: Line('Y'))]);
+        expect(model.expand('/a/x/y'), contains(isA<LoadRequest>()), reason: 'the late result cached nothing');
+      });
+
+      test('a branch expanded under a collapsed ancestor reloads and paints once the ancestor reopens', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
+        expandLoaded(model, '/a', [TreeNode(path: '/a/x', label: Line('X'))]);
+        expandLoaded(model, '/a/x', [TreeNode(path: '/a/x/1', label: Line('1'), isLeaf: true)]);
+        model.collapse('/a');
+
+        expect(model.reload('/a/x'), equals([LoadRequest(model.id, key: const PathKey('/a/x'))]));
+        expect(paths(model), equals(['/a']), reason: 'nothing shows under a collapsed ancestor');
+
+        model.expand('/a');
+        expect(paths(model), equals(['/a', '/a/x', '/a/x/_loading']));
+      });
+    });
+
     group('cursor movement', () {
       late TreeViewModel<String> model;
 

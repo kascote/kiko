@@ -1,6 +1,20 @@
 import 'package:kiko/kiko.dart';
+import 'package:kiko_log/kiko_log.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+
+import '../support/load.dart';
+
+/// Collects every record written, so a test can assert on a debug line.
+class _CapturingOutput implements LogOutput {
+  final List<LogRecord> records = [];
+
+  @override
+  void write(LogRecord record) => records.add(record);
+
+  @override
+  Future<void> close() async {}
+}
 
 /// Identity passthrough returning a *runtime* (non-const) string, so the
 /// commands/messages below are distinct instances and `operator ==` actually
@@ -195,71 +209,172 @@ void main() {
     });
   });
 
-  group('LoadRequest value equality (address: id + key)', () {
-    test('equal iff id and key match', () {
-      expect(LoadRequest(v('l'), key: page0), equals(LoadRequest(v('l'), key: page0)));
+  group('LoadTicket', () {
+    test('begin mints a fresh ticket for every asking, numbered in order', () {
+      final t = LoadTracker<PageKey>();
+      final first = t.begin(page0);
+      final second = t.begin(page0);
+
+      expect(identical(first, second), isFalse, reason: 'two askings, two identities');
+      expect(first.sequence, 1);
+      expect(second.sequence, 2);
+      expect('$second', 'LoadTicket#2');
+      expect(t.stateFor(page0).ticket, same(second), reason: 'the slot holds the newest asking');
+    });
+
+    test('a ticket equals only itself, never another with the same number', () {
+      final a = LoadTracker<PageKey>().begin(page0);
+      final b = LoadTracker<PageKey>().begin(page0);
+
+      expect(a.sequence, equals(b.sequence));
+      expect(a, isNot(equals(b)), reason: 'trackers number independently, so numbers never identify');
+      expect(a, equals(a));
+    });
+
+    test('resolves accepts the live asking and drops an older one for the same key', () {
+      final t = LoadTracker<PageKey>();
+      final old = LoadRequest(v('l'), key: page0, ticket: t.begin(page0));
+      final live = LoadRequest(v('l'), key: page0, ticket: t.begin(page0));
+
+      expect(t.resolves(LoadResult<int>.ok(old, 1)), isFalse, reason: 'the slot moved on to a newer asking');
+      expect(t.isLoading(page0), isTrue, reason: 'a dropped result never touches the live slot');
+      expect(t.resolves(LoadResult<int>.ok(live, 1)), isTrue);
+    });
+
+    test('resolves drops a result for an idle key, a foreign key type, and a completed asking', () {
+      final t = LoadTracker<PageKey>();
+      final request = LoadRequest(v('l'), key: page0, ticket: t.begin(page0));
+
+      expect(t.resolves(LoadResult<int>.ok(requestFor('l', key: PageKey(i(1))), 1)), isFalse, reason: 'idle key');
+      expect(t.resolves(LoadResult<int>.ok(requestFor('l', key: 'not a page'), 1)), isFalse, reason: 'foreign key');
+      t.complete(page0);
+      expect(t.resolves(LoadResult<int>.ok(request, 1)), isFalse, reason: 'the asking already resolved');
+    });
+
+    test('a stale result is logged at debug level, naming both tickets', () {
+      final output = _CapturingOutput();
+      Log(output: output, level: LogLevel.debug).runZoned(() {
+        final t = LoadTracker<PageKey>();
+        final old = LoadRequest(v('l'), key: page0, ticket: t.begin(page0));
+        t
+          ..begin(page0)
+          ..resolves(LoadResult<int>.ok(old, 1));
+      });
+
+      expect(output.records, hasLength(1));
+      expect(output.records.single.level, LogLevel.debug);
+      expect(output.records.single.message, contains('LoadTicket#1'));
+      expect(output.records.single.message, contains('LoadTicket#2'));
+    });
+  });
+
+  group('LoadRequest value equality (address: id + key + ticket)', () {
+    test('equal iff id, key and ticket match', () {
+      final ticket = LoadTracker<PageKey>().begin(page0);
+      expect(LoadRequest(v('l'), key: page0, ticket: ticket), equals(LoadRequest(v('l'), key: page0, ticket: ticket)));
       expect(
-        LoadRequest(v('l'), key: page0).hashCode,
-        equals(LoadRequest(v('l'), key: page0).hashCode),
+        LoadRequest(v('l'), key: page0, ticket: ticket).hashCode,
+        equals(LoadRequest(v('l'), key: page0, ticket: ticket).hashCode),
       );
-      expect(LoadRequest(v('l'), key: page0), isNot(equals(LoadRequest(v('m'), key: page0))));
+      expect(
+        LoadRequest(v('l'), key: page0, ticket: ticket),
+        isNot(equals(LoadRequest(v('m'), key: page0, ticket: ticket))),
+      );
     });
 
     test('key disambiguates (same id, different key)', () {
+      final ticket = LoadTracker<PageKey>().begin(page0);
       expect(
-        LoadRequest(v('t'), key: PageKey(i(0))),
-        isNot(equals(LoadRequest(v('t'), key: PageKey(i(1))))),
+        LoadRequest(v('t'), key: PageKey(i(0)), ticket: ticket),
+        isNot(equals(LoadRequest(v('t'), key: PageKey(i(1)), ticket: ticket))),
+      );
+    });
+
+    test('the ticket disambiguates two askings for one address', () {
+      final t = LoadTracker<PageKey>();
+      expect(
+        LoadRequest(v('t'), key: page0, ticket: t.begin(page0)),
+        isNot(equals(LoadRequest(v('t'), key: page0, ticket: t.begin(page0)))),
       );
     });
 
     test('typed key value equality flows through the request', () {
-      expect(LoadRequest(v('t'), key: PathKey(v('/a'))), equals(LoadRequest(v('t'), key: PathKey(v('/a')))));
-      expect(LoadRequest(v('t'), key: PathKey(v('/a'))), isNot(equals(LoadRequest(v('t'), key: PathKey(v('/b'))))));
+      final ticket = LoadTracker<PathKey>().begin(PathKey(v('/a')));
+      expect(
+        LoadRequest(v('t'), key: PathKey(v('/a')), ticket: ticket),
+        equals(LoadRequest(v('t'), key: PathKey(v('/a')), ticket: ticket)),
+      );
+      expect(
+        LoadRequest(v('t'), key: PathKey(v('/a')), ticket: ticket),
+        isNot(equals(LoadRequest(v('t'), key: PathKey(v('/b')), ticket: ticket))),
+      );
     });
 
-    test('toString shows id and key', () {
-      expect(LoadRequest(v('t'), key: PageKey(i(4))).toString(), 'LoadRequest(t, key: PageKey(4))');
+    test('toString shows id, key and ticket', () {
+      final request = LoadRequest(v('t'), key: PageKey(i(4)), ticket: LoadTracker<PageKey>().begin(PageKey(i(4))));
+      expect(request.toString(), 'LoadRequest(t, key: PageKey(4), LoadTicket#1)');
     });
   });
 
-  group('LoadResult value equality', () {
-    test('equal iff id, key, data, error match', () {
+  group('LoadResult is built from its request', () {
+    test('ok carries the request address and ticket, and the data', () {
+      final request = requestFor('l', key: page0);
+      final result = LoadResult<List<int>>.ok(request, const [1, 2]);
+
+      expect(result.id, 'l');
+      expect(result.key, page0);
+      expect(result.ticket, same(request.ticket));
+      expect(result.data, const [1, 2]);
+      expect(result.error, isNull);
+      expect(result.ok, isTrue);
+      expect(result.cancelled, isFalse);
+    });
+
+    test('failed carries the error and is not ok', () {
+      final result = LoadResult<int>.failed(requestFor('a'), Exception('e'));
+      expect(result.ok, isFalse);
+      expect(result.cancelled, isFalse);
+      expect(result.data, isNull);
+      expect(result.error, isA<Exception>());
+    });
+
+    test('equal iff request, data and error match', () {
+      final request = requestFor('l', key: page0);
       final page = [1, 2, 3];
+      expect(LoadResult<List<int>>.ok(request, page), equals(LoadResult<List<int>>.ok(request, page)));
       expect(
-        LoadResult<List<int>>(v('l'), key: page0, data: page),
-        equals(LoadResult<List<int>>(v('l'), key: page0, data: page)),
-      );
-      expect(
-        LoadResult<List<int>>(v('l'), key: page0, data: page).hashCode,
-        equals(LoadResult<List<int>>(v('l'), key: page0, data: page).hashCode),
+        LoadResult<List<int>>.ok(request, page).hashCode,
+        equals(LoadResult<List<int>>.ok(request, page).hashCode),
       );
     });
 
-    test('differs by id, key, or error', () {
-      expect(LoadResult<int>(v('a')), isNot(equals(LoadResult<int>(v('b')))));
+    test('differs by id, key, ticket, or error', () {
+      expect(LoadResult<int>.ok(requestFor('a'), 1), isNot(equals(LoadResult<int>.ok(requestFor('b'), 1))));
       expect(
-        LoadResult<int>(v('a'), key: PageKey(i(0))),
-        isNot(equals(LoadResult<int>(v('a'), key: PageKey(i(1))))),
+        LoadResult<int>.ok(requestFor('a', key: PageKey(i(0))), 1),
+        isNot(equals(LoadResult<int>.ok(requestFor('a', key: PageKey(i(1))), 1))),
       );
-      expect(LoadResult<int>(v('a'), error: 'x'), isNot(equals(LoadResult<int>(v('a')))));
-    });
-
-    test('ok reflects absence of error', () {
-      expect(LoadResult<int>(v('a'), data: 1).ok, isTrue);
-      expect(LoadResult<int>(v('a'), error: Exception('e')).ok, isFalse);
-    });
-
-    test('toString surfaces id/key/data/error', () {
+      final t = LoadTracker<PageKey>();
       expect(
-        LoadResult<int>(v('a'), key: page0, data: 7).toString(),
-        'LoadResult(a, key: PageKey(0), data: 7, error: null)',
+        LoadResult<int>.ok(LoadRequest(v('a'), key: page0, ticket: t.begin(page0)), 1),
+        isNot(equals(LoadResult<int>.ok(LoadRequest(v('a'), key: page0, ticket: t.begin(page0)), 1))),
+        reason: 'two askings, two results',
+      );
+      final request = requestFor('a');
+      expect(LoadResult<int>.failed(request, 'x'), isNot(equals(LoadResult<int>.ok(request, 1))));
+    });
+
+    test('toString surfaces id/key/ticket/data/error', () {
+      expect(
+        LoadResult<int>.ok(requestFor('a', key: page0), 7).toString(),
+        'LoadResult(a, key: PageKey(0), LoadTicket#1, data: 7, error: null)',
       );
     });
   });
 
   group('LoadResult.cancelled — the third outcome', () {
     test('carries neither data nor error, and is not ok', () {
-      final r = LoadResult<List<int>>.cancelled(v('t'), key: PageKey(i(2)));
+      final r = LoadResult<List<int>>.cancelled(requestFor('t', key: PageKey(i(2))));
       expect(r.cancelled, isTrue);
       expect(r.ok, isFalse);
       expect(r.data, isNull);
@@ -269,46 +384,40 @@ void main() {
     test('is distinct from an empty success', () {
       // An empty page means "the data ends here"; a refusal must teach the
       // widget nothing, so the two can never be the same value.
-      expect(
-        LoadResult<List<int>>.cancelled(v('t'), key: page0),
-        isNot(equals(LoadResult<List<int>>(v('t'), key: page0, data: const []))),
-      );
-      expect(LoadResult<List<int>>(v('t'), data: const []).ok, isTrue);
+      final request = requestFor('t', key: page0);
+      expect(LoadResult<List<int>>.cancelled(request), isNot(equals(LoadResult<List<int>>.ok(request, const []))));
+      expect(LoadResult<List<int>>.ok(request, const []).ok, isTrue);
     });
 
     test('a failure is not a refusal', () {
-      final failed = LoadResult<int>(v('t'), error: 'boom');
+      final request = requestFor('t');
+      final failed = LoadResult<int>.failed(request, 'boom');
       expect(failed.cancelled, isFalse);
       expect(failed.ok, isFalse);
-      expect(failed, isNot(equals(LoadResult<int>.cancelled(v('t')))));
+      expect(failed, isNot(equals(LoadResult<int>.cancelled(request))));
     });
 
-    test('equal by id and key', () {
+    test('equal by request', () {
+      final request = requestFor('t', key: PageKey(i(2)));
+      expect(LoadResult<int>.cancelled(request), equals(LoadResult<int>.cancelled(request)));
+      expect(LoadResult<int>.cancelled(request).hashCode, equals(LoadResult<int>.cancelled(request).hashCode));
       expect(
-        LoadResult<int>.cancelled(v('t'), key: PageKey(i(2))),
-        equals(LoadResult<int>.cancelled(v('t'), key: PageKey(i(2)))),
-      );
-      expect(
-        LoadResult<int>.cancelled(v('t'), key: PageKey(i(2))).hashCode,
-        equals(LoadResult<int>.cancelled(v('t'), key: PageKey(i(2))).hashCode),
-      );
-      expect(
-        LoadResult<int>.cancelled(v('t'), key: PageKey(i(2))),
-        isNot(equals(LoadResult<int>.cancelled(v('t'), key: PageKey(i(3))))),
+        LoadResult<int>.cancelled(request),
+        isNot(equals(LoadResult<int>.cancelled(requestFor('t', key: PageKey(i(3)))))),
       );
     });
 
     test('toString says it was refused', () {
       expect(
-        LoadResult<int>.cancelled(v('t'), key: page0).toString(),
-        'LoadResult.cancelled(t, key: PageKey(0))',
+        LoadResult<int>.cancelled(requestFor('t', key: page0)).toString(),
+        'LoadResult.cancelled(t, key: PageKey(0), LoadTicket#1)',
       );
     });
   });
 
   group('declineLoad', () {
     test('with no error, emits a refusal addressed to the request', () {
-      final request = LoadRequest(v('table'), key: PageKey(i(7)));
+      final request = requestFor('table', key: PageKey(i(7)));
       final cmd = declineLoad(request);
       expect(cmd, isA<Emit>());
       final msg = (cmd as Emit).msg;
@@ -316,6 +425,7 @@ void main() {
       final result = msg as LoadResult<Object?>;
       expect(result.id, 'table');
       expect(result.key, PageKey(i(7)));
+      expect(result.ticket, same(request.ticket));
       expect(result.cancelled, isTrue);
       expect(result.ok, isFalse);
       expect(result.data, isNull);
@@ -323,18 +433,21 @@ void main() {
     });
 
     test('with an error, emits a failure instead of a refusal', () {
-      final request = LoadRequest(v('table'), key: PageKey(i(7)));
+      final request = requestFor('table', key: PageKey(i(7)));
       final result = (declineLoad(request, error: 'no source wired for table') as Emit).msg as LoadResult<Object?>;
       expect(result.cancelled, isFalse);
       expect(result.ok, isFalse);
       expect(result.error, 'no source wired for table');
       expect(result.key, PageKey(i(7)));
+      expect(result.ticket, same(request.ticket));
     });
 
-    test('threads the request address home for any key type', () {
-      final result = (declineLoad(LoadRequest(v('tree'), key: PathKey(v('/a')))) as Emit).msg as LoadResult<Object?>;
+    test('carries the request home for any key type', () {
+      final request = requestFor('tree', key: PathKey(v('/a')));
+      final result = (declineLoad(request) as Emit).msg as LoadResult<Object?>;
       expect(result.id, 'tree');
       expect(result.key, PathKey(v('/a')));
+      expect(result.ticket, same(request.ticket));
     });
   });
 
@@ -343,7 +456,7 @@ void main() {
       // The covariance routing relies on: LoadResult<List<int>> *is a*
       // LoadResult<Object?>, so the router delivers any result as a Msg and
       // the model's update casts data once.
-      final LoadResult<Object?> erased = LoadResult<List<int>>(v('l'), key: page0, data: const [1, 2]);
+      final LoadResult<Object?> erased = LoadResult<List<int>>.ok(requestFor('l', key: page0), const [1, 2]);
       expect(erased.id, 'l');
       expect(erased.data, const [1, 2]);
       expect(erased.ok, isTrue);

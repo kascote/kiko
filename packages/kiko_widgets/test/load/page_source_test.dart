@@ -5,6 +5,8 @@ import 'package:kiko_widgets/src/load/load.dart';
 import 'package:kiko_widgets/src/load/page_source.dart';
 import 'package:test/test.dart';
 
+import '../support/load.dart';
+
 /// Rows `r0`, `r1`, … up to [count].
 List<String> rows(int count) => [for (var i = 0; i < count; i++) 'r$i'];
 
@@ -160,7 +162,7 @@ void main() {
   });
 
   group('fetchInto', () {
-    LoadRequest request(int page) => LoadRequest('products', key: PageKey(page));
+    LoadRequest request(int page) => requestFor('products', key: PageKey(page));
 
     Future<Msg?> run(Cmd cmd) => (cmd as Task<Object?>).execute();
 
@@ -199,7 +201,7 @@ void main() {
     test('a request whose key names no page fails visibly', () async {
       final source = PageSource.offset<String>(pageSize: 10, read: (offset, limit) async => rows(10));
 
-      final cmd = fetchInto(const LoadRequest('products', key: RootsKey()), source);
+      final cmd = fetchInto(requestFor('products', key: const RootsKey()), source);
 
       expect(cmd, isA<Emit>());
       final result = (cmd as Emit).msg as LoadResult<Object?>;

@@ -220,10 +220,7 @@ class PageLoader<T> {
   ///
   /// The owner exposes this for the app to call once (e.g. on init). Every
   /// page after this one is asked for by [demand].
-  LoadRequest loadFirstPage() {
-    _beginLoad(0);
-    return LoadRequest(id, key: const PageKey(0));
-  }
+  LoadRequest loadFirstPage() => _beginLoad(0);
 
   /// Asks for the pages the viewport needs and does not have.
   ///
@@ -246,8 +243,7 @@ class PageLoader<T> {
     final pages = _window.missing(_demandSpan, pending: (page) => _loads.isLoading(PageKey(page)), limit: budget);
     final requests = <LoadRequest>[];
     for (final page in pages) {
-      _beginLoad(page);
-      requests.add(LoadRequest(id, key: PageKey(page)));
+      requests.add(_beginLoad(page));
     }
     return requests;
   }
@@ -261,8 +257,9 @@ class PageLoader<T> {
   ///
   /// This backs the owner's `LoadResult` case in `update`, keyed by page
   /// number ([PageKey]). A result for another widget (its id's leaf is not
-  /// [id]), a non-page key, or a page that is no longer in flight (e.g. after
-  /// a [reset]) is dropped rather than corrupting the window.
+  /// [id]), a non-page key, a page that is no longer in flight (e.g. after
+  /// a [reset]), or an older asking for a page requested again since, is
+  /// dropped rather than corrupting the window.
   ///
   /// On success the rows install as that page — a short page recording where
   /// the data ends — and pages the viewport no longer needs are evicted. A
@@ -282,8 +279,9 @@ class PageLoader<T> {
     final key = result.key;
     if (key is! PageKey) return false;
     final page = key.page;
-    // Staleness guard: only a page still in flight accepts a result.
-    if (!_loads.isLoading(key)) return false;
+    // Staleness guard: only the asking still in flight for this page accepts
+    // a result.
+    if (!_loads.resolves(result)) return false;
     if (result.cancelled) {
       _finishLoad(page);
       return false;
@@ -432,7 +430,11 @@ class PageLoader<T> {
     );
   }
 
-  void _beginLoad(int page) => _loads.begin(PageKey(page));
+  /// Marks [page] loading and returns the request that asks for it.
+  LoadRequest _beginLoad(int page) {
+    final key = PageKey(page);
+    return LoadRequest(id, key: key, ticket: _loads.begin(key));
+  }
 
   void _finishLoad(int page, {Object? error}) {
     final key = PageKey(page);

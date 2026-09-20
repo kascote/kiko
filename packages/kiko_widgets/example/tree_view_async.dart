@@ -220,8 +220,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   if (fetch == null) return declineLoad(req, error: 'no fetch for $key');
   return Task<List<TreeNode<Category>>>(
     fetch,
-    onSuccess: (data) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, data: data),
-    onError: (e) => LoadResult<List<TreeNode<Category>>>(req.id, key: key, error: e),
+    onSuccess: (data) => LoadResult<List<TreeNode<Category>>>.ok(req, data),
+    onError: (e) => LoadResult<List<TreeNode<Category>>>.failed(req, e),
   );
 }
 

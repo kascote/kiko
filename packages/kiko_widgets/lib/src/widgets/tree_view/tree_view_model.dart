@@ -24,7 +24,7 @@ import 'types.dart';
 /// ```dart
 /// final tree = TreeViewModel<FileInfo>(focused: true);
 /// // app, on init:   final req = tree.loadRoots();  // → fetch getRoots()
-/// // the fetch ends: LoadResult(tree.id, key: req.key, data: roots) → tree.update
+/// // the fetch ends: LoadResult.ok(req, roots) → tree.update
 /// ```
 class TreeViewModel<T> with ScrollableModel implements Component {
   /// Stable address for this model, carried by value in the widget→app events
@@ -183,11 +183,10 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// debug: call [reset] first, then load the roots again.
   LoadRequest loadRoots() {
     const key = RootsKey();
-    if (!_loads.isLoading(key)) {
-      assert(!_rootsLoaded, 'loadRoots() on a loaded tree: call reset() first');
-      _loads.begin(key);
-    }
-    return LoadRequest(id, key: key);
+    final slot = _loads.stateFor(key);
+    if (slot.isLoading) return LoadRequest(id, key: key, ticket: slot.ticket!);
+    assert(!_rootsLoaded, 'loadRoots() on a loaded tree: call reset() first');
+    return LoadRequest(id, key: key, ticket: _loads.begin(key));
   }
 
   /// Installs the outcome of a load and clears (or fails) its slot.
@@ -197,9 +196,10 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// consumed, keyed by [LoadResult.key]: [RootsKey] installs roots, [PathKey]
   /// installs one node's children, and an unknown key installs nothing.
   ///
-  /// Every result is guarded: only a slot still in flight accepts one, so a
-  /// late reply for a collapsed or already-loaded node, or for the roots of a
-  /// tree that was [reset] since, is dropped rather than corrupting the tree.
+  /// Every result is guarded: only the asking still in flight for its key
+  /// accepts one, so a late reply for a collapsed or already-loaded node, for
+  /// the roots of a tree that was [reset] since, or for an older asking of a
+  /// key requested again since, is dropped rather than corrupting the tree.
   ///
   /// A successful result must carry a `List<TreeNode<T>>`. Any other payload,
   /// null included, fails the slot with a [PayloadMismatch] and installs no
@@ -230,26 +230,37 @@ class TreeViewModel<T> with ScrollableModel implements Component {
     return const Handled();
   }
 
-  /// Installs fetched root [roots]. Typed shorthand for delivering a
-  /// [LoadResult] with a [RootsKey] through [update].
+  /// Installs [roots] as the answer to the roots load in flight, resolving
+  /// its slot. Model-side shorthand for tests and seeds; the app wire is a
+  /// [LoadResult] through [update].
   ///
   /// Subject to the staleness guard: the roots load must be in flight (started
-  /// by [loadRoots]); a result for an idle roots slot is dropped.
-  void applyRoots(List<TreeNode<T>> roots) =>
-      update(LoadResult<List<TreeNode<T>>>(id, key: const RootsKey(), data: roots));
+  /// by [loadRoots]); with an idle roots slot nothing installs.
+  void applyRoots(List<TreeNode<T>> roots) {
+    const key = RootsKey();
+    if (!_loads.isLoading(key)) return;
+    _loads.complete(key);
+    _setRoots(roots);
+  }
 
-  /// Installs fetched [children] for [path]. Typed shorthand for delivering a
-  /// [LoadResult] with a [PathKey] through [update].
+  /// Installs [children] as the answer to the load in flight for [path],
+  /// resolving its slot. Model-side shorthand for tests and seeds; the app
+  /// wire is a [LoadResult] through [update].
   ///
   /// Subject to the staleness guard: the node's load must be in flight (started
-  /// by [expand]); a result for a collapsed or idle path is dropped.
-  void applyChildren(String path, List<TreeNode<T>> children) =>
-      update(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
+  /// by [expand]); for a collapsed or idle path nothing installs.
+  void applyChildren(String path, List<TreeNode<T>> children) {
+    final key = PathKey(path);
+    if (!_loads.isLoading(key)) return;
+    _loads.complete(key);
+    _setChildren(path, children);
+  }
 
   void _installRoots(LoadResult<Object?> result) {
-    // Staleness guard: drop a result for roots no longer loading (never
-    // requested, already loaded, or retired by a reset).
-    if (!_loads.stateFor(const RootsKey()).isLoading) return;
+    // Staleness guard: drop a result for an asking the tree no longer holds
+    // (never requested, already loaded, retired by a reset, or superseded by
+    // a newer roots request).
+    if (!_loads.resolves(result)) return;
     // A refusal resolves the slot and installs nothing: the roots stay unloaded
     // and a later loadRoots asks for them again.
     if (result.cancelled) {
@@ -257,24 +268,39 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       return;
     }
     final nodes = _nodesOf(result, const RootsKey());
-    if (nodes != null) {
-      _roots = nodes;
-      _rootsLoaded = true;
+    if (nodes == null) {
+      _rebuildFlatNodes();
+      return;
     }
-    _rebuildFlatNodes();
+    _setRoots(nodes);
   }
 
   void _installChildren(String path, LoadResult<Object?> result) {
-    // Staleness guard: drop results for nodes that are no longer loading
-    // (collapsed, already loaded, or never requested).
-    if (!_loads.stateFor(PathKey(path)).isLoading) return;
+    // Staleness guard: drop a result for an asking the tree no longer holds
+    // (collapsed, already loaded, never requested, or superseded by a newer
+    // request for the same path).
+    if (!_loads.resolves(result)) return;
     if (result.cancelled) {
       _loads.complete(PathKey(path));
       _rebuildFlatNodes();
       return;
     }
     final nodes = _nodesOf(result, PathKey(path));
-    if (nodes != null) _childrenCache[path] = nodes;
+    if (nodes == null) {
+      _rebuildFlatNodes();
+      return;
+    }
+    _setChildren(path, nodes);
+  }
+
+  void _setRoots(List<TreeNode<T>> roots) {
+    _roots = roots;
+    _rootsLoaded = true;
+    _rebuildFlatNodes();
+  }
+
+  void _setChildren(String path, List<TreeNode<T>> children) {
+    _childrenCache[path] = children;
     _rebuildFlatNodes();
   }
 
@@ -324,9 +350,9 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
     // Children not loaded: event + load request; mark the slot so we don't ask
     // twice.
-    _loads.begin(PathKey(path));
+    final request = LoadRequest(id, key: PathKey(path), ticket: _loads.begin(PathKey(path)));
     _rebuildFlatNodes();
-    return [event, LoadRequest(id, key: PathKey(path))];
+    return [event, request];
   }
 
   /// Collapse a node.
@@ -401,10 +427,10 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
     // The branch itself stays open; only what hangs beneath it is forgotten.
     _expanded.add(path);
-    _loads.begin(PathKey(path));
+    final request = LoadRequest(id, key: PathKey(path), ticket: _loads.begin(PathKey(path)));
     _rebuildFlatNodes();
     _restoreCursor(cursorPath, branch: path);
-    return [LoadRequest(id, key: PathKey(path))];
+    return [request];
   }
 
   /// Toggle expand/collapse.

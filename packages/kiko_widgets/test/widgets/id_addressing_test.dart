@@ -1,6 +1,8 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+
+import '../support/load.dart';
 import '../support/viewport.dart';
 
 /// These tests exercise the *guarantee* id-addressing exists to provide and
@@ -161,7 +163,7 @@ void main() {
 
       // A result addressed to an instance that no longer exists (row deleted,
       // tab closed, list rebuilt) — exactly the orphan case references hid.
-      final orphan = LoadResult<List<Map<String, Object?>>>('ghost', key: const PageKey(1), data: rows(3));
+      final orphan = LoadResult<List<Map<String, Object?>>>.ok(requestFor('ghost', key: const PageKey(1)), rows(3));
       final dest = app.resolve(orphan.id);
       dest?.update(orphan);
 

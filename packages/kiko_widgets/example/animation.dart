@@ -448,7 +448,10 @@ class PanelModel implements Animated {
   /// Whether a load this panel asked for is in flight.
   bool loading = false;
 
-  int _loadGeneration = 0;
+  /// The panel's one load slot. The tracker mints the ticket every request
+  /// carries, so a late answer to an earlier start is told apart from the
+  /// current one and dropped.
+  final _loads = LoadTracker<String>();
 
   /// How many ticks this panel has handled as its own — its blink — never a
   /// part's. Stays at zero for a panel with no [blinkInterval], and for a
@@ -482,6 +485,7 @@ class PanelModel implements Animated {
     final partsCmd = _scopeCmd(Batch(<Cmd?>[for (final part in parts) part.stop()]));
     _stopBlink();
     loading = false;
+    _loads.clear();
     return partsCmd;
   }
 
@@ -502,7 +506,7 @@ class PanelModel implements Animated {
   /// command. A panel already fully running is a safe no-op: every part call
   /// is idempotent, so re-pressing the key that starts an already-running
   /// case starts nothing twice. When [loads], also asks the app for data with
-  /// a freshly bumped generation. The batch always carries one non-tick
+  /// a fresh ticket. The batch always carries one non-tick
   /// [PanelStartedMsg], so the scoping helper's pass-through stays visible
   /// next to the parts' ticks.
   UpdateResult startAll() {
@@ -510,8 +514,7 @@ class PanelModel implements Animated {
     final events = <WidgetEvent>[];
     if (loads && !loading) {
       loading = true;
-      _loadGeneration++;
-      events.add(LoadRequest(id, key: _loadGeneration));
+      events.add(LoadRequest(id, key: 'data', ticket: _loads.begin('data')));
     }
     return Handled(events: events, cmd: Batch([cmd, Emit(PanelStartedMsg(id))]));
   }
@@ -605,7 +608,7 @@ class PanelModel implements Animated {
   }
 
   UpdateResult _applyLoad(LoadResult<Object?> result) {
-    if (!loading || result.key != _loadGeneration) return const Handled();
+    if (!_loads.resolves(result)) return const Handled();
     return Handled(cmd: stop());
   }
 
@@ -1181,8 +1184,8 @@ class AppModel with ThemeSwitcher {
 /// recorded by the caller. This only converts a [LoadRequest] into the
 /// [Task] that answers it; everything else carries no further effect.
 Cmd? onEvent(AppModel model, WidgetEvent event) {
-  if (event case LoadRequest(:final id, :final key)) {
-    return Task(() => Future<void>.delayed(model.loadDelay), onSuccess: (_) => LoadResult<Object?>(id, key: key));
+  if (event case final LoadRequest request) {
+    return Task(() => Future<void>.delayed(model.loadDelay), onSuccess: (_) => LoadResult<void>.ok(request, null));
   }
   return null;
 }

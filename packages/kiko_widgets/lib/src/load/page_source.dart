@@ -142,10 +142,8 @@ class CursorChunk<T, C> {
 /// Builds the command that fetches [request] from [source] and routes the
 /// outcome home.
 ///
-/// It threads the request's id and key into the result, which is the rule this
-/// contract is most likely to lose: forget it and an app is silently
-/// single-instance-only, because every result lands on whichever widget happens
-/// to match first. Doing it here makes forgetting impossible.
+/// It builds the result from the request, so the answer carries the request's
+/// id, key and ticket by construction and lands on the asking that made it.
 ///
 /// It also carries the resolve-every-request obligation. A [PageSource.read]
 /// that throws — including an app's own retrying wrapper rethrowing after its
@@ -166,8 +164,8 @@ Cmd fetchInto<T>(LoadRequest request, PageSource<T> source) {
   }
   return Task<PageResult<T>>(
     () => source.read(key.page),
-    onSuccess: (result) => LoadResult<PageResult<T>>(request.id, key: key, data: result),
-    onError: (error) => LoadResult<PageResult<T>>(request.id, key: key, error: error),
+    onSuccess: (result) => LoadResult<PageResult<T>>.ok(request, result),
+    onError: (error) => LoadResult<PageResult<T>>.failed(request, error),
   );
 }
 

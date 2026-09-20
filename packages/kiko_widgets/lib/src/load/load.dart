@@ -21,20 +21,27 @@ enum LoadStatus {
   error,
 }
 
-/// A snapshot of one load's state — its [status], plus the [error] if it failed.
+/// A snapshot of one load's state — its [status], plus the [error] if it failed
+/// and the [ticket] of the asking while it is in flight.
 ///
 /// Read it from a [LoadTracker] to drive the UI: show a spinner while
 /// [isLoading], an error message while [failed].
 @immutable
 class LoadState {
   /// Creates a state with the given [status] and, for failures, the [error].
-  const LoadState(this.status, [this.error]);
+  const LoadState(this.status, [this.error]) : ticket = null;
+
+  /// Creates the in-flight state for the asking [ticket] names.
+  const LoadState.loading(this.ticket) : status = LoadStatus.loading, error = null;
 
   /// Where this load is in its lifecycle.
   final LoadStatus status;
 
   /// The failure cause — set only when [status] is [LoadStatus.error].
   final Object? error;
+
+  /// The asking in flight — set only when [status] is [LoadStatus.loading].
+  final LoadTicket? ticket;
 
   /// Whether a fetch is in flight.
   bool get isLoading => status == LoadStatus.loading;
@@ -44,6 +51,26 @@ class LoadState {
 
   /// The shared "nothing happening" state.
   static const idle = LoadState(LoadStatus.idle);
+}
+
+/// The identity of one asking: the fetch a [LoadTracker] slot is waiting for.
+///
+/// Only [LoadTracker.begin] mints one. The [LoadRequest] carries it out to the
+/// app, and the [LoadResult] built from that request carries it home, so the
+/// tracker can tell the answer to its current asking from the answer to an
+/// older asking for the same key. A ticket equals only itself.
+///
+/// [sequence] is the asking's position in its tracker's history. It is for
+/// log lines only: two trackers number their tickets independently.
+@immutable
+class LoadTicket {
+  const LoadTicket._(this.sequence);
+
+  /// The asking's position in its tracker's history, counting from one.
+  final int sequence;
+
+  @override
+  String toString() => 'LoadTicket#$sequence';
 }
 
 /// Tracks the state of one or more loads, each identified by a key.
@@ -56,12 +83,42 @@ class LoadState {
 /// Call [begin] the moment a fetch is requested, then [complete] it when the
 /// data arrives or [fail] it when the fetch throws. A load that never started,
 /// or has completed, has no entry: [stateFor] reports it as idle.
+///
+/// Each [begin] mints a [LoadTicket] naming that one asking. The widget puts
+/// it on the [LoadRequest], and [resolves] accepts only the [LoadResult] that
+/// carries it back, so an older fetch for the same key can never install
+/// under a newer request.
 class LoadTracker<K> {
   final _slots = <K, LoadState>{};
+  int _minted = 0;
 
-  /// Marks [key] as loading. Call this as soon as the fetch is requested, so
-  /// the same data is never requested twice while it's already on its way.
-  void begin(K key) => _slots[key] = const LoadState(LoadStatus.loading);
+  /// Marks [key] as loading and returns the ticket of this asking. Call this
+  /// as soon as the fetch is requested, so the same data is never requested
+  /// twice while it's already on its way, and put the ticket on the request.
+  LoadTicket begin(K key) {
+    final ticket = LoadTicket._(++_minted);
+    _slots[key] = LoadState.loading(ticket);
+    return ticket;
+  }
+
+  /// Whether [result] answers an asking this tracker still holds: its key
+  /// names a slot in flight, and its ticket is that slot's ticket.
+  ///
+  /// A widget guards every install with this. A result for an idle key, or
+  /// one carrying the ticket of an older asking for the same key, is stale:
+  /// it is logged at debug level and the widget drops it without touching the
+  /// slot, so the live asking still resolves.
+  bool resolves(LoadResult<Object?> result) {
+    final key = result.key;
+    if (key is! K) return false;
+    final slot = stateFor(key);
+    if (slot.isLoading && identical(slot.ticket, result.ticket)) return true;
+    Log.debug(
+      'Stale load result dropped: ${result.ticket} for $key on "${result.id}" '
+      '(${slot.isLoading ? 'the slot holds ${slot.ticket}' : 'the slot is idle'}).',
+    );
+    return false;
+  }
 
   /// Clears [key] back to idle once its data has been applied.
   void complete(K key) => _slots.remove(key);
@@ -100,16 +157,18 @@ class LoadTracker<K> {
 ///
 /// A widget returns this from its update rather than fetching anything itself.
 /// The app receives it, runs the actual fetch, and sends the outcome back as a
-/// [LoadResult] carrying the same [id] and [key]. [id] says which widget asked;
-/// [key] says which part of it — a tree branch, a table page, a list's one
-/// slot.
+/// [LoadResult] built from this request. [id] says which widget asked; [key]
+/// says which part of it — a tree branch, a table page, a list's one slot;
+/// [ticket] says which asking, so an answer to an older asking for the same
+/// key is told apart from this one's.
 ///
 /// [key] is typed as [Object] so a single routing path can carry any widget's
 /// key; each widget recovers its own key type by pattern-matching on it.
 @immutable
 class LoadRequest extends WidgetEvent {
-  /// Creates a request from the widget [id] for the load named by [key].
-  const LoadRequest(this.id, {this.key});
+  /// Creates a request from the widget [id] for the load named by [key], for
+  /// the asking [ticket] names. The ticket comes from [LoadTracker.begin].
+  const LoadRequest(this.id, {required this.ticket, this.key});
 
   /// Identifies the widget that needs data.
   @override
@@ -118,27 +177,32 @@ class LoadRequest extends WidgetEvent {
   /// Names which load within that widget (e.g. [PathKey], [PageKey]).
   final Object? key;
 
+  /// Names which asking, as the widget's tracker minted it.
+  final LoadTicket ticket;
+
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is LoadRequest && other.id == id && other.key == key;
+      identical(this, other) ||
+      other is LoadRequest && other.id == id && other.key == key && identical(other.ticket, ticket);
 
   @override
-  int get hashCode => Object.hash(id, key);
+  int get hashCode => Object.hash(id, key, ticket);
 
   @override
-  String toString() => 'LoadRequest($id, key: $key)';
+  String toString() => 'LoadRequest($id, key: $key, $ticket)';
 }
 
 /// The outcome of a load, sent back to the widget that asked for it.
 ///
-/// The app builds this after running the fetch a [LoadRequest] asked for,
-/// reusing that request's [id] and [key] so the result lands in the right place.
-/// There are exactly three outcomes, and every request must end in one of them:
-/// [data] carrying the loaded items, [error] carrying the failure, or
-/// [LoadResult.cancelled] — a refusal that resolves the slot without fetching.
-/// Answering a request with nothing at all leaves whatever asked for it waiting
-/// forever, since the widget will not ask again while it believes the load is
-/// still on its way.
+/// The app builds this from the [LoadRequest] it answers, after running the
+/// fetch: the request's [id], [key] and [ticket] carry over, so the result
+/// lands in the right place and resolves exactly the asking it answers. There
+/// are exactly three outcomes, and every request must end in one of them:
+/// [LoadResult.ok] carrying the loaded items, [LoadResult.failed] carrying the
+/// failure, or [LoadResult.cancelled] — a refusal that resolves the slot
+/// without fetching. Answering a request with nothing at all leaves whatever
+/// asked for it waiting forever, since the widget will not ask again while it
+/// believes the load is still on its way.
 ///
 /// A cancel is a distinct shape rather than an empty success because an empty
 /// page means "the data ends here". A refusal must teach the widget nothing: it
@@ -153,13 +217,31 @@ class LoadRequest extends WidgetEvent {
 /// the way a failed fetch does (see [payloadMismatch]).
 @immutable
 class LoadResult<D> extends Msg implements Addressed {
-  /// Creates a result for ([id], [key]): pass [data] on success, [error] on
-  /// failure.
-  const LoadResult(this.id, {this.key, this.data, this.error}) : cancelled = false;
+  /// Creates the successful answer to [request], carrying [data].
+  LoadResult.ok(LoadRequest request, D this.data)
+    : id = request.id,
+      key = request.key,
+      ticket = request.ticket,
+      error = null,
+      cancelled = false;
 
-  /// Creates a refusal for ([id], [key]): the load was never run, so the slot
+  /// Creates the failed answer to [request]: the fetch threw [error].
+  LoadResult.failed(LoadRequest request, Object this.error)
+    : id = request.id,
+      key = request.key,
+      ticket = request.ticket,
+      data = null,
+      cancelled = false;
+
+  /// Creates a refusal of [request]: the load was never run, so the slot
   /// returns to idle carrying neither data nor a failure.
-  const LoadResult.cancelled(this.id, {this.key}) : data = null, error = null, cancelled = true;
+  LoadResult.cancelled(LoadRequest request)
+    : id = request.id,
+      key = request.key,
+      ticket = request.ticket,
+      data = null,
+      error = null,
+      cancelled = true;
 
   /// Identifies the widget this result is routed to.
   @override
@@ -167,6 +249,9 @@ class LoadResult<D> extends Msg implements Addressed {
 
   /// The load this result resolves — the same key its request carried.
   final Object? key;
+
+  /// The asking this result resolves — the same ticket its request carried.
+  final LoadTicket ticket;
 
   /// The loaded items (rows, children, a page). Null on failure or refusal.
   ///
@@ -194,16 +279,18 @@ class LoadResult<D> extends Msg implements Addressed {
       other is LoadResult<D> &&
           other.id == id &&
           other.key == key &&
+          identical(other.ticket, ticket) &&
           other.data == data &&
           other.error == error &&
           other.cancelled == cancelled;
 
   @override
-  int get hashCode => Object.hash(id, key, data, error, cancelled);
+  int get hashCode => Object.hash(id, key, ticket, data, error, cancelled);
 
   @override
-  String toString() =>
-      cancelled ? 'LoadResult.cancelled($id, key: $key)' : 'LoadResult($id, key: $key, data: $data, error: $error)';
+  String toString() => cancelled
+      ? 'LoadResult.cancelled($id, key: $key, $ticket)'
+      : 'LoadResult($id, key: $key, $ticket, data: $data, error: $error)';
 }
 
 /// Builds the command that resolves [request] without fetching anything: a
@@ -240,11 +327,8 @@ class LoadResult<D> extends Msg implements Addressed {
 /// It handles one request and never iterates over an app's sources: an app that
 /// needs different treatment for one widget writes a different branch, and
 /// simply does not call this there.
-Cmd declineLoad(LoadRequest request, {Object? error}) => Emit(
-  error == null
-      ? LoadResult<Object?>.cancelled(request.id, key: request.key)
-      : LoadResult<Object?>(request.id, key: request.key, error: error),
-);
+Cmd declineLoad(LoadRequest request, {Object? error}) =>
+    Emit(error == null ? LoadResult<Object?>.cancelled(request) : LoadResult<Object?>.failed(request, error));
 
 // ═══════════════════════════════════════════════════════════
 // PAYLOAD SHAPE

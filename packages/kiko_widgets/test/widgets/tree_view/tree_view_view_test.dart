@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
+
+import '../../support/load.dart';
 import '../../support/viewport.dart';
 
 const _ctx = plume.LayoutContext(measurer: plume.MonospaceMeasurer());
@@ -126,6 +128,12 @@ void main() {
       ..viewport(rows: 3)
       ..expand('/a');
 
+    /// The request the branch's expansion made, taken back from the model.
+    LoadRequest branchRequest(TreeViewModel<String> model) {
+      model.collapse('/a');
+      return requestIn(model.expand('/a'));
+    }
+
     test("the loading row shows the view's label over the muted base", () {
       final model = branchNoChildren();
       final frame = _frame(20, 2)
@@ -138,7 +146,7 @@ void main() {
 
     test("the failed row shows the view's label with the error tone", () {
       final model = branchNoChildren();
-      model.update(LoadResult<List<TreeNode<String>>>(model.id, key: const PathKey('/a'), error: 'boom'));
+      model.update(LoadResult<List<TreeNode<String>>>.failed(branchRequest(model), 'boom'));
 
       final frame = _frame(20, 2)..render(TreeView<String>(model: model, theme: Theme.dark, errorLabel: Line('Broke')));
 
@@ -148,7 +156,7 @@ void main() {
 
     test("the stalled row shows the view's label over the muted base", () {
       final model = branchNoChildren();
-      model.update(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const PathKey('/a')));
+      model.update(LoadResult<List<TreeNode<String>>>.cancelled(branchRequest(model)));
 
       final frame = _frame(20, 2)
         ..render(TreeView<String>(model: model, theme: Theme.dark, stalledLabel: Line('Skip')));

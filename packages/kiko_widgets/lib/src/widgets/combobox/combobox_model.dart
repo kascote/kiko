@@ -576,8 +576,7 @@ class ComboboxModel<T> implements Component {
       _loads.complete(superseded);
     }
     _newestKey = key;
-    _loads.begin(key);
-    return LoadRequest(id, key: key);
+    return LoadRequest(id, key: key, ticket: _loads.begin(key));
   }
 
   /// Replaces the popup's options wholesale with a query's answer.
@@ -601,7 +600,8 @@ class ComboboxModel<T> implements Component {
   /// Only an answer for the newest query the model asked — [_newestKey] —
   /// installs, so a superseded query landing after a newer one was asked is
   /// dropped once its own slot resolves; a query no longer in flight (e.g.
-  /// already answered) is dropped outright. A refusal clears the slot and
+  /// already answered), or an older asking of a text asked again since, is
+  /// dropped outright. A refusal clears the slot and
   /// installs nothing, leaving the popup stalled. A failure is kept for
   /// [queryError] only while its key is the newest one; a superseded
   /// query's failure clears its slot like a refusal.
@@ -614,7 +614,7 @@ class ComboboxModel<T> implements Component {
     if (HitTag.leafOf(result.id) != id) return const Declined();
     final key = result.key;
     if (key is! QueryKey) return const Handled();
-    if (!_loads.isLoading(key)) return const Handled();
+    if (!_loads.resolves(result)) return const Handled();
 
     if (result.cancelled) {
       _loads.complete(key);

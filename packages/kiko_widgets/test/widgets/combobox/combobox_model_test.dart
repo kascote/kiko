@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:meta/meta.dart';
 import 'package:test/test.dart';
+
+import '../../support/load.dart';
 import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg for a named key.
@@ -47,6 +49,9 @@ class RemoteOption {
 class _UnknownMsg extends Msg {
   const _UnknownMsg();
 }
+
+/// Delivers [msg] and returns the one request the combobox made for it.
+LoadRequest ask(ComboboxModel<Object?> combo, Msg msg) => requestsOf(combo.update(msg)).single;
 
 void main() {
   group('ComboboxModel', () {
@@ -560,7 +565,7 @@ void main() {
         // No PageKey on the result, so the list's own load slot never matches
         // it — a deterministic Handled with nothing in it, whatever the list's
         // window otherwise holds.
-        final result = combo.update(LoadResult<Object?>(listPath(combo)));
+        final result = combo.update(LoadResult<Object?>.ok(requestFor(listPath(combo)), null));
 
         expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty).having((h) => h.cmd, 'cmd', isNull));
       });
@@ -735,9 +740,8 @@ void main() {
       });
 
       test('an installing answer replaces the options wholesale, cursor on the first row', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']));
+        final combo = remoteBox();
+        combo.update(LoadResult<List<String>>.ok(ask(combo, charMsg('a')), const ['Apple', 'Avocado']));
 
         expect(
           combo.queryStatus,
@@ -758,12 +762,13 @@ void main() {
           label: (o) => o.name,
           value: stored,
           focused: true,
-        )..update(keyMsg('down')); // opens without editing, asks QueryKey('')
+        );
+        final asked = ask(combo, keyMsg('down')); // opens without editing, asks QueryKey('')
 
         // The answer carries a fresh instance of the value, as a fetch would.
         final fetched = [RemoteOption(1, 'Apple'), RemoteOption(2, 'Banana'), RemoteOption(3, 'Cherry')];
         expect(identical(fetched[1], stored), isFalse, reason: 'the match must run on ==, not identity');
-        combo.update(LoadResult<List<RemoteOption>>('combo', key: const QueryKey(''), data: fetched));
+        combo.update(LoadResult<List<RemoteOption>>.ok(asked, fetched));
 
         final result = combo.update(keyMsg('enter'));
         expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
@@ -771,9 +776,8 @@ void main() {
       });
 
       test("a typed query's answer keeps the cursor on the first row, even when the value appears", () {
-        final combo = remoteBox(value: 'Banana')
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Banana']));
+        final combo = remoteBox(value: 'Banana');
+        combo.update(LoadResult<List<String>>.ok(ask(combo, charMsg('a')), const ['Apple', 'Banana']));
 
         final result = combo.update(keyMsg('enter'));
         expect(result, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
@@ -781,12 +785,12 @@ void main() {
       });
 
       test('an out-of-order answer: the stale one drops, the newest installs', () {
-        final combo = remoteBox()
-          ..update(charMsg('a')) // asks QueryKey('a')
-          ..update(charMsg('p')) // asks QueryKey('ap'), now the newest
-          // The answer to 'a' lands after 'ap' was asked — superseded, so it
-          // resolves its own slot but installs nothing.
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']));
+        final combo = remoteBox();
+        final askedA = ask(combo, charMsg('a'));
+        final askedAp = ask(combo, charMsg('p')); // now the newest
+        // The answer to 'a' lands after 'ap' was asked — superseded, so it
+        // resolves its own slot but installs nothing.
+        combo.update(LoadResult<List<String>>.ok(askedA, const ['Apple', 'Avocado']));
         final staleCommit = combo.update(keyMsg('enter'));
         expect(
           staleCommit,
@@ -795,18 +799,17 @@ void main() {
         );
 
         // The newest query's own answer lands and installs.
-        combo.update(const LoadResult<List<String>>('combo', key: QueryKey('ap'), data: ['Apple']));
+        combo.update(LoadResult<List<String>>.ok(askedAp, const ['Apple']));
         final commit = combo.update(keyMsg('enter'));
         expect(commit, isA<Handled>().having((h) => h.events, 'events', [isA<ComboboxSelectEvent>()]));
         expect(combo.value, equals('Apple'));
       });
 
       test('a refusal leaves the popup stalled and empty', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']))
-          ..update(charMsg('p')) // asks QueryKey('ap'), clearing the matches
-          ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('ap')));
+        final combo = remoteBox();
+        combo.update(LoadResult<List<String>>.ok(ask(combo, charMsg('a')), const ['Apple', 'Avocado']));
+        // asks QueryKey('ap'), clearing the matches
+        combo.update(LoadResult<List<String>>.cancelled(ask(combo, charMsg('p'))));
 
         expect(combo.queryStatus, SliceStatus.stalled);
         expect(combo.queryError, isNull, reason: 'a refusal is not a failure');
@@ -815,17 +818,15 @@ void main() {
       });
 
       test('an installed empty answer is ready, not stalled', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: []));
+        final combo = remoteBox();
+        combo.update(LoadResult<List<String>>.ok(ask(combo, charMsg('a')), const []));
 
         expect(combo.queryStatus, SliceStatus.ready);
       });
 
       test('an error for the newest query is recorded, and a later query clears its display', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'));
+        final combo = remoteBox();
+        combo.update(LoadResult<List<String>>.failed(ask(combo, charMsg('a')), 'boom'));
 
         expect(combo.queryStatus, SliceStatus.failed);
         expect(combo.queryError, equals('boom'));
@@ -836,9 +837,9 @@ void main() {
       });
 
       test("asking a new query drops the superseded query's failed slot", () {
-        final combo = remoteBox()
-          ..update(charMsg('a')) // asks QueryKey('a')
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'))
+        final combo = remoteBox();
+        combo
+          ..update(LoadResult<List<String>>.failed(ask(combo, charMsg('a')), 'boom'))
           ..update(charMsg('p')); // asks QueryKey('ap'), superseding 'a'
 
         expect(
@@ -850,10 +851,11 @@ void main() {
       });
 
       test("a superseded query's late failure resolves its slot without keeping the error", () {
-        final combo = remoteBox()
-          ..update(charMsg('a')) // asks QueryKey('a')
+        final combo = remoteBox();
+        final askedA = ask(combo, charMsg('a'));
+        combo
           ..update(charMsg('p')) // asks QueryKey('ap'); 'a' is still in flight
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'));
+          ..update(LoadResult<List<String>>.failed(askedA, 'boom'));
 
         expect(
           combo.queryLoads.stateFor(const QueryKey('a')).status,
@@ -864,9 +866,8 @@ void main() {
       });
 
       test('clear() while open re-asks the empty query, replacing a standing error', () {
-        final combo = remoteBox()
-          ..update(charMsg('z')) // opens, asks QueryKey('z')
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+        final combo = remoteBox();
+        combo.update(LoadResult<List<String>>.failed(ask(combo, charMsg('z')), 'boom')); // opened, asked QueryKey('z')
         expect(combo.queryError, equals('boom'));
 
         final cmd = combo.clear();
@@ -886,19 +887,19 @@ void main() {
       });
 
       test("an error for a superseded key never surfaces — only the newest key's error does", () {
-        final combo = remoteBox()
-          ..update(charMsg('a')) // asks 'a'
+        final combo = remoteBox();
+        final askedA = ask(combo, charMsg('a'));
+        combo
           ..update(charMsg('p')) // asks 'ap', now the newest; 'a' is superseded
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), error: 'boom'));
+          ..update(LoadResult<List<String>>.failed(askedA, 'boom'));
 
         expect(combo.queryError, isNull, reason: 'the newest key is ap, not the superseded a');
         expect(combo.queryStatus, SliceStatus.filling, reason: 'ap is still in flight');
       });
 
       test('a wrong-shaped answer fails the newest query and installs nothing', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<Object?>('combo', key: QueryKey('a'), data: 42));
+        final combo = remoteBox();
+        combo.update(LoadResult<Object?>.ok(ask(combo, charMsg('a')), 42));
 
         expect(combo.queryStatus, SliceStatus.failed);
         expect(combo.queryError, isA<PayloadMismatch>());
@@ -907,9 +908,8 @@ void main() {
       });
 
       test('a null payload on a successful answer is a mismatch', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a')));
+        final combo = remoteBox();
+        combo.update(LoadResult<Object?>.ok(ask(combo, charMsg('a')), null));
 
         expect(combo.queryStatus, SliceStatus.failed);
         expect(combo.queryError, isA<PayloadMismatch>());
@@ -917,14 +917,17 @@ void main() {
       });
 
       test('a result for a query never asked is dropped (staleness guard)', () {
-        final combo = remoteBox()..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple']));
+        final combo = remoteBox()
+          ..update(LoadResult<List<String>>.ok(requestFor('combo', key: const QueryKey('a')), const ['Apple']));
 
         expect(combo.internalList.cachedItemCount, equals(0), reason: 'a stale result must not install');
       });
 
       test('a result for another id is declined and ignored', () {
         final combo = remoteBox()..update(charMsg('a'));
-        final verdict = combo.update(const LoadResult<List<String>>('other', key: QueryKey('a'), data: ['Apple']));
+        final verdict = combo.update(
+          LoadResult<List<String>>.ok(requestFor('other', key: const QueryKey('a')), const ['Apple']),
+        );
 
         expect(verdict, isA<Declined>(), reason: 'a message addressed elsewhere is not one this combobox understands');
         expect(combo.queryStatus, SliceStatus.filling, reason: 'still waiting for its own result');
@@ -932,18 +935,19 @@ void main() {
       });
 
       test('every result addressed to the combobox is consumed, installed or not', () {
-        final combo = remoteBox()..update(charMsg('a'));
+        final combo = remoteBox();
+        final askedA = ask(combo, charMsg('a'));
 
         expect(
-          combo.update(const LoadResult<List<String>>('combo', key: QueryKey('zzz'), data: ['x'])),
+          combo.update(LoadResult<List<String>>.ok(requestFor('combo', key: const QueryKey('zzz')), const ['x'])),
           isA<Handled>(),
           reason: "a query never asked is dropped, but the message was the combobox's own",
         );
+        expect(combo.update(LoadResult<List<String>>.ok(askedA, const ['Apple'])), isA<Handled>());
         expect(
-          combo.update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple'])),
+          combo.update(LoadResult<List<String>>.ok(requestFor('combo', key: 'not a query'), const ['x'])),
           isA<Handled>(),
         );
-        expect(combo.update(const LoadResult<List<String>>('combo', key: 'not a query', data: ['x'])), isA<Handled>());
       });
 
       test('a result whose id names the popup list is forwarded to the list, ahead of the id guard', () {
@@ -953,7 +957,7 @@ void main() {
         expect(req.id, isNot(equals(combo.id)));
 
         final verdict = combo.update(
-          LoadResult<List<String>>(HitTag.join(combo.id, req.id), key: req.key, data: const ['Apple', 'Avocado']),
+          LoadResult<List<String>>.ok(addressedTo(req, HitTag.join(combo.id, req.id)), const ['Apple', 'Avocado']),
         );
 
         expect(verdict, isA<Handled>(), reason: 'the list installed the page; the combobox never applied the guard');
@@ -978,7 +982,7 @@ void main() {
         final req = list.loadFirstPage();
 
         final verdict = combo.update(
-          LoadResult<List<String>>('combo/${req.id}', key: req.key, data: const ['Apple', 'Avocado']),
+          LoadResult<List<String>>.ok(addressedTo(req, 'combo/${req.id}'), const ['Apple', 'Avocado']),
         );
 
         expect(verdict, isA<Handled>());
@@ -986,9 +990,10 @@ void main() {
       });
 
       test('commit with no cursor row commits nothing', () {
-        final combo = remoteBox()
-          ..update(keyMsg('down')) // asks the empty query
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
+        final combo = remoteBox();
+        combo.update(
+          LoadResult<List<String>>.ok(ask(combo, keyMsg('down')), const []),
+        ); // the empty query, answered empty
 
         final result = combo.update(keyMsg('enter'));
         expect(result, isA<Handled>().having((h) => h.events, 'events', isEmpty));
@@ -1006,9 +1011,9 @@ void main() {
       });
 
       test('asking a query clears the standing matches', () {
-        final combo = remoteBox()
-          ..update(charMsg('a'))
-          ..update(const LoadResult<List<String>>('combo', key: QueryKey('a'), data: ['Apple', 'Avocado']))
+        final combo = remoteBox();
+        combo
+          ..update(LoadResult<List<String>>.ok(ask(combo, charMsg('a')), const ['Apple', 'Avocado']))
           ..update(charMsg('p')); // asks 'ap'; the popup now shows only its state
 
         expect(combo.queryStatus, SliceStatus.filling);

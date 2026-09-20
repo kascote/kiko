@@ -69,8 +69,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
       PathKey(:final path) => model.treeData.getChildren(path),
       _ => Future.value(<TreeNode<void>>[]),
     },
-    onSuccess: (data) => LoadResult<List<TreeNode<void>>>(req.id, key: key, data: data),
-    onError: (e) => LoadResult<List<TreeNode<void>>>(req.id, key: key, error: e),
+    onSuccess: (data) => LoadResult<List<TreeNode<void>>>.ok(req, data),
+    onError: (e) => LoadResult<List<TreeNode<void>>>.failed(req, e),
   );
 }
 

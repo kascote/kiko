@@ -81,7 +81,7 @@ class AppModel with ThemeSwitcher {
 
 /// One request, one fetch — explicit cases, read top to bottom.
 ///
-/// [fetchInto] threads the request's id and key into the result, so a page can
+/// [fetchInto] builds the result from the request, so a page can
 /// only ever land on the widget that asked for it, and turns a read that throws
 /// into a failed load rather than a page stuck loading forever.
 Cmd fetchFor(AppModel model, LoadRequest req) {

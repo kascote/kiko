@@ -1,6 +1,7 @@
 import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
+import '../../support/load.dart';
 import '../../support/viewport.dart';
 
 /// Helper to create a KeyMsg.
@@ -498,13 +499,15 @@ void main() {
         )..viewport(rows: 2);
 
         test('a page landing inside an active range contributes its keys', () {
-          final model = paged()
-            ..update(keyMsg('shift+down')) // anchor 0, cursor 1: selects a, b
-            ..update(keyMsg('shift+down')); // cursor 2 — its page is missing, requested now
+          final asked = RequestLog();
+          final model = paged();
+          asked
+            ..note(model.update(keyMsg('shift+down'))) // anchor 0, cursor 1: selects a, b
+            ..note(model.update(keyMsg('shift+down'))); // cursor 2 — its page is missing, requested now
           expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'row 2 cannot be captured yet');
           expect(model.isLoading(const PageKey(1)), isTrue);
 
-          model.update(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+          model.update(LoadResult<List<String>>.ok(asked[const PageKey(1)], const ['c', 'd']));
 
           expect(
             model.getSelectedKeys(),
@@ -514,13 +517,15 @@ void main() {
         });
 
         test('a page landing after the anchor cleared contributes nothing', () {
-          final model = paged()
-            ..update(keyMsg('shift+down'))
-            ..update(keyMsg('shift+down')) // requests page 1
-            ..update(keyMsg('down')); // clears the anchor
+          final asked = RequestLog();
+          final model = paged();
+          asked
+            ..note(model.update(keyMsg('shift+down')))
+            ..note(model.update(keyMsg('shift+down'))) // requests page 1
+            ..note(model.update(keyMsg('down'))); // clears the anchor
           expect(model.isLoading(const PageKey(1)), isTrue);
 
-          model.update(LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['c', 'd']));
+          model.update(LoadResult<List<String>>.ok(asked[const PageKey(1)], const ['c', 'd']));
 
           expect(model.getSelectedKeys(), equals({'a', 'b'}), reason: 'no active range to complete');
         });
@@ -747,7 +752,7 @@ void main() {
       test('update(LoadResult) installs the page, clears the slot, and returns the next demand pass', () {
         final model = paged();
         final req = model.loadFirstPage();
-        final verdict = model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a', 'b']));
+        final verdict = model.update(LoadResult<List<String>>.ok(req, const ['a', 'b']));
 
         expect(model.getItem(0), equals('a'));
         expect(model.cursorItem, equals('a'));
@@ -764,7 +769,7 @@ void main() {
       test('a short page records where the data ends', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a']));
+        model.update(LoadResult<List<String>>.ok(req, const ['a']));
 
         expect(model.knownItemCount, equals(1));
         expect(model.itemLimit, equals(1));
@@ -773,7 +778,7 @@ void main() {
       test('a failed load records the error and is retryable', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.update(LoadResult<List<String>>(req.id, key: req.key, error: 'boom'));
+        model.update(LoadResult<List<String>>.failed(req, 'boom'));
 
         expect(model.isLoading(), isFalse);
         expect(model.errorFor(const PageKey(0)), equals('boom'));
@@ -784,7 +789,7 @@ void main() {
       test('a refused load clears the slot and installs nothing', () {
         final model = paged();
         final req = model.loadFirstPage();
-        model.update(LoadResult<List<String>>.cancelled(req.id, key: req.key));
+        model.update(LoadResult<List<String>>.cancelled(req));
 
         expect(model.isLoading(), isFalse, reason: 'the slot returns to idle, so the page can be asked for again');
         expect(model.errorFor(const PageKey(0)), isNull, reason: 'nothing failed');
@@ -797,13 +802,13 @@ void main() {
         final req = model.loadFirstPage();
 
         expect(
-          model.update(LoadResult<List<String>>.cancelled(req.id, key: req.key)),
+          model.update(LoadResult<List<String>>.cancelled(req)),
           isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a standing refusal must never become a request storm',
         );
-        model.loadFirstPage();
+        final again = model.loadFirstPage();
         expect(
-          model.update(LoadResult<List<String>>(req.id, key: req.key, error: 'boom')),
+          model.update(LoadResult<List<String>>.failed(again, 'boom')),
           isA<Handled>().having((h) => h.events, 'events', isEmpty),
           reason: 'a failure is retried by the next pass the app runs, not by itself',
         );
@@ -812,13 +817,15 @@ void main() {
       test('a result for a page not in flight is dropped (staleness guard)', () {
         final model = paged();
         // No loadFirstPage — the page is not in flight, so this is a stale arrival.
-        model.update(LoadResult<List<String>>(model.id, key: const PageKey(0), data: const ['x']));
+        model.update(LoadResult<List<String>>.ok(requestFor(model.id, key: const PageKey(0)), const ['x']));
         expect(model.cachedItemCount, equals(0), reason: 'a stale result must not install');
       });
 
       test('a result for another id is declined and ignored', () {
         final model = paged()..loadFirstPage();
-        final verdict = model.update(const LoadResult<List<String>>('other', key: PageKey(0), data: ['x']));
+        final verdict = model.update(
+          LoadResult<List<String>>.ok(requestFor('other', key: const PageKey(0)), const ['x']),
+        );
 
         expect(verdict, isA<Declined>(), reason: 'a message addressed elsewhere is not one this list understands');
         expect(model.cachedItemCount, equals(0));
@@ -829,20 +836,23 @@ void main() {
         final model = paged();
         final req = model.loadFirstPage();
 
-        expect(model.update(LoadResult<List<String>>(req.id, key: req.key, data: const ['a'])), isA<Handled>());
+        expect(model.update(LoadResult<List<String>>.ok(req, const ['a'])), isA<Handled>());
         expect(
-          model.update(LoadResult<List<String>>(model.id, key: const PageKey(7), data: const ['x'])),
+          model.update(LoadResult<List<String>>.ok(requestFor(model.id, key: const PageKey(7)), const ['x'])),
           isA<Handled>(),
           reason: "a stale page is dropped, but the message was the list's own",
         );
-        expect(model.update(LoadResult<List<String>>(model.id, key: 'not a page', data: const ['x'])), isA<Handled>());
+        expect(
+          model.update(LoadResult<List<String>>.ok(requestFor(model.id, key: 'not a page'), const ['x'])),
+          isA<Handled>(),
+        );
       });
     });
 
     group('the end landing closer than navigation reached', () {
       // One held page of 5, end unknown: pages past it are presumed to exist,
       // so navigation runs ahead into rows whose fetch is still out.
-      ListViewModel<String, String> ranAhead() {
+      (ListViewModel<String, String>, LoadRequest) ranAhead() {
         // Seed through insertItems, not `items:` — a constructor seed is taken
         // to be all the data, and this scenario needs the end unknown.
         final model =
@@ -852,18 +862,19 @@ void main() {
                 focused: true,
               )
               ..insertItems(const ['a', 'b', 'c', 'd', 'e'], 0)
-              ..viewport(rows: 3)
-              ..update(keyMsg('pageDown')) // cursor 3 — demand puts page 1 in flight
-              ..update(keyMsg('pageDown')) // cursor 6, into the pending page
-              ..update(keyMsg('pageDown')); // cursor 9, scroll 7
+              ..viewport(rows: 3);
+        final pending = requestsOf(model.update(keyMsg('pageDown'))).single; // cursor 3 — demand puts page 1 in flight
+        model
+          ..update(keyMsg('pageDown')) // cursor 6, into the pending page
+          ..update(keyMsg('pageDown')); // cursor 9, scroll 7
         expect(model.cursor, equals(9));
         expect(model.scrollOffset, equals(7));
-        return model;
+        return (model, pending);
       }
 
       test('a short page pulls the cursor and viewport back to the real end', () {
-        final model = ranAhead();
-        final short = LoadResult<List<String>>(model.id, key: const PageKey(1), data: const ['f']);
+        final (model, pending) = ranAhead();
+        final short = LoadResult<List<String>>.ok(pending, const ['f']);
         model.update(short);
 
         expect(model.knownItemCount, equals(6));
@@ -873,7 +884,8 @@ void main() {
       });
 
       test('a count landing closer than the cursor pulls both back', () {
-        final model = ranAhead()..totalCount = 6;
+        final (model, _) = ranAhead();
+        model.totalCount = 6;
 
         expect(model.cursor, equals(5));
         expect(model.scrollOffset, equals(3));

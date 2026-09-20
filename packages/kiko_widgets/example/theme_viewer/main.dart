@@ -354,8 +354,8 @@ Cmd fetchFor(Model model, LoadRequest req) {
           _ => Future.value(const <TreeNode<void>>[]),
         };
       },
-      onSuccess: (data) => LoadResult<List<TreeNode<void>>>(req.id, key: key, data: data),
-      onError: (e) => LoadResult<List<TreeNode<void>>>(req.id, key: key, error: e),
+      onSuccess: (data) => LoadResult<List<TreeNode<void>>>.ok(req, data),
+      onError: (e) => LoadResult<List<TreeNode<void>>>.failed(req, e),
     );
   }
   if (req.id == model.table.id) return fetchInto(req, model.source);

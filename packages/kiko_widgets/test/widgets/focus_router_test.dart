@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
+import '../support/load.dart';
+
 Frame _frame(int width, int height) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   return Frame(buffer.area, buffer, 0);
@@ -74,7 +76,7 @@ class _AddressedMsg extends Msg implements Addressed {
 }
 
 /// A successful, empty load result addressed to [id].
-LoadResult<Object?> _loadFor(String id) => LoadResult<Object?>(id, key: 'page', data: const <Object>[]);
+LoadResult<Object?> _loadFor(String id) => LoadResult<Object?>.ok(requestFor(id, key: 'page'), const <Object>[]);
 
 /// A committed frame with nothing rendered into it, for tests that only
 /// exercise the keyboard path and need no hit-tested geometry.

@@ -165,8 +165,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 
   return Task(
     () => model.directory.search(key.query),
-    onSuccess: (data) => LoadResult<List<String>>(req.id, key: key, data: data),
-    onError: (e) => LoadResult<List<String>>(req.id, key: key, error: e),
+    onSuccess: (data) => LoadResult<List<String>>.ok(req, data),
+    onError: (e) => LoadResult<List<String>>.failed(req, e),
   );
 }
 

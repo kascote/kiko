@@ -2,6 +2,8 @@ import 'package:kiko/kiko.dart';
 import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
+import '../../support/load.dart';
+
 import '../../support/reports.dart';
 
 const Theme _theme = Theme.dark;
@@ -67,6 +69,9 @@ String _rowText(Buffer buffer, int y, int left, int width) {
   }
   return b.toString();
 }
+
+/// Delivers [msg] and returns the one request the combobox made for it.
+LoadRequest _ask(ComboboxModel<String> combo, Msg msg) => requestsOf(combo.update(msg)).single;
 
 void main() {
   group('Combobox.build (base row)', () {
@@ -456,9 +461,9 @@ void main() {
 
   group('Combobox.renderPopup (status rows)', () {
     test('a new query clears the matches and shows the loading row alone', () {
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle')) // asks QueryKey('')
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple', 'Banana']))
+      final combo = _remoteBox();
+      combo
+        ..update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const ['Apple', 'Banana']))
         ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'), clearing the matches
 
       final view = Combobox(model: combo, theme: _theme);
@@ -472,9 +477,10 @@ void main() {
 
     test('a refusal shows the stalled row, styled through ComboboxStyle.placeholder', () {
       const stalledStyle = Style(fg: Color.indexed(11));
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle')) // asks QueryKey('')
-        ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
+      final combo = _remoteBox();
+      combo.update(
+        LoadResult<List<String>>.cancelled(_ask(combo, _pressOn('combo/toggle'))),
+      ); // the empty query, refused
 
       final view = Combobox(
         model: combo,
@@ -494,9 +500,8 @@ void main() {
     });
 
     test('a stalled row with no slot derives the muted tone', () {
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle'))
-        ..update(const LoadResult<List<String>>.cancelled('combo', key: QueryKey('')));
+      final combo = _remoteBox();
+      combo.update(LoadResult<List<String>>.cancelled(_ask(combo, _pressOn('combo/toggle'))));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
@@ -508,11 +513,10 @@ void main() {
 
     test('a failed row patches the error tone over ComboboxStyle.placeholder', () {
       const errorStyle = Style(fg: Color.indexed(9));
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle'))
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
-        ..update(const KeyMsg('z', text: 'z')) // asks QueryKey('z'), clearing the matches
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+      final combo = _remoteBox();
+      combo.update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const ['Apple']));
+      // asks QueryKey('z'), clearing the matches
+      combo.update(LoadResult<List<String>>.failed(_ask(combo, const KeyMsg('z', text: 'z')), 'boom'));
 
       final view = Combobox(
         model: combo,
@@ -533,11 +537,9 @@ void main() {
     });
 
     test('a failed row with no slot derives the error tone', () {
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle'))
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']))
-        ..update(const KeyMsg('z', text: 'z'))
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey('z'), error: 'boom'));
+      final combo = _remoteBox();
+      combo.update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const ['Apple']));
+      combo.update(LoadResult<List<String>>.failed(_ask(combo, const KeyMsg('z', text: 'z')), 'boom'));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(16, 6);
@@ -548,9 +550,8 @@ void main() {
     });
 
     test("an installed empty answer shows the default 'No matches' placeholder", () {
-      final combo = _remoteBox()
-        ..update(_pressOn('combo/toggle'))
-        ..update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: []));
+      final combo = _remoteBox();
+      combo.update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const []));
 
       final view = Combobox(model: combo, theme: _theme);
       final frame = _frame(12, 6);
@@ -578,7 +579,8 @@ void main() {
     });
 
     test('the loading row disappears once the newest query installs', () {
-      final combo = _remoteBox()..update(_pressOn('combo/toggle')); // asks QueryKey(''), no answer yet
+      final combo = _remoteBox();
+      final opened = _ask(combo, _pressOn('combo/toggle')); // asks QueryKey(''), no answer yet
       final view = Combobox(model: combo, theme: _theme);
 
       final loading = _frame(12, 6);
@@ -586,7 +588,7 @@ void main() {
       view.renderPopup(loading);
       expect(_rowText(loading.buffer, 1, 0, 8), 'Loading…', reason: 'no options yet, and the query is in flight');
 
-      combo.update(const LoadResult<List<String>>('combo', key: QueryKey(''), data: ['Apple']));
+      combo.update(LoadResult<List<String>>.ok(opened, const ['Apple']));
 
       final installed = _frame(12, 6);
       _renderRow(installed, view);

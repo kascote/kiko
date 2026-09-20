@@ -382,6 +382,32 @@ The runtime turns whatever a helper emits into the same `KeyMsg`, `PointerMsg`,
 those messages directly; this level derives them from the event a terminal
 would have sent.
 
+`Application(now:)` controls the clock the router uses for
+`PointerMsg.clickCount`. Two clicks emitted in one `FrameScript` step, or
+from one `onFrame` call, land within `doubleClickInterval` of each other.
+The second press carries `clickCount` 2. A test that wants two separate
+single clicks controls the clock instead. It declares `var t =
+Duration.zero;`, passes `now: () => t` to `Application`, and advances `t`
+past `doubleClickInterval` in the step before it emits the next click:
+
+```dart
+var t = Duration.zero;
+final downCounts = <int>[];
+await Application(backend: backend, mouseEvents: true, now: () => t, onFrame: (frame) {
+  if (frame.count > 1) return;
+  t += const Duration(milliseconds: 500);
+  backend.emitClick(1, 0);
+}).run<int>(
+  init: 0,
+  update: (step, msg, _) {
+    if (msg is PointerMsg && msg.isDown) downCounts.add(msg.clickCount);
+    return (step, downCounts.length == 2 ? const Quit() : null);
+  },
+  view: (_, frame) => frame.render(Line('x')),
+);
+expect(downCounts, [1, 1]);
+```
+
 ### Raw `emit`
 
 The helpers cover a click (a paired press and release), a press and a release

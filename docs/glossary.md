@@ -110,6 +110,10 @@ A term of art added to a page gets its entry here in the same change.
 - **captor** — the widget holding capture: the target resolved at button-down.
   Every captured event addresses it until the button comes up or the gesture
   cancels.
+- **click count** — the position of a press in a chain: a run of presses
+  on the same target, button and cell, each within `doubleClickInterval`
+  of the last. `PointerMsg.clickCount` carries it, and the release repeats
+  it (`docs/mouse.md`).
 - **barrier** — a full-frame scope a modal renders beneath its dialog layer,
   carrying the modal's own id, so every press outside the dialog addresses
   the modal. It marks `ModalBarrierRegion` so the modal can tell it from the

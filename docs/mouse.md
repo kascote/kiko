@@ -288,6 +288,48 @@ sets it in its own `update` and reads it in its own `build()`. The framework
 contributes only what only the framework can know: the router knows which
 *widget* is hovered; only a list knows which of its *rows* is.
 
+## Click count
+
+A click count is another fact the event stream cannot deliver, so the
+router synthesizes it — the same rule that governs leave and cancel.
+
+The runtime stamps each mouse event with its arrival time at intake, and
+the router measures the interval between those stamps. A press is the next
+click of a chain when it matches the last press on target, button, and
+cell, and arrives within `doubleClickInterval` of it. The target
+comparison treats `null` — the background — like any other value. Two
+presses on the background chain too. A press that does not match starts a
+new chain at 1. So does a press stamped earlier than the last press, which
+guards a raw message an app builds and emits itself.
+
+`PointerMsg.clickCount` carries the length of the current chain. It is 1
+for a lone press or its release, 2 for the second press, and so on with no
+cap. The count rides the press: `down` sets it, and the `up` that ends the
+gesture carries the same number.
+
+`Application(doubleClickInterval:)` sets the interval, 400 ms by default.
+One value covers the whole app, so a double click feels the same on every
+widget.
+
+The interval runs press to press, not release to press. A slow release
+therefore cannot break a chain. That is the convention of the desktop
+toolkits that count on the press rather than the release.
+
+The rule compares cells, not hit regions. The router treats a `Region` as
+an opaque marker (see "Hit regions" above). It has no way to compare two
+regions for sameness. A cell is the terminal's own unit of position. A
+terminal pointer does not drift within one cell the way a pixel pointer
+drifts within the few pixels a desktop toolkit allows.
+
+A `PointerCancelMsg` clears the chain. A bare move while a button is held,
+or the terminal losing focus, both deliver one. A fresh run clears it too.
+A release does not clear the chain: the next press can still chain onto the
+press that came before it.
+
+Over a stalled remote link, two slow clicks can arrive close together and
+read as one double click. Every toolkit without a terminal-supplied
+timestamp shares this limit.
+
 ## Dispatch
 
 `PointerMsg`, `PointerLeaveMsg` and `PointerCancelMsg` all implement
@@ -365,11 +407,22 @@ to end. The rules:
   bubbling. A wheel a `TextInput` cannot use must come back `Declined()`, or
   it never reaches the scrollable around it. Decline every pointer you do not
   consume.
-- **A click emits the same id-addressed event Enter does.** The widget moves
-  its cursor to the clicked row and returns the same event Enter returns; the
-  app cannot tell which device fired it. A widget never moves focus itself.
-  Moving focus on a press belongs to whoever owns the `FocusGroup`;
-  `FocusRouter` (or `focusOnPress`) does it in one line.
+- **Under the `press` policy, a click emits the same id-addressed event
+  Enter does.** `press` is the default. The widget moves its cursor to the
+  clicked row and returns the same event Enter returns; the app cannot tell
+  which device fired it. A widget never moves focus itself. Moving focus on
+  a press belongs to whoever owns the `FocusGroup`; `FocusRouter` (or
+  `focusOnPress`) does it in one line.
+- **`ScrollableModel.pointerActivation` selects the activation policy,
+  `press` by default.** The list, table, and tree read it through the
+  shared row handler, `handleRowPointer`. Under `doubleClick`, a press
+  still moves the cursor. Only a press whose `clickCount` equals 2 fires
+  the activate event. A third press in the same chain fires nothing. The
+  keyboard is unaffected: Enter still activates on its own. A `doubleClick`
+  list therefore reads as "click selects, Enter or double-click opens". The
+  tree's indicator toggles on a press of any count. The policy does not
+  reach it. A button, checkbox, or radio group treats a double-click as two
+  ordinary clicks.
 - **A release activates only after the widget's own press.** A
   press-activated widget fires its event on `up` only when it saw the
   matching `down`. A release without that press is not a click on this

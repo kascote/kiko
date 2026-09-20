@@ -231,6 +231,7 @@ nothing.
 ```dart
 Application(
   fps: 60, // the ceiling on the draw rate (default 60)
+  doubleClickInterval: const Duration(milliseconds: 400), // one app-wide interval for PointerMsg.clickCount (default 400 ms)
 )
 ```
 

@@ -976,6 +976,21 @@ void main() {
         focused: true,
       );
 
+      test('page 0 asked again after a reset: the old fetch is dropped, the new one installs', () {
+        final model = paginated();
+        final old = model.loadFirstPage();
+        model.reset();
+        final fresh = model.loadFirstPage();
+
+        model.update(LoadResult<List<Map<String, Object?>>>.ok(old, sampleRows(10)));
+        expect(model.cachedPages, isEmpty, reason: 'the old asking no longer exists');
+        expect(model.isLoading(const PageKey(0)), isTrue, reason: 'the live asking still waits');
+
+        model.update(LoadResult<List<Map<String, Object?>>>.ok(fresh, sampleRows(10)));
+        expect(model.cachedPages, equals([0]));
+        expect(model.isLoading(const PageKey(0)), isFalse);
+      });
+
       test('loadFirstPage begins page 0 and requests it', () {
         final model = paginated();
         final req = model.loadFirstPage();

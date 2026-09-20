@@ -688,6 +688,21 @@ void main() {
         expect(model.isLoaded, isFalse);
         expect(model.flatNodes, isEmpty);
       });
+
+      test('roots asked again after a reset: the old fetch is dropped, the new one installs', () {
+        final model = TreeViewModel<String>();
+        final old = model.loadRoots();
+        model.reset();
+        final fresh = model.loadRoots();
+
+        model.update(LoadResult<List<TreeNode<String>>>.ok(old, [TreeNode(path: '/old', label: Line('Old'))]));
+        expect(model.isLoaded, isFalse, reason: 'the old asking no longer exists');
+        expect(model.isLoading(const RootsKey()), isTrue, reason: 'the live asking still waits');
+
+        model.update(LoadResult<List<TreeNode<String>>>.ok(fresh, [TreeNode(path: '/new', label: Line('New'))]));
+        expect(model.flatNodes.map((n) => n.path), equals(['/new']));
+        expect(model.isLoading(const RootsKey()), isFalse);
+      });
     });
 
     group('reload', () {
@@ -835,6 +850,28 @@ void main() {
         expect(model.expand('/a/x'), contains(isA<LoadRequest>()), reason: 'the old children are gone');
         model.applyChildren('/a/x', [TreeNode(path: '/a/x/y', label: Line('Y'))]);
         expect(model.expand('/a/x/y'), contains(isA<LoadRequest>()), reason: 'the late result cached nothing');
+      });
+
+      test('a descendant re-expanded after a reload: the old fetch is dropped, the new one installs', () {
+        final model = modelWith([TreeNode(path: '/a', label: Line('A'))]);
+        expandLoaded(model, '/a', [TreeNode(path: '/a/x', label: Line('X'))]);
+        final old = expandAsking(model, '/a/x'); // in flight when the parent reloads
+
+        model
+          ..reload('/a')
+          ..applyChildren('/a', [TreeNode(path: '/a/x', label: Line('X'))]);
+        final fresh = expandAsking(model, '/a/x'); // the same path, a new asking
+
+        model.update(
+          LoadResult<List<TreeNode<String>>>.ok(old, [TreeNode(path: '/a/x/old', label: Line('Old'), isLeaf: true)]),
+        );
+        expect(model.isPathLoading('/a/x'), isTrue, reason: 'the old asking is dropped; the live one still waits');
+        expect(paths(model), equals(['/a', '/a/x', '/a/x/_loading']));
+
+        model.update(
+          LoadResult<List<TreeNode<String>>>.ok(fresh, [TreeNode(path: '/a/x/new', label: Line('New'), isLeaf: true)]),
+        );
+        expect(paths(model), equals(['/a', '/a/x', '/a/x/new']));
       });
 
       test('a branch expanded under a collapsed ancestor reloads and paints once the ancestor reopens', () {

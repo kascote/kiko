@@ -916,6 +916,20 @@ void main() {
         expect(combo.internalList.cachedItemCount, equals(0));
       });
 
+      test('the same text asked twice: the old fetch is dropped, the new one installs', () {
+        final combo = remoteBox();
+        final old = ask(combo, charMsg('a'));
+        combo.update(keyMsg('backspace')); // asks the empty query
+        final fresh = ask(combo, charMsg('a')); // the same text, a new asking
+
+        combo.update(LoadResult<List<String>>.ok(old, const ['Old']));
+        expect(combo.queryStatus, SliceStatus.filling, reason: 'the old asking is dropped; the live one still waits');
+
+        combo.update(LoadResult<List<String>>.ok(fresh, const ['Apple']));
+        expect(combo.queryStatus, SliceStatus.ready);
+        expect(combo.internalList.cachedItemCount, equals(1));
+      });
+
       test('a result for a query never asked is dropped (staleness guard)', () {
         final combo = remoteBox()
           ..update(LoadResult<List<String>>.ok(requestFor('combo', key: const QueryKey('a')), const ['Apple']));

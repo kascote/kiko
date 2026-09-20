@@ -386,6 +386,22 @@ void main() {
         expect(msg.hits, same(runtime.lastHitMap), reason: 'stamped with the frame it was aimed at');
       });
 
+      test('stamps a mouse event with the time from the injected now source', () async {
+        const t = Duration(milliseconds: 100);
+        runtime = MvuRuntime(now: () => t);
+        events = TestEventStream();
+        runtime.subscribeToEvents(events.stream);
+
+        events.emit(MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)));
+
+        // Allow stream to deliver
+        await Future<void>.delayed(Duration.zero);
+
+        final msg = (await runtime.nextMsg())! as RawPointerMsg;
+
+        expect(msg.at, equals(t));
+      });
+
       test('converts FocusEvent to FocusMsg', () async {
         events.emit(const FocusEvent());
 
@@ -688,6 +704,26 @@ void main() {
 
         final msg = (await runtime.nextMsg())!;
         expect(msg, isA<ResizeMsg>());
+      });
+
+      test('a held mouse event keeps its arrival time through the flush, not the time of the flush', () async {
+        var t = Duration.zero;
+        runtime = MvuRuntime(now: () => t);
+        events = TestEventStream();
+        runtime
+          ..subscribeToEvents(events.stream)
+          ..holdEventsForFirstFrame();
+
+        events.emit(MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)));
+
+        // Allow stream to deliver into the startup hold
+        await Future<void>.delayed(Duration.zero);
+
+        t = const Duration(seconds: 5);
+        runtime.flushStartupEvents();
+
+        final msg = (await runtime.nextMsg())! as RawPointerMsg;
+        expect(msg.at, equals(Duration.zero), reason: 'stamped on arrival, not on flush');
       });
     });
   });

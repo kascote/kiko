@@ -136,6 +136,15 @@ class Application {
   @visibleForTesting
   final Backend? backend;
 
+  /// The arrival-time source the runtime stamps mouse events with at intake.
+  ///
+  /// It counts from when the runtime was built, not a wall-clock time, so
+  /// only the difference between two calls means anything. If null, the
+  /// runtime uses its own stopwatch. A test passes a closure over a
+  /// [Duration] it advances itself, to control the gap between two events.
+  @visibleForTesting
+  final Duration Function()? now;
+
   /// The width policy the terminal measures text with for the whole session.
   ///
   /// A terminal's ambiguous-width behavior does not change mid-run, so this is
@@ -201,6 +210,7 @@ class Application {
     this.onCleanup,
     this.onFrame,
     @visibleForTesting this.backend,
+    @visibleForTesting this.now,
     this.measurer = const TermUnicodeMeasurer(),
     this.fps = 60,
     this.logPath,
@@ -280,7 +290,7 @@ class Application {
 
   Future<int> _runLoop<M>(M init, Update<M> update, Render<M> view) async {
     final terminal = _terminal!;
-    final runtime = _runtime = MvuRuntime()
+    final runtime = _runtime = MvuRuntime(now: now)
       ..reset()
       ..subscribeToEvents(terminal.events)
       // The initial draw below is now genuinely asynchronous, so an event a

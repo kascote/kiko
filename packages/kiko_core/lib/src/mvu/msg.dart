@@ -202,8 +202,15 @@ class RawPointerMsg extends Msg {
   /// The tagged geometry of the frame that was on screen when it arrived.
   final HitMap hits;
 
-  /// Stamps [mouse] with the [hits] it was aimed at.
-  const RawPointerMsg(this.mouse, this.hits);
+  /// When the event reached intake, on the runtime's own clock.
+  ///
+  /// It counts from the moment the runtime that stamped it was built, not a
+  /// wall-clock time, so only the difference between two values means
+  /// anything. Defaults to [Duration.zero] for a message built by hand.
+  final Duration at;
+
+  /// Stamps [mouse] with the [hits] it was aimed at and the [at] it arrived.
+  const RawPointerMsg(this.mouse, this.hits, {this.at = Duration.zero});
 
   /// Whether the pointer moved with no button held.
   bool get isMove => mouse.button.action == evt.MouseButtonAction.moved;
@@ -218,7 +225,7 @@ class RawPointerMsg extends Msg {
   String get coalesceKey => 'mouse-move';
 
   @override
-  String toString() => 'RawPointerMsg(${mouse.button.action.name} at ${mouse.x}, ${mouse.y})';
+  String toString() => 'RawPointerMsg(${mouse.button.action.name} at ${mouse.x}, ${mouse.y}, at: $at)';
 }
 
 /// Wrapper for focus events.
@@ -375,10 +382,14 @@ class UnknownMsg extends Msg {
 /// the queue while a new frame is painted still resolves against the cells the
 /// user was looking at. Before the first frame there is nothing to hit, and the
 /// default empty map says so.
-Msg? eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty()}) {
+///
+/// A mouse event is also stamped with [at], its arrival time on the runtime's
+/// own clock. Keys, focus and paste events carry no such stamp: nothing reads
+/// their time.
+Msg? eventToMsg(evt.Event event, {HitMap hits = const HitMap.empty(), Duration at = Duration.zero}) {
   return switch (event) {
     final evt.KeyEvent e => _keyEventToMsg(e),
-    final evt.MouseEvent e => RawPointerMsg(e, hits),
+    final evt.MouseEvent e => RawPointerMsg(e, hits, at: at),
     final evt.FocusEvent e => FocusMsg(hasFocus: e.hasFocus),
     final evt.PasteEvent e => PasteMsg(e.text),
     evt.NoneEvent() => null,

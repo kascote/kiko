@@ -1,4 +1,7 @@
 import 'package:kiko/kiko.dart';
+// The un-routed form of a mouse event never leaves the runtime, so it is not
+// part of the public library.
+import 'package:kiko/src/mvu/msg.dart' show RawPointerMsg;
 import 'package:termparser/termparser_events.dart';
 import 'package:test/test.dart';
 
@@ -208,6 +211,35 @@ void main() {
         const ModifierKeyMsg(ModifierKey.shift, ModifierSide.left, down: true),
         isNot(equals(const ModifierKeyMsg(ModifierKey.shift, ModifierSide.left, down: false))),
       );
+    });
+  });
+
+  group('eventToMsg: mouse arrival time', () {
+    test('a mouse event is stamped with the given at', () {
+      final msg =
+          eventToMsg(
+                MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)),
+                at: const Duration(milliseconds: 500),
+              )!
+              as RawPointerMsg;
+
+      expect(msg.at, equals(const Duration(milliseconds: 500)));
+    });
+
+    test('at defaults to zero', () {
+      final msg = eventToMsg(MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)))! as RawPointerMsg;
+
+      expect(msg.at, equals(Duration.zero));
+    });
+
+    test('RawPointerMsg.toString shows the arrival time', () {
+      final msg = RawPointerMsg(
+        MouseEvent(0, 0, MouseButton.down(MouseButtonKind.left)),
+        const HitMap.empty(),
+        at: const Duration(milliseconds: 500),
+      );
+
+      expect(msg.toString(), contains('at: 0:00:00.500000'));
     });
   });
 }

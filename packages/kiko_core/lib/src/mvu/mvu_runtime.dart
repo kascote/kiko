@@ -50,8 +50,8 @@ class MvuRuntime {
 
   /// Terminal events that arrived while delivery was held by
   /// [holdEventsForFirstFrame], waiting on [flushStartupEvents] to stamp and
-  /// queue them.
-  final List<Event> _startupEvents = [];
+  /// queue them, paired with the arrival time each one is stamped with.
+  final List<(Event, Duration)> _startupEvents = [];
 
   /// Whether an incoming event is stamped and queued immediately, rather than
   /// held in [_startupEvents]. See [holdEventsForFirstFrame].
@@ -76,8 +76,22 @@ class MvuRuntime {
   /// Callback when message queued (signals wake-up).
   final OnMsgQueued? _onMsgQueued;
 
+  /// Arrival-time source for stamping a mouse event at intake.
+  ///
+  /// It counts from when the runtime was built, not a wall-clock time, so
+  /// only the difference between two calls means anything. Defaults to the
+  /// elapsed time of a private stopwatch started at construction.
+  final Duration Function() _now;
+
   /// Creates a new MVU runtime.
-  MvuRuntime({OnMsgQueued? onMsgQueued}) : _onMsgQueued = onMsgQueued;
+  MvuRuntime({OnMsgQueued? onMsgQueued, Duration Function()? now})
+    : _onMsgQueued = onMsgQueued,
+      _now = now ?? _defaultNow();
+
+  static Duration Function() _defaultNow() {
+    final stopwatch = Stopwatch()..start();
+    return () => stopwatch.elapsed;
+  }
 
   /// Resets runtime state for a new run.
   void reset() {
@@ -102,16 +116,19 @@ class MvuRuntime {
   ///
   /// A mouse event is stamped as it arrives with the geometry then on screen,
   /// so it stays aimed at the cells the user aimed it at however long it waits.
-  /// See [holdEventsForFirstFrame] for the one window where that geometry
-  /// does not exist yet.
+  /// It is also stamped with its arrival time, on the clock this runtime was
+  /// built with. See [holdEventsForFirstFrame] for the one window where that
+  /// geometry does not exist yet; a held event keeps the arrival time it is
+  /// given here, not the time it is later flushed.
   void subscribeToEvents(Stream<Event> events) {
     unawaited(_eventSubscription?.cancel());
     _eventSubscription = events.listen((event) {
+      final at = _now();
       if (_liveDelivery) {
-        final msg = eventToMsg(event, hits: lastHitMap);
+        final msg = eventToMsg(event, hits: lastHitMap, at: at);
         if (msg != null) queueMsg(msg);
       } else {
-        _startupEvents.add(event);
+        _startupEvents.add((event, at));
       }
     });
   }
@@ -140,9 +157,9 @@ class MvuRuntime {
   /// its enable-time report past the flush costs the app one redundant
   /// resize carrying the size it already has, which is harmless.
   void flushStartupEvents() {
-    for (final event in _startupEvents) {
+    for (final (event, at) in _startupEvents) {
       if (event is WindowResizeEvent) continue;
-      final msg = eventToMsg(event, hits: lastHitMap);
+      final msg = eventToMsg(event, hits: lastHitMap, at: at);
       if (msg != null) queueMsg(msg);
     }
     _startupEvents.clear();

@@ -83,11 +83,12 @@ Rules a contributor will otherwise miss:
   (`id == model.table.id`), or through a `Map<String, …>` registry for N
   instances. Never disambiguate with `identical(...)`. Never assume one
   instance per event type.
-- **Async results must carry the id home.** When the app fires a `Task` in
-  response to a `LoadRequest(id, key)`, thread both the `id` and the `key`
-  into the result message
-  (`onSuccess: (data) => LoadResult(id, key: key, data: data)`). This is the
-  easiest rule to forget. Omit the id and the result reaches nobody.
+- **Build the result from the request.** When the app fires a `Task` in
+  response to a `LoadRequest`, the result is built from that request
+  (`onSuccess: (data) => LoadResult.ok(req, data)`, `onError: (e) =>
+  LoadResult.failed(req, e)`). The request's id, key and ticket come home
+  by construction, so the result reaches the widget that asked and resolves
+  the asking it answers. There is no other way to build one.
 - **Derive collection ids from stable domain keys (`user.id`), never from
   the list index.** Indexes shift on insert and delete, so an index-derived
   id routes a result onto the wrong row.

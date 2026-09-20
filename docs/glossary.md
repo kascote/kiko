@@ -129,6 +129,10 @@ A term of art added to a page gets its entry here in the same change.
   (`docs/async-loading.md`).
 - **load key** — the typed name of the thing being loaded (a page number, a
   tree path); never a direction or an intent.
+- **load ticket** — the identity of one asking: the `LoadTicket` a widget's
+  tracker mints when a slot begins, carried by the `LoadRequest` and brought
+  home by the `LoadResult` built from it. A result resolves only the asking
+  whose ticket it carries (`docs/async-loading.md`).
 - **query key** — a combobox's load key, naming a query by the field's text
   when it was asked (`QueryKey`). Only the newest query's answer installs
   (`docs/async-loading.md`).

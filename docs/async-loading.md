@@ -26,8 +26,15 @@ The widget owns the **state machine**; the app owns the **I/O**. Concretely:
 - The widget flips the slot **to idle or error when the matching `LoadResult`
   lands** in its `update`.
 - The app performs the I/O, and only the I/O: it sees the `LoadRequest`,
-  fires a `Task`, and threads `(id, key)` into the `LoadResult`. **The widget
+  fires a `Task`, and builds the `LoadResult` from that request. **The widget
   never awaits.**
+- Each request is one **asking**, named by the `LoadTicket` its widget's
+  tracker minted when the slot began. The result built from the request
+  carries the ticket home. A result resolves exactly the asking it was built
+  from: a widget drops a result for an asking it no longer holds, and a
+  dropped result never touches the live slot. Two fetches in flight for one
+  key can therefore never swap places, and **an app never gates its own
+  refreshes**: reset and ask again, and only the new answer installs.
 - The `LoadResult` is an addressed message (`docs/components.md`): the focus
   router delivers it to the widget whose id it carries. **The app never
   routes a result by hand.**
@@ -44,7 +51,7 @@ exactly three replies, and `return (model, null)` is a bug:
 | Reply | Build it with | What the widget learns |
 | ----- | ------------- | ---------------------- |
 | **data** | `fetchInto(req, source)`, or a hand-rolled `Task` | installs the rows; a short page records where the data ends |
-| **error** | `LoadResult(id, key: key, error: e)`, or `declineLoad(req, error: …)` | the slot fails, paints its error, and retries on the next demand pass |
+| **error** | `LoadResult.failed(req, e)`, or `declineLoad(req, error: …)` | the slot fails, paints its error, and retries on the next demand pass |
 | **refusal** | `declineLoad(req)` | *nothing* — the slot returns to idle, placeholders stay, no end-of-data is recorded |
 
 A refusal is for policy ("do not fetch orders while a sync is running"):
@@ -118,10 +125,9 @@ from the message that lifted its gate and fetches what comes back:
   a later page loaded or in flight, or a count that says more rows exist — is
   reported once through the log.
 - `fetchInto(req, source)` / `declineLoad(req, {error})` — the per-request
-  helpers. `fetchInto` threads `(id, key)` into the result **structurally**,
-  so the rule most often forgotten cannot be forgotten. It also converts a
-  `read` that throws into a failed load rather than an unhandled asynchronous
-  error.
+  helpers. Both build their result from the request, as every result is
+  built. `fetchInto` also converts a `read` that throws into a failed load
+  rather than an unhandled asynchronous error.
 - `statusFor(keys, loads, isPresent)` → `SliceStatus.{ready, filling,
   stalled, failed}` — what a view is about to paint. `stalled` (missing,
   nothing coming) is the point: it names every permanent failure, so a test
@@ -139,12 +145,13 @@ id is declined: it is not a message this widget understands. A late result
 for a collapsed branch or a superseded query is consumed and dropped, not
 applied.
 
-The staleness guard holds only while no new request for the same key has
-been issued. Two fetches in flight for one key are indistinguishable when
-their results land: the first to arrive installs, the second is dropped. A
-`reset()` followed at once by a request for the same key can therefore
-install the old result. That hole is tracked as its own spec (mikos 0443,
-the same-key race).
+The guard is one question, `LoadTracker.resolves(result)`: does the result's
+key name a slot in flight, and does its ticket match that slot's? A result
+for an idle key, or one carrying the ticket of an older asking for the same
+key, is logged at debug level and dropped without touching the slot. So a
+`reset()` followed at once by a request for the same key is safe: the old
+fetch's result finds a slot that holds a newer ticket and is dropped, and the
+new fetch's result installs.
 
 ## Data ownership — two paths, no read interface
 
@@ -330,8 +337,8 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
   };
   if (fetch == null) return declineLoad(req, error: 'no fetch for ${req.key}');
   return Task(fetch,
-    onSuccess: (data) => LoadResult(req.id, key: req.key, data: data),
-    onError:  (e)    => LoadResult(req.id, key: req.key, error: e));
+    onSuccess: (data) => LoadResult.ok(req, data),
+    onError:  (e)    => LoadResult.failed(req, e));
 }
 
 // Translates one widget event: a LoadRequest becomes a fetch; every other

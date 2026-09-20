@@ -129,8 +129,8 @@ class LoadTracker<K> {
   /// Drops every slot, in flight and failed alike, so every key reads idle.
   ///
   /// Call it on a cold start: a result for a fetch that was in flight is
-  /// stale afterwards, and a widget's staleness guard drops it. The guard
-  /// holds only until the same key is requested again.
+  /// stale afterwards, and [resolves] drops it, whether or not the same key
+  /// has been requested again since.
   void clear() => _slots.clear();
 
   /// The current state of [key], or [LoadState.idle] if it has no entry.

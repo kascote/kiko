@@ -139,6 +139,13 @@ id is declined: it is not a message this widget understands. A late result
 for a collapsed branch or a superseded query is consumed and dropped, not
 applied.
 
+The staleness guard holds only while no new request for the same key has
+been issued. Two fetches in flight for one key are indistinguishable when
+their results land: the first to arrive installs, the second is dropped. A
+`reset()` followed at once by a request for the same key can therefore
+install the old result. That hole is tracked as its own spec (mikos 0443,
+the same-key race).
+
 ## Data ownership — two paths, no read interface
 
 A widget gets its items exactly two ways, and nothing sits between them:
@@ -149,7 +156,9 @@ A widget gets its items exactly two ways, and nothing sits between them:
   again. Unless `totalCount:` says otherwise, a seed is taken to be all the
   data. Replace it wholesale — a search box swapping its results on every
   keystroke — with `reset()`, then `insertItems(...)` / `insertRows(...)`,
-  then the new `totalCount`.
+  then the new `totalCount`. The tree's `reset()` is the same cold start: it
+  drops the roots, every branch and the expansion, and the app fetches the
+  request `loadRoots()` returns, exactly as at init.
 - **Data the app must fetch** loads through the page window, one page at a
   time, driven by demand. The fetcher — a closure or a `PageSource<T>` — is
   **app-owned** and never lives on a widget model. Reads are synchronous and
@@ -161,6 +170,13 @@ A widget gets its items exactly two ways, and nothing sits between them:
 **TreeView is exempt** — its shape is hierarchical, so it keeps its node read
 path and gets no page window. The uniform thing is the ownership split, not
 one storage type.
+
+The tree also refreshes one branch in place with `reload(path)`. The branch
+stays open and repaints: it forgets its children and every descendant's
+state, paints its loading placeholder, and returns one `LoadRequest` for the
+app to fetch. A failed branch reloads the same way, so `reload` is also its
+retry. A collapsed branch only forgets, and the next expand re-fetches. The
+roots have no in-place refresh: use `reset()` and load them again.
 
 ## Per-widget map
 

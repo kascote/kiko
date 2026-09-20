@@ -5,7 +5,10 @@
 // - Multiple depth levels loaded on-demand
 // - Loading indicators while fetching
 // - Error placeholder on a failed load (expand Electronics → Audio), with
-//   collapse + expand to retry — instead of an endless spinner
+//   `r` to retry — instead of an endless spinner
+// - `r` reloads the branch under the cursor in place: it stays open, shows
+//   its loading placeholder, and repaints with the children the fetch brings
+// - `R` resets the tree and fetches its roots again, the cold start
 // - Styled labels with colors
 // - Click a node to expand/select, wheel-scroll, per-node hover — scrolling
 //   near the edge does NOT page (Tree loads on expand, not on threshold)
@@ -165,9 +168,8 @@ class AsyncCategorySource extends TreeDataSource<Category> {
   @override
   Future<List<TreeNode<Category>>> getChildren(String path) async {
     await _simulateDelay(path);
-    // Simulate a flaky endpoint to show the Phase 2 fix: a failed child load
-    // renders an error placeholder, it does not spin forever. Collapse + expand
-    // to retry.
+    // Simulate a flaky endpoint: a failed child load renders an error
+    // placeholder, it does not spin forever. `r` retries.
     if (path == '/Electronics/Audio') {
       throw StateError('simulated network error for $path');
     }
@@ -186,7 +188,18 @@ class AppModel with ThemeSwitcher {
 
   String? selectedPath;
   int expandCount = 0;
+  int reloadCount = 0;
   bool initialized = false;
+}
+
+/// The branch `r` reloads for the cursor row: the node itself when it can
+/// hold children, otherwise the branch it hangs under. A leaf or a
+/// placeholder row reloads its parent; a root leaf has none and reloads
+/// nothing. The model does not resolve this: every consumer does.
+String? reloadTarget(TreeViewModel<Category> tree) {
+  final node = tree.cursorNode;
+  if (node == null) return null;
+  return node.isLeaf ? node.parentPath : node.path;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -258,10 +271,25 @@ Cmd? onEvent(AppModel model, WidgetEvent event) {
       break;
   }
 
-  // Quit
+  // App-level keys: the tree declined them, so they cannot collide with its
+  // bindings.
   if (msg case KeyMsg(:final key)) {
-    if (key == 'escape' || key == 'ctrl+q') {
-      return (model, const Quit());
+    switch (key) {
+      case 'r':
+        // In-place refresh: the branch stays open and paints its loading
+        // placeholder until the fetch the request names comes home.
+        final target = reloadTarget(model.tree);
+        if (target == null) return (model, null);
+        final events = model.tree.reload(target);
+        if (events.isNotEmpty) model.reloadCount++;
+        return (model, Batch([for (final e in events) onEvent(model, e)]));
+      case 'R':
+        // Cold start: the tree forgets everything and the roots load again
+        // exactly as they did on init.
+        model.tree.reset();
+        return (model, fetchFor(model, model.tree.loadRoots()));
+      case 'escape' || 'ctrl+q':
+        return (model, const Quit());
     }
   }
 
@@ -306,7 +334,7 @@ void appView(AppModel model, Frame frame) {
       ]),
       errorLabel: Line.fromTexts(const [
         Text(
-          '⚠ Failed to load — collapse + expand to retry',
+          '⚠ Failed to load — r retries',
           style: Style(fg: Color.red, addModifier: Modifier.dim),
         ),
       ]),
@@ -329,7 +357,7 @@ void appView(AppModel model, Frame frame) {
               style: model.selectedPath != null ? resolver.ink(t.success) : resolver.ink(t.muted),
             ),
           ),
-          Line('Expansions: ${model.expandCount}', style: resolver.ink(t.muted)),
+          Line('Expansions: ${model.expandCount} | Reloads: ${model.reloadCount}', style: resolver.ink(t.muted)),
         ],
       ),
     ),
@@ -339,7 +367,7 @@ void appView(AppModel model, Frame frame) {
     children: [
       Expanded(
         child: Line(
-          '↑↓/jk nav | →/l or click indicator expand | ←/h collapse | Enter/click select | wheel scroll | Esc quit',
+          '↑↓/jk nav | →/l expand | ←/h collapse | Enter select | r reload branch | R reset tree | wheel | Esc quit',
           style: resolver.ink(t.muted),
         ),
       ),

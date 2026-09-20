@@ -31,6 +31,7 @@ void main() {
 
     test('TreeView cursor node', () {
       final model = TreeViewModel<String>(focused: true)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true)]);
       final buffer = canvas(10, 2);
       Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: Theme.dark));

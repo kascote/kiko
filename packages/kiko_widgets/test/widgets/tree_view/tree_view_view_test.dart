@@ -31,6 +31,7 @@ void main() {
     test('draws an expanded tree with depth indentation', () {
       final model = TreeViewModel<String>()
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Parent'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -52,6 +53,7 @@ void main() {
     test('draws three levels of nested expansion', () {
       final model = TreeViewModel<String>()
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[TreeNode(path: '/a/b', label: Line('Level1'))])
@@ -67,6 +69,7 @@ void main() {
     test('shows icons before labels when showIcons is enabled', () {
       final model = TreeViewModel<String>(showIcons: true)
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Folder'), icon: '📁')])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -80,6 +83,7 @@ void main() {
     test('aligns leaf and branch children at the same indent', () {
       final model = TreeViewModel<String>()
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Parent'))])
         ..expand('/a')
         ..applyChildren('/a', <TreeNode<String>>[
@@ -98,6 +102,7 @@ void main() {
       // the focused row's fill and its text both land here too.
       final model = TreeViewModel<String>(focused: true)
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'), isLeaf: true)]);
       final node = TreeView<String>(model: model, theme: Theme.dark).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(6, 1)), _ctx)
@@ -116,6 +121,7 @@ void main() {
     // A branch root with nothing cached: expanding it appends one placeholder
     // row beneath it, at the depth a real child would sit at.
     TreeViewModel<String> branchNoChildren() => TreeViewModel<String>(focused: true)
+      ..loadRoots()
       ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Branch'))])
       ..viewport(rows: 3)
       ..expand('/a');
@@ -180,6 +186,7 @@ void main() {
       // of the visible window instead of scrolling it off.
       final model = TreeViewModel<String>()
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[
           for (var i = 0; i < 5; i++) TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true),
         ]);
@@ -200,6 +207,7 @@ void main() {
   group('tree view viewport report', () {
     test('reports the rows it painted, addressed to the model id', () {
       final model = TreeViewModel<String>(id: 'nav')
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
       final frame = _frame(8, 4)..render(TreeView<String>(model: model, theme: Theme.dark));
 
@@ -211,6 +219,7 @@ void main() {
 
     test('a paint whose count the model already holds reports nothing', () {
       final model = TreeViewModel<String>(id: 'nav')
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
       final view = TreeView<String>(model: model, theme: Theme.dark);
       (_frame(8, 4)..render(view)).reports.forEach(model.update);
@@ -222,6 +231,7 @@ void main() {
 
     test('under a scope, the report carries the scoped path', () {
       final model = TreeViewModel<String>(id: 'nav')
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
       final frame = _frame(8, 4)
         ..render(
@@ -242,6 +252,7 @@ void main() {
     test('a click in the tree resolves to its id', () {
       final model = TreeViewModel<String>(id: 'files')
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))]);
       final frame = _frame(10, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
 
@@ -255,6 +266,7 @@ void main() {
       final states = <int, NodeState>{};
       final model = TreeViewModel<String>()
         ..viewport(rows: 10)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[
           TreeNode(path: '/a', label: Line('a'), isLeaf: true),
           TreeNode(path: '/b', label: Line('b'), isLeaf: true),
@@ -282,6 +294,7 @@ void main() {
     // followed by a leaf (which paints no indicator).
     TreeViewModel<String> branchTree() => TreeViewModel<String>(id: 'nav')
       ..viewport(rows: 10)
+      ..loadRoots()
       ..applyRoots(<TreeNode<String>>[
         TreeNode(path: '/A', label: Line('Alpha')),
         TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),

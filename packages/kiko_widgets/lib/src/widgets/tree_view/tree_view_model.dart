@@ -15,10 +15,11 @@ import 'types.dart';
 /// the same [update].
 ///
 /// The model performs no I/O. The app owns the data source and drives every
-/// fetch: it calls [loadRoots] once to start, and [expand]'s events include a
+/// fetch: it calls [loadRoots] to start, and [expand]'s events include a
 /// [LoadRequest] when a node's children aren't loaded yet. The app turns each
 /// request into a runtime `Task` whose outcome is a [LoadResult] carrying the
-/// tree's id, and the router delivers it to [update].
+/// tree's id, and the router delivers it to [update]. Roots load again only
+/// after a `reset()`, which starts the tree over.
 ///
 /// ```dart
 /// final tree = TreeViewModel<FileInfo>(focused: true);
@@ -169,15 +170,24 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   // Public API - Programmatic control
   // ─────────────────────────────────────────────
 
-  /// Starts the initial root load: marks the roots slot loading and returns the
+  /// Starts the root load: marks the roots slot loading and returns the
   /// [LoadRequest] for the app to fetch.
   ///
-  /// The app calls this once (e.g. on init) and turns the request into a
-  /// `getRoots` fetch whose [LoadResult] comes back through [update]. Until
-  /// then, `isLoading(const RootsKey())` is true.
+  /// The app calls this on init and turns the request into a `getRoots` fetch
+  /// whose [LoadResult] comes back through [update]. Until then,
+  /// `isLoading(const RootsKey())` is true. While that fetch is in flight, a
+  /// second call returns the same request without touching the slot.
+  ///
+  /// The roots load once per cold start. Calling this on a tree whose roots
+  /// are loaded and whose slot is idle is a contract violation and asserts in
+  /// debug: call `reset()` first, then load the roots again.
   LoadRequest loadRoots() {
-    _loads.begin(const RootsKey());
-    return LoadRequest(id, key: const RootsKey());
+    const key = RootsKey();
+    if (!_loads.isLoading(key)) {
+      assert(!_rootsLoaded, 'loadRoots() on a loaded tree: call reset() first');
+      _loads.begin(key);
+    }
+    return LoadRequest(id, key: key);
   }
 
   /// Installs the outcome of a load and clears (or fails) its slot.
@@ -187,9 +197,9 @@ class TreeViewModel<T> with ScrollableModel implements Component {
   /// consumed, keyed by [LoadResult.key]: [RootsKey] installs roots, [PathKey]
   /// installs one node's children, and an unknown key installs nothing.
   ///
-  /// Child results are guarded: only a node whose load is still in flight accepts
-  /// one, so a late reply for a collapsed or already-loaded node is dropped rather
-  /// than corrupting the tree. Roots have no such guard — they load once.
+  /// Every result is guarded: only a slot still in flight accepts one, so a
+  /// late reply for a collapsed or already-loaded node, or for the roots of a
+  /// tree that was `reset()` since, is dropped rather than corrupting the tree.
   ///
   /// A successful result must carry a `List<TreeNode<T>>`. Any other payload,
   /// null included, fails the slot with a [PayloadMismatch] and installs no
@@ -222,6 +232,9 @@ class TreeViewModel<T> with ScrollableModel implements Component {
 
   /// Installs fetched root [roots]. Typed shorthand for delivering a
   /// [LoadResult] with a [RootsKey] through [update].
+  ///
+  /// Subject to the staleness guard: the roots load must be in flight (started
+  /// by [loadRoots]); a result for an idle roots slot is dropped.
   void applyRoots(List<TreeNode<T>> roots) =>
       update(LoadResult<List<TreeNode<T>>>(id, key: const RootsKey(), data: roots));
 
@@ -234,8 +247,11 @@ class TreeViewModel<T> with ScrollableModel implements Component {
       update(LoadResult<List<TreeNode<T>>>(id, key: PathKey(path), data: children));
 
   void _installRoots(LoadResult<Object?> result) {
+    // Staleness guard: drop a result for roots no longer loading (never
+    // requested, already loaded, or retired by a reset).
+    if (!_loads.stateFor(const RootsKey()).isLoading) return;
     // A refusal resolves the slot and installs nothing: the roots stay unloaded
-    // and a later expand asks for them again.
+    // and a later loadRoots asks for them again.
     if (result.cancelled) {
       _loads.complete(const RootsKey());
       return;

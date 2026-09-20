@@ -35,6 +35,7 @@ TreeViewModel<String> modelWith(
   int visibleCount = 10,
 }) => TreeViewModel<String>(focused: focused)
   ..viewport(rows: visibleCount)
+  ..loadRoots()
   ..applyRoots(roots);
 
 /// Expands [path] and immediately resolves the child load with [children] —
@@ -128,6 +129,7 @@ void main() {
     // at local columns 0-1 (depth 0), its body from column 2 on.
     TreeViewModel<String> tree({bool focused = true}) => TreeViewModel<String>(id: 'nav', focused: focused)
       ..viewport(rows: 10)
+      ..loadRoots()
       ..applyRoots(<TreeNode<String>>[
         TreeNode(path: '/A', label: Line('Alpha')),
         TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
@@ -365,7 +367,9 @@ void main() {
 
     group('viewport reports', () {
       test('stores the count and returns no events', () {
-        final model = TreeViewModel<String>(id: 'nav')..applyRoots(leaves(30));
+        final model = TreeViewModel<String>(id: 'nav')
+          ..loadRoots()
+          ..applyRoots(leaves(30));
 
         final verdict = model.update(const ViewportChanged('nav', rows: 7));
 
@@ -411,6 +415,44 @@ void main() {
           expect(model.isLoading(const RootsKey()), isFalse);
           expect(model.errorFor(const RootsKey()), equals('no net'));
           expect(model.isLoaded, isFalse);
+        });
+
+        test('a roots result for an idle slot installs nothing', () {
+          final model = TreeViewModel<String>()..applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+
+          expect(model.isLoaded, isFalse, reason: 'nothing asked for these roots');
+          expect(model.flatNodes, isEmpty);
+        });
+
+        test('loadRoots while the roots are in flight returns the request and keeps the one slot', () {
+          final model = TreeViewModel<String>();
+          final first = model.loadRoots();
+          final again = model.loadRoots();
+
+          expect(again, equals(first));
+          expect(model.isLoading(const RootsKey()), isTrue);
+
+          model.applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+          expect(model.isLoaded, isTrue);
+          expect(model.isLoading(const RootsKey()), isFalse);
+        });
+
+        test('loadRoots on a loaded, idle tree asserts', () {
+          final model = TreeViewModel<String>()
+            ..loadRoots()
+            ..applyRoots([TreeNode(path: '/a', label: Line('A'))]);
+
+          expect(model.loadRoots, throwsA(isA<AssertionError>()), reason: 'call reset() first');
+        });
+
+        test('a cancelled roots result resolves the slot and installs nothing', () {
+          final model = TreeViewModel<String>()..loadRoots();
+          model.update(LoadResult<List<TreeNode<String>>>.cancelled(model.id, key: const RootsKey()));
+
+          expect(model.isLoading(const RootsKey()), isFalse);
+          expect(model.errorFor(const RootsKey()), isNull);
+          expect(model.isLoaded, isFalse);
+          expect(model.loadRoots(), equals(LoadRequest(model.id, key: const RootsKey())), reason: 'asks again');
         });
       });
 

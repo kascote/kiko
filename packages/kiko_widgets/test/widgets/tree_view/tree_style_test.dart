@@ -19,6 +19,7 @@ Buffer _render(
 }
 
 TreeViewModel<String> _tree() => TreeViewModel<String>(focused: true)
+  ..loadRoots()
   ..applyRoots(<TreeNode<String>>[
     TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true),
     TreeNode(path: '/b', label: Line('Beta'), isLeaf: true),
@@ -93,6 +94,7 @@ void main() {
       // glyph carries the loading state (warning ink + slow blink) — the
       // label and the rest of the row never do.
       final model = TreeViewModel<String>(focused: true)
+        ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Branch'))])
         ..viewport(rows: 3)
         ..expand('/a'); // no children cached → slot begins loading

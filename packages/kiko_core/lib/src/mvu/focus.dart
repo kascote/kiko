@@ -57,24 +57,28 @@ class Declined extends UpdateResult {
   const Declined();
 }
 
-/// Scopes the [Tick] commands a part's [UpdateResult] carries under a
-/// composite's id.
+/// Scopes a part's [UpdateResult] under a composite's id.
 ///
-/// A composite calls [scopeTicks] where it forwards a part's result upward:
-/// `_part.update(msg).scopeTicks(id)`. A part arms an animation with its own
-/// bare id, the only id it knows; the composite is the only party that knows
-/// the prefix a [Tick] needs to reach the part again.
-extension ScopeTicks on UpdateResult {
-  /// Returns this result with every [Tick] inside its command rewritten to
-  /// carry [scope] as a path prefix on [Tick.id].
+/// A composite calls [scopeUnder] where it forwards a part's result upward:
+/// `_part.update(msg).scopeUnder(id)`. A part arms an animation, or asks a
+/// load, with its own bare id, the only id it knows; the composite is the
+/// only party that knows the prefix a reply needs to reach the part again.
+extension ScopeUnder on UpdateResult {
+  /// Returns this result scoped under [scope].
   ///
-  /// [Declined] returns itself. A [Handled] returns a new [Handled] with the
-  /// same [Handled.events] — events are not scoped — and [Handled.cmd]
-  /// rewritten; a [Batch] is rebuilt with each member scoped, in order, and
-  /// [Quit], [Emit], [Task], and a `null` command pass through unchanged.
-  UpdateResult scopeTicks(String scope) => switch (this) {
+  /// [Declined] returns itself. A [Handled] returns a new [Handled] with both
+  /// halves rewritten. Every [Tick] in [Handled.cmd] carries [scope] as a
+  /// path prefix on [Tick.id]; a [Batch] is rebuilt with each member scoped,
+  /// in order, and [Quit], [Emit], [Task], and a `null` command pass through
+  /// unchanged. Each of [Handled.events] is replaced by its own
+  /// [WidgetEvent.scopeUnder], which is identity for every event that does
+  /// not expect an addressed reply.
+  UpdateResult scopeUnder(String scope) => switch (this) {
     Declined() => this,
-    Handled(:final events, :final cmd) => Handled(events: events, cmd: cmd?._scopedTicks(scope)),
+    Handled(:final events, :final cmd) => Handled(
+      events: [for (final event in events) event.scopeUnder(scope)],
+      cmd: cmd?._scopedTicks(scope),
+    ),
   };
 }
 

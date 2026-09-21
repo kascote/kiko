@@ -65,7 +65,7 @@ class PanelToggleEvent extends WidgetEvent {
 // ═══════════════════════════════════════════════════════════
 
 /// Riding alongside the ticks a [PanelModel.startAll] batch scopes, so the
-/// batch always carries one command [ScopeTicks] never touches.
+/// batch always carries one command [ScopeUnder] never touches.
 ///
 /// The app records [id] in its fall-through and otherwise ignores this; every
 /// model declines it, since none of them ever starts a panel.
@@ -587,7 +587,7 @@ class PanelModel implements Animated {
   /// Scopes a part's `Tick`s under this panel's id, and re-addresses any
   /// toggle event it produced as this panel's own [PanelToggleEvent].
   UpdateResult _fromPart(UpdateResult result) {
-    final scoped = result.scopeTicks(id);
+    final scoped = result.scopeUnder(id);
     if (scoped is! Handled) return scoped;
     return Handled(cmd: scoped.cmd, events: [for (final event in scoped.events) _translate(event)]);
   }
@@ -626,9 +626,9 @@ class PanelModel implements Animated {
   }
 
   /// Scopes [cmd] under this panel's id, the way [_fromPart] scopes a part's
-  /// result. [ScopeTicks] works on an [UpdateResult], so the command rides
+  /// result. [ScopeUnder] works on an [UpdateResult], so the command rides
   /// in a [Handled] for the call.
-  Cmd? _scopeCmd(Cmd cmd) => (Handled(cmd: cmd).scopeTicks(id) as Handled).cmd;
+  Cmd? _scopeCmd(Cmd cmd) => (Handled(cmd: cmd).scopeUnder(id) as Handled).cmd;
 }
 
 // ═══════════════════════════════════════════════════════════

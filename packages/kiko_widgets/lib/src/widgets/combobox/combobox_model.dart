@@ -476,7 +476,7 @@ class ComboboxModel<T> implements Component {
   /// [_commitFromList]. It scopes a [Tick] the list armed under the
   /// combobox's own id. The list only knows its own bare id, not any
   /// wrapping scope.
-  UpdateResult _fromList(UpdateResult result) => result.scopeTicks(id);
+  UpdateResult _fromList(UpdateResult result) => result.scopeUnder(id);
 
   /// Turns the popup list's own verdict into the combobox's, after routing it
   /// through [_fromList]. A declined result passes through unchanged, and a

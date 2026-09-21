@@ -13,4 +13,12 @@ abstract class WidgetEvent {
 
   /// The stable id of the widget that produced this event.
   String get id;
+
+  /// Returns this event addressed under [scope], for a part inside a composite.
+  ///
+  /// An event whose reply comes back addressed to the widget overrides this
+  /// to carry [scope] as a path prefix on its id. Every other event keeps
+  /// this default, which returns the event unchanged.
+  // ignore: avoid_returning_this
+  WidgetEvent scopeUnder(String scope) => this;
 }

@@ -12,6 +12,8 @@
 // - Styled labels with colors
 // - Click a node to expand/select, wheel-scroll, per-node hover — scrolling
 //   near the edge does NOT page (Tree loads on expand, not on threshold)
+// - Every request gets an answer: an unwired id ends in an error reply,
+//   never a silent stall
 
 import 'dart:io';
 
@@ -207,10 +209,15 @@ String? reloadTarget(TreeViewModel<Category> tree) {
 // ═══════════════════════════════════════════════════════════
 
 /// Turns a [LoadRequest] into the fetch that resolves it, routing the outcome
-/// home as a [LoadResult] (data on success, error on failure). A key naming
-/// nothing fetchable is refused with an error, so it fails visibly instead of
-/// leaving a placeholder no one will fill.
+/// home as a [LoadResult] (data on success, error on failure). Checks the id
+/// first: a request for another widget is refused with an error, never a
+/// silent fall-through. A key naming nothing fetchable is refused with an
+/// error too, so either way it fails visibly instead of leaving a
+/// placeholder no one will fill.
 Cmd fetchFor(AppModel model, LoadRequest req) {
+  if (req.id != model.tree.id) {
+    return declineLoad(req, error: 'no fetch wired for ${req.id}');
+  }
   final key = req.key;
   final fetch = switch (key) {
     RootsKey() => model.treeData.getRoots,
@@ -233,7 +240,7 @@ Cmd? onEvent(AppModel model, WidgetEvent event) {
       model.expandCount++; // honest: counts every expansion, cached or not
     case TreeActivateEvent(:final path):
       model.selectedPath = path;
-    case final LoadRequest req when req.id == model.tree.id:
+    case final LoadRequest req:
       return fetchFor(model, req);
     case _:
       break; // collapse and other events need no app effect

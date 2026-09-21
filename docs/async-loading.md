@@ -60,9 +60,9 @@ reply shape because an empty success means "the data ends here" — exactly
 what a refusal must not record. **An app that reports failures from results
 must check `cancelled` before `ok`.** `ok` is false for a refusal too, so
 `r.ok ? null : 'Failed: ${r.error}'` alone prints "Failed: null" the first
-time the app declines anything. An id that matches nothing wired gets the
-*error* reply instead, so an unwired widget fails visibly rather than showing
-a placeholder no one will fill.
+time the app declines anything. **The fetch ends in the error reply for an
+id nothing wires, never a silent fall-through.** An unwired widget then
+fails visibly instead of showing a placeholder no one will fill.
 
 **Recovery after a refusal is the app's move.** A refusal deliberately never
 re-triggers demand — a standing refusal would otherwise become a request
@@ -324,12 +324,26 @@ results but is never focused or clicked goes in the router's `extras`.
 ## The payoff — one generic handler shape
 
 The only per-widget code is the request→fetch mapping the app owns, and the
-`onEvent` translation that hands a `LoadRequest` to it. Picking the fetch by
-`(id, key)`:
+`onEvent` translation that hands a `LoadRequest` to it.
+
+**The request arm matches every `LoadRequest`, with no `when` guard.** The
+fetch function owns id matching, not the arm; the arm only translates the
+event to a call. **The fetch ends in
+`declineLoad(req, error: 'no fetch wired for ${req.id}')`, never a silent
+fall-through**, so an id the arm hands it always gets one of the three
+replies. **An app matches a request from a composite by prefix
+(`HitTag.isPrefix`), not by `==`**, because a part's request carries a path
+(`pane/table`, not `table`).
+
+Picking the fetch by `(id, key)`:
 
 ```dart
-// Request → Task — the ONE domain-specific bit: pick the fetch by (id, key):
+// Request → Task — the ONE domain-specific bit: check the id, then pick the
+// fetch by key.
 Cmd fetchFor(AppModel model, LoadRequest req) {
+  if (req.id != model.tree.id) {
+    return declineLoad(req, error: 'no fetch wired for ${req.id}');
+  }
   final fetch = switch (req.key) {
     RootsKey()           => model.treeData.getRoots,
     PathKey(:final path) => () => model.treeData.getChildren(path),
@@ -344,9 +358,7 @@ Cmd fetchFor(AppModel model, LoadRequest req) {
 // Translates one widget event: a LoadRequest becomes a fetch; every other
 // event this app cares about is handled here too.
 Cmd? onEvent(AppModel model, WidgetEvent event) {
-  if (event case final LoadRequest req when req.id == model.tree.id) {
-    return fetchFor(model, req);
-  }
+  if (event case final LoadRequest req) return fetchFor(model, req);
   return null;
 }
 // kick off on init: fetchFor(model, model.tree.loadRoots());

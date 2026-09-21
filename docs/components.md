@@ -149,19 +149,20 @@ Rules for the receiving model:
 
 ### Addressed messages — the outbound half
 
-`scopeTicks` (kiko_core, `src/mvu/focus.dart`) is the extension on
+`scopeUnder` (kiko_core, `src/mvu/focus.dart`) is the extension on
 `UpdateResult` a composite calls where it forwards a part's result upward:
-`_part.update(msg).scopeTicks(id)`. It is the outbound half of id
+`_part.update(msg).scopeUnder(id)`. It is the outbound half of id
 addressing. The inbound half delivers a message down by path; this half
-rewrites what a part sends back up. `scopeTicks` rewrites every `Tick.id` a
-`Handled` result carries to a path prefixed with the given scope (`list`
-becomes `combo/list`). Events pass through unscoped, and so does a
-`Declined` result.
+rewrites what a part sends back up. `scopeUnder` rewrites both halves of a
+`Handled` result: every `Tick.id` in its `cmd`, prefixed with the given
+scope (`list` becomes `combo/list`), and every event in its `events`,
+through the event's own `WidgetEvent.scopeUnder`. A `Declined` result
+passes through unscoped.
 
 Rules for a composite returning a part's result:
 
 - **A composite scopes its part's outgoing ticks.** It calls
-  `scopeTicks(id)` where it returns the part's result. A part arms an
+  `scopeUnder(id)` where it returns the part's result. A part arms an
   animation with its own bare id, the only id it knows. The composite is
   the only party on the call path that knows the prefix a `Tick` needs to
   reach the part again.
@@ -170,14 +171,16 @@ Rules for a composite returning a part's result:
   Copying it and scoping it again would double the prefix, producing
   `combo/combo/list` instead of `combo/list`.
 - **A composite's own ticks are not rewritten.** It arms them with its own
-  registered id and returns them without `scopeTicks`. Only a part's result
+  registered id and returns them without `scopeUnder`. Only a part's result
   passes through the rewrite. A composite's own tick already carries the id
   a router resolves it by.
-- **A part's events are translated or dropped by the composite, never
-  scoped.** `scopeTicks` leaves a result's `events` untouched; only `Tick`
-  ids in its `cmd` are rewritten. A composite builds a new event under its
-  own id, or drops the part's event. The app then only ever resolves an id
-  it registered itself.
+- **An event whose reply comes back addressed is scoped like a tick; every
+  other event is translated or dropped.** `LoadRequest` is the one such
+  event today: its `LoadResult` reply must reach the part by id, the same
+  way a `Tick`'s `TickMsg` does. An event opts in by overriding
+  `WidgetEvent.scopeUnder`; the default returns the event unchanged, and
+  every notification event keeps that default. For those, a composite
+  builds a new event under its own id, or drops the part's event.
 
 The combobox
 (`packages/kiko_widgets/lib/src/widgets/combobox/combobox_model.dart`) is

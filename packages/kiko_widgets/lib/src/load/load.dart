@@ -164,6 +164,9 @@ class LoadTracker<K> {
 ///
 /// [key] is typed as [Object] so a single routing path can carry any widget's
 /// key; each widget recovers its own key type by pattern-matching on it.
+///
+/// A composite that scopes a part's result scopes this request with it, so
+/// the result comes home by path.
 @immutable
 class LoadRequest extends WidgetEvent {
   /// Creates a request from the widget [id] for the load named by [key], for
@@ -179,6 +182,14 @@ class LoadRequest extends WidgetEvent {
 
   /// Names which asking, as the widget's tracker minted it.
   final LoadTicket ticket;
+
+  /// Returns this request readdressed under [scope], keeping [key] and
+  /// [ticket].
+  ///
+  /// The ticket carries over by identity, so the scoped request still
+  /// resolves the asking [LoadTracker.begin] minted for it.
+  @override
+  LoadRequest scopeUnder(String scope) => LoadRequest(HitTag.join(scope, id), key: key, ticket: ticket);
 
   @override
   bool operator ==(Object other) =>

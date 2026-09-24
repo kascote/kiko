@@ -72,13 +72,6 @@ class Cell {
     );
   }
 
-  /// Appends a symbol to the cell.
-  ///
-  /// This is particularly useful for adding zero-width characters to the cell.
-  Cell appendSymbol({String char = ' ', Style style = const Style()}) {
-    return setCell(char: '$_char$char', style: style);
-  }
-
   /// Get the properties of the cell as a [Style]
   Style style() {
     return Style(

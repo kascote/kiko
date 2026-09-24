@@ -120,40 +120,29 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
     final right = clip == null ? area.right : math.min(area.right, clip.right);
 
     var cx = x;
-    // The column of the last glyph this run wrote, or none. A zero-width
-    // cluster folds into that glyph only: a run never writes into a cell it
-    // did not paint, so a leading combining mark cannot reach the neighbor
-    // to the left of the run.
-    int? glyphX;
     for (final cluster in run.characters) {
-      // A control (C0, DEL, C1) is zero-width but is not part of any glyph.
-      // Dropping it here keeps it out of every cell symbol, so the backend
-      // never writes one to the terminal. Segmentation puts a control in a
-      // cluster of its own, so the first code point identifies the cluster.
-      // A control also ends the glyph before it: a mark that follows is
-      // dropped, not folded. Layout measured that mark as zero, and folding
-      // it could change the glyph's width (a variation selector does).
-      if (_isControl(cluster.runes.first)) {
-        glyphX = null;
-        continue;
-      }
+      // A control (C0, DEL, C1) is not part of any glyph. Dropping it here
+      // keeps it out of every cell symbol, so the backend never writes one
+      // to the terminal. Segmentation puts a control in a cluster of its
+      // own, so the first code point identifies the cluster. The check does
+      // not rely on the measurer: a cluster-counting measurer gives a
+      // control a width of one.
+      if (_isControl(cluster.runes.first)) continue;
 
       final w = _buffer.measurer.widthOf(cluster);
 
-      // A zero-width cluster (a combining mark) folds into the glyph before
-      // it, when this run painted one.
-      if (w == 0) {
-        if (glyphX != null) {
-          _buffer[(x: glyphX, y: y)] = _buffer[(x: glyphX, y: y)].appendSymbol(char: cluster, style: style);
-        }
-        continue;
-      }
+      // A cluster that stands alone and measures zero draws nothing: a
+      // zero-width space, a bidi mark, a byte order mark, or a combining
+      // mark with no glyph to join. It is dropped, so a cell symbol is
+      // always one grapheme cluster. A combining mark, a variation selector
+      // or a ZWJ that follows a glyph is inside that glyph's cluster and
+      // paints with it.
+      if (w == 0) continue;
 
       final nextX = cx + w;
       // Entirely left of the drawable span: step over it without drawing.
       if (nextX <= left) {
         cx = nextX;
-        glyphX = null;
         continue;
       }
       // At or past the right edge: nothing more can fit.
@@ -162,13 +151,11 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
       // so the fragment is dropped rather than painting half a glyph.
       if (cx < left || nextX > right) {
         cx = nextX;
-        glyphX = null;
         continue;
       }
       // Buffer.operator []= marks the cells this glyph spans skipped on its
       // own, so there is nothing left to do here beyond writing it.
       _buffer[(x: cx, y: y)] = _buffer[(x: cx, y: y)].setCell(char: cluster, style: style);
-      glyphX = cx;
       cx = nextX;
     }
   }

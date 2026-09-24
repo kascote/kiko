@@ -157,6 +157,37 @@ void main() {
       expect(read(backend.screen, 0, 0, 5), 'abcd ');
     });
 
+    test('a lone format character in painted text never reaches the backend', () async {
+      final t = await terminal();
+
+      await t.draw((frame) => frame.render(Line('a\u200Bb\u202Ec\uFEFF')));
+
+      expect(backend.lastDiff.map((c) => c.cell.symbol), ['a', 'b', 'c']);
+      expect(read(backend.screen, 0, 0, 4), 'abc ');
+    });
+
+    test('a frame that differs only by invisible characters writes nothing', () async {
+      // The diff compares cell symbols. A zero-width space that was folded
+      // into a symbol used to make the cell look changed.
+      final t = await terminal();
+
+      await t.draw((frame) => frame.render(Line('ab')));
+      await t.draw((frame) => frame.render(Line('a\u200Bb')));
+
+      expect(t.lastDiffCount, 0);
+      expect(backend.lastDiff, isEmpty);
+    });
+
+    test('a ZWJ emoji sequence is one cell pair at the backend', () async {
+      final t = await terminal();
+
+      await t.draw((frame) => frame.render(Line('\u{1F468}\u200D\u{1F469}x')));
+
+      final drawn = backend.lastDiff.map((c) => (c.x, c.cell.symbol)).toList();
+      expect(drawn.first, (0, '\u{1F468}\u200D\u{1F469}'));
+      expect(drawn.where((d) => d.$2 == 'x').single.$1, 2);
+    });
+
     test('an unchanged frame writes nothing', () async {
       final t = await terminal();
 

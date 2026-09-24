@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:characters/characters.dart';
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
@@ -67,7 +68,7 @@ void main() {
       });
     });
 
-    group('controls and zero-width clusters', () {
+    group('controls and lone zero-width clusters', () {
       /// The cell symbols of row 0 of [b], one string per cell.
       List<String> row(Buffer b) => [for (var x = 0; x < b.area.width; x++) b[(x: x, y: 0)].symbol];
 
@@ -106,10 +107,35 @@ void main() {
         expect(row(b), ['a', 'X', ' ', ' ']);
       });
 
-      test('a combining mark still folds into the glyph before it', () {
+      test('a combining mark paints as part of its glyph', () {
         final b = _buf(3, 1);
         BufferSurface(b).drawText(0, 0, 'e\u0301x', _tok());
         expect(row(b), ['e\u0301', 'x', ' ']);
+      });
+
+      test('a ZWJ after a glyph stays in the cluster of that glyph', () {
+        final b = _buf(3, 1);
+        BufferSurface(b).drawText(0, 0, 'a\u200Db', _tok());
+        expect(row(b), ['a\u200D', 'b', ' ']);
+      });
+
+      test('a lone format character paints nothing and stays out of every cell', () {
+        // Each of these stands in a cluster of its own between two letters,
+        // measures zero, and draws nothing: it is dropped, not appended.
+        const lone = {
+          'zero-width space': '\u200B',
+          'left-to-right mark': '\u200E',
+          'right-to-left override': '\u202E',
+          'word joiner': '\u2060',
+          'right-to-left isolate': '\u2067',
+          'byte order mark': '\uFEFF',
+          'Arabic letter mark': '\u061C',
+        };
+        for (final entry in lone.entries) {
+          final b = _buf(3, 1);
+          BufferSurface(b).drawText(0, 0, 'a${entry.value}b', _tok());
+          expect(row(b), ['a', 'b', ' '], reason: entry.key);
+        }
       });
 
       test('an emoji ZWJ sequence still paints as one glyph', () {
@@ -169,11 +195,12 @@ void main() {
         expect(row(b), ['a', ' ']);
       });
 
-      test('a seeded random run never leaves a control in a cell and paints exactly its measured width', () {
+      test('a seeded random run leaves one cluster per cell, no control, and exactly its measured width', () {
         final rng = Random(466);
         const pool = [
           'a', 'Z', ' ', '\u{1F980}', '\u{1F468}\u200D\u{1F469}', '\u2602\uFE0F', // glyphs
           '\u0301', '\u200D', '\uFE0F', // zero-width, glyph-bound
+          '\u200B', '\u200F', '\u202E', '\uFEFF', // zero-width, always alone
           '\t', '\x1b', '\x00', '\x7f', '\u0085', '\r\n', // controls
         ];
         const width = 24;
@@ -184,6 +211,9 @@ void main() {
 
           final symbols = row(b);
           expect(symbols.any(holdsControl), isFalse, reason: 'run ${run.runes}');
+          for (final symbol in symbols) {
+            expect(symbol.characters.length, 1, reason: 'run ${run.runes} symbol ${symbol.runes}');
+          }
 
           // Layout and paint agree: the run covers exactly its measured width,
           // and every cell past it is untouched.
@@ -202,6 +232,94 @@ void main() {
             final cell = b[(x: x, y: 0)];
             expect(b.debugWidths[x], b.measurer.widthOf(cell.symbol), reason: 'run ${run.runes} at $x');
           }
+        }
+      });
+
+      test('every lone zero-width format code point is dropped; its visible neighbors are not', () {
+        // The ranges segmentation breaks on both sides of and termunicode
+        // measures as zero: ZWSP, the bidi marks, embeddings, overrides and
+        // isolates, the word joiner and invisible operators, BOM, ALM, MVS.
+        final lone = [
+          0x200B,
+          0x200E,
+          0x200F,
+          for (var cp = 0x202A; cp <= 0x202E; cp++) cp,
+          for (var cp = 0x2060; cp <= 0x2064; cp++) cp,
+          for (var cp = 0x2066; cp <= 0x2069; cp++) cp,
+          0xFEFF,
+          0x061C,
+          0x180E,
+        ];
+        for (final cp in lone) {
+          final b = _buf(3, 1);
+          final c = String.fromCharCode(cp);
+          expect('a${c}b'.characters.length, 3, reason: 'U+${cp.toRadixString(16)} must stand alone');
+          BufferSurface(b).drawText(0, 0, 'a${c}b', _tok());
+          expect(row(b), ['a', 'b', ' '], reason: 'U+${cp.toRadixString(16)}');
+        }
+        // Visible neighbors of those ranges paint a cell: hair space, hyphen,
+        // the line and paragraph separators, and NBSP.
+        for (final cp in [0x200A, 0x2010, 0x2028, 0x2029, 0x00A0]) {
+          final b = _buf(4, 1);
+          final c = String.fromCharCode(cp);
+          BufferSurface(b).drawText(0, 0, 'a${c}b', _tok());
+          expect(row(b), ['a', c, 'b', ' '], reason: 'U+${cp.toRadixString(16)}');
+        }
+      });
+
+      test('ZWNJ and ZWJ join the glyph before them and paint inside its cluster', () {
+        for (final c in ['\u200C', '\u200D']) {
+          final b = _buf(3, 1);
+          BufferSurface(b).drawText(0, 0, 'a${c}b', _tok());
+          expect(row(b), ['a$c', 'b', ' '], reason: c.runes.toString());
+          expect(b[(x: 0, y: 0)].symbol.characters.length, 1);
+        }
+      });
+
+      test('a lone format character at the start of a run leaves the cell to its left alone', () {
+        final b = _buf(4, 1);
+        BufferSurface(b)
+          ..drawText(0, 0, 'ab', _tok())
+          ..drawText(1, 0, '\u200BX', _tok());
+        expect(row(b), ['a', 'X', ' ', ' ']);
+      });
+
+      test('dropping a zero-width cluster does not restyle the glyph before it', () {
+        // The old fold re-applied the cluster's style onto the target cell.
+        final b = _buf(3, 1);
+        BufferSurface(b)
+          ..drawText(0, 0, 'a', _tok(const Style(fg: Color.red)))
+          ..drawText(1, 0, '\u200B\u0301b', _tok(const Style(fg: Color.blue)));
+        expect(row(b), ['a', 'b', ' ']);
+        expect(b[(x: 0, y: 0)].fg, Color.red);
+        expect(b[(x: 1, y: 0)].fg, Color.blue);
+      });
+
+      test('a format character and an orphan mark after a wide glyph leave its skip cell alone', () {
+        final b = _buf(4, 1);
+        BufferSurface(b).drawText(0, 0, '\u{1F980}\u200B\u0301x', _tok());
+        expect(b[(x: 0, y: 0)].symbol, '\u{1F980}');
+        expect(b[(x: 1, y: 0)].skip, isTrue);
+        expect(b[(x: 2, y: 0)].symbol, 'x');
+      });
+
+      test('a format character between two halves of a clipped run changes nothing', () {
+        final b = _buf(8, 1);
+        BufferSurface(b)
+          ..pushNode(const plume.Rect(2, 0, 4, 1))
+          ..drawText(0, 0, 'ab\u200Bcd\uFEFFef', _tok())
+          ..popNode();
+        expect(row(b), [' ', ' ', 'c', 'd', 'e', 'f', ' ', ' ']);
+      });
+
+      test('every non-blank cell holds exactly one grapheme cluster after a mixed run', () {
+        final b = _buf(12, 1);
+        BufferSurface(b).drawText(0, 0, 'e\u0301\u200B\u{1F468}\u200D\u{1F469}\u202E\t\u2602\uFE0F\uFEFFz', _tok());
+        expect(row(b).sublist(0, 6), ['e\u0301', '\u{1F468}\u200D\u{1F469}', ' ', '\u2602\uFE0F', ' ', 'z']);
+        expect(b[(x: 2, y: 0)].skip, isTrue);
+        expect(b[(x: 4, y: 0)].skip, isTrue);
+        for (final symbol in row(b)) {
+          expect(symbol.characters.length, 1, reason: symbol.runes.toString());
         }
       });
 

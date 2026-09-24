@@ -258,6 +258,16 @@ The measurer is fixed for the life of the application and never passed per
 call. A terminal's ambiguous-width behavior does not change mid-run, so one
 measurer is enough.
 
+Paint puts printable glyphs in cells and nothing else. A C0 control
+(U+0000..U+001F), DEL (U+007F) or a C1 control (U+0080..U+009F) in painted
+text is dropped: it is never written to the terminal and never folded into
+a glyph. It measures zero, so layout and paint agree on the run's width. An
+app that wants a control shown substitutes printable text before painting,
+such as the Unicode control picture for a tab. A combining mark, a
+variation selector or a ZWJ folds into the glyph before it in the same run.
+When the run has painted no glyph yet, the mark is dropped: a run never
+writes into a cell it did not paint.
+
 Widgets that measure text reach the same measurer at layout time. Inside a
 plume `Node`'s `performLayout`, it is `LayoutContext.measurer`. In a widget
 model, it is the field the widget's view copies in during layout

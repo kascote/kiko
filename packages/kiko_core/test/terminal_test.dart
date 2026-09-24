@@ -138,6 +138,15 @@ void main() {
       expect(read(backend.screen, 0, 0, 2), 'ac');
     });
 
+    test('a control in painted text never reaches the backend', () async {
+      final t = await terminal();
+
+      await t.draw((frame) => frame.render(Line('a\tb')));
+
+      expect(backend.lastDiff.map((c) => c.cell.symbol), ['a', 'b']);
+      expect(read(backend.screen, 0, 0, 3), 'ab ');
+    });
+
     test('an unchanged frame writes nothing', () async {
       final t = await terminal();
 

@@ -65,6 +65,91 @@ void main() {
       });
     });
 
+    group('controls and zero-width clusters', () {
+      /// The cell symbols of row 0 of [b], one string per cell.
+      List<String> row(Buffer b) => [for (var x = 0; x < b.area.width; x++) b[(x: x, y: 0)].symbol];
+
+      /// Whether [symbol] holds a C0 control, DEL or a C1 control.
+      bool holdsControl(String symbol) => symbol.runes.any((cp) => cp < 0x20 || (cp >= 0x7f && cp < 0xa0));
+
+      test('drops a tab and paints the rest in place', () {
+        final b = _buf(12, 1);
+        BufferSurface(b).drawText(0, 0, 'before\tafter', _tok());
+        expect(row(b), ['b', 'e', 'f', 'o', 'r', 'e', 'a', 'f', 't', 'e', 'r', ' ']);
+        expect(row(b).any(holdsControl), isFalse);
+      });
+
+      test('drops an escape and paints the sequence bytes as text', () {
+        final b = _buf(5, 1);
+        BufferSurface(b).drawText(0, 0, 'x\x1b[2J', _tok());
+        expect(row(b), ['x', '[', '2', 'J', ' ']);
+      });
+
+      test('drops NUL, DEL, a C1 control and CR LF', () {
+        for (final run in ['\x00', '\x7f', '\u0085', '\r\n']) {
+          final b = _buf(3, 1);
+          BufferSurface(b).drawText(1, 0, run, _tok());
+          expect(row(b), [' ', ' ', ' '], reason: 'run ${run.runes}');
+        }
+        final b = _buf(3, 1);
+        BufferSurface(b).drawText(0, 0, 'a\r\nb', _tok());
+        expect(row(b), ['a', 'b', ' ']);
+      });
+
+      test('a control at the start of a run leaves the cell to its left alone', () {
+        final b = _buf(4, 1);
+        BufferSurface(b)
+          ..drawText(0, 0, 'ab', _tok())
+          ..drawText(1, 0, '\tX', _tok());
+        expect(row(b), ['a', 'X', ' ', ' ']);
+      });
+
+      test('a combining mark still folds into the glyph before it', () {
+        final b = _buf(3, 1);
+        BufferSurface(b).drawText(0, 0, 'e\u0301x', _tok());
+        expect(row(b), ['e\u0301', 'x', ' ']);
+      });
+
+      test('an emoji ZWJ sequence still paints as one glyph', () {
+        final b = _buf(4, 1);
+        BufferSurface(b).drawText(0, 0, '\u{1F468}\u200D\u{1F469}', _tok());
+        expect(b[(x: 0, y: 0)].symbol, '\u{1F468}\u200D\u{1F469}');
+        expect(b[(x: 1, y: 0)].skip, isTrue);
+        expect(b[(x: 2, y: 0)].symbol, ' ');
+      });
+
+      test('a combining mark at the start of a run does not touch the cell to its left', () {
+        final b = _buf(4, 1);
+        BufferSurface(b)
+          ..drawText(0, 0, 'ab', _tok())
+          ..drawText(1, 0, '\u0301X', _tok());
+        expect(row(b), ['a', 'X', ' ', ' ']);
+      });
+
+      test('a combining mark after a control folds into the glyph before the control', () {
+        final b = _buf(3, 1);
+        BufferSurface(b).drawText(0, 0, 'e\t\u0301', _tok());
+        expect(row(b), ['e\u0301', ' ', ' ']);
+      });
+
+      test('a combining mark after a wide glyph and a control folds into the head cell', () {
+        final b = _buf(4, 1);
+        BufferSurface(b).drawText(0, 0, '\u{1F980}\t\u0301', _tok());
+        expect(b[(x: 0, y: 0)].symbol, '\u{1F980}\u0301');
+        expect(b[(x: 1, y: 0)].skip, isTrue);
+      });
+
+      test('a mark after a cluster the clip trimmed away is dropped, not folded', () {
+        final b = _buf(6, 1);
+        BufferSurface(b)
+          ..pushNode(const plume.Rect(2, 0, 4, 1))
+          ..drawText(0, 0, 'ab\u0301cd', _tok())
+          ..popNode();
+        // 'b' fell left of the clip, so its mark has no glyph in this run.
+        expect(row(b), [' ', ' ', 'c', 'd', ' ', ' ']);
+      });
+    });
+
     group('fillRect', () {
       test('fills every cell of the rect with the style', () {
         final b = _buf(4, 3);

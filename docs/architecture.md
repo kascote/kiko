@@ -265,8 +265,9 @@ a glyph. It measures zero, so layout and paint agree on the run's width. An
 app that wants a control shown substitutes printable text before painting,
 such as the Unicode control picture for a tab. A combining mark, a
 variation selector or a ZWJ folds into the glyph before it in the same run.
-When the run has painted no glyph yet, the mark is dropped: a run never
-writes into a cell it did not paint.
+When the run has painted no glyph yet, or a control separated the mark from
+its glyph, the mark is dropped. A run never writes into a cell it did not
+paint, and a control ends the glyph before it.
 
 Widgets that measure text reach the same measurer at layout time. Inside a
 plume `Node`'s `performLayout`, it is `LayoutContext.measurer`. In a widget

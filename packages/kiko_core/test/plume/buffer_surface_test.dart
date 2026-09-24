@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:kiko/kiko.dart';
 import 'package:plume/plume.dart' as plume;
 import 'package:test/test.dart';
@@ -126,17 +128,81 @@ void main() {
         expect(row(b), ['a', 'X', ' ', ' ']);
       });
 
-      test('a combining mark after a control folds into the glyph before the control', () {
+      test('a control ends the glyph: a mark after it is dropped, not folded', () {
         final b = _buf(3, 1);
-        BufferSurface(b).drawText(0, 0, 'e\t\u0301', _tok());
-        expect(row(b), ['e\u0301', ' ', ' ']);
+        BufferSurface(b).drawText(0, 0, 'e\t\u0301x', _tok());
+        expect(row(b), ['e', 'x', ' ']);
       });
 
-      test('a combining mark after a wide glyph and a control folds into the head cell', () {
+      test('a variation selector after a control cannot widen the glyph before it', () {
+        // Layout measured the lone selector as zero; folding it into 'a'
+        // would make that cell two wide and put paint one column past layout.
         final b = _buf(4, 1);
-        BufferSurface(b).drawText(0, 0, '\u{1F980}\t\u0301', _tok());
-        expect(b[(x: 0, y: 0)].symbol, '\u{1F980}\u0301');
-        expect(b[(x: 1, y: 0)].skip, isTrue);
+        BufferSurface(b).drawText(0, 0, 'a\t\uFE0Fb', _tok());
+        expect(row(b), ['a', 'b', ' ', ' ']);
+        expect(b[(x: 1, y: 0)].skip, isFalse);
+      });
+
+      test('every C0, DEL and C1 code point is dropped; the printable neighbors are not', () {
+        final controls = [
+          for (var cp = 0x00; cp < 0x20; cp++) cp,
+          for (var cp = 0x7f; cp < 0xa0; cp++) cp,
+        ];
+        for (final cp in controls) {
+          final b = _buf(3, 1);
+          BufferSurface(b).drawText(0, 0, 'a${String.fromCharCode(cp)}b', _tok());
+          expect(row(b), ['a', 'b', ' '], reason: 'U+${cp.toRadixString(16)}');
+        }
+        // The predicate's four boundaries: space and NBSP paint a cell each.
+        for (final cp in [0x20, 0xa0]) {
+          final b = _buf(4, 1);
+          BufferSurface(b).drawText(0, 0, 'a${String.fromCharCode(cp)}b', _tok());
+          expect(row(b), ['a', String.fromCharCode(cp), 'b', ' '], reason: 'U+${cp.toRadixString(16)}');
+        }
+      });
+
+      test('a mark after a glyph dropped at the right edge is dropped too', () {
+        final b = _buf(2, 1);
+        // The crab straddles the right edge and is dropped; the tab keeps the
+        // mark out of the crab's cluster, so it stands alone with no glyph.
+        BufferSurface(b).drawText(0, 0, 'a\u{1F980}\t\u0301', _tok());
+        expect(row(b), ['a', ' ']);
+      });
+
+      test('a seeded random run never leaves a control in a cell and paints exactly its measured width', () {
+        final rng = Random(466);
+        const pool = [
+          'a', 'Z', ' ', '\u{1F980}', '\u{1F468}\u200D\u{1F469}', '\u2602\uFE0F', // glyphs
+          '\u0301', '\u200D', '\uFE0F', // zero-width, glyph-bound
+          '\t', '\x1b', '\x00', '\x7f', '\u0085', '\r\n', // controls
+        ];
+        const width = 24;
+        for (var iter = 0; iter < 300; iter++) {
+          final run = [for (var i = 0, n = rng.nextInt(8); i < n; i++) pool[rng.nextInt(pool.length)]].join();
+          final b = _buf(width, 1);
+          BufferSurface(b).drawText(0, 0, run, _tok());
+
+          final symbols = row(b);
+          expect(symbols.any(holdsControl), isFalse, reason: 'run ${run.runes}');
+
+          // Layout and paint agree: the run covers exactly its measured width,
+          // and every cell past it is untouched.
+          final measured = b.measurer.widthOf(run);
+          for (var x = measured; x < width; x++) {
+            expect(b[(x: x, y: 0)].symbol, ' ', reason: 'run ${run.runes} at $x');
+            expect(b[(x: x, y: 0)].skip, isFalse, reason: 'run ${run.runes} at $x');
+          }
+          for (var x = 0; x < measured; x++) {
+            final cell = b[(x: x, y: 0)];
+            expect(cell.skip || cell.symbol != ' ' || run.contains(' '), isTrue, reason: 'run ${run.runes} at $x');
+          }
+
+          // The width sidecar still matches the measurer over every symbol.
+          for (var x = 0; x < width; x++) {
+            final cell = b[(x: x, y: 0)];
+            expect(b.debugWidths[x], b.measurer.widthOf(cell.symbol), reason: 'run ${run.runes} at $x');
+          }
+        }
       });
 
       test('a mark after a cluster the clip trimmed away is dropped, not folded', () {

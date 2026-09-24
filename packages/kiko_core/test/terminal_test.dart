@@ -147,6 +147,16 @@ void main() {
       expect(read(backend.screen, 0, 0, 3), 'ab ');
     });
 
+    test('layout counts a control as zero wide, so the text fits its visible width', () async {
+      // Four visible glyphs in a ten-column viewport: nothing is trimmed and
+      // nothing is misplaced by the two controls in the middle.
+      final t = await terminal();
+
+      await t.draw((frame) => frame.render(Line('ab\x1b\tcd')));
+
+      expect(read(backend.screen, 0, 0, 5), 'abcd ');
+    });
+
     test('an unchanged frame writes nothing', () async {
       final t = await terminal();
 

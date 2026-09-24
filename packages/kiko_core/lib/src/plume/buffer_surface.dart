@@ -130,7 +130,13 @@ class BufferSurface extends plume.ClippingSurface<PaintToken> {
       // Dropping it here keeps it out of every cell symbol, so the backend
       // never writes one to the terminal. Segmentation puts a control in a
       // cluster of its own, so the first code point identifies the cluster.
-      if (_isControl(cluster.runes.first)) continue;
+      // A control also ends the glyph before it: a mark that follows is
+      // dropped, not folded. Layout measured that mark as zero, and folding
+      // it could change the glyph's width (a variation selector does).
+      if (_isControl(cluster.runes.first)) {
+        glyphX = null;
+        continue;
+      }
 
       final w = _buffer.measurer.widthOf(cluster);
 

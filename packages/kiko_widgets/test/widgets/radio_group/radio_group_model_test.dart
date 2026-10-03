@@ -274,6 +274,32 @@ void main() {
       expect(group.value, equals('b'));
     });
 
+    test('down on an enabled option moves the cursor there and chooses nothing', () {
+      final group = RadioGroupModel<String>(id: 'rg', options: _abc(), value: 'a')
+        ..update(pointerAt(PointerAction.down, region: const RowRegion(2)));
+
+      expect(group.cursor, equals(2));
+      expect(group.value, equals('a'));
+    });
+
+    test('down on an enabled option after a clear moves the cursor off the old value', () {
+      final group = RadioGroupModel<String>(id: 'rg', options: _abc(), value: 'b')..value = null;
+      expect(group.cursor, equals(1));
+
+      group.update(pointerAt(PointerAction.down, region: const RowRegion(0)));
+      expect(group.cursor, equals(0));
+      expect(group.value, isNull);
+    });
+
+    test('a press slid off another row keeps the cursor on the pressed row', () {
+      final group = RadioGroupModel<String>(id: 'rg', options: _abc())
+        ..update(pointerAt(PointerAction.down, region: const RowRegion(2)))
+        ..update(pointerAt(PointerAction.up, region: const RowRegion(1)));
+
+      expect(group.cursor, equals(2));
+      expect(group.value, isNull);
+    });
+
     test('up on another row than the down does not choose', () {
       final group = RadioGroupModel<String>(id: 'rg', options: _abc())
         ..update(pointerAt(PointerAction.down, region: const RowRegion(0)));
@@ -310,6 +336,7 @@ void main() {
 
       final down = group.update(pointerAt(PointerAction.down, region: const RowRegion(1)));
       expect(down, isA<Handled>().having((h) => h.events, 'events', isEmpty));
+      expect(group.cursor, equals(0));
 
       final up = group.update(pointerAt(PointerAction.up, region: const RowRegion(1)));
       expect(up, isA<Handled>().having((h) => h.events, 'events', isEmpty));

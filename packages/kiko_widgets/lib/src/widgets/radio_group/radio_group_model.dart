@@ -143,10 +143,11 @@ class RadioGroupModel<T> implements Component {
   /// The keyboard-current option's index.
   ///
   /// The constructor puts it on the option matching [value], else the first
-  /// enabled option, else `0`. The user's arrows and the app's [value]
-  /// writes move it; the app never writes it directly. The getter clamps
-  /// the stored index into the live [options] length, so a list shortened
-  /// in place, bypassing the setter, never indexes past its end.
+  /// enabled option, else `0`. The user's arrows, a press on an enabled
+  /// option, and the app's [value] writes move it; the app never writes it
+  /// directly. The getter clamps the stored index into the live [options]
+  /// length, so a list shortened in place, bypassing the setter, never
+  /// indexes past its end.
   int get cursor => _options.isEmpty ? 0 : _cursor.clamp(0, _options.length - 1);
 
   /// The effective key binding: [keyBinding] if set, else
@@ -195,13 +196,14 @@ class RadioGroupModel<T> implements Component {
   /// option whether or not the group is focused (the app focuses it on the
   /// down). A wheel declines, so a scrollable ancestor gets it. A disabled
   /// group consumes the gesture but never chooses or hovers. A `down` over
-  /// an enabled option begins the press, setting [pressedIndex]; a `down`
-  /// anywhere else is consumed and starts nothing. An `up` chooses the
-  /// pressed option and fires [RadioChangeEvent] only when [pressedIndex] is
-  /// set, the release lands [PointerMsg.inside], and it lands on the same
-  /// row — a press slid onto another row, a release without its own press,
-  /// and a cancelled gesture all choose nothing — and either way the `up`
-  /// clears [pressedIndex]. A [PointerCancelMsg] ends the gesture without
+  /// an enabled option begins the press, setting [pressedIndex] and moving
+  /// [cursor] there without choosing; a `down` anywhere else is consumed and
+  /// starts nothing. An `up` chooses the pressed option and fires
+  /// [RadioChangeEvent] only when [pressedIndex] is set, the release lands
+  /// [PointerMsg.inside], and it lands on the same row — a press slid onto
+  /// another row, a release without its own press, and a cancelled gesture
+  /// all choose nothing, and leave [cursor] on the pressed row — and either
+  /// way the `up` clears [pressedIndex]. A [PointerCancelMsg] ends the gesture without
   /// choosing. Hover tracks any other pointer over an enabled option and
   /// clears on [PointerLeaveMsg] or over no option or a disabled one.
   ///
@@ -242,6 +244,7 @@ class RadioGroupModel<T> implements Component {
     if (pointer.isDown) {
       if (pointer.region case RowRegion(:final index) when !_options[index].disabled) {
         pressedIndex = index;
+        _cursor = index;
       }
       return const Handled();
     }

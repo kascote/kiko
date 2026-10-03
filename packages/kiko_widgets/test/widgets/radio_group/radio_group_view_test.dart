@@ -253,6 +253,37 @@ void main() {
       expect(otherOpen.modifier.has(Modifier.bold), isFalse);
     });
 
+    test('between a down and its up, the focus look sits on the pressed row, not the old cursor row', () {
+      final model =
+          RadioGroupModel<int>(
+            id: 'r',
+            options: [
+              RadioOption(value: 1, label: Line('One')),
+              RadioOption(value: 2, label: Line('Two')),
+            ],
+            focused: true,
+          )..update(
+            PointerMsg(
+              global: const Position(0, 1),
+              action: PointerAction.down,
+              local: const Position(0, 1),
+              targetId: 'r',
+              targetRect: Rect.create(x: 0, y: 0, width: 10, height: 2),
+              region: const RowRegion(1),
+            ),
+          );
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+
+      final oldMark = frame.buffer[(x: 1, y: 0)];
+      expect(oldMark.fg, isNot(Theme.dark.focus.color));
+      expect(oldMark.modifier.has(Modifier.bold), isFalse);
+
+      // The pressed row's box is inverted, so its focus ink shows as the fill.
+      final pressedMark = frame.buffer[(x: 1, y: 1)];
+      expect(pressedMark.bg, Theme.dark.focus.color);
+      expect(pressedMark.modifier.has(Modifier.bold), isTrue);
+    });
+
     test("error puts error ink on every row's brackets, and keeps the cursor row's focus bold", () {
       final model = RadioGroupModel<int>(
         id: 'r',

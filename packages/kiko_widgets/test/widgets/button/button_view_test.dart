@@ -47,6 +47,28 @@ void main() {
       expect(_dump(frame.buffer), ' .\n');
       expect(frame.hits.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
     });
+
+    test('a written label paints on the next frame, at its own width', () {
+      final model = ButtonModel(id: 'toggle', label: Line('Disable'), loadingText: Line('.'));
+      final before = _frame(12, 1)
+        ..render(
+          Row(
+            children: [Button(model: model, theme: Theme.dark)],
+          ),
+        );
+      expect(_dump(before.buffer), ' Disable\n');
+      expect(before.hits.rectOf('toggle'), Rect.create(x: 0, y: 0, width: 9, height: 1));
+
+      model.label = Line('Enable');
+      final after = _frame(12, 1)
+        ..render(
+          Row(
+            children: [Button(model: model, theme: Theme.dark)],
+          ),
+        );
+      expect(_dump(after.buffer), ' Enable\n');
+      expect(after.hits.rectOf('toggle'), Rect.create(x: 0, y: 0, width: 8, height: 1));
+    });
   });
 
   group('button view pressed', () {

@@ -262,14 +262,15 @@ Case _selectAllCase(AppModel model) {
 // ═══════════════════════════════════════════════════════════
 
 // Three buttons drive one checkbox from outside it: check, uncheck, and
-// toggle disabled. A disabled checkbox keeps its value and shows it,
-// dimmed — it just stops answering the keyboard and the pointer. The second
-// checkbox starts in error and stays that way until the app clears the flag
-// on its own change event.
+// disable or enable. The third button's caption names what it will do next,
+// so the app writes its label each time it flips the target. A disabled
+// checkbox keeps its value and shows it, dimmed — it just stops answering
+// the keyboard and the pointer. The second checkbox starts in error and
+// stays that way until the app clears the flag on its own change event.
 
 Case _controlCase(AppModel model) {
   const title = 'App control';
-  const watch = 'check/uncheck/toggle drive the target; confirm starts red until checked';
+  const watch = 'check/uncheck/disable drive the target; the third caption flips; confirm starts red until checked';
   final members = [
     model.controlCheck,
     model.controlUncheck,
@@ -278,7 +279,9 @@ Case _controlCase(AppModel model) {
     model.controlConfirm,
   ];
   return Case(
-    proves: 'The app drives checked, disabled and error by writing the field; disabled keeps the value, dimmed.',
+    proves:
+        'The app drives checked, disabled, error and a button label by writing the field; '
+        'disabled keeps the value, dimmed.',
     members: members,
     box: (theme, resolver) => _caseBox(
       title: title,
@@ -408,8 +411,9 @@ class AppModel with ThemeSwitcher {
   /// Unchecks [controlTarget].
   final ButtonModel controlUncheck = ButtonModel(id: 'control-uncheck', label: Line('Uncheck'));
 
-  /// Flips [controlTarget]'s disabled flag.
-  final ButtonModel controlToggleDisable = ButtonModel(id: 'control-toggle-disable', label: Line('Toggle disable'));
+  /// Flips [controlTarget]'s disabled flag; its caption names the next flip,
+  /// "Disable" while the target is enabled and "Enable" while it is disabled.
+  final ButtonModel controlToggleDisable = ButtonModel(id: 'control-toggle-disable', label: Line('Disable'));
 
   /// The checkbox the three buttons above drive.
   final CheckboxModel controlTarget = CheckboxModel(id: 'control-target', label: Line('Target'));
@@ -466,6 +470,7 @@ void _onEvent(AppModel model, WidgetEvent event) {
       model.controlTarget.checked = false;
     case ButtonPressEvent(id: 'control-toggle-disable'):
       model.controlTarget.disabled = !model.controlTarget.disabled;
+      model.controlToggleDisable.label = Line(model.controlTarget.disabled ? 'Enable' : 'Disable');
     default:
       break;
   }

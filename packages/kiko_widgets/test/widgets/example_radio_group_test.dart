@@ -94,4 +94,35 @@ void main() {
 
     expect(model.skipGroup.value, isNull);
   });
+
+  test('the SMS and error captions name the next flip, and the next frame paints them', () async {
+    final backend = TestBackend(size: const TermSize(160, 45));
+    final model = rg.AppModel();
+    late Rect disableRect;
+    late Rect errorRect;
+
+    await _run(
+      model,
+      backend,
+      (hits) {
+        disableRect = hits.rectOf('control-disable')!;
+        errorRect = hits.rectOf('control-error')!;
+        return [
+          (b) => b.emitClick(disableRect.x + 1, disableRect.y),
+          // "Enable SMS" is one cell narrower, so the error button has moved
+          // one cell left; x + 2 of its old rect is still inside it.
+          (b) => b.emitClick(errorRect.x + 2, errorRect.y),
+        ];
+      },
+      readyId: 'control-disable',
+    );
+
+    expect(model.controlTarget.options.last.disabled, isTrue);
+    expect(model.controlTarget.error, isTrue);
+    String text(int x, int y, int width) =>
+        [for (var i = 0; i < width; i++) backend.screen[(x: x + i, y: y)].symbol].join();
+    // One pad cell before each caption.
+    expect(text(disableRect.x + 1, disableRect.y, 10), 'Enable SMS');
+    expect(text(errorRect.x, errorRect.y, 11), 'Clear error');
+  });
 }

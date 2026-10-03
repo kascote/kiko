@@ -41,14 +41,22 @@ void main() {
       expect(button.disabled, isTrue);
     });
 
-    test('copyWith creates modified copy', () {
-      final button = ButtonModel(id: 'btn', label: Line('OK'));
-      final copy = button.copyWith(disabled: true, loading: true);
+    test('a write to label or padding changes the width', () {
+      const measurer = TermUnicodeMeasurer();
+      final button = ButtonModel(id: 'btn', label: Line('OK'), loadingText: Line('.'));
+      expect(button.width(measurer), equals(4));
 
-      expect(copy.id, equals('btn'));
-      expect(copy.disabled, isTrue);
-      expect(copy.loading, isTrue);
-      expect(button.disabled, isFalse); // original unchanged
+      button.label = Line('Enable');
+      expect(button.width(measurer), equals(8));
+
+      button.padding = 2;
+      expect(button.width(measurer), equals(10));
+    });
+
+    test('a write to loadingText wider than the label changes the width', () {
+      const measurer = TermUnicodeMeasurer();
+      final button = ButtonModel(id: 'btn', label: Line('OK'), loadingText: Line('.'))..loadingText = Line('Saving');
+      expect(button.width(measurer), equals(8));
     });
   });
 

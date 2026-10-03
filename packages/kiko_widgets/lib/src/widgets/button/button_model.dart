@@ -10,27 +10,29 @@ import 'types.dart';
 /// Returns [ButtonPressEvent] when activated. A double-click is two presses,
 /// and fires [ButtonPressEvent] twice.
 ///
-/// Has `copyWith` for creating modified copies. Mutable fields are
-/// `focused` (required by [Focusable] interface), `loading`, and `disabled`.
+/// Every field but [id] is a plain mutable field: the app renames a button
+/// with `model.label = Line('Enable')`, disables it with
+/// `model.disabled = true`. There is no `copyWith` — the model is mutable,
+/// and a copy would orphan the instance the router and the focus group hold.
 class ButtonModel implements Component {
   /// Unique identifier for the button.
   @override
   final String id;
 
   /// Button text (must be single line).
-  final Line label;
+  Line label;
 
   /// Whether the button is disabled.
   bool disabled;
 
   /// Content shown during loading.
-  final Line loadingText;
+  Line loadingText;
 
   /// Horizontal padding (symmetric).
-  final int padding;
+  int padding;
 
   /// Custom key bindings. Null uses defaults.
-  final KeyBinding<ButtonAction>? keyBinding;
+  KeyBinding<ButtonAction>? keyBinding;
 
   bool _focused;
 
@@ -79,7 +81,8 @@ class ButtonModel implements Component {
   ///
   /// The button reserves room for the larger of [label] and [loadingText] —
   /// both are laid out every frame, and only the active one paints — so its
-  /// width never changes when [loading] toggles.
+  /// width never changes when [loading] toggles. A write to [label],
+  /// [loadingText] or [padding] does change it, on the next frame.
   int width(TextMeasurer measurer) => max(label.width(measurer), loadingText.width(measurer)) + (padding * 2);
 
   /// Updates the model based on the message.
@@ -160,28 +163,5 @@ class ButtonModel implements Component {
     }
 
     return const Declined();
-  }
-
-  /// Creates a copy with the given fields replaced.
-  ButtonModel copyWith({
-    String? id,
-    Line? label,
-    bool? disabled,
-    bool? loading,
-    Line? loadingText,
-    bool? focused,
-    int? padding,
-    KeyBinding<ButtonAction>? keyBinding,
-  }) {
-    return ButtonModel(
-      id: id ?? this.id,
-      label: label ?? this.label,
-      disabled: disabled ?? this.disabled,
-      loading: loading ?? this.loading,
-      loadingText: loadingText ?? this.loadingText,
-      focused: focused ?? this.focused,
-      padding: padding ?? this.padding,
-      keyBinding: keyBinding ?? this.keyBinding,
-    );
   }
 }

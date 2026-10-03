@@ -121,6 +121,15 @@ void main() {
       group.update(const KeyMsg('right'));
       expect(group.focusedIndex, equals(0));
     });
+
+    test('a write to wrapNavigation takes effect on the next key', () {
+      final group = ButtonGroupModel(buttons: buttons, focused: true);
+      expect(group.update(const KeyMsg('left')), isA<Declined>());
+
+      group.wrapNavigation = true;
+      expect(group.update(const KeyMsg('left')), isA<Handled>());
+      expect(group.focusedIndex, equals(2));
+    });
   });
 
   group('ButtonGroupModel.update button activation', () {

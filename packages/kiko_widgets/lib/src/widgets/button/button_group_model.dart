@@ -13,10 +13,10 @@ class ButtonGroupModel implements Focusable {
   final List<ButtonModel> buttons;
 
   /// Whether navigation wraps at ends.
-  final bool wrapNavigation;
+  bool wrapNavigation;
 
   /// Custom key bindings. Null uses defaults.
-  final KeyBinding<ButtonGroupAction>? keyBinding;
+  KeyBinding<ButtonGroupAction>? keyBinding;
 
   bool _focused;
   int _focusedIndex;

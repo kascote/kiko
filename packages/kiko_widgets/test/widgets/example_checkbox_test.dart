@@ -107,6 +107,29 @@ void main() {
     expect(model.controlTarget.checked, isFalse, reason: 'the click on a disabled box changes nothing');
   });
 
+  test('the disable button caption names the next flip, and the next frame paints it', () async {
+    final backend = TestBackend(size: const TermSize(160, 45));
+    final model = cb.AppModel();
+    late Rect disableRect;
+
+    await _run(
+      model,
+      backend,
+      (hits) {
+        disableRect = hits.rectOf('control-toggle-disable')!;
+        return [(b) => b.emitClick(disableRect.x + 1, disableRect.y)];
+      },
+      readyId: 'control-toggle-disable',
+    );
+
+    expect(model.controlTarget.disabled, isTrue);
+    // One pad cell, then the six cells of "Enable".
+    final caption = [
+      for (var i = 1; i <= 6; i++) backend.screen[(x: disableRect.x + i, y: disableRect.y)].symbol,
+    ].join();
+    expect(caption, 'Enable');
+  });
+
   test('checking one select-all child puts the parent into mixed', () async {
     final backend = TestBackend(size: const TermSize(160, 45));
     final model = cb.AppModel();

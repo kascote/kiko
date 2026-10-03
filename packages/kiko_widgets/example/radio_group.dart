@@ -282,12 +282,14 @@ Case _skipCase(AppModel model) {
 // ═══════════════════════════════════════════════════════════
 
 // Four buttons drive one radio group from outside it: choose a value, clear
-// it, disable the SMS option by replacing the option list, and flag an
-// error. The status line under the group shows its live value and cursor.
+// it, disable or enable the SMS option by replacing the option list, and set
+// or clear an error. The last two buttons' captions name what they will do
+// next, so the app writes their labels each time it flips the group. The
+// status line under the group shows its live value and cursor.
 
 Case _controlCase(AppModel model) {
   const title = 'App control';
-  const watch = 'buttons drive the group below';
+  const watch = 'buttons drive the group below; the SMS and error captions flip';
   final members = [
     model.controlChoose,
     model.controlClear,
@@ -296,7 +298,9 @@ Case _controlCase(AppModel model) {
     model.controlTarget,
   ];
   return Case(
-    proves: 'The app drives value, options and error by writing the fields; the group never edits its own list.',
+    proves:
+        'The app drives value, options, error and button labels by writing the fields; '
+        'the group never edits its own list.',
     members: members,
     box: (theme, resolver) => _caseBox(
       title: title,
@@ -440,11 +444,13 @@ class AppModel with ThemeSwitcher {
   /// Clears [controlTarget]'s value.
   final ButtonModel controlClear = ButtonModel(id: 'control-clear', label: Line('Clear'));
 
-  /// Toggles whether [controlTarget]'s SMS option is disabled.
-  final ButtonModel controlDisable = ButtonModel(id: 'control-disable', label: Line('Toggle disable SMS'));
+  /// Toggles whether [controlTarget]'s SMS option is disabled; its caption
+  /// names the next flip, "Disable SMS" or "Enable SMS".
+  final ButtonModel controlDisable = ButtonModel(id: 'control-disable', label: Line('Disable SMS'));
 
-  /// Toggles [controlTarget]'s error flag.
-  final ButtonModel controlError = ButtonModel(id: 'control-error', label: Line('Toggle error'));
+  /// Toggles [controlTarget]'s error flag; its caption names the next flip,
+  /// "Set error" or "Clear error".
+  final ButtonModel controlError = ButtonModel(id: 'control-error', label: Line('Set error'));
 
   /// The contact-method group the four buttons above drive.
   final RadioGroupModel<String> controlTarget = RadioGroupModel(
@@ -486,8 +492,10 @@ void _onEvent(AppModel model, WidgetEvent event) {
       // the app replaces the whole list with the SMS flag flipped.
       final smsDisabled = model.controlTarget.options.last.disabled;
       model.controlTarget.options = _contactOptions(smsDisabled: !smsDisabled);
+      model.controlDisable.label = Line(smsDisabled ? 'Disable SMS' : 'Enable SMS');
     case ButtonPressEvent(id: 'control-error'):
       model.controlTarget.error = !model.controlTarget.error;
+      model.controlError.label = Line(model.controlTarget.error ? 'Clear error' : 'Set error');
     default:
       break;
   }

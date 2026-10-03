@@ -103,7 +103,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
   final t = resolver.tones;
-  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+  frame.ground(resolver.ground(resolver.tones.background));
 
   final selectedKeys = model.list.getSelectedKeys();
   final selectedNames = contacts.where((c) => selectedKeys.contains(c.id)).map((c) => c.name);

@@ -141,7 +141,7 @@ const Theme _theme = Theme.dark;
 void view(AppModel model, Frame frame) {
   final resolver = StyleResolver(_theme);
   final t = resolver.tones;
-  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+  frame.ground(resolver.ground(resolver.tones.background));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,

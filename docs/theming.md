@@ -236,7 +236,7 @@ the text color that reads on it. The app grounds the frame with one line
 at the top of `view`:
 
 ```dart
-frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+frame.ground(resolver.ground(resolver.tones.background));
 ```
 
 A pane that changes surface re-grounds locally. A dialog or a popup paints

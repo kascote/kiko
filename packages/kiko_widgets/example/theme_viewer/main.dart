@@ -474,7 +474,7 @@ void view(Model model, Frame frame) {
   // Grounds the frame in the base tone. Under ANSI-16 this carries only a
   // foreground; under NO_COLOR it carries no color, leaving the terminal's
   // own background — what a real terminal at that tier shows.
-  frame.buffer.setStyle(frame.area, resolver.ground(t.background));
+  frame.ground(resolver.ground(t.background));
 
   final comboView = Combobox<String>(model: model.combo, theme: theme, popupBorder: BorderType.rounded);
 

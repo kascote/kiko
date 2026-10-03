@@ -1344,7 +1344,7 @@ void view(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
   final t = resolver.tones;
-  frame.buffer.setStyle(frame.area, resolver.ground(t.background));
+  frame.ground(resolver.ground(t.background));
 
   final boxes = {for (final c in model.cases) c.key: c.box(theme, resolver)};
 

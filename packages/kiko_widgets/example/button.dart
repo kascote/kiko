@@ -196,7 +196,7 @@ void appView(AppModel model, Frame frame) {
   final t = resolver.tones;
 
   // Ground the frame
-  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+  frame.ground(resolver.ground(resolver.tones.background));
 
   final ui = Column(
     crossAxis: CrossAxisAlignment.stretch,

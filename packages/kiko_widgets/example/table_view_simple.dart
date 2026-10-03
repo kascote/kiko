@@ -196,7 +196,7 @@ void appView(AppModel model, Frame frame) {
   final theme = model.theme;
   final resolver = StyleResolver(theme);
   final t = resolver.tones;
-  frame.buffer.setStyle(frame.area, resolver.ground(resolver.tones.background));
+  frame.ground(resolver.ground(resolver.tones.background));
 
   final tableWidget = Container(
     border: BorderType.plain,

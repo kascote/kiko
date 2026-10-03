@@ -10,6 +10,7 @@ import '../mvu/frame_report.dart';
 import '../plume/buffer_surface.dart';
 import '../plume/paint_token.dart';
 import '../plume/view.dart';
+import '../style.dart';
 import 'hit_map.dart';
 
 /// A consistent view into the terminal state for rendering a single frame.
@@ -82,6 +83,17 @@ class Frame {
   /// that one describes the frame the pointer was actually over, where this one
   /// describes the frame being built now.
   HitMap get hits => _hits ??= HitMap.fromRoots(_nodeRoots);
+
+  /// Grounds every cell of [area] with [style].
+  ///
+  /// Call it once at the top of `view`, before any [render], with the theme's
+  /// base ground: `frame.ground(resolver.ground(resolver.tones.background))`.
+  /// Content painted afterwards with a half-null style inherits the other half
+  /// from this ground.
+  ///
+  /// It patches like [Buffer.setStyle]: a null `fg` or `bg` in [style] keeps
+  /// what the cell already holds.
+  void ground(Style style) => buffer.setStyle(area, style);
 
   /// Renders a [view] into this frame — the entry point for drawing a UI.
   ///

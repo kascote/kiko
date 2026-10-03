@@ -83,6 +83,9 @@ class Theme implements ToneSet {
   ///
   /// `background.color` is the base background; `background.on` is the default
   /// text color drawn on it.
+  ///
+  /// Nothing in the runtime paints it. The app grounds the frame with it at the
+  /// top of `view` through `Frame.ground`; see `docs/theming.md`.
   @override
   final SurfaceTone background;
 

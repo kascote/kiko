@@ -64,8 +64,8 @@ TableViewModel _model({
 
 void main() {
   group('TableView anatomy styling', () {
-    group("wash preserves each cell's own foreground", () {
-      test('cursor row wash does not clobber a custom render fg', () {
+    group("a cursor step keeps each cell's own foreground", () {
+      test('cursor row step does not clobber a custom render fg', () {
         final model = _model()
           ..update(const KeyMsg('down')) // cursorRow = 1
           ..update(const KeyMsg('right')); // cursorCol = 1 ("b"), so col "a" is not the cursor cell
@@ -87,7 +87,7 @@ void main() {
         // Row 2 (y=3) is neither the cursor row nor selected.
         final cell = buffer[(x: 0, y: 3)];
         expect(cell.fg, equals(Color.red));
-        expect(cell.bg, equals(Color.reset));
+        expect(cell.bg, equals(_ground));
       });
 
       test('hover row lift preserves a custom render fg', () {
@@ -136,7 +136,7 @@ void main() {
         expect(cell.modifier.has(Modifier.bold), isTrue);
       });
 
-      test('crosshair column wash also preserves fg', () {
+      test('crosshair column step also preserves fg', () {
         final model = _model()
           ..update(const KeyMsg('down')) // cursorRow = 1
           ..update(const KeyMsg('right')); // cursorCol = 1 ("b")
@@ -146,7 +146,7 @@ void main() {
         // Row 0, column "a" (x=0, y=1): not the cursor row, and column "a"
         // is not the cursor column either — should be untouched.
         final untouched = buffer[(x: 0, y: 1)];
-        expect(untouched.bg, equals(Color.reset));
+        expect(untouched.bg, equals(_ground));
 
         // Row 0, column "b" (x=6, y=1): not the cursor row, but IS the
         // cursor column — crosshair wash should tint its bg.
@@ -166,7 +166,7 @@ void main() {
         // Row 0, column "b" (x=6, y=1): shares the cursor's column but not
         // its row. With crosshair off, only the cursor row + cell paint.
         final cell = buffer[(x: 6, y: 1)];
-        expect(cell.bg, equals(Color.reset));
+        expect(cell.bg, equals(_ground));
       });
 
       test('the same cell is washed once showCrosshair is turned on', () {
@@ -386,6 +386,79 @@ void main() {
 
         expect(cell.fg, equals(Color.white));
         expect(cell.bg, equals(Color.magenta));
+      });
+    });
+
+    group('a cell is one resolve call', () {
+      test('a selected cursor cell equals one resolve of its full state set', () {
+        final model = _model(selectionEnabled: true)..update(const KeyMsg('space'));
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final expected = StyleResolver(Theme.dark).resolve(
+          null,
+          const {WidgetState.selected, WidgetState.cursor, WidgetState.focused},
+          cls: PaintClass.fill,
+        );
+        final cell = buffer[(x: 6, y: 1)]; // column "b" of the cursor row, not the cursor cell
+        final cursorCell = buffer[(x: 0, y: 1)];
+        expect(cursorCell.bg, equals(expected.bg));
+        expect(cursorCell.modifier.has(Modifier.bold), isTrue);
+        expect(cell.bg, equals(expected.bg), reason: 'the same lift, without the focused bold');
+        expect(cell.modifier.has(Modifier.bold), isFalse);
+      });
+
+      test('an unfocused cursor cell is one step and not bold', () {
+        final model = _model(focused: false);
+        final buffer = renderBuffer(model, width: 11, height: 5);
+
+        final cell = buffer[(x: 0, y: 1)]; // the cursor cell
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
+        expect(cell.modifier.has(Modifier.bold), isFalse);
+      });
+    });
+
+    group('a column style survives the states', () {
+      TableViewModel modelWith(TableColumn a, {bool selection = false}) {
+        final columns = [a, TableColumn(field: 'b', label: Line('B'), width: 5)];
+        return TableViewModel(
+          rows: _rows(4),
+          keyField: 'id',
+          columns: columns,
+          selectionEnabled: selection,
+          focused: true,
+        )..insertRows(_rows(4), 0);
+      }
+
+      test('a column foreground survives selection while the selection background shows', () {
+        final model =
+            modelWith(
+                TableColumn(field: 'a', label: Line('A'), width: 5, style: (r) => r.ink(r.tones.success)),
+                selection: true,
+              )
+              ..update(const KeyMsg('space')) // select row 0
+              ..update(const KeyMsg('down'))
+              ..update(const KeyMsg('down')); // cursor off the selected row
+
+        final cell = renderBuffer(model, width: 11, height: 5)[(x: 0, y: 1)];
+        expect(cell.fg, equals(Theme.dark.success.color));
+        expect(cell.bg, equals(Theme.dark.selection.color));
+      });
+
+      test('a column background is lifted by the cursor', () {
+        const columnBg = Color.blue;
+        final model = modelWith(
+          TableColumn(
+            field: 'a',
+            label: Line('A'),
+            width: 5,
+            style: (_) => const Style(bg: columnBg),
+          ),
+        );
+
+        final plain = renderBuffer(model, width: 11, height: 5)[(x: 0, y: 3)]; // row 2, no state
+        final cursor = renderBuffer(model, width: 11, height: 5)[(x: 0, y: 1)]; // row 0, cursor cell
+        expect(plain.bg, equals(columnBg));
+        expect(cursor.bg, equals(_lifted(columnBg, Theme.step)));
       });
     });
 

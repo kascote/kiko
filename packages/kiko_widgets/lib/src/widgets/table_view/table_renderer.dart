@@ -333,19 +333,16 @@ class TableRenderer {
     }
   }
 
-  /// Resolves the state style of one cell in [col].
+  /// Resolves the state style of one cell in [col]: one
+  /// [StyleResolver.resolve] call with every state the cell holds.
   ///
-  /// The cell base is the `row` slot, patched by the column's own
-  /// [TableColumn.style] when set. Three calls to [StyleResolver.resolve]
-  /// then carry it through its states, in order. First, a fill call resolves
-  /// `selected`, and `cursor` when the cell is the exact cursor cell and the
-  /// table owns focus — `style.selectedRow` and `style.cursorCell` ride in
-  /// as slots. Second, a wash call resolves `cursor` on a cell that sits on
-  /// the cursor row or, with [showCrosshair] on, the cursor column, as long
-  /// as the cell was not already resolved as a focused cursor cell in the
-  /// first call — an unfocused cursor cell washes here instead. The row's
-  /// own slot wins when a cell is on both the cursor row and the crosshair
-  /// column. Third, a fill call resolves `hover`.
+  /// The base is the `row` slot with the column's background joined, so
+  /// selection and the cursor land on it. A cell on the cursor row, or on the
+  /// cursor column with [showCrosshair] on, marks `cursor`; the exact cursor
+  /// cell also marks `focused` while the table owns focus. The `cursor` slot
+  /// is `cursorCell` for that focused cell, else `cursorRow` on the cursor row,
+  /// else `cursorColumn`. The column's ink, underline and modifiers patch over
+  /// the result, so they survive selection.
   Style _cellStyle(
     TableColumn col, {
     required bool isCursorRow,
@@ -353,38 +350,39 @@ class TableRenderer {
     required bool isSelected,
     required bool isHover,
   }) {
-    var cellStyle = style.row ?? const Style();
-    if (col.style != null) cellStyle = cellStyle.patch(col.style!(resolver));
+    final columnStyle = col.style?.call(resolver);
+    final base = _cellBase(columnStyle);
 
     final isFocusedCursorCell = isCursorRow && isCursorColumn && model.focused;
-    cellStyle = resolver.resolve(
-      cellStyle,
+    final cell = resolver.resolve(
+      base,
       {
         if (isSelected) WidgetState.selected,
-        if (isFocusedCursorCell) ...const {WidgetState.cursor, WidgetState.focused},
+        if (isCursorRow || (showCrosshair && isCursorColumn)) WidgetState.cursor,
+        if (isFocusedCursorCell) WidgetState.focused,
+        if (isHover) WidgetState.hover,
       },
       cls: PaintClass.fill,
       slots: {
-        if (style.selectedRow != null) WidgetState.selected: style.selectedRow!,
-        if (style.cursorCell != null) WidgetState.cursor: style.cursorCell!,
+        WidgetState.selected: ?style.selectedRow,
+        WidgetState.cursor: ?_cursorSlot(isCursorRow: isCursorRow, isFocusedCursorCell: isFocusedCursorCell),
       },
     );
+    return columnStyle == null ? cell : cell.patch(columnStyle.copyWith(bg: null));
+  }
 
-    // An unfocused cursor cell washes here too: it never resolved `cursor`
-    // above, since that call only fires the cursor state when the table
-    // owns focus.
-    final onCrosshairColumn = showCrosshair && isCursorColumn;
-    if ((isCursorRow || onCrosshairColumn) && !isFocusedCursorCell) {
-      final washSlot = isCursorRow ? style.cursorRow : style.cursorColumn;
-      cellStyle = resolver.resolve(
-        cellStyle,
-        const {WidgetState.cursor},
-        cls: PaintClass.wash,
-        slots: {WidgetState.cursor: ?washSlot},
-      );
-    }
+  /// The cell base: the `row` slot with the column's background joined.
+  Style? _cellBase(Style? columnStyle) {
+    final bg = columnStyle?.bg;
+    if (bg == null) return style.row;
+    return (style.row ?? const Style()).patch(Style(bg: bg));
+  }
 
-    return resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
+  /// The slot that replaces the `cursor` layer: `cursorCell` on the focused
+  /// cursor cell, else `cursorRow` on the cursor row, else `cursorColumn`.
+  Style? _cursorSlot({required bool isCursorRow, required bool isFocusedCursorCell}) {
+    if (isFocusedCursorCell) return style.cursorCell;
+    return isCursorRow ? style.cursorRow : style.cursorColumn;
   }
 
   // ─────────────────────────────────────────────

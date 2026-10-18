@@ -69,7 +69,8 @@ import 'states_page.dart';
 // into each state, once on the window and once on a surface panel that
 // stands for a dialog. Each row is labelled with its state. The page is the
 // acceptance check for a widget's look; a widget joins it when its batch
-// lands. The `d` key draws the window half as the host of an open dialog,
+// lands. The page scrolls: j/k, PgUp/PgDn, g/G and the wheel move both halves
+// together. The `d` key draws the window half as the host of an open dialog,
 // through `resolver.deEmphasised`, next to the unchanged surface half. Its
 // footer names the theme, the tier, the page, the state step and the
 // de-emphasis amount in use.
@@ -455,6 +456,16 @@ Cmd? onEvent(Model model, WidgetEvent event) {
   // after the dialog gate, so a dialog that is open keeps the key.
   if (model.page == 4 && msg is KeyMsg && msg.key == 'd') {
     model.states.dialogOpen = !model.states.dialogOpen;
+    return (model, null);
+  }
+
+  // The states page scrolls both halves together: its keys and wheel go to the
+  // scroll model, and so does the geometry the scroll view reports.
+  if (msg is ScrollMetrics) {
+    model.states.scroll.update(msg);
+    return (model, null);
+  }
+  if (model.page == 4 && (msg is KeyMsg || msg is PointerMsg) && model.states.scroll.update(msg) is Handled) {
     return (model, null);
   }
 

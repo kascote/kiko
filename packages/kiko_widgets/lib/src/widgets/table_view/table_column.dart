@@ -19,9 +19,10 @@ class TableColumn {
   /// The cell style for this column, resolved at paint against the frame's
   /// [StyleResolver].
   ///
-  /// The renderer patches the result over the table's `row` slot, then the
-  /// states patch over that. A style that sets only a foreground keeps the
-  /// row slot's background.
+  /// The style splits in two. Its background joins the cell base, so
+  /// selection and the cursor land on it. Its foreground, underline and
+  /// modifiers patch over the resolved cell, so a column's ink survives
+  /// selection.
   final Style Function(StyleResolver resolver)? style;
 
   /// Whether column is visible.

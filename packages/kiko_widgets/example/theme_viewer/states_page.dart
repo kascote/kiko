@@ -76,6 +76,10 @@ class StatesHalf {
         items: const [_focusedRow],
         focused: true,
       ),
+      cursorTable = _forcedTable('${prefix}table.cursor', rows: _tableRows.length, focused: false),
+      focusedTable = _forcedTable('${prefix}table.focused', rows: 1, focused: true),
+      cursorTree = _forcedTree('${prefix}tree.cursor'),
+      focusedTree = _focusedTree('${prefix}tree.focused'),
       combobox = _openCombobox('${prefix}combo');
 
   /// The id prefix of this half: `win.` for the window, `dlg.` for the dialog.
@@ -103,6 +107,20 @@ class StatesHalf {
 
   /// A one-row list that owns focus, so its cursor row paints focused.
   final ListViewModel<String, String> focusedList;
+
+  /// The table holding one row per state of [_tableRows], its cursor on the
+  /// `cursor` row and its table not focused.
+  final TableViewModel cursorTable;
+
+  /// A one-row table that owns focus, so its cursor cell paints focused.
+  final TableViewModel focusedTable;
+
+  /// The tree holding one node per state of [_treeRows], its cursor on the
+  /// `cursor` node and its tree not focused.
+  final TreeViewModel<String> cursorTree;
+
+  /// A one-node tree that owns focus, so its cursor row paints focused.
+  final TreeViewModel<String> focusedTree;
 
   /// A focused combobox with its popup open.
   final ComboboxModel<String> combobox;
@@ -132,6 +150,92 @@ ListViewModel<String, String> _forcedList(String id, {required bool focused}) =>
       ..moveCursorTo(1)
       ..hoverRow = 4
       ..focused = focused;
+
+/// The text of the focused-cursor table row.
+const String _focusedTableRow = 'cursor (focused)';
+
+/// The rows of the state table, in order. The first column names the state.
+const List<String> _tableRows = ['rest', 'cursor (unfocused)', 'selected', 'selected + error', 'hover'];
+
+/// The columns of the state tables. `qty` carries a column ink that must
+/// survive selection, and `flag` shows its error ink on one row only.
+List<TableColumn> _tableColumns() => [
+  TableColumn(field: 'name', label: Line('state'), width: 18),
+  TableColumn(
+    field: 'qty',
+    label: Line('qty'),
+    width: 3,
+    alignment: TextAlign.end,
+    style: (r) => r.ink(r.tones.success),
+  ),
+  TableColumn(
+    field: 'flag',
+    label: Line('flag'),
+    width: 4,
+    style: (r) => r.resolve(null, const {WidgetState.error}, cls: PaintClass.ink),
+  ),
+];
+
+/// Builds a state table of [rows] rows. With four or more rows it is the
+/// multi-select table: rows 2 and 3 selected, the cursor on row 1, the
+/// pointer over row 4. With one row the cursor sits on it.
+TableViewModel _forcedTable(String id, {required int rows, required bool focused}) {
+  final data = [
+    for (var i = 0; i < rows; i++)
+      {
+        'id': 'r$i',
+        'name': rows == 1 ? _focusedTableRow : _tableRows[i],
+        'qty': '${i + 1}',
+        'flag': rows > 1 && i == 3 ? 'err' : '',
+      },
+  ];
+  final model = TableViewModel(
+    id: id,
+    keyField: 'id',
+    columns: _tableColumns(),
+    rows: data,
+    selectionEnabled: rows > 1,
+    focused: true,
+  )..update(ViewportChanged(id, rows: rows, cols: 3));
+  // The model refuses keys while unfocused, so it starts focused and blurs
+  // after the cursor is placed.
+  if (rows > 1) {
+    model
+      ..update(const KeyMsg('down'))
+      ..update(const KeyMsg('down'))
+      ..update(const KeyMsg('space'))
+      ..update(const KeyMsg('down'))
+      ..update(const KeyMsg('space'))
+      ..update(const KeyMsg('up'))
+      ..update(const KeyMsg('up'))
+      ..hoverRow = 4;
+  }
+  model.update(const KeyMsg('right'));
+  return model..focused = focused;
+}
+
+/// The rows of the state tree, in order. The `loading` node is expanded with
+/// nothing cached, so it shows its indicator loading and a placeholder row.
+const List<String> _treeRows = ['rest', 'cursor (unfocused)', 'hover', 'loading'];
+
+/// Builds the state tree: the cursor on node 1, the pointer over node 2 and
+/// node 3 loading its children.
+TreeViewModel<String> _forcedTree(String id) {
+  final model = TreeViewModel<String>(id: id, focused: true)
+    ..loadRoots()
+    ..applyRoots([for (final row in _treeRows) TreeNode<String>(path: '/$row', label: Line(row))])
+    ..update(ViewportChanged(id, rows: _treeRows.length + 1))
+    ..expand('/loading')
+    ..update(const KeyMsg('down'))
+    ..hoverRow = 2;
+  return model..focused = false;
+}
+
+/// Builds a one-node tree that owns focus.
+TreeViewModel<String> _focusedTree(String id) => TreeViewModel<String>(id: id, focused: true)
+  ..loadRoots()
+  ..applyRoots([TreeNode<String>(path: '/focused', label: Line('cursor (focused)'), isLeaf: true)])
+  ..update(ViewportChanged(id, rows: 1));
 
 /// Builds a focused combobox and opens its popup by pressing its toggle.
 ComboboxModel<String> _openCombobox(String id) {
@@ -166,6 +270,10 @@ class StatesModel {
   /// `resolver.deEmphasised`, next to the unchanged surface half. The `d` key
   /// toggles it.
   bool dialogOpen = false;
+
+  /// Scrolls both halves together. It owns the keyboard for the whole page,
+  /// so it is always focused.
+  final ScrollViewModel scroll = ScrollViewModel(id: 'states.scroll', focused: true);
 }
 
 /// The width of the row-label column.
@@ -192,24 +300,30 @@ View statesPage(Model model, StyleResolver resolver) {
     crossAxis: CrossAxisAlignment.stretch,
     children: [
       Expanded(
-        child: Row(
-          crossAxis: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _window(
-                model.states.dialogOpen ? resolver.deEmphasised : resolver,
-                model.states.window,
-                dialogOpen: model.states.dialogOpen,
+        child: ScrollView(
+          model: model.states.scroll,
+          child: Row(
+            crossAxis: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _window(
+                  model.states.dialogOpen ? resolver.deEmphasised : resolver,
+                  model.states.window,
+                  dialogOpen: model.states.dialogOpen,
+                ),
               ),
-            ),
-            const SizedBox(width: 1),
-            Expanded(child: _dialog(surface, model.states.dialog)),
-          ],
+              const SizedBox(width: 1),
+              Expanded(child: _dialog(surface, model.states.dialog)),
+            ],
+          ),
         ),
       ),
       Line(
-        'Each row forces one state; compare a row on the window with the same row on the surface. '
-        'd: window as dialog host',
+        'Each row forces one state; compare a row on the window with the same row on the surface.',
+        style: resolver.ink(resolver.tones.accent),
+      ),
+      Line(
+        'd: window as dialog host · j/k PgUp/PgDn g/G wheel: scroll',
         style: resolver.ink(resolver.tones.accent),
       ),
       Line(
@@ -257,6 +371,8 @@ View _sections(StyleResolver r, StatesHalf half) => Column(
     ..._radioGroupSection(r, half),
     ..._textInputSection(r, half),
     ..._listSection(r, half),
+    ..._tableSection(r, half),
+    ..._treeSection(r, half),
     ..._comboboxSection(r, half),
   ],
 );
@@ -324,11 +440,54 @@ List<View> _listSection(StyleResolver r, StatesHalf half) => _section(r, 'ListVi
   ),
 ]);
 
-/// The combobox section. Its popup opens over the blank space below the last
-/// section, painted by [renderStatesPopups] after the tree.
-List<View> _comboboxSection(StyleResolver r, StatesHalf half) => _section(r, 'Combobox', [
-  _hug(_box(height: 1, child: _combobox(r, half.combobox))),
+/// The table section: the five state rows in one table with the crosshair on,
+/// then a focused cursor row in a table of its own.
+List<View> _tableSection(StyleResolver r, StatesHalf half) => _section(r, 'TableView', [
+  _hug(
+    _box(
+      height: _tableRows.length + 1,
+      child: TableView(model: half.cursorTable, resolver: r, showCrosshair: true),
+    ),
+  ),
+  _hug(
+    _box(
+      height: 2,
+      child: TableView(model: half.focusedTable, resolver: r, showCrosshair: true),
+    ),
+  ),
 ]);
+
+/// The tree section: the four state nodes and the loading placeholder row in
+/// one tree, then a focused cursor row in a tree of its own.
+List<View> _treeSection(StyleResolver r, StatesHalf half) => _section(r, 'TreeView', [
+  _hug(
+    _box(
+      height: _treeRows.length + 1,
+      child: TreeView<String>(model: half.cursorTree, resolver: r),
+    ),
+  ),
+  _hug(
+    _box(
+      height: 1,
+      child: TreeView<String>(model: half.focusedTree, resolver: r),
+    ),
+  ),
+]);
+
+/// The combobox section, last on the page. Its popup opens over the blank
+/// rows below it, painted by [renderStatesPopups] after the tree. The popup
+/// follows its anchor: it hides when the anchor scrolls out of view.
+List<View> _comboboxSection(StyleResolver r, StatesHalf half) => [
+  ..._section(r, 'Combobox', [
+    _hug(_box(height: 1, child: _combobox(r, half.combobox))),
+  ]),
+  // Room for the popup, so scrolled to the end it opens over blank rows
+  // instead of the sections above.
+  const SizedBox(height: _popupRows),
+];
+
+/// The rows of a combobox popup: four options and the two border rows.
+const int _popupRows = 6;
 
 Combobox<String> _combobox(StyleResolver r, ComboboxModel<String> model) =>
     Combobox<String>(model: model, resolver: r, popupBorder: BorderType.rounded);

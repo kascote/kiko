@@ -265,7 +265,7 @@ A `null` background, from a terminal that never answered, gives `Theme.dark`.
 | ---------- | ------------------- | -------------------------------------------------------------- |
 | `ink`      | `fg` only           | line glyphs, separators, scrollbars, accent text              |
 | `fill`     | `fg: on, bg: color` | filled surfaces: selected rows, button faces, badges          |
-| `wash`     | `bg` only           | tints under existing content: a crosshair row/column          |
+| `wash`     | `bg` only           | tints under existing content: a background that leaves the ink |
 | `ground`   | `fg: on, bg: color` | the style an area's cells hold before content paints on them  |
 
 `wash` is the one to remember. It changes the background only, so a cell
@@ -465,8 +465,8 @@ produces, and which part of it each state lands on.
 | TextArea  | focused, error, disabled                             | as TextInput; disabled also dims the gutter and the selection                                                                            |
 | Combobox  | focused, hover, error, disabled                      | focused/hover/error: the toggle; disabled: field and toggle                                                                              |
 | ListView  | selected, cursor, disabled (per item), hover          | the row                                                                                                                                   |
-| TableView | selected, cursor, hover                              | cursor: row and column wash, cell fill; the rest: the row                                                                                |
-| TreeView  | cursor, loading, hover                               | loading: the indicator glyph; the rest: the row                                                                                          |
+| TableView | selected, cursor, hover                              | every state: the cell; cursor on the cursor row, and on the cursor column with the crosshair                                              |
+| TreeView  | cursor, loading, error, hover                        | loading: the indicator glyph; error: a failed placeholder row; the rest: the row                                                         |
 
 A state not in a widget's row is not produced by that widget. A state a
 widget holds but lands on no part of its own is painted by the chrome the
@@ -866,9 +866,8 @@ projection call, so a widget never branches on the terminal it runs in:
   carry the states instead. `focused` adds bold, `pressed` toggles
   reversed, and de-emphasis adds dim. Meaning re-expresses through
   modifiers: `fill` becomes `Modifier.reversed`, `ink` keeps its modifiers
-  with the color dropped, and `wash` becomes nothing — a crosshair
-  collapses to its cursor cell. A ground style carries no color at all
-  here, and — unlike `fill` — never reverses.
+  with the color dropped, and `wash` becomes nothing. A ground style carries
+  no color at all here, and — unlike `fill` — never reverses.
 
 The staircase reads the same from richest to plainest: a fill is tint plus
 fill in RGB, a real `(fg, bg)` pair from sixteen names at ANSI-16, and
@@ -932,9 +931,9 @@ doc comment; that copy is the widget's contract.
 |           | `row`             | none (inherits the pane's ground)   | —                |
 |           | `separator`       | `resolver.ink(border)`              | resting chrome   |
 |           | `selectedRow`     | `resolver.fill(selection)`          | selected × fill  |
-|           | `cursorRow`       | the ground, one step lifted         | cursor × wash    |
-|           | `cursorColumn`    | the ground, one step lifted         | cursor × wash    |
-|           | `cursorCell`      | the ground, one step lifted         | cursor × fill    |
+|           | `cursorRow`       | the ground, one step lifted         | cursor × fill    |
+|           | `cursorColumn`    | the ground, one step lifted         | cursor × fill    |
+|           | `cursorCell`      | the ground, one step lifted + bold  | cursor × fill    |
 |           | `pending`         | `resolver.ink(muted)`               | anatomy-specific |
 |           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
 | ListView  | `item`            | none (starts from the bound ground) | —                |
@@ -968,22 +967,23 @@ doc comment; that copy is the widget's contract.
 
 Notes the table cannot carry:
 
-- **TableView** — the crosshair (`cursorColumn`) is enabled by
-  `showCrosshair` on the view, not by slot presence: a slot styles a part,
-  it does not create the behavior. A cell's base is `row`, patched by the
-  column's own style (`TableColumn.style`, resolved at paint). The resolver
-  then composes `selected` and, on the exact cursor cell of a focused
-  table, `cursor` in the fill class — `selectedRow` and `cursorCell` ride
-  in as slots. A cell on the cursor row, or on the crosshair column, that
-  is not that focused cursor cell resolves `cursor` again in the wash
-  class, through the `cursorRow` slot or the `cursorColumn` slot;
-  `cursorRow` wins when a cell sits on both. The wash lifts a selected row
-  instead of replacing it, so an unfocused table's cursor washes every row
-  it crosses without ever entering the fill class. Hover resolves last, in
-  its own fill call: a cell with a background lifts it, a bare cell takes
-  the hover wash. The resolved style is the `base` the cell's content
-  paints over, so the column's rendered line and its spans always patch
-  last, over hover included. The exemplar — copy its shape.
+- **TableView** — a cell is one `resolve` call in the fill class. Its base
+  is `row` with the column's background joined, so selection and the cursor
+  lift a column background instead of hiding it. The call carries every
+  state the cell holds: `selected` on a selected row, `cursor` on the cursor
+  row and on the crosshair column, `focused` on the exact cursor cell while
+  the table owns focus, and `hover` on the pointer row. The crosshair
+  (`cursorColumn`) is enabled by `showCrosshair` on the view, not by slot
+  presence: a slot styles a part, it does not create the behavior. The
+  `cursor` slot is `cursorCell` on the focused cursor cell, else `cursorRow`
+  on the cursor row, else `cursorColumn`; `selectedRow` rides in as the
+  `selected` slot. An unfocused cursor cell is one lift with no bold. A
+  column's foreground, underline and modifiers (`TableColumn.style`) patch
+  over the resolved cell, so a column's ink survives selection. The
+  resolved style is the `base` the cell's content paints over, so the
+  column's rendered line and its spans patch last of all. Under NO_COLOR
+  the cursor row and the crosshair column show bold. The exemplar — copy
+  its shape.
 - **ListView** — a row is one `resolve` call in the fill class over `item`.
   The call carries every state the row holds: `selected`, `cursor`,
   `disabled` and `hover`, plus `focused` on the cursor row while the list
@@ -993,10 +993,16 @@ Notes the table cannot carry:
   `cursorItem` ride in as slots and replace their state's layer on any
   base. An error cell in a row reads on the selection fill because every
   intent ink is declared to read on `selection`.
-- **TreeView** — the expand, collapse, and loading glyph is the
-  `indicator` slot; the default node builder paints the glyph and reads
-  it, and a custom `nodeBuilder` paints its own row and never sees it.
-  A tree has no selection set, so no `selectedItem`.
+- **TreeView** — a row is one `resolve` call in the fill class over `item`.
+  The call carries `cursor`, plus `focused` on the cursor row while the tree
+  owns focus, and `hover`. A null `item` starts the row from the ground the
+  resolver is bound to. An unfocused cursor row is one lift with no bold.
+  `cursorItem` rides in as the `cursor` slot. The expand, collapse, and
+  loading glyph is the `indicator` slot, its own `resolve` call in the ink
+  class with `loading`; the default node builder paints the glyph and reads
+  it, and a custom `nodeBuilder` paints its own row and never sees it. A
+  failed placeholder row resolves `error` over the `placeholder` base. A
+  tree has no selection set, so no `selectedItem`.
 - **Button** — one slot, `ButtonStyle.face`. A null face derives
   `resolver.fill(primary)`; states ride the matrix — `focused` lifts the
   face's background and adds bold, `loading` reads warning + blink,

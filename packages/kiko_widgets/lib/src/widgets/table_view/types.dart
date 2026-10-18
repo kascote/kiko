@@ -177,23 +177,26 @@ class TableScrollState {
 /// | `row`          | none (inherits the pane's ground)       | —                 |
 /// | `separator`    | `resolver.ink(border)`                    | resting chrome    |
 /// | `selectedRow`  | `resolver.fill(selection)`                | selected × fill   |
-/// | `cursorRow`    | the cell lifted one step                  | cursor × wash     |
-/// | `cursorColumn` | the cell lifted one step                  | cursor × wash     |
-/// | `cursorCell`   | the cell lifted one step, plus bold       | cursor × fill     |
+/// | `cursorRow`    | the cell lifted one step                  | cursor × fill     |
+/// | `cursorColumn` | the cell lifted one step                  | cursor × fill     |
+/// | `cursorCell`   | the cell lifted one step, plus bold       | cursor + focused  |
 /// | `pending`      | `resolver.ink(muted)`                     | anatomy-specific  |
 /// | `placeholder`  | `resolver.ink(muted)`                     | anatomy-specific  |
 ///
-/// Per-cell paint order is: row base, then `selectedRow` (a fill), then one
-/// cursor step: `cursorCell` (a fill) on the focused cursor cell, else
-/// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each
-/// cell's own foreground untouched). A cursor step is one state step in
-/// OKLab lightness away from the cell's own background, or from the ground
-/// the resolver is bound to when the cell is bare. The crosshair
-/// (`cursorColumn`) only paints when `TableView.showCrosshair` is true; a
-/// slot's presence styles a part, it never turns on the behavior that paints
-/// it. Hover applies last: half a state step in the same direction. The
-/// cell's content — the column's rendered [Line] and its spans — patches last
-/// of all, over every slot above, hover included.
+/// A cell is one [StyleResolver.resolve] call, always a fill. Its base is the
+/// `row` slot with the column's background joined (see [TableColumn.style]).
+/// The cell then holds these states: `selected` on a selected row; `cursor` on
+/// the cursor row, and on the cursor column when `TableView.showCrosshair` is
+/// true; `focused` on the exact cursor cell while the table owns focus; and
+/// `hover` on the pointer row. A cursor step is one state step in OKLab
+/// lightness away from the cell's own background, or from the ground the
+/// resolver is bound to when the cell is bare. The focused cursor cell adds
+/// bold. Hover is half a step in the same direction. A slot replaces its
+/// state's effect: `cursorCell` on the focused cursor cell, else `cursorRow`
+/// on the cursor row, else `cursorColumn`. A slot's presence styles a part, it
+/// never turns on the behavior that paints it. The column's foreground,
+/// underline and modifiers patch over the resolved cell, and the cell's
+/// content, the column's rendered [Line] and its spans, patches last of all.
 class TableViewStyle {
   /// Sticky header text.
   final Style? header;
@@ -207,13 +210,13 @@ class TableViewStyle {
   /// Rows in the selection set.
   final Style? selectedRow;
 
-  /// Crosshair: the current row, painted as a wash.
+  /// The cursor row.
   final Style? cursorRow;
 
-  /// Crosshair: the current column, painted as a wash.
+  /// The cursor column, painted only with `TableView.showCrosshair`.
   final Style? cursorColumn;
 
-  /// The cursor cell (current row ∩ current column), painted as a fill.
+  /// The cursor cell (cursor row ∩ cursor column) while the table owns focus.
   final Style? cursorCell;
 
   /// Rows for data windowed out of the cache.

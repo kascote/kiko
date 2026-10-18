@@ -427,12 +427,130 @@ void main() {
         reason: '${half.prefix} focused cursor',
       );
       expect(focusedCell.modifier.has(Modifier.bold), isTrue);
+    }
+  });
 
-      expect(half.combobox.isOpen, isTrue);
+  test('the states page forces each table row into its state on both halves', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(130, 90);
+    viewer.view(model, frame);
+    final window = StyleResolver(model.theme);
+    final surface = window.on(window.tones.surface);
+
+    for (final (half, r) in [(model.states.window, window), (model.states.dialog, surface)]) {
+      final rect = frame.hits.rectOf(half.cursorTable.id)!;
+      // Column starts: the state column is 18 wide, qty 3 and flag 4, one space apart.
+      Cell cell(int row, int x) => frame.buffer[(x: rect.x + x, y: rect.y + 1 + row)];
+      const qty = 19;
+      const flag = 23;
+      final cursor = r.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
+      final selected = r.fill(r.tones.selection);
+      final selectedCursor = r.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
+
+      expect(cell(0, 17).bg, r.ground(r.groundTone).bg, reason: '${half.prefix} rest');
+      expect(cell(1, 17).bg, cursor.bg, reason: '${half.prefix} cursor row');
+      expect(cell(1, qty).bg, cursor.bg, reason: '${half.prefix} unfocused cursor cell is the same step');
+      expect(cell(1, qty).modifier.has(Modifier.bold), isFalse, reason: '${half.prefix} unfocused cursor, no bold');
+      expect(cell(2, 17).bg, selected.bg, reason: '${half.prefix} selected');
+      expect(cell(2, qty).bg, selectedCursor.bg, reason: '${half.prefix} selected on the crosshair column');
+      expect(cell(2, qty).fg, r.ink(r.tones.success).fg, reason: '${half.prefix} column ink survives selection');
+      expect(cell(3, flag).bg, selected.bg, reason: '${half.prefix} selected + error');
+      expect(cell(3, flag).fg, r.ink(r.tones.error).fg, reason: '${half.prefix} error ink over the selection');
+      expect(cell(4, 17).bg, r.resolve(null, {WidgetState.hover}, cls: PaintClass.fill).bg, reason: 'hover');
+
+      final focused = frame.hits.rectOf(half.focusedTable.id)!;
+      Cell focusedCell(int x) => frame.buffer[(x: focused.x + x, y: focused.y + 1)];
+      final focusedStyle = r.resolve(null, {WidgetState.cursor, WidgetState.focused}, cls: PaintClass.fill);
+      expect(focusedCell(qty).bg, focusedStyle.bg, reason: '${half.prefix} focused cursor cell');
+      expect(focusedCell(qty).modifier.has(Modifier.bold), isTrue, reason: '${half.prefix} focused cell is bold');
+      expect(focusedCell(17).modifier.has(Modifier.bold), isFalse, reason: '${half.prefix} crosshair row is not bold');
+    }
+  });
+
+  test('the states page forces each tree row into its state on both halves', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(130, 90);
+    viewer.view(model, frame);
+    final window = StyleResolver(model.theme);
+    final surface = window.on(window.tones.surface);
+
+    for (final (half, r) in [(model.states.window, window), (model.states.dialog, surface)]) {
+      final rect = frame.hits.rectOf(half.cursorTree.id)!;
+      Cell row(int index, [int x = 25]) => frame.buffer[(x: rect.x + x, y: rect.y + index)];
+      final cursor = r.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
+
+      expect(row(0).bg, r.ground(r.groundTone).bg, reason: '${half.prefix} rest');
+      expect(row(1).bg, cursor.bg, reason: '${half.prefix} unfocused cursor');
+      expect(row(1).modifier.has(Modifier.bold), isFalse, reason: '${half.prefix} unfocused cursor, no bold');
+      expect(row(2).bg, r.resolve(null, {WidgetState.hover}, cls: PaintClass.fill).bg, reason: '${half.prefix} hover');
+      final glyph = row(3, 0);
+      expect(glyph.fg, r.ink(r.tones.warning).fg, reason: '${half.prefix} loading indicator');
+      expect(glyph.modifier.has(Modifier.slowBlink), isTrue);
+      expect(row(3).bg, r.ground(r.groundTone).bg, reason: '${half.prefix} loading never marks the row');
+
+      final focused = frame.hits.rectOf(half.focusedTree.id)!;
+      final focusedCell = frame.buffer[(x: focused.x + 25, y: focused.y)];
+      expect(
+        focusedCell.bg,
+        r.resolve(null, {WidgetState.cursor, WidgetState.focused}, cls: PaintClass.fill).bg,
+        reason: '${half.prefix} focused cursor',
+      );
+      expect(focusedCell.modifier.has(Modifier.bold), isTrue);
+    }
+  });
+
+  group('the states page scrolls', () {
+    /// Renders page 4 in a [height]-row frame, delivers the reports the paint
+    /// made, and renders again, so the scroll model holds the page's geometry.
+    Frame settle(viewer.Model model, int height) {
+      var frame = _testFrame(130, height);
+      viewer.view(model, frame);
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      for (final report in frame.reports) {
+        viewer.update(model, report, ctx);
+      }
+      frame = _testFrame(130, height);
+      viewer.view(model, frame);
+      return frame;
     }
 
-    // Both popups paint: each half shows the first option once.
-    final text = _screenText(frame.buffer);
-    expect('Admin'.allMatches(text).length, 2);
+    test('one scroll moves both halves by the same rows, and the keys are the scroll keys', () {
+      final model = viewer.Model()..page = 4;
+      var frame = settle(model, 30);
+      final window = model.states.window.buttons['rest']!.id;
+      final dialog = model.states.dialog.buttons['rest']!.id;
+      final windowTop = frame.hits.rectOf(window)!.y;
+      final dialogTop = frame.hits.rectOf(dialog)!.y;
+      expect(model.states.scroll.contentRows, greaterThan(model.states.scroll.viewportRows));
+
+      final ctx = UpdateContext(hits: frame.hits, area: frame.area);
+      viewer.update(model, const KeyMsg('j'), ctx);
+      viewer.update(model, const KeyMsg('j'), ctx);
+      expect(model.states.scroll.scrollOffset, 2);
+      frame = settle(model, 30);
+      expect(frame.hits.rectOf(window)!.y, windowTop - 2);
+      expect(frame.hits.rectOf(dialog)!.y, dialogTop - 2);
+
+      viewer.update(model, const KeyMsg('k'), ctx);
+      expect(model.states.scroll.scrollOffset, 1);
+    });
+
+    test('the combobox popup is hidden until its anchor scrolls into view', () {
+      final model = viewer.Model()..page = 4;
+      var frame = settle(model, 30);
+      expect('Admin'.allMatches(_screenText(frame.buffer)), isEmpty, reason: 'anchor below the fold');
+
+      viewer.update(model, const KeyMsg('G'), UpdateContext(hits: frame.hits, area: frame.area));
+      frame = settle(model, 30);
+      expect('Admin'.allMatches(_screenText(frame.buffer)).length, 2, reason: 'both popups at the end');
+      expect(model.states.window.combobox.isOpen, isTrue);
+    });
+
+    test('the keys of the page are not swallowed: escape still quits', () {
+      final model = viewer.Model()..page = 4;
+      final frame = settle(model, 30);
+      final (_, cmd) = viewer.update(model, const KeyMsg('escape'), UpdateContext(hits: frame.hits, area: frame.area));
+      expect(cmd, isA<Quit>());
+    });
   });
 }

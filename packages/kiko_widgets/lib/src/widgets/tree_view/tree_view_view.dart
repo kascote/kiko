@@ -213,26 +213,24 @@ class _TreeViewport<T> extends Node {
     }
   }
 
-  /// Resolves the row base through its cursor and hover states.
+  /// Resolves the row look: one [StyleResolver.resolve] call with every state
+  /// the row holds.
   ///
-  /// The row base goes to the resolver with its active states, so the
-  /// resolver — not this widget — decides how a state lands on it. The cursor
-  /// paints as a fill when the tree owns focus and as a wash when it does not;
-  /// a colored base lifts either way instead of one state's fill replacing
-  /// another's. Hover applies last, inside the resolver, in its own call. The
-  /// loading state paints the indicator glyph alone, never the row.
-  Style _rowStyle({required bool isCursor, required bool isHover}) {
-    final rowStyle = resolver.resolve(
-      style.item ?? const Style(),
-      {
-        if (isCursor) WidgetState.cursor,
-        if (isCursor && model.focused) WidgetState.focused,
-      },
-      cls: model.focused ? PaintClass.fill : PaintClass.wash,
-      slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
-    );
-    return resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
-  }
+  /// A row marks `cursor`, and also `focused` when the tree owns focus, so a
+  /// focused cursor row lifts one step and turns bold while an unfocused one
+  /// lifts one step with no bold. A `null` [TreeViewStyle.item] starts the row
+  /// from the ground the resolver is bound to. The loading state paints the
+  /// indicator glyph alone, never the row.
+  Style _rowStyle({required bool isCursor, required bool isHover}) => resolver.resolve(
+    style.item,
+    {
+      if (isCursor) WidgetState.cursor,
+      if (isCursor && model.focused) WidgetState.focused,
+      if (isHover) WidgetState.hover,
+    },
+    cls: PaintClass.fill,
+    slots: {WidgetState.cursor: ?style.cursorItem},
+  );
 
   /// The line for [node]: a placeholder row's label, the caller's builder, or
   /// the default node.
@@ -264,13 +262,13 @@ class _TreeViewport<T> extends Node {
 
   /// Builds the row for a placeholder node: no expand glyph — a blank run the
   /// width of one, the same as a leaf gets — then the matching label over the
-  /// [_placeholderStyle] base, with an `error` × `ink` patch first on a failed
-  /// row.
+  /// [_placeholderStyle] base, resolved with `error` on a failed row.
   Line _placeholderLine(SliceStatus status) {
-    var base = _placeholderStyle();
-    if (status == SliceStatus.failed) {
-      base = base.patch(resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
-    }
+    final base = resolver.resolve(
+      _placeholderStyle(),
+      {if (status == SliceStatus.failed) WidgetState.error},
+      cls: PaintClass.ink,
+    );
     final label = switch (status) {
       SliceStatus.filling => loadingLabel ?? Line('Loading…'),
       SliceStatus.failed => errorLabel ?? Line('Failed to load'),

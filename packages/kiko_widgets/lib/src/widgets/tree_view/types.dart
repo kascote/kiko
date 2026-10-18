@@ -134,24 +134,22 @@ typedef NodeState = ({
 /// non-null slot is the caller's exact style: it replaces that state's
 /// built-in effect. See [StyleResolver.resolve].
 ///
-/// | slot          | derived default               | matrix source     |
-/// | ------------- | ------------------------------ | ----------------- |
-/// | `item`        | none (inherits the pane's ground) | —              |
-/// | `cursorItem`  | the row lifted one step, plus bold | cursor × fill  |
-/// | `indicator`   | none (inherits the row)        | loading × ink     |
-/// | `placeholder` | `resolver.ink(muted)`          | anatomy-specific  |
+/// | slot          | derived default                | resolver call          |
+/// | ------------- | ------------------------------ | ---------------------- |
+/// | `item`        | none (inherits the pane's ground) | row, fill           |
+/// | `cursorItem`  | the row lifted one step        | row, `cursor` slot     |
+/// | `indicator`   | none (inherits the row)        | glyph, ink             |
+/// | `placeholder` | `resolver.ink(muted)`          | label, ink             |
 ///
-/// A failed placeholder row patches `error` × `ink` over the `placeholder`
-/// base.
-///
-/// Per-row paint order is: `item` base, then the cursor step if the keyboard
-/// cursor is on the node: one state step in OKLab lightness away from the
+/// A row is one [StyleResolver.resolve] call, always a fill, over the `item`
+/// base. The cursor row marks `cursor`, and `focused` too while the tree owns
+/// focus. A cursor step is one state step in OKLab lightness away from the
 /// row's own background, or from the ground the resolver is bound to when the
-/// row is bare. A focused tree adds bold. The tree has no selection set, so
-/// no `selectedItem`. Hover applies last: half a state step in the same
-/// direction. A node whose children are being fetched carries the `loading`
-/// state on its `indicator` glyph alone — a warning ink with a slow blink —
-/// never on the row.
+/// row is bare. A focused tree adds bold. Hover is half a step in the same
+/// direction. The tree has no selection set, so no `selectedItem`. The
+/// `indicator` glyph is its own call: a node whose children are being fetched
+/// marks `loading` on it, a warning ink with a slow blink, never on the row.
+/// A failed placeholder row resolves `error` over the `placeholder` base.
 class TreeViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;

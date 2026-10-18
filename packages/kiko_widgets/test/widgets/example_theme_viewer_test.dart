@@ -391,4 +391,48 @@ void main() {
     expect(open.buffer[(x: 0, y: 0)].fg, resolver.deEmphasised.border(const {}).fg);
     expect(open.hits.rectOf('demo-dialog'), isNotNull);
   });
+
+  test('the states page forces each list row into its state on both halves, and opens both popups', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(130, 60);
+    viewer.view(model, frame);
+    final window = StyleResolver(model.theme);
+    final surface = window.on(window.tones.surface);
+
+    for (final (half, r) in [(model.states.window, window), (model.states.dialog, surface)]) {
+      final rect = frame.hits.rectOf(half.cursorList.id)!;
+      // The last cell of a row is fill only, so it shows the row's own look.
+      Cell row(int index) => frame.buffer[(x: rect.x + rect.width - 1, y: rect.y + index)];
+      final ground = r.ground(r.groundTone);
+
+      expect(row(0).bg == ground.bg || row(0).bg == Color.reset, isTrue, reason: '${half.prefix} rest');
+      expect(
+        row(1).bg,
+        r.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill).bg,
+        reason: '${half.prefix} cursor',
+      );
+      expect(row(2).bg, r.fill(r.tones.selection).bg, reason: '${half.prefix} selected');
+      expect(row(3).bg, r.fill(r.tones.selection).bg, reason: '${half.prefix} selected + error');
+      expect(row(4).bg, r.resolve(null, {WidgetState.hover}, cls: PaintClass.fill).bg, reason: '${half.prefix} hover');
+      expect(row(5).modifier.has(Modifier.dim), isTrue, reason: '${half.prefix} disabled');
+      // The error cell keeps one ink on both grounds, over the selection fill.
+      final errorCell = frame.buffer[(x: rect.x, y: rect.y + 3)];
+      expect(errorCell.fg, equals(model.theme.error.color), reason: '${half.prefix} error ink');
+
+      final focusedRect = frame.hits.rectOf(half.focusedList.id)!;
+      final focusedCell = frame.buffer[(x: focusedRect.x + focusedRect.width - 1, y: focusedRect.y)];
+      expect(
+        focusedCell.bg,
+        r.resolve(null, {WidgetState.cursor, WidgetState.focused}, cls: PaintClass.fill).bg,
+        reason: '${half.prefix} focused cursor',
+      );
+      expect(focusedCell.modifier.has(Modifier.bold), isTrue);
+
+      expect(half.combobox.isOpen, isTrue);
+    }
+
+    // Both popups paint: each half shows the first option once.
+    final text = _screenText(frame.buffer);
+    expect('Admin'.allMatches(text).length, 2);
+  });
 }

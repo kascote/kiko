@@ -137,6 +137,11 @@ its ground, border, status row and list rows all lift from the surface tone.
 The popup reads `tones.surface`, not the `Theme`'s RGB surface, so under
 ANSI-16 it paints the sixteen-color table's surface.
 
+The popup hands `ComboboxStyle.list` to its list as given. A row with no
+`item` starts from the surface, so the cursor and hover lift the surface. A
+status row (loading, failed, not loaded) is a role ink resolved on the same
+surface-bound resolver.
+
 ## Outside-press dismissal
 
 Nothing about clicking outside a combobox is built into the widget. A

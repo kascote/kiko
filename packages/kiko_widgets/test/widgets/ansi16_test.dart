@@ -19,8 +19,7 @@ void main() {
   final tones = Ansi16Tones.derive(Theme.dark);
 
   // A cursor row with a bare base lifts the ground one step: the bright
-  // variant of the background slot. The row keeps the terminal's own text
-  // color, because the ansi16 ground projection sets no background.
+  // variant of the background slot.
   final cursorBg = tones.background.color!.lighten(Theme.step);
 
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
@@ -36,7 +35,7 @@ void main() {
         ListView<String, String>(model: model, resolver: resolver, itemBuilder: (i, n, s) => [Line(i)]),
       );
       final cell = buffer[(x: 7, y: 0)]; // cursor row, trailing fill-only cell
-      expect(cell.fg, equals(Color.reset));
+      expect(cell.fg, equals(Color.reset), reason: "the row's text color stays the area's");
       expect(cell.bg, equals(cursorBg));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });

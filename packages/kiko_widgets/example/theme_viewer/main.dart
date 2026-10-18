@@ -565,6 +565,9 @@ void view(Model model, Frame frame) {
   // Second pass: the popup paints over the tree that just rendered. A no-op
   // while the combobox is closed.
   comboView.renderPopup(frame);
+
+  // Page 4 forces a combobox open on each half; their popups paint here too.
+  if (model.page == 4) renderStatesPopups(model, frame, resolver);
 }
 
 View _header(Model model, StyleResolver resolver) => Container(

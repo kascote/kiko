@@ -32,6 +32,9 @@ Color _lifted(Theme theme, Color color, double amount) {
   return color.shiftLightness(dark ? amount : -amount);
 }
 
+/// The ink of a disabled row with no ink of its own: the theme's disabled tone.
+Color _disabledInk(Theme theme) => theme.disabled.color!;
+
 ListViewModel<String, String> _list(
   List<String> items, {
   bool multiSelect = false,
@@ -138,7 +141,7 @@ void main() {
 
         final off = _render(offCursor, theme: theme)[(x: 7, y: 1)];
         final under = _render(underCursor, theme: theme)[(x: 7, y: 1)];
-        expect(off.fg, equals(theme.disabled.color), reason: theme.name);
+        expect(off.fg, equals(_disabledInk(theme)), reason: theme.name);
         expect(under.fg, equals(off.fg), reason: '${theme.name}: the cursor wash changed the disabled ink');
         expect(
           under.bg,
@@ -154,7 +157,7 @@ void main() {
 
       final cell = buffer[(x: 7, y: 1)];
       expect(cell.bg, equals(_lifted(Theme.dark, Theme.dark.background.color!, Theme.step)));
-      expect(cell.fg, equals(Theme.dark.disabled.color));
+      expect(cell.fg, equals(_disabledInk(Theme.dark)));
       expect(cell.modifier.has(Modifier.dim), isTrue);
     });
 
@@ -226,6 +229,73 @@ void main() {
       expect(cell.fg, equals(Theme.dark.selection.on));
       expect(cell.bg, equals(_lifted(Theme.dark, Theme.dark.selection.color!, Theme.step)));
       expect(cell.modifier.has(Modifier.bold), isFalse);
+    });
+
+    test('a row is one resolve call over the full state set', () {
+      // Row 0 is selected, the cursor, hovered and focused at once.
+      final model = _list(<String>['Apple', 'Banana'], multiSelect: true)
+        ..update(const KeyMsg('space'))
+        ..hoverRow = 0;
+      final resolver = StyleResolver(Theme.dark);
+      final expected = resolver.resolve(
+        null,
+        const {WidgetState.selected, WidgetState.cursor, WidgetState.focused, WidgetState.hover},
+        cls: PaintClass.fill,
+      );
+
+      final cell = _render(model)[(x: 7, y: 0)];
+      expect(cell.fg, equals(expected.fg));
+      expect(cell.bg, equals(expected.bg));
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('an unfocused cursor row is the ground lifted one step, no bold', () {
+      final model = _list(<String>['Apple', 'Banana'], focused: false);
+
+      final cell = _render(model)[(x: 7, y: 0)];
+      expect(cell.bg, equals(_lifted(Theme.dark, Theme.dark.background.color!, Theme.step)));
+      expect(cell.modifier.has(Modifier.bold), isFalse);
+    });
+
+    test('a cursorItem slot replaces the cursor layer over a caller item base', () {
+      const base = Style(fg: Color.white, bg: Color.red);
+      const override = Style(bg: Color.blue);
+      final model = _list(<String>['Apple', 'Banana'], focused: false);
+      final buffer = _render(
+        model,
+        style: const ListViewStyle(item: base, cursorItem: override),
+      );
+
+      expect(buffer[(x: 7, y: 0)].bg, equals(Color.blue));
+      expect(buffer[(x: 7, y: 1)].bg, equals(Color.red));
+    });
+
+    test('an error cell on a selected row keeps one ink over the selection fill, on both grounds', () {
+      final model = _list(<String>['Apple', 'Banana'], multiSelect: true)
+        ..update(const KeyMsg('space'))
+        ..update(const KeyMsg('down'));
+      final window = StyleResolver(Theme.dark);
+      final surface = window.on(window.tones.surface);
+      Cell render(StyleResolver r) {
+        final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 8, height: 2));
+        Frame(buffer.area, buffer, 0).render(
+          ListView<String, String>(
+            model: model,
+            resolver: r,
+            itemBuilder: (item, index, state) => [
+              Line('!', style: r.resolve(null, const {WidgetState.error}, cls: PaintClass.ink)),
+            ],
+          ),
+        );
+        return buffer[(x: 0, y: 0)];
+      }
+
+      final onWindow = render(window);
+      final onSurface = render(surface);
+      expect(onWindow.fg, equals(Theme.dark.error.color));
+      expect(onSurface.fg, equals(onWindow.fg));
+      expect(onWindow.bg, equals(Theme.dark.selection.color));
+      expect(onSurface.bg, equals(onWindow.bg));
     });
 
     test('the empty placeholder derives the muted ink', () {

@@ -248,7 +248,8 @@ types the same way: a value class implementing `Region`.
 A row paints through one `resolve` call per paint class, and `resolve`
 applies the states in a fixed order: roles, `focused`, `cursor`, `disabled`,
 `hover`, `pressed` (`docs/theming.md`). With a null base, `resolve` starts
-from the resolver's ground, so a cursor row lifts the ground one step. The
+from the background of the resolver's ground, so a cursor row lifts the
+ground one step. The
 cursor row of a widget that owns keyboard focus passes `{cursor, focused}`:
 one lift and bold. An unfocused widget passes `{cursor}`: one lift, no bold.
 This palette passes `{cursor}` and signals focus on its border.
@@ -281,7 +282,7 @@ color.
 ```
 
 The row ground is a second part with its own state set. It is one fill call
-over the null base, which starts from the bound ground. Hover lifts the
+over the null base, which starts from the bound ground's background. Hover lifts the
 ground half a step and pressed lifts it one more step:
 
 ```dart

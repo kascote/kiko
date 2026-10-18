@@ -523,9 +523,12 @@ class StyleResolver {
 `resolver.border({if (m.focused) WidgetState.focused})` replaces a
 hand-written `m.focused ? focusInk : restingInk` at every call site.
 
-With a null `base`, the fill class starts from the `ground` projection of
-the bound ground, and the ink and wash classes start from an empty style.
-With no states, `resolve` returns that start unchanged.
+With a null `base`, the fill class starts from the background of the bound
+ground's ground style, with no foreground: the text color stays the area's.
+The ink and wash classes start from an empty style. With no states,
+`resolve` returns that start unchanged. A part that starts with no
+foreground takes the `disabled` ink when it is disabled, so a disabled row
+reads in the theme's `disabled` tone with or without the cursor on it.
 
 `slots` lets a widget hand in its own per-state style for one state — a
 cursor-row slot, say. A slot replaces that state's layer: `resolve` patches
@@ -755,8 +758,8 @@ duplicate a part that already has a home.
 Hand the resolver the part's own base style. A background the part already
 carries lifts under `cursor` or `focused` instead of being replaced, which
 is why a selected row keeps its pair under the cursor. A part with no style
-of its own passes `null`: the fill class then starts from the ground style
-of the bound ground, and the ink and wash classes start empty.
+of its own passes `null`: the fill class then starts from the bound
+ground's background, and the ink and wash classes start empty.
 
 The view paints through the `resolver` its caller passed in.
 
@@ -934,7 +937,7 @@ doc comment; that copy is the widget's contract.
 |           | `cursorCell`      | the ground, one step lifted         | cursor × fill    |
 |           | `pending`         | `resolver.ink(muted)`               | anatomy-specific |
 |           | `placeholder`     | `resolver.ink(muted)`               | anatomy-specific |
-| ListView  | `item`            | none (inherits the pane's ground)   | —                |
+| ListView  | `item`            | none (starts from the bound ground) | —                |
 |           | `selectedItem`    | `resolver.fill(selection)`          | selected × fill  |
 |           | `cursorItem`      | the ground, one step lifted         | cursor × fill    |
 |           | `pending`         | `resolver.ink(muted)`               | anatomy-specific |
@@ -981,6 +984,15 @@ Notes the table cannot carry:
   the hover wash. The resolved style is the `base` the cell's content
   paints over, so the column's rendered line and its spans always patch
   last, over hover included. The exemplar — copy its shape.
+- **ListView** — a row is one `resolve` call in the fill class over `item`.
+  The call carries every state the row holds: `selected`, `cursor`,
+  `disabled` and `hover`, plus `focused` on the cursor row while the list
+  owns focus. A null `item` starts the row from the ground the resolver is
+  bound to, so a list in a dialog or a popup lifts that pane's ground.
+  An unfocused cursor row is one lift with no bold. `selectedItem` and
+  `cursorItem` ride in as slots and replace their state's layer on any
+  base. An error cell in a row reads on the selection fill because every
+  intent ink is declared to read on `selection`.
 - **TreeView** — the expand, collapse, and loading glyph is the
   `indicator` slot; the default node builder paints the glyph and reads
   it, and a custom `nodeBuilder` paints its own row and never sees it.

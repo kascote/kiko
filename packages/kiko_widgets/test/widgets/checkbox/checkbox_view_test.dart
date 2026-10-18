@@ -193,9 +193,10 @@ void main() {
       final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(frame.buffer[(x: 0, y: 0)].fg, Theme.dark.error.color);
       expect(frame.buffer[(x: 2, y: 0)].fg, Theme.dark.error.color);
-      final text = _resolver.ground(_resolver.tones.background).fg;
-      expect(frame.buffer[(x: 1, y: 0)].fg, text); // the mark keeps its own style
-      expect(frame.buffer[(x: 4, y: 0)].fg, text); // the label keeps its own style
+      // The mark and the label keep their own (empty) style: no error ink, and
+      // the text color stays the area's.
+      expect(frame.buffer[(x: 1, y: 0)].fg, Color.reset);
+      expect(frame.buffer[(x: 4, y: 0)].fg, Color.reset);
     });
 
     test('disabled dims every cell', () {

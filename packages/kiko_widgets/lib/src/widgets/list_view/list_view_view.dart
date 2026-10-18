@@ -16,9 +16,9 @@ import 'types.dart';
 /// there are no items. An item whose page has not arrived paints as a dim run,
 /// or through [pendingBuilder] when given. Row backgrounds come from the item's honest state
 /// (selected / cursor / disabled) painted through [style]'s [ListViewStyle]
-/// anatomy, each `null` slot deriving from the resolver's tones. A per-instance
-/// state look is a resolver bound to another ground. Wrap it in a [Container]
-/// for a border or edge titles. The node is stamped with the model id so a
+/// anatomy, each `null` slot deriving from the resolver's tones. A row is one
+/// [StyleResolver.resolve] call. A list on another ground takes a resolver
+/// bound to that ground. Wrap it in a [Container] for a border or edge titles. The node is stamped with the model id so a
 /// click routes back through [HitMap.hitId], and its viewport report carries
 /// that same hit path.
 final class ListView<T, K> implements View {
@@ -223,55 +223,28 @@ class _ListViewport<T, K> extends Node {
     }
   }
 
-  /// Resolves the row base through [state].
+  /// Resolves the row look: one [StyleResolver.resolve] call with every state
+  /// the row holds.
   ///
-  /// The row base goes to the resolver with its active states, so the
-  /// resolver — not this widget — decides how a state lands on it. A colored
-  /// base lifts under the cursor and blends toward the ground under disabled,
-  /// instead of one state's fill replacing another's. The cursor paints as a
-  /// fill when the list owns focus and as a wash when it does not, in its own
-  /// call after selected and before disabled and hover. Hover applies last,
-  /// inside the resolver.
-  Style _rowStyle(ItemState state) {
-    final base = style.item ?? const Style();
-    final slots = <WidgetState, Style>{
-      if (style.selectedItem != null) WidgetState.selected: style.selectedItem!,
-      if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
-    };
-    if (model.focused) {
-      return resolver.resolve(
-        base,
-        {
-          if (state.selected) WidgetState.selected,
-          if (state.cursor) ...const {WidgetState.cursor, WidgetState.focused},
-          if (state.disabled) WidgetState.disabled,
-          if (state.hover) WidgetState.hover,
-        },
-        cls: PaintClass.fill,
-        slots: slots,
-      );
-    }
-    var rowStyle = resolver.resolve(
-      base,
-      {if (state.selected) WidgetState.selected},
-      cls: PaintClass.fill,
-      slots: slots,
-    );
-    rowStyle = resolver.resolve(
-      rowStyle,
-      {if (state.cursor) WidgetState.cursor},
-      cls: PaintClass.wash,
-      slots: slots,
-    );
-    return resolver.resolve(
-      rowStyle,
-      {
-        if (state.disabled) WidgetState.disabled,
-        if (state.hover) WidgetState.hover,
-      },
-      cls: PaintClass.fill,
-    );
-  }
+  /// A row marks `cursor`, and also `focused` when the list owns focus, so a
+  /// focused cursor row lifts one step and turns bold while an unfocused one
+  /// lifts one step with no bold. A `null` [ListViewStyle.item] starts the row
+  /// from the ground the resolver is bound to.
+  Style _rowStyle(ItemState state) => resolver.resolve(
+    style.item,
+    {
+      if (state.selected) WidgetState.selected,
+      if (state.cursor) WidgetState.cursor,
+      if (state.cursor && model.focused) WidgetState.focused,
+      if (state.disabled) WidgetState.disabled,
+      if (state.hover) WidgetState.hover,
+    },
+    cls: PaintClass.fill,
+    slots: {
+      WidgetState.selected: ?style.selectedItem,
+      WidgetState.cursor: ?style.cursorItem,
+    },
+  );
 
   /// Paints [lines] into [itemArea], one per row, dropping any past its height.
   void _paintLines(Surface surface, Rect itemArea, List<Line> lines) {

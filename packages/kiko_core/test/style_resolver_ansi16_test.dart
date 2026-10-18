@@ -80,9 +80,9 @@ void main() {
       expect(result.bg, fill.bg!.lighten(Theme.step));
     });
 
-    test('a cursor fill with no base lifts the ground pair', () {
+    test('a cursor fill with no base lifts the ground color', () {
       final s = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
-      expect(s.fg, equals(derived.background.on));
+      expect(s.fg, isNull);
       expect(s.bg, equals(derived.background.color!.lighten(Theme.step)));
     });
 
@@ -92,7 +92,7 @@ void main() {
       expect(onSurface.fill(onSurface.groundTone), equals(Style(fg: derived.surface.on, bg: derived.surface.color)));
 
       final lifted = onSurface.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
-      expect(lifted.fg, equals(derived.surface.on));
+      expect(lifted.fg, isNull);
       expect(lifted.bg, equals(derived.surface.color!.lighten(Theme.step)));
     });
 

@@ -108,13 +108,13 @@ typedef ItemState = ({bool selected, bool cursor, bool hover, bool disabled});
 ///
 /// | slot           | derived default                              | matrix source     |
 /// | -------------- | -------------------------------------------- | ----------------- |
-/// | `item`         | none (inherits the pane's ground)            | —                 |
+/// | `item`         | none (starts from the bound ground)          | —                 |
 /// | `selectedItem` | `resolver.fill(selection)`                   | selected × fill   |
 /// | `cursorItem`   | the row lifted one step, bold when focused   | cursor × fill     |
 /// | `pending`      | `resolver.ink(muted)`                        | anatomy-specific  |
 /// | `placeholder`  | `resolver.ink(muted)`                        | anatomy-specific  |
 ///
-/// Per-row paint order is: `item` base, then `selectedItem` (a fill) if the
+/// A row is one [StyleResolver.resolve] call. Its paint order is: `item` base, then `selectedItem` (a fill) if the
 /// row is in the selection set, then the cursor step if the keyboard cursor
 /// is on it, then the disabled blend if the row is disabled. Disabled ends
 /// the chain, so a disabled row takes no hover. The cursor step is one state

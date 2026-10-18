@@ -69,7 +69,14 @@ class StatesHalf {
             disabled: state == 'disabled',
           ),
       },
-      errorInput = TextInputModel(id: '${prefix}input.error', initial: 'ada@example', error: true);
+      errorInput = TextInputModel(id: '${prefix}input.error', initial: 'ada@example', error: true),
+      cursorList = _forcedList('${prefix}list.cursor', focused: false),
+      focusedList = ListViewModel<String, String>(
+        id: '${prefix}list.focused',
+        items: const [_focusedRow],
+        focused: true,
+      ),
+      combobox = _openCombobox('${prefix}combo');
 
   /// The id prefix of this half: `win.` for the window, `dlg.` for the dialog.
   final String prefix;
@@ -89,6 +96,62 @@ class StatesHalf {
   /// An input with the error fact set. The field paints nothing for it, so
   /// the row composes a border that reads it.
   final TextInputModel errorInput;
+
+  /// The list holding one row per state of [_listRows], its cursor on the
+  /// `cursor` row and its list not focused.
+  final ListViewModel<String, String> cursorList;
+
+  /// A one-row list that owns focus, so its cursor row paints focused.
+  final ListViewModel<String, String> focusedList;
+
+  /// A focused combobox with its popup open.
+  final ComboboxModel<String> combobox;
+}
+
+/// The text of the focused-cursor list row.
+const String _focusedRow = 'cursor (focused)';
+
+/// The rows of the state list, in order. The row's text names its state.
+const List<String> _listRows = ['rest', 'cursor (unfocused)', 'selected', 'selected + error cell', 'hover', 'disabled'];
+
+/// Builds the state list: a multi-select list with rows 2 and 3 selected, the
+/// cursor on row 1, the pointer over row 4 and row 5 disabled.
+ListViewModel<String, String> _forcedList(String id, {required bool focused}) =>
+    // The model refuses keys while unfocused, so it starts focused, selects, and blurs after.
+    ListViewModel<String, String>(
+        id: id,
+        items: _listRows,
+        multiSelect: true,
+        isDisabled: (index) => index == 5,
+        focused: true,
+      )
+      ..moveCursorTo(2)
+      ..update(const KeyMsg('space'))
+      ..moveCursorTo(3)
+      ..update(const KeyMsg('space'))
+      ..moveCursorTo(1)
+      ..hoverRow = 4
+      ..focused = focused;
+
+/// Builds a focused combobox and opens its popup by pressing its toggle.
+ComboboxModel<String> _openCombobox(String id) {
+  final combo = ComboboxModel<String>(
+    id: id,
+    label: (option) => option,
+    options: roles,
+    placeholder: 'Select a role…',
+    focused: true,
+    maxVisibleRows: 4,
+  );
+  combo.update(
+    PointerMsg(
+      global: Position.origin,
+      action: PointerAction.down,
+      local: Position.origin,
+      targetId: combo.togglePath,
+    ),
+  );
+  return combo;
 }
 
 /// The two halves of the states page.
@@ -193,6 +256,8 @@ View _sections(StyleResolver r, StatesHalf half) => Column(
     ..._checkboxSection(r, half),
     ..._radioGroupSection(r, half),
     ..._textInputSection(r, half),
+    ..._listSection(r, half),
+    ..._comboboxSection(r, half),
   ],
 );
 
@@ -228,6 +293,66 @@ List<View> _textInputSection(StyleResolver r, StatesHalf half) => _section(r, 'T
     ),
   ),
 ]);
+
+/// The width of the list and combobox rows.
+const int _listWidth = 28;
+
+/// The list section: the six state rows in one list, then a focused cursor
+/// row in a list of its own, since only one list can own focus.
+List<View> _listSection(StyleResolver r, StatesHalf half) => _section(r, 'ListView', [
+  _hug(
+    _box(
+      height: _listRows.length,
+      child: ListView<String, String>(
+        model: half.cursorList,
+        resolver: r,
+        itemBuilder: (item, index, state) => [
+          Line(item, style: index == 3 ? r.resolve(null, const {WidgetState.error}, cls: PaintClass.ink) : null),
+        ],
+      ),
+    ),
+  ),
+  _hug(
+    _box(
+      height: 1,
+      child: ListView<String, String>(
+        model: half.focusedList,
+        resolver: r,
+        itemBuilder: (item, index, state) => [Line(item)],
+      ),
+    ),
+  ),
+]);
+
+/// The combobox section. Its popup opens over the blank space below the last
+/// section, painted by [renderStatesPopups] after the tree.
+List<View> _comboboxSection(StyleResolver r, StatesHalf half) => _section(r, 'Combobox', [
+  _hug(_box(height: 1, child: _combobox(r, half.combobox))),
+]);
+
+Combobox<String> _combobox(StyleResolver r, ComboboxModel<String> model) =>
+    Combobox<String>(model: model, resolver: r, popupBorder: BorderType.rounded);
+
+/// Fixes [child] to the list width and [height] rows.
+View _box({required int height, required View child}) => ConstrainedBox(
+  additionalConstraints: BoxConstraints(minW: _listWidth, maxW: _listWidth, minH: height, maxH: height),
+  child: child,
+);
+
+/// Paints the open popup of each half's combobox, over the tree that page 4
+/// just rendered.
+///
+/// Call it after `frame.render` on page 4, with the same [resolver] the page
+/// was built with. Each half's popup paints through the resolver its combobox
+/// was rendered with.
+void renderStatesPopups(Model model, Frame frame, StyleResolver resolver) {
+  final states = model.states;
+  _combobox(
+    states.dialogOpen ? resolver.deEmphasised : resolver,
+    states.window.combobox,
+  ).renderPopup(frame);
+  _combobox(resolver.on(resolver.tones.surface), states.dialog.combobox).renderPopup(frame);
+}
 
 /// Gives a text input a fixed width and one row of height, since it fills the
 /// space it is given.

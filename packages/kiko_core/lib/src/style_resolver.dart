@@ -162,9 +162,10 @@ class StyleResolver {
 
   /// Resolves a [Style] by applying state layers on top of [base].
   ///
-  /// [base] is the part's resting style. When it is null the start is
-  /// `ground(groundTone)` in [PaintClass.fill] and an empty style in the
-  /// other classes. With no [states] the start comes back unchanged.
+  /// [base] is the part's resting style. When it is null the start is the
+  /// background of `ground(groundTone)` in [PaintClass.fill], with no
+  /// foreground, so the text color stays the area's; in the other classes it
+  /// is an empty style. With no [states] the start comes back unchanged.
   ///
   /// The layers apply in this order, for every class:
   ///
@@ -213,7 +214,7 @@ class StyleResolver {
     required PaintClass cls,
     Map<WidgetState, Style> slots = const {},
   }) {
-    final start = base ?? (cls == PaintClass.fill ? ground(groundTone) : const Style());
+    final start = base ?? (cls == PaintClass.fill ? Style(bg: ground(groundTone).bg) : const Style());
     return _dimOutsideColor(_applyLayers(start, states, cls, slots));
   }
 

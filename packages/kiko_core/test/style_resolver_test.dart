@@ -47,8 +47,8 @@ void main() {
       expect(resolver.resolve(own, {}, cls: PaintClass.fill), own);
     });
 
-    test('a null base with no states starts from the ground in fill and from nothing elsewhere', () {
-      expect(resolver.resolve(null, {}, cls: PaintClass.fill), resolver.ground(theme.background));
+    test("a null base with no states starts from the ground's background in fill and from nothing elsewhere", () {
+      expect(resolver.resolve(null, {}, cls: PaintClass.fill), Style(bg: theme.background.color));
       expect(resolver.resolve(null, {}, cls: PaintClass.ink), const Style());
       expect(resolver.resolve(null, {}, cls: PaintClass.wash), const Style());
     });
@@ -140,7 +140,7 @@ void main() {
 
     test('a null-base fill cursor is the ground lifted one step', () {
       final result = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
-      expect(result.fg, theme.background.on);
+      expect(result.fg, isNull, reason: "the text color stays the area's");
       expect(result.bg, ground.shiftLightness(Theme.step));
     });
 
@@ -211,11 +211,11 @@ void main() {
       expect(fill.addModifier.has(Modifier.dim), isTrue);
     });
 
-    test('disabled under the cursor keeps the cursor bar and blends the ink', () {
+    test('disabled under the cursor keeps the cursor bar and takes the disabled ink', () {
       final cursorOnly = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
       final fill = resolver.resolve(null, {WidgetState.cursor, WidgetState.disabled}, cls: PaintClass.fill);
       expect(fill.bg, cursorOnly.bg);
-      expect(fill.fg, cursorOnly.fg!.mix(ground, Theme.disabledMix));
+      expect(fill.fg, theme.disabled.color);
       expect(fill.addModifier.has(Modifier.dim), isTrue);
     });
 
@@ -500,13 +500,13 @@ void main() {
       expect(onSurface.policy, resolver.policy);
     });
 
-    test('a null fill base starts from the bound ground', () {
-      expect(onSurface.resolve(null, {}, cls: PaintClass.fill), onSurface.ground(theme.surface));
+    test("a null fill base starts from the bound ground's background", () {
+      expect(onSurface.resolve(null, {}, cls: PaintClass.fill), Style(bg: theme.surface.color));
     });
 
     test('a lift on surface starts from the surface color', () {
       final result = onSurface.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
-      expect(result.fg, theme.surface.on);
+      expect(result.fg, isNull);
       expect(result.bg, surface.shiftLightness(Theme.step));
     });
 
@@ -618,10 +618,11 @@ void main() {
       expect(disabledFill.fg, blend(theme.disabled.color!));
     });
 
-    test("the ground's own fill is not changed by the blend, its text is", () {
+    test("the ground's own background is not changed by the blend", () {
       final start = quiet.resolve(null, const {}, cls: PaintClass.fill);
       expect(start.bg, theme.background.color);
-      expect(start.fg, blend(theme.background.on));
+      expect(start.fg, isNull);
+      expect(quiet.ground(theme.background).fg, blend(theme.background.on));
     });
 
     test('resolve does not blend its base', () {

@@ -46,9 +46,9 @@ class ComboboxStyle {
 
   /// The popup list's anatomy.
   ///
-  /// With `item` and `cursorItem` both null the popup ground ([popupGround],
-  /// or the resolver's `surface`) is the row base, so the cursor and hover lift
-  /// that ground. Setting either slot keeps the list's anatomy as given.
+  /// The popup list paints through a resolver bound to the surface tone, so a
+  /// row with no `item` starts from the surface and the cursor and hover lift
+  /// it. A slot set here applies as given.
   final ListViewStyle list;
 
   /// Creates a ComboboxStyle.

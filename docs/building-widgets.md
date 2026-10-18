@@ -5,7 +5,8 @@ builds a small option picker — `PaletteModel` / `Palette` — end to end:
 keyboard first, then the mouse, then wheel scrolling. The finished program is
 `packages/kiko_widgets/example/custom_widget.dart`. It compiles under the
 package's analyzer and runs on a real terminal. Every snippet below is a slice
-of it; keep the doc and the example in sync.
+of it, except the two checkbox snippets under "One call per part". Keep the
+doc and the example in sync.
 
 Prerequisites: the layout model (`packages/plume/README.md`) and the MVU shape
 (root `README.md`). Styling has its own recipe (`docs/theming.md`); this page
@@ -93,8 +94,10 @@ class PaletteModel with ScrollableModel implements Component {
   final List<String> options;
 
   /// How many rows the viewport shows. Fixed here to keep the example small;
-  /// a production widget measures its viewport while it paints and reports
-  /// the count as a `ViewportChanged` message (see ListView's source).
+  /// a production widget measures its viewport while it paints and, when the
+  /// count differs from the one the model holds, reports it as a
+  /// `ViewportChanged` message addressed to its own hit path,
+  /// `HitTag.join(surface.scopePath, id)` (see ListView's source).
   final int viewportRows;
 
   /// The keyboard-current option.
@@ -210,17 +213,14 @@ paints one, it marks that row as a `RowRegion`:
       // kiko's cell rect to plume's geometry rect that markRegion wants.
       markRegion(RowRegion(i), rowRect.toPlume());
 
-      // Row paint layers the way the shipped widgets do: the hover wash first
-      // (weakest, background-only, so the row's own foreground survives), then
-      // the cursor fill over it. `focused` is never a row state — it means "the
-      // widget owns input" and belongs to the chrome around the widget.
-      var style = const Style();
-      if (i == m.hoverRow) {
-        style = style.patch(resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
-      }
-      if (i == m.cursor) {
-        style = style.patch(resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill));
-      }
+      // One fill call per row, carrying every state the row holds. The resolver
+      // applies them in its own order, so the row needs no second call. The
+      // cursor row bolds only while the palette owns the keyboard.
+      final style = resolver.resolve(null, {
+        if (i == m.cursor) WidgetState.cursor,
+        if (i == m.cursor && m.focused) WidgetState.focused,
+        if (i == m.hoverRow) WidgetState.hover,
+      }, cls: PaintClass.fill);
 
       fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);
       paintLine(
@@ -245,29 +245,34 @@ A `RowRegion` is a plain value class kiko_widgets shares across ListView,
 TableView and TreeView. A widget with parts of its own defines its own region
 types the same way: a value class implementing `Region`.
 
-A row paints through one `resolve` call per paint class, and `resolve`
-applies the states in a fixed order: roles, `focused`, `cursor`, `disabled`,
-`hover`, `pressed` (`docs/theming.md`). With a null base, `resolve` starts
-from the background of the resolver's ground, so a cursor row lifts the
-ground one step. The
-cursor row of a widget that owns keyboard focus passes `{cursor, focused}`:
-one lift and bold. An unfocused widget passes `{cursor}`: one lift, no bold.
-This palette passes `{cursor}` and signals focus on its border.
+A row paints through one `resolve` call with the row's full state set
+(`docs/theming.md`). With a null base and the fill class, `resolve` starts
+from the background of the resolver's ground. The cursor row lifts that ground
+one step, and a hovered row lifts it half a step.
 
-This shape avoids two mistakes. Putting `WidgetState.focused` in every
-row's state set lifts and bolds the whole widget — focus belongs on the
-chrome (a border, a title), and on the cursor row at most. Resolving hover
-as a fill instead of a wash overwrites the row's own foreground. The full
-reasoning is `docs/theming.md`.
+The cursor row of a palette that owns keyboard focus passes `{cursor, focused}`:
+one lift and bold. An unfocused palette passes `{cursor}`: one lift, no bold.
+`ListView` builds its rows the same way (`_rowStyle` in
+`packages/kiko_widgets/lib/src/widgets/list_view/list_view_view.dart`).
+
+Two mistakes to avoid. Do not put `WidgetState.focused` in every row's state
+set: that lifts and bolds the whole widget. Focus belongs on the cursor row and
+on the chrome around the widget, here the app's border. Do not resolve hover in
+a second call and patch it over the cursor look: the resolver already orders
+the two.
 
 ### One call per part
 
 Resolve each part of a widget with one `resolve` call that carries the part's
 full state set. Do not resolve a part twice and patch the results together.
 The resolver applies the states in its fixed order, so one call gives the same
-paint on every ground and under every render policy.
+paint on every ground and under every render policy. Named slots on a widget's
+style class are for base looks and role looks only, such as `item` and
+`selectedItem`. A state combination is never a slot.
 
-The checkbox mark is the sample. It resolves in one call: `selected` makes
+The shipped checkbox is the sample
+(`packages/kiko_widgets/lib/src/widgets/checkbox/check_row.dart`). Its checked
+mark resolves in one call: `selected` makes
 the mark `primary` ink, `focused` adds bold, and `disabled` fades it. An
 explicit `checkedMark` slot replaces the `selected` look and keeps its own
 color.
@@ -282,8 +287,8 @@ color.
 ```
 
 The row ground is a second part with its own state set. It is one fill call
-over the null base, which starts from the bound ground's background. Hover lifts the
-ground half a step and pressed lifts it one more step:
+over the null base, which starts from the bound ground's background. Hover
+lifts the ground half a step. Pressed lifts it one more step:
 
 ```dart
   final rowGround = resolver.resolve(null, rowStates, cls: PaintClass.fill);
@@ -331,15 +336,15 @@ Cmd? onEvent(AppModel model, WidgetEvent event) {
 The fallback keys run only on `Declined`. A future text field that consumes
 `q` as typed text therefore keeps it from ever reaching the quit line.
 
-In `view`, the chrome shows the focus; rows never do. The tag is on the
-palette's own subtree, so the app's border does not shift the palette's
-`local` coordinates:
+In `view`, the chrome shows the focus, and the cursor row bolds with it. The
+tag is on the palette's own subtree, so the app's border does not shift the
+palette's `local` coordinates:
 
 ```dart
         child: Container(
           border: BorderType.plain,
           // Focus lives on the chrome: the border lights up when the palette
-          // owns the keyboard; the rows inside only ever show cursor + hover.
+          // owns the keyboard; the cursor row inside also bolds then.
           borderStyle: resolver.border({if (model.palette.focused) WidgetState.focused}),
           topTitles: [Line(' pick a color ', style: resolver.ink(t.muted))],
           child: Palette(model: model.palette, resolver: resolver),

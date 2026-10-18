@@ -23,6 +23,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - A frame follows every processed message and `fps` is only a ceiling; nothing in the runtime polls or runs a permanent timer (`docs/architecture.md`).
 - `Tick` is one-shot and addressed: arm it with the owner's `id` and generation `key`, re-arm from the `TickMsg` case, drop a stale key (`docs/architecture.md`).
 - Paint reports a fact only when it differs from the fact the model holds; the runtime queues every report and remembers nothing between frames (`docs/architecture.md`).
+- The app owns the base: a theme always carries a background and the frame paints it; the terminal's own background enters only through `Theme.system` (`docs/theming.md`, `docs/backend.md`).
 - `Theme`, `Tone`, `StyleResolver`, `WidgetState` and `KeyBinding` live here, but the styling doctrine lives in `docs/theming.md`; touch `style_resolver.dart`, `theme.dart` or `tone.dart` only with it open.
 
 ## Documentation map

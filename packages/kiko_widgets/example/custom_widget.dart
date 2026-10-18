@@ -218,17 +218,14 @@ class _PaletteViewport extends Node {
       // kiko's cell rect to plume's geometry rect that markRegion wants.
       markRegion(RowRegion(i), rowRect.toPlume());
 
-      // Row paint layers the way the shipped widgets do: the hover wash first
-      // (weakest, background-only, so the row's own foreground survives), then
-      // the cursor fill over it. `focused` is never a row state — it means "the
-      // widget owns input" and belongs to the chrome around the widget.
-      var style = const Style();
-      if (i == m.hoverRow) {
-        style = style.patch(resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
-      }
-      if (i == m.cursor) {
-        style = style.patch(resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill));
-      }
+      // One fill call per row, carrying every state the row holds. The resolver
+      // applies them in its own order, so the row needs no second call. The
+      // cursor row bolds only while the palette owns the keyboard.
+      final style = resolver.resolve(null, {
+        if (i == m.cursor) WidgetState.cursor,
+        if (i == m.cursor && m.focused) WidgetState.focused,
+        if (i == m.hoverRow) WidgetState.hover,
+      }, cls: PaintClass.fill);
 
       fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);
       paintLine(
@@ -299,7 +296,7 @@ void view(AppModel model, Frame frame) {
         child: Container(
           border: BorderType.plain,
           // Focus lives on the chrome: the border lights up when the palette
-          // owns the keyboard; the rows inside only ever show cursor + hover.
+          // owns the keyboard; the cursor row inside also bolds then.
           borderStyle: resolver.border({if (model.palette.focused) WidgetState.focused}),
           topTitles: [Line(' pick a color ', style: resolver.ink(t.muted))],
           child: Palette(model: model.palette, resolver: resolver),

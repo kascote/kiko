@@ -27,6 +27,10 @@ ctrl/alt chords.
 
 `KeyBinding.map` canonicalizes every spec it registers, so `'shift+a'` and
 `'A'` are the same binding no matter which form a caller writes.
+The spec parser splits on `+`. A plus press is therefore spelled `plus` and
+a minus press `minus` in a binding: `'ctrl+plus'`, `'minus'`. `KeyMsg.key`
+uses the same spellings.
+
 `KeyBinding.resolve` accepts both press and repeat: a held arrow or backspace
 keeps resolving to its action for as long as it repeats. When `key` matches
 no binding, `resolve` falls back to `baseKey` — the same keystroke projected

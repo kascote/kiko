@@ -112,11 +112,22 @@ final class Combobox<T> implements View {
         style.toggle ??
         resolver.resolve(null, {
           if (model.focused) WidgetState.focused,
-          if (model.toggleHovered) WidgetState.hover,
           if (model.error) WidgetState.error,
           if (model.disabled) WidgetState.disabled,
         }, cls: PaintClass.ink);
-    return Tagged(model.toggleId, Container(width: 1, child: Line(glyph, style: toggleStyle)));
+    // The glyph is ink; the cell under it is a second part, so hover lifts it.
+    final cellGround = resolver.resolve(null, {
+      if (model.toggleHovered) WidgetState.hover,
+      if (model.disabled) WidgetState.disabled,
+    }, cls: PaintClass.fill);
+    return Tagged(
+      model.toggleId,
+      Container(
+        width: 1,
+        ground: cellGround,
+        child: Line(glyph, style: toggleStyle),
+      ),
+    );
   }
 
   /// Paints the popup as a layer on top of the already-painted [frame],

@@ -14,7 +14,7 @@ Guidance for Claude Code in `kiko_widgets` — higher-level widgets over
 - `RadioGroup` / `RadioGroupModel` — one exclusive choice among options; emits `RadioChangeEvent`; radio glyph presets on `CheckGlyphs`
 - `ScrollView` / `ScrollViewModel` — scrolls composed content (`docs/scroll-view.md`)
 - `Combobox` / `ComboboxModel` — text field with a filterable popup list, in-memory or remote (`docs/combobox.md`)
-- `ModalModel` + `modalDialog(...)` — `modalDialog` frames any content as a bordered, tagged dialog; `ModalModel` exists only for the static confirm/cancel shape. The app owns whether a modal is open; the modal itself owns the outside press and unknown keys while it stays open.
+- `ModalModel` + `modalDialog(...)` — `modalDialog` frames content from a builder, which receives the surface-bound resolver, as a bordered, tagged dialog; `ModalModel` exists only for the static confirm/cancel shape. The app owns whether a modal is open; the modal itself owns the outside press and unknown keys while it stays open.
 - `FocusRouter`, `FocusSlot`, `focusOnPress`, `routeToTarget`, `offerOutward` — focus and pointer-dispatch glue (`docs/focus-router.md`)
 
 ## Hard rules
@@ -38,6 +38,7 @@ One line each; the linked page (paths from the repo root) explains the rule.
 - Compare a measured fact with the one the model holds before reporting it; a fact the model holds is not reported, or the frame the report causes never settles (`docs/architecture.md`).
 - Wheel: decline a notch that would move nothing in its direction; consume any notch that moves at all (`docs/mouse.md`, `docs/scroll-view.md`).
 - Never paint a `Tone` directly — project it with `.ink`/`.fill`/`.wash`; route every style through `StyleResolver`; never handle NO_COLOR or ANSI-16 yourself (`docs/theming.md`).
+- A view takes a `StyleResolver` the app built once and never builds its own; a pane that sits on `surface` hands its children `resolver.on(...)` (`docs/theming.md`).
 - The keyboard-current item is `WidgetState.cursor` — never borrow `focused` or `hover` for it (`docs/theming.md`).
 - A model never holds a resolved `Style`: anatomy is a view parameter, and a column's style is a function of the resolver (`docs/theming.md`).
 - Content patches over the widget's base: hand a slot or state style to `paintLine` as `base` or through `Line.over`; never `patchStyle` it onto content (`docs/theming.md`).

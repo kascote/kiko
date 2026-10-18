@@ -175,20 +175,27 @@ A term of art added to a page gets its entry here in the same change.
   per area.
 - **anatomy** — the named parts of a widget that can be styled (`XStyle`
   classes of nullable slots).
-- **matrix** — the built-in state × class table: the style each state layer
-  contributes to each paint class (`docs/theming.md`).
+- **paint class** — how a tone lands on a part: `ink` (foreground only),
+  `fill` (foreground and background) or `wash` (background only). The call
+  site picks the class and the state picks the tone (`docs/theming.md`).
+- **matrix** — the built-in state × paint class table: the style each state
+  layer contributes to each paint class (`docs/theming.md`).
 - **state layer** — one state's contribution to the result of
   `StyleResolver.resolve`. `resolve` applies the layers in one fixed order:
-  roles (`selected`, `loading`, `error`), `focused`, `cursor`, `disabled`, `hover`, `pressed`, then
-  de-emphasis (`docs/theming.md`). Not a *layer*, which is a render pass.
+  the role states (`selected`, `loading`, `error`), `focused`, `cursor`,
+  `disabled`, `hover`, `pressed`, then de-emphasis (`docs/theming.md`). Not a
+  *layer*, which is a render pass.
 - **lift** — moving a background one lightness step away from the ground, in
   OKLab, instead of replacing it. A ground with lightness below 0.5
   lightens a background; a lighter ground darkens it. In the fill class
-  `focused`, `cursor`, `hover` and `pressed` lift; in the wash class all but
-  `focused` do (`docs/theming.md`).
+  `focused`, `cursor`, `hover` and `pressed` lift. In the wash class
+  `cursor`, `hover` and `pressed` lift (`docs/theming.md`).
 - **step** — the distance of one lift, `Theme.step`: 0.12 in OKLab
   lightness. Hover lifts half a step; `pressed` lifts one more step after
   hover.
+- **selected chrome** — a pane border, a tab underline or a checked mark in
+  its selected state. It paints in `primary` ink, plain. **Focused chrome**
+  paints in `primary` ink plus bold (`docs/theming.md`).
 - **blend** — mixing both `fg` and `bg` of a filled base toward the ground
   by a fixed amount. The `disabled` state layer blends a base that already
   carries a background, instead of swapping its foreground alone

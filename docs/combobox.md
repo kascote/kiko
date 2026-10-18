@@ -22,8 +22,9 @@ resolves there too.
 paths — `HitTag.join(id, fieldId)` and `HitTag.join(id, toggleId)` — and
 the view uses them to anchor and size the popup. Nothing else needs them:
 build a `ComboboxModel<T>` and route to it by `id`, the same as any other
-`Component`. The toggle reacts to hover — a wash on its glyph, since it has
-no background of its own — and clears on a leave.
+`Component`. The toggle tracks hover in `toggleHovered` and clears it on a
+leave. The glyph is an ink part. The cell under it is a second part, one
+fill call, so hovering the toggle lifts that cell half a step.
 
 ## Keys
 
@@ -134,8 +135,8 @@ tree; only the open one paints.
 The combobox takes the app's `StyleResolver`. The field paints through it
 unchanged. The popup paints through `resolver.on(resolver.tones.surface)`:
 its ground, border, status row and list rows all lift from the surface tone.
-The popup reads `tones.surface`, not the `Theme`'s RGB surface, so under
-ANSI-16 it paints the sixteen-color table's surface.
+The popup reads `resolver.tones.surface`, not the `Theme`'s RGB surface, so
+under ANSI-16 it paints the surface of the derived ANSI-16 table.
 
 The popup hands `ComboboxStyle.list` to its list as given. A row with no
 `item` starts from the surface, so the cursor and hover lift the surface. A
@@ -182,14 +183,14 @@ it the way it forwards one from `update`.
 
 ## Theming: `ComboboxStyle`
 
-| slot              | derived default                  | matrix source    |
-| ----------------- | --------------------------------- | ----------------- |
-| `toggle`          | inherit, focused × ink            | focused × ink     |
-| `popupGround`     | `resolver.ground(surface)`       | anatomy-specific  |
-| `popupBorder`     | `resolver.border({})`            | resting chrome    |
-| `placeholder`     | `resolver.ink(muted)`            | anatomy-specific  |
-| `field`           | the field's own derived look     | —                 |
-| `list`            | the popup list's own derived look | —                 |
+| slot              | derived default                                  |
+| ----------------- | ------------------------------------------------ |
+| `toggle`          | one ink `resolve` call with the model's states   |
+| `popupGround`     | the surface-bound resolver's `ground(surface)`   |
+| `popupBorder`     | the surface-bound resolver's `border({})`        |
+| `placeholder`     | the surface-bound resolver's `ink(muted)`        |
+| `field`           | the field's own derived look                     |
+| `list`            | the popup list's own derived look                |
 
 A `null` slot derives from the theme by the rule above; a non-null slot is
 the caller's exact style and wins verbatim (`docs/theming.md`). `placeholder`

@@ -95,11 +95,11 @@ void main() {
       expect(_cellAt(open.buffer, 9, 0), '▴');
     });
 
-    test('the toggle glyph is an ink part, so hovering it paints no wash', () {
+    test('hovering the toggle lifts its cell half a step and keeps the glyph ink', () {
       final resting = _frame(10, 1)..render(Combobox(model: _fruitBox(), resolver: _resolver));
       final hovered = _frame(10, 1)..render(Combobox(model: _fruitBox()..toggleHovered = true, resolver: _resolver));
 
-      expect(hovered.buffer[(x: 9, y: 0)].bg, equals(resting.buffer[(x: 9, y: 0)].bg));
+      expect(hovered.buffer[(x: 9, y: 0)].bg, equals(Theme.dark.background.color!.shiftLightness(Theme.step / 2)));
       expect(hovered.buffer[(x: 9, y: 0)].fg, equals(resting.buffer[(x: 9, y: 0)].fg));
     });
 

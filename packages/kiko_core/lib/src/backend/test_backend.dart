@@ -4,6 +4,7 @@ import 'package:plume/plume.dart' show TextMeasurer;
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../buffer.dart';
+import '../colors.dart';
 import '../layout/position.dart';
 import '../layout/rect.dart';
 import '../layout/size.dart';
@@ -115,12 +116,12 @@ class TestBackend implements Backend {
   @override
   bool supportsKeyboardEnhancement = false;
 
-  /// Whether the startup probe should report a dark background. Defaults to
+  /// The background color the startup probe should report. Defaults to
   /// `null`, so a test that never touches this keeps today's plain behavior;
-  /// set it to `true`/`false` before handing this backend to an `Application`
-  /// to simulate a terminal that answered the background-color query.
+  /// set it before handing this backend to an `Application` to simulate a
+  /// terminal that answered the background-color query.
   @override
-  bool? hasDarkBackground;
+  Color? backgroundColor;
 
   /// Whether bracketed paste is enabled.
   bool bracketedPaste = false;
@@ -152,6 +153,7 @@ class TestBackend implements Backend {
     TermSize size = const TermSize(80, 24),
     this.profile = ColorProfile.trueColor,
     TextMeasurer measurer = const TermUnicodeMeasurer(),
+    this.backgroundColor,
   }) : _size = size,
        _measurer = measurer {
     screen = Buffer.empty(_areaOf(size), measurer: measurer);

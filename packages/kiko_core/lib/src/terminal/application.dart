@@ -331,7 +331,7 @@ class Application {
 
     // Send InitMsg, process, draw the first frame.
     final initCtx = UpdateContext(hits: runtime.lastHitMap, area: terminal.viewportArea);
-    var (model, initCmd) = update(init, InitMsg(hasDarkBackground: terminal.backend.hasDarkBackground), initCtx);
+    var (model, initCmd) = update(init, InitMsg(backgroundColor: terminal.backend.backgroundColor), initCtx);
     if (runtime.processCmd(initCmd)) return runtime.exitCode;
     await draw(model);
     runtime.flushStartupEvents();

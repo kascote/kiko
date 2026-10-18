@@ -198,6 +198,10 @@ A term of art added to a page gets its entry here in the same change.
   the ground by `Theme.deEmphasis`, or adds dim under ANSI-16 and NO_COLOR.
   A pane that is present but not in use is de-emphasised. It is never a
   `WidgetState` (`docs/theming.md`).
+- **derived theme** — a theme whose `border`, `muted` and `disabled` rungs
+  were checked against `background` and `surface` and, where one missed its
+  target, replaced by `deriveTheme`. A role color is never replaced; a
+  failing one is listed in the `DerivationReport` (`docs/theming.md`).
 - **tier** — one of three levels of color fidelity a style degrades
   through: full RGB, the named ANSI-16 table, NO_COLOR modifiers
   (`docs/theming.md`). The word is reserved for this meaning.

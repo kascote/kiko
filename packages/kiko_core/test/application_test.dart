@@ -110,47 +110,31 @@ void main() {
     });
   });
 
-  group('hasDarkBackground', () {
-    test('threads a dark answer from the backend into InitMsg', () async {
-      backend.hasDarkBackground = true;
-      bool? seen;
+  group('backgroundColor', () {
+    test('threads the probed color from the backend into InitMsg', () async {
+      backend.backgroundColor = const Color.rgb(0x112233);
+      Color? seen;
 
       await runApp(
         Application(backend: backend),
         update: (model, msg, _) {
-          if (msg is InitMsg) seen = msg.hasDarkBackground;
+          if (msg is InitMsg) seen = msg.backgroundColor;
           return (model, msg is InitMsg ? const Quit() : null);
         },
       );
 
-      expect(seen, isTrue);
-    });
-
-    test('threads a light answer from the backend into InitMsg', () async {
-      backend.hasDarkBackground = false;
-      bool? seen;
-
-      await runApp(
-        Application(backend: backend),
-        update: (model, msg, _) {
-          if (msg is InitMsg) seen = msg.hasDarkBackground;
-          return (model, msg is InitMsg ? const Quit() : null);
-        },
-      );
-
-      expect(seen, isFalse);
+      expect(seen, const Color.rgb(0x112233));
     });
 
     test('threads an unanswered probe into InitMsg as null', () async {
-      backend.hasDarkBackground = null;
       var seenCount = 0;
-      bool? seen;
+      Color? seen;
 
       await runApp(
         Application(backend: backend),
         update: (model, msg, _) {
           if (msg is InitMsg) {
-            seen = msg.hasDarkBackground;
+            seen = msg.backgroundColor;
             seenCount++;
           }
           return (model, msg is InitMsg ? const Quit() : null);

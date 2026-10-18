@@ -50,6 +50,7 @@ export 'src/text/line.dart';
 export 'src/text/styled_char.dart';
 export 'src/text/text.dart';
 export 'src/theme.dart';
+export 'src/theme_derive.dart' show ContrastTargets, DerivationReport, KeptFailure, RungChange, deriveTheme;
 export 'src/tone.dart';
 export 'src/widget_state.dart';
 export 'src/widgets/border_type.dart';

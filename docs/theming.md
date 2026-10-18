@@ -121,8 +121,8 @@ static const dark = Theme(
   primary:    SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
   background: SurfaceTone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
   surface:    SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
-  border:     Tone(color: Color.rgb(0x30363d)),
-  muted:      Tone(color: Color.rgb(0x6e7681)),
+  border:     Tone(color: Color.rgb(0x343a41)),
+  muted:      Tone(color: Color.rgb(0x7b838e)),
   selection:  SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
   ...
 );
@@ -142,9 +142,11 @@ far a de-emphasised part moves toward its ground. See "States" and
 
 ### Shipped themes
 
-Every shipped theme is a dark theme. The palette themes use only colors
+Every shipped theme is a dark theme. The palette themes take their colors
 from their source palette, and each takes the palette's darkest variant
-and darkest background; each doc comment in
+and darkest background. The three neutral rungs `border`, `muted` and
+`disabled` are palette grays moved in lightness where the palette's own gray
+failed its target (see "Deriving a theme"). Each doc comment in
 `packages/kiko_core/lib/src/theme.dart` records how the palette's roles map
 onto the tones.
 
@@ -175,27 +177,82 @@ reads. Space the ladder in this order, darkest first on a dark theme:
 apart from `background` and from `surface`, because a selected row lifts
 from the selection color by one step under the cursor.
 
-Check each rung against `background` with `Color.contrastRatio`:
+Check each rung against `background` and against `surface` with
+`Color.contrastRatio`. The targets are constants on `ContrastTargets`:
 
 | rung                | target                                                |
 | ------------------- | ----------------------------------------------------- |
 | `muted`             | at least 4.5:1, it is text                            |
 | `disabled`          | at least 3:1 before the resolver adds dim             |
 | `surface`           | visibly apart from `background`                       |
-| `border`            | readable on `background` and on `surface`             |
+| `border`            | at least 1.5:1                                        |
 
-The `border` rule matters because chrome lands on both grounds: a dialog
-draws its border on `surface`, a pane draws it on `background`. A border
-that only reads on one of them vanishes on the other.
+Each rung must meet its target on both grounds. Chrome lands on both: a
+dialog draws its border on `surface`, a pane draws it on `background`. A
+border that only reads on one of them vanishes on the other.
 
 A monochrome theme has one hue, so brightness is the only separator. Author
 it the way the ANSI-16 tables do: collapse tones on purpose, and lean on
 the matrix modifiers (bold, dim, reversed) to keep the states distinct.
 
-A palette theme takes its colors from the palette as they are, so a rung
-can miss a target; that is the palette's choice, not a bug. The contrast
-page of the theme viewer (`packages/kiko_widgets/example/theme_viewer`,
-F4) prints every rung's ratio and is the check for a new theme.
+A palette theme takes its role colors from the palette as they are. The
+palette's grays can still miss a rung target; `deriveTheme` fixes those.
+The contrast page of the theme viewer
+(`packages/kiko_widgets/example/theme_viewer`, F4) prints every rung's ratio
+and is the check for a new theme.
+
+### Deriving a theme
+
+`deriveTheme(theme)` returns a record `(Theme, DerivationReport)`. Call it
+on a theme you build. The framework never calls it for you.
+
+The derived theme keeps every role color as published: the grounds, the
+text, the intents and the selection. It recomputes only `border`, `muted`
+and `disabled`, and only a rung that misses its target on `background` or on
+`surface`. The new color keeps the rung's hue and chroma. Its OKLab
+lightness moves away from `background`, in steps of 0.005, until the rung
+meets the target on both grounds. When black or white is reached first, the
+rung keeps the best color found, and the report shows the ratio it reached.
+A theme whose rungs all pass comes back equal to the input, so
+`deriveTheme` applied twice gives the same theme as applied once.
+
+A role color that fails a check is reported and never changed. A palette
+owns its role colors. The checks are:
+
+- each role's `on` against its own color, at 4.5:1 (`primary`, `secondary`,
+  `accent`, `error`, `warning`, `success`, `selection`);
+- each intent color as ink against `background`, `surface` and `selection`,
+  at 3:1.
+
+`DerivationReport` has two lists. `changes` holds one `RungChange` per
+replaced rung: its name, the old and new color, the grounds that failed and
+the ratios before and after. `leftAlone` holds one `KeptFailure` per failing
+role check: its name, the check, the ratio and the target. `hasChanges` says
+whether any rung changed. `toString()` prints both lists, one line each.
+
+Every shipped theme is stored already derived: `deriveTheme` returns it
+unchanged with an empty `changes` list. Its `leftAlone` list is not empty for
+most themes, because the palettes publish role colors such as a red that
+reads weakly on the selection fill.
+
+### The system theme
+
+`Theme.system(background)` builds a theme on the terminal's own background.
+Pass it `InitMsg.backgroundColor`, the color the startup probe found
+(`docs/backend.md`). Build it in the `InitMsg` case of `update`.
+
+The result starts from `Theme.dark`'s hues. The probed color is the
+background. The surface is the background moved one `Theme.step` in lightness:
+lighter on a dark background, darker on a light one. The text and each
+intent color move in lightness until they read at 4.5:1 on both grounds. The
+`on` of each intent is whichever of the background and the text reads better
+on it. The selection keeps `Theme.dark`'s hue and sits two steps from the
+background. Then `deriveTheme` fixes the three rungs. `Theme.system` drops
+that report; call `deriveTheme` on the result to read it.
+
+A system theme is not a chosen palette, so its intent colors may move far
+from `Theme.dark`'s. It carries no ANSI-16 table, so that tier derives one.
+A `null` background, from a terminal that never answered, gives `Theme.dark`.
 
 ## Projections
 
@@ -758,17 +815,19 @@ first frame and sets it on `StyleResolver.defaultPolicy`. Every
 style through the resolver and a selected row stays visible however far its
 color is stripped.
 
-## Picking dark or light at startup
+## Picking a theme at startup
 
 Choosing which `Theme` to render is a different question from the color
 tier, and it is the app's call. Kiko never switches a theme on its own. The
-startup capability probe reports the terminal's background as a tri-state
-on `InitMsg.hasDarkBackground` (mirrored on `Backend.hasDarkBackground`):
-`true` for dark, `false` for light, `null` when the terminal never
-answered. Treat `null` as dark; most terminal defaults are. A typical app
-reads it once, in `update` on the first `InitMsg`, and picks its starting
-theme. Every shipped theme is dark; an app that wants a light theme authors
-one (see "Authoring a theme" above) and picks it here.
+startup capability probe reports the terminal's background color on
+`InitMsg.backgroundColor` (mirrored on `Backend.backgroundColor`), or `null`
+when the terminal never answered.
+
+An app that wants its own look ignores the color and picks a theme, such as
+`Theme.nord`. An app that wants the terminal's look reads the color once, in
+`update` on the first `InitMsg`, and builds `Theme.system(msg.backgroundColor)`.
+A `null` color gives `Theme.dark`. Every shipped theme is dark; an app that
+wants a fixed light theme authors one (see "Authoring a theme" above).
 
 ## Which knob serves which user
 

@@ -1,6 +1,5 @@
 import 'package:kiko/kiko.dart';
 import 'package:meta/meta.dart';
-import 'package:termlib/color_util.dart' as tl;
 import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
 
@@ -279,16 +278,16 @@ class TermlibBackend implements Backend {
   @override
   bool get supportsKeyboardEnhancement => _term.termInfo?.keyboardCapabilities is tl.Supported<tl.KeyboardFlags>;
 
-  /// Whether the startup probe ([init]) found the terminal's background dark.
+  /// The terminal's background color, as the startup probe ([init]) found it.
   ///
   /// Reads the background color [tl.InteractiveTerm.termInfo] cached from the
   /// same batched probe (OSC 11), already queried for other startup facts, so
   /// this adds no round-trip. Reads as unanswered (`null`) before [init]
   /// runs, the same as a terminal that never replied.
   @override
-  bool? get hasDarkBackground {
+  Color? get backgroundColor {
     final info = _term.termInfo;
-    return info == null ? null : isDarkBackground(info.backgroundColor);
+    return info == null ? null : probedColor(info.backgroundColor);
   }
 
   /// Enables bracketed paste, so a paste arrives as one paste event.
@@ -331,13 +330,13 @@ tl.Color _toTlColor(Color color) => switch (color.kind) {
   ColorKind.indexed => tl.Color.indexed(color.value),
 };
 
-/// Thresholds a background-color probe [result] into a dark/light verdict.
+/// Maps a color-probe [result] to a Kiko RGB [Color].
 ///
 /// `null` when the terminal never answered, or answered with a color that
 /// is not RGB (the OSC 11 probe only ever produces RGB, so this branch is
 /// defensive rather than expected in practice).
 @visibleForTesting
-bool? isDarkBackground(tl.QueryResult<tl.Color> result) => switch (result) {
-  tl.Supported(:final value) when value.kind == tl.ColorKind.rgb => tl.colorLuminance(value) < 0.5,
+Color? probedColor(tl.QueryResult<tl.Color> result) => switch (result) {
+  tl.Supported(:final value) when value.kind == tl.ColorKind.rgb => Color.rgb(value.value),
   _ => null,
 };

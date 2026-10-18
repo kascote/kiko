@@ -1,6 +1,7 @@
 import 'package:termparser/termparser_events.dart' as evt;
 
 import '../buffer.dart';
+import '../colors.dart';
 import '../layout/position.dart';
 import '../layout/size.dart';
 
@@ -154,16 +155,15 @@ abstract interface class Backend {
   /// only ever say no.
   bool get supportsKeyboardEnhancement;
 
-  /// Whether the startup probe found the terminal's background dark.
+  /// The terminal's background color, as the startup probe found it.
   ///
   /// Reads the background color the probe already queried (OSC 11), part of
   /// the same batched round-trip as every other startup capability check —
-  /// this adds no query of its own. `true` means dark, `false` means light,
-  /// `null` means the terminal never answered; a backend that never probed a
-  /// real terminal can only ever say `null`. Kiko never picks a theme from
-  /// this itself — an app that wants light/dark switching reads it and
-  /// decides.
-  bool? get hasDarkBackground;
+  /// this adds no query of its own. `null` means the terminal never answered;
+  /// a backend that never probed a real terminal can only ever say `null`.
+  /// Kiko never picks a theme from this itself. An app that wants the
+  /// terminal's own look passes it to `Theme.system`.
+  Color? get backgroundColor;
 
   /// Enables bracketed paste, so a paste arrives as one paste event.
   void enableBracketedPaste();

@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'ansi16_tones.dart';
 import 'colors.dart';
+import 'theme_derive.dart';
 import 'tone.dart';
 
 /// A theme is a small, fixed set of [Tone]s — color identities the whole app
@@ -163,6 +164,9 @@ class Theme implements ToneSet {
   static const double disabledMix = 0.5;
 
   /// Kiko Dark theme - deep slate base with muted warm accents.
+  ///
+  /// The three neutral rungs `border`, `muted` and `disabled` read on both the
+  /// background and the surface (`deriveTheme`).
   static const Theme dark = Theme(
     name: 'Kiko Dark',
     primary: SurfaceTone(color: Color.rgb(0x58a6b0), on: Color.rgb(0x0d1117)),
@@ -173,9 +177,9 @@ class Theme implements ToneSet {
     success: SurfaceTone(color: Color.rgb(0x6aab73), on: Color.rgb(0x0d1117)),
     background: SurfaceTone(color: Color.rgb(0x0d1117), on: Color.rgb(0xc9d1d9)),
     surface: SurfaceTone(color: Color.rgb(0x161b22), on: Color.rgb(0xc9d1d9)),
-    border: Tone(color: Color.rgb(0x30363d)),
-    muted: Tone(color: Color.rgb(0x6e7681)),
-    disabled: Tone(color: Color.rgb(0x484f58)),
+    border: Tone(color: Color.rgb(0x343a41)),
+    muted: Tone(color: Color.rgb(0x7b838e)),
+    disabled: Tone(color: Color.rgb(0x5f6770)),
     selection: SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
     // This table is the reference for how every built-in theme picks its
     // ANSI-16 pairs; new themes should copy this pattern rather than the
@@ -298,12 +302,13 @@ class Theme implements ToneSet {
 
   /// Gruvbox dark - retro-groove pastels on a warm dark-gray base.
   ///
-  /// Every color is a Gruvbox dark-mode palette entry. The bright variants
+  /// Every color but `muted` is a Gruvbox dark-mode palette entry. The bright variants
   /// carry the intents (orange primary, blue secondary, purple accent, red,
   /// yellow, green) with the hard-contrast `bg0_h` as their
   /// text; the neutrals climb `bg0_h` → `bg0` → `bg2` → `bg3`, with `bg0_h`
   /// as the ground and `bg0` as the raised surface, and the two text ranks
-  /// are `gray` and `bg4`.
+  /// are `gray` and `bg4`. `muted` is `gray` lightened until it reads on both
+  /// grounds (`deriveTheme`).
   static const Theme gruvbox = Theme(
     name: 'Gruvbox',
     primary: SurfaceTone(color: Color.rgb(0xfe8019), on: Color.rgb(0x1d2021)),
@@ -315,7 +320,7 @@ class Theme implements ToneSet {
     background: SurfaceTone(color: Color.rgb(0x1d2021), on: Color.rgb(0xebdbb2)),
     surface: SurfaceTone(color: Color.rgb(0x282828), on: Color.rgb(0xebdbb2)),
     border: Tone(color: Color.rgb(0x504945)),
-    muted: Tone(color: Color.rgb(0x928374)),
+    muted: Tone(color: Color.rgb(0x9b8c7d)),
     disabled: Tone(color: Color.rgb(0x7c6f64)),
     selection: SurfaceTone(color: Color.rgb(0x665c54), on: Color.rgb(0xfbf1c7)),
     // Follows the pattern documented on [dark]'s table. Orange primary takes
@@ -341,7 +346,9 @@ class Theme implements ToneSet {
   /// Monokai Pro - the default (dark) filter: vivid accents on a muted
   /// plum-gray base.
   ///
-  /// Every color is a Monokai Pro palette entry. The six accents carry the
+  /// Every color but `border` and `disabled` is a Monokai Pro palette entry;
+  /// those two are palette grays lightened until they read on both grounds
+  /// (`deriveTheme`). The six accents carry the
   /// intents (blue primary, purple secondary, orange accent, red, yellow,
   /// green) with the base background as their text; `dark1` is the raised
   /// surface, and the `dimmed` ramp supplies border, selection, and the two
@@ -356,9 +363,9 @@ class Theme implements ToneSet {
     success: SurfaceTone(color: Color.rgb(0xa9dc76), on: Color.rgb(0x2d2a2e)),
     background: SurfaceTone(color: Color.rgb(0x2d2a2e), on: Color.rgb(0xfcfcfa)),
     surface: SurfaceTone(color: Color.rgb(0x221f22), on: Color.rgb(0xfcfcfa)),
-    border: Tone(color: Color.rgb(0x403e41)),
+    border: Tone(color: Color.rgb(0x484649)),
     muted: Tone(color: Color.rgb(0x939293)),
-    disabled: Tone(color: Color.rgb(0x727072)),
+    disabled: Tone(color: Color.rgb(0x757375)),
     selection: SurfaceTone(color: Color.rgb(0x5b595c), on: Color.rgb(0xfcfcfa)),
     // Follows the pattern documented on [dark]'s table. Orange accent takes
     // brightRed, the orange stand-in.
@@ -380,14 +387,14 @@ class Theme implements ToneSet {
 
   /// Nord - arctic, bluish pastels on a dark blue-gray base.
   ///
-  /// Every color is a Nord palette entry, placed by the palette's own role
-  /// guide: Polar Night `nord0` → `nord1` → `nord2` → `nord3` for ground,
-  /// surface, border, and selection; Snow Storm `nord4` as text; Frost
-  /// `nord8` as primary; Aurora for the intents. Nord
-  /// has no mid gray, so muted text takes `nord3` brightened
-  /// (`#616e88`, the comment color of the palette's own Vim port) and
-  /// disabled text takes `nord3` itself, which also fills selection. Error
-  /// takes `nord6` as its text; `nord0` reads too faintly on `nord11`.
+  /// Every color but the three neutral rungs is a Nord palette entry, placed
+  /// by the palette's own role guide: Polar Night `nord0` → `nord1` →
+  /// `nord3` for ground, surface, and selection; Snow Storm `nord4` as text;
+  /// Frost `nord8` as primary; Aurora for the intents. Nord has no mid
+  /// gray, so `border`, `muted` and `disabled` start from Polar Night
+  /// (`nord2`, the Vim port's comment color `#616e88`, and `nord3`) and are
+  /// lightened until they read on both grounds (`deriveTheme`). Error takes
+  /// `nord6` as its text; `nord0` reads too faintly on `nord11`.
   static const Theme nord = Theme(
     name: 'Nord',
     primary: SurfaceTone(color: Color.rgb(0x88c0d0), on: Color.rgb(0x2e3440)),
@@ -398,9 +405,9 @@ class Theme implements ToneSet {
     success: SurfaceTone(color: Color.rgb(0xa3be8c), on: Color.rgb(0x2e3440)),
     background: SurfaceTone(color: Color.rgb(0x2e3440), on: Color.rgb(0xd8dee9)),
     surface: SurfaceTone(color: Color.rgb(0x3b4252), on: Color.rgb(0xd8dee9)),
-    border: Tone(color: Color.rgb(0x434c5e)),
-    muted: Tone(color: Color.rgb(0x616e88)),
-    disabled: Tone(color: Color.rgb(0x4c566a)),
+    border: Tone(color: Color.rgb(0x535d6f)),
+    muted: Tone(color: Color.rgb(0xa1afcb)),
+    disabled: Tone(color: Color.rgb(0x828da3)),
     selection: SurfaceTone(color: Color.rgb(0x4c566a), on: Color.rgb(0xeceff4)),
     // Follows the pattern documented on [dark]'s table. Frost primary is
     // cyan; orange accent takes brightRed, the orange stand-in.
@@ -423,12 +430,13 @@ class Theme implements ToneSet {
   /// Tokyo Night - the night variant: neon-tinted pastels on a deep
   /// blue-black base.
   ///
-  /// Every color is a Tokyo Night palette entry. The seven hues carry the
+  /// Every color but the two text ranks is a Tokyo Night palette entry. The seven hues carry the
   /// intents (blue primary, magenta secondary, orange accent, red, yellow,
   /// green) with the darkest background as their text; the
   /// ground is `bg_dark1`, the raised surface is `bg`, `fg_gutter` is the
   /// border, `blue7` fills selection, and `dark5` and `comment` are the
-  /// two text ranks.
+  /// two text ranks, both lightened until they read on both grounds
+  /// (`deriveTheme`).
   static const Theme tokyoNight = Theme(
     name: 'Tokyo Night',
     primary: SurfaceTone(color: Color.rgb(0x7aa2f7), on: Color.rgb(0x0c0e14)),
@@ -440,8 +448,8 @@ class Theme implements ToneSet {
     background: SurfaceTone(color: Color.rgb(0x0c0e14), on: Color.rgb(0xc0caf5)),
     surface: SurfaceTone(color: Color.rgb(0x1a1b26), on: Color.rgb(0xc0caf5)),
     border: Tone(color: Color.rgb(0x3b4261)),
-    muted: Tone(color: Color.rgb(0x737aa2)),
-    disabled: Tone(color: Color.rgb(0x565f89)),
+    muted: Tone(color: Color.rgb(0x7a81aa)),
+    disabled: Tone(color: Color.rgb(0x5c658f)),
     selection: SurfaceTone(color: Color.rgb(0x394b70), on: Color.rgb(0xc0caf5)),
     // Follows the pattern documented on [dark]'s table. Blue primary and
     // the blue-tinted selection share plain blue — an accepted collapse. Orange
@@ -464,12 +472,14 @@ class Theme implements ToneSet {
 
   /// One Dark - Atom's default: soft syntax hues on a cool charcoal base.
   ///
-  /// Every color is an Atom One Dark entry. The syntax hues carry the
+  /// Every color but the border and the two quieter text ranks is an Atom One Dark entry. The syntax hues carry the
   /// intents (blue primary, purple secondary, orange accent, red, yellow,
   /// green), all with the darkest UI
   /// level as their text; the ground is that darkest level, the raised
-  /// surface is the editor background, the selection color is both border
-  /// and selection, and the three `mono` grays are the text ranks.
+  /// surface is the editor background, the selection color is the selection,
+  /// and the three `mono` grays are the text ranks. The border and the two
+  /// quieter text ranks are lightened until they read on both grounds
+  /// (`deriveTheme`).
   static const Theme oneDark = Theme(
     name: 'One Dark',
     primary: SurfaceTone(color: Color.rgb(0x61afef), on: Color.rgb(0x21252b)),
@@ -480,9 +490,9 @@ class Theme implements ToneSet {
     success: SurfaceTone(color: Color.rgb(0x98c379), on: Color.rgb(0x21252b)),
     background: SurfaceTone(color: Color.rgb(0x21252b), on: Color.rgb(0xabb2bf)),
     surface: SurfaceTone(color: Color.rgb(0x282c34), on: Color.rgb(0xabb2bf)),
-    border: Tone(color: Color.rgb(0x3e4451)),
-    muted: Tone(color: Color.rgb(0x828997)),
-    disabled: Tone(color: Color.rgb(0x5c6370)),
+    border: Tone(color: Color.rgb(0x414754)),
+    muted: Tone(color: Color.rgb(0x8c94a2)),
+    disabled: Tone(color: Color.rgb(0x6e7683)),
     selection: SurfaceTone(color: Color.rgb(0x3e4451), on: Color.rgb(0xabb2bf)),
     // Follows the pattern documented on [dark]'s table. Blue primary and
     // the gray selection share plain blue — an accepted collapse.
@@ -504,13 +514,14 @@ class Theme implements ToneSet {
 
   /// Dracula - vivid candy hues on a dark purple-gray base.
   ///
-  /// Every color is a Dracula palette entry. The seven hues carry the
+  /// Every color but the three neutral rungs is a Dracula palette entry. The seven hues carry the
   /// intents (purple primary, pink secondary, orange accent, red, yellow,
   /// green) with the darkest background as their text; the
   /// ground is that darkest background, the raised surface is the editor
-  /// background, `comment` is muted text, and the selection color is both
-  /// disabled text and the selection fill, since the palette has no gray
-  /// between the two.
+  /// background, `comment` is muted text, and the selection color is the
+  /// selection fill. The palette has no gray for chrome, so `border`, `muted`
+  /// and `disabled` start from its grays and are lightened until they read on
+  /// both grounds (`deriveTheme`).
   static const Theme dracula = Theme(
     name: 'Dracula',
     primary: SurfaceTone(color: Color.rgb(0xbd93f9), on: Color.rgb(0x191a21)),
@@ -521,9 +532,9 @@ class Theme implements ToneSet {
     success: SurfaceTone(color: Color.rgb(0x50fa7b), on: Color.rgb(0x191a21)),
     background: SurfaceTone(color: Color.rgb(0x191a21), on: Color.rgb(0xf8f8f2)),
     surface: SurfaceTone(color: Color.rgb(0x282a36), on: Color.rgb(0xf8f8f2)),
-    border: Tone(color: Color.rgb(0x343746)),
-    muted: Tone(color: Color.rgb(0x6272a4)),
-    disabled: Tone(color: Color.rgb(0x44475a)),
+    border: Tone(color: Color.rgb(0x424555)),
+    muted: Tone(color: Color.rgb(0x7f90c4)),
+    disabled: Tone(color: Color.rgb(0x6f7287)),
     selection: SurfaceTone(color: Color.rgb(0x44475a), on: Color.rgb(0xf8f8f2)),
     // Follows the pattern documented on [dark]'s table. Purple primary is
     // magenta and pink secondary is brightMagenta; orange accent takes
@@ -547,13 +558,14 @@ class Theme implements ToneSet {
   /// Solarized Dark - Ethan Schoonover's low-contrast palette on a deep
   /// teal-black base.
   ///
-  /// Every color is a Solarized entry. The accents carry the intents (blue
+  /// Every color but muted and disabled is a Solarized entry. The accents carry the intents (blue
   /// primary, violet secondary, magenta accent, red, yellow, green);
   /// each takes `base03` or `base3` as its text, whichever reads
   /// better on it. The neutral ladder is `base03` ground, `base02` surface,
   /// `base01` border and selection, then `base00`, `base0`, and `base1` as
   /// disabled, muted, and default text, so the three text ranks stay
-  /// apart.
+  /// apart. Muted and disabled are lightened slightly until they read on both
+  /// grounds (`deriveTheme`).
   static const Theme solarized = Theme(
     name: 'Solarized Dark',
     primary: SurfaceTone(color: Color.rgb(0x268bd2), on: Color.rgb(0x002b36)),
@@ -565,8 +577,8 @@ class Theme implements ToneSet {
     background: SurfaceTone(color: Color.rgb(0x002b36), on: Color.rgb(0x93a1a1)),
     surface: SurfaceTone(color: Color.rgb(0x073642), on: Color.rgb(0x93a1a1)),
     border: Tone(color: Color.rgb(0x586e75)),
-    muted: Tone(color: Color.rgb(0x839496)),
-    disabled: Tone(color: Color.rgb(0x657b83)),
+    muted: Tone(color: Color.rgb(0x8a9c9e)),
+    disabled: Tone(color: Color.rgb(0x687e86)),
     selection: SurfaceTone(color: Color.rgb(0x586e75), on: Color.rgb(0xfdf6e3)),
     // Follows the pattern documented on [dark]'s table. Violet secondary is
     // magenta and the magenta accent is brightMagenta; blue primary and the
@@ -586,6 +598,22 @@ class Theme implements ToneSet {
       selection: SurfaceTone(color: Color.blue, on: Color.white),
     ),
   );
+
+  /// A theme that sits on the terminal's own background.
+  ///
+  /// Pass the color the startup probe found (`InitMsg.backgroundColor`). The
+  /// result keeps [dark]'s hues and moves each text and intent color in
+  /// lightness until it reads at 4.5:1 on both the background and the surface.
+  /// The surface is the background shifted one [step], lighter on a dark
+  /// background and darker on a light one. The selection keeps [dark]'s hue and
+  /// sits two steps from the background. Then the result goes through
+  /// [deriveTheme], so `border`, `muted` and `disabled` read too.
+  ///
+  /// A `null` [background], from a terminal that never answered, gives [dark].
+  /// The report of the final derivation is dropped; call [deriveTheme] on the
+  /// result to read it. The theme carries no [tones16], so the ANSI-16 tier
+  /// derives one.
+  static Theme system(Color? background) => deriveSystemTheme(background);
 
   /// Creates a copy of this theme with the given tones replaced.
   ///

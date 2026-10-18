@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 import 'package:termparser/termparser_events.dart' as evt;
 
+import '../colors.dart';
 import '../widgets/hit_map.dart';
 import 'addressed.dart';
 import 'pointer_msg.dart';
@@ -271,14 +272,14 @@ class PasteMsg extends Msg {
 /// Allows update function to return initial commands (fetch data, start timer).
 class InitMsg extends Msg {
   /// Creates an InitMsg.
-  const InitMsg({this.hasDarkBackground});
+  const InitMsg({this.backgroundColor});
 
-  /// Whether the startup probe found the terminal's background dark.
+  /// The terminal's background color, as the startup probe found it.
   ///
-  /// `true` means dark, `false` means light, `null` means the terminal never
-  /// answered — treat `null` as dark by convention. Kiko never picks a theme
-  /// from this itself; the app reads it and decides.
-  final bool? hasDarkBackground;
+  /// `null` means the terminal never answered. Kiko never picks a theme from
+  /// this itself. An app that wants the terminal's own look builds one with
+  /// `Theme.system(msg.backgroundColor)`.
+  final Color? backgroundColor;
 }
 
 /// The one message a `Tick` command delivers, after its interval.

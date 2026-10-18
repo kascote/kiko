@@ -1,4 +1,4 @@
-import 'package:kiko/kiko.dart' show Cell;
+import 'package:kiko/kiko.dart' show Cell, Color;
 import 'package:kiko/src/backend/termlib_backend.dart';
 import 'package:termlib/termlib.dart' as tl;
 import 'package:termparser/termparser_events.dart' as tle;
@@ -100,29 +100,23 @@ void main() {
     });
   });
 
-  group('isDarkBackground', () {
-    test('a near-black RGB answer reads as dark', () {
-      final result = tl.Supported(tl.Color.fromRGB(0x000000));
+  group('probedColor', () {
+    test('an RGB answer maps to the same Kiko RGB color', () {
+      final result = tl.Supported(tl.Color.fromRGB(0x123456));
 
-      expect(isDarkBackground(result), isTrue);
-    });
-
-    test('a near-white RGB answer reads as light', () {
-      final result = tl.Supported(tl.Color.fromRGB(0xFFFFFF));
-
-      expect(isDarkBackground(result), isFalse);
+      expect(probedColor(result), const Color.rgb(0x123456));
     });
 
     test('an unavailable answer is null', () {
       const result = tl.Unavailable<tl.Color>(tl.UnavailableReason.timeout);
 
-      expect(isDarkBackground(result), isNull);
+      expect(probedColor(result), isNull);
     });
 
     test('a non-RGB answer is null, defensively', () {
       final result = tl.Supported(tl.Color.indexed(4));
 
-      expect(isDarkBackground(result), isNull);
+      expect(probedColor(result), isNull);
     });
   });
 }

@@ -78,6 +78,22 @@ terminal. The reason: termlib writes through `dart:io` `stdout`'s async
 buffer, and an app-side `exit()` right after `run()` could otherwise truncate
 the terminal-restore bytes the backend just wrote.
 
+## The startup probe
+
+`Backend.init()` runs one batched capability probe: terminal version, keyboard
+support, synchronized output and the terminal's colors. The backend maps the
+answers to kiko types and exposes them as getters. No termlib type crosses
+the seam.
+
+`Backend.backgroundColor` is the terminal's background color as a kiko
+`Color`, or `null` when the terminal never answered. `Application` copies it
+into `InitMsg.backgroundColor`. Kiko never picks a theme from it. An app that
+wants the terminal's own look passes it to `Theme.system`
+(`docs/theming.md`).
+
+`TestBackend` takes `backgroundColor` as a constructor argument and as a
+settable field, so a test can simulate an answering terminal.
+
 ## Resize events
 
 A window resize reaches `update` as a `ResizeMsg`: `width` and `height` in

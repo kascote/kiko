@@ -202,6 +202,10 @@ The contrast page of the theme viewer
 (`packages/kiko_widgets/example/theme_viewer`, F4) prints every rung's ratio
 and is the check for a new theme.
 
+Page 4, "States", shows every migrated widget forced into each state, once on
+the window and once on a surface panel. It is the acceptance check for a
+widget's look.
+
 ### Deriving a theme
 
 `deriveTheme(theme)` returns a record `(Theme, DerivationReport)`. Call it

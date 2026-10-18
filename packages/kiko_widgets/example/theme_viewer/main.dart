@@ -7,6 +7,7 @@ import 'contrast_page.dart';
 import 'gallery_page.dart';
 import 'reference_page.dart';
 import 'shared.dart';
+import 'states_page.dart';
 
 // A visual reference for the theme doctrine (docs/theming.md).
 //
@@ -17,7 +18,7 @@ import 'shared.dart';
 //   fill  fg: on, bg: color    (selected rows, button faces, badges)
 //   wash  bg only              (crosshair tints under existing content)
 //
-// The viewer is three pages. F4 cycles them; the widget models live on one
+// The viewer is four pages. F4 cycles them; the widget models live on one
 // app model, so their state persists across pages.
 //
 // Page 1, reference (reference_page.dart), lays each theme out as its
@@ -62,6 +63,13 @@ import 'shared.dart';
 // NO_COLOR palette cannot be measured; the page's own chrome (title,
 // borders) still follows F3 like the rest of the screen.
 //
+// Page 4, states (states_page.dart), shows every migrated widget forced
+// into each state, once on the window and once on a surface panel that
+// stands for a dialog. Each row is labelled with its state. The page is the
+// acceptance check for a widget's look; a widget joins it when its batch
+// lands. Its footer names the theme, the tier, the page, the state step and
+// the de-emphasis amount in use.
+//
 // Theme keys are alt+[ / alt+] with F1/F2 as a fallback: a legacy terminal
 // sends alt+[ as a bare `ESC [` — the CSI introducer — so only the kitty
 // keyboard protocol can deliver it as a key.
@@ -76,7 +84,7 @@ import 'shared.dart';
 // ═══════════════════════════════════════════════════════════
 
 /// The theme viewer's app model: every gallery widget, the theme and tier
-/// state, and which of the three pages is on screen.
+/// state, and which of the four pages is on screen.
 class Model {
   /// Creates the theme viewer's model, with the widgets that pre-seed a
   /// selection wired up so their lifted look shows on the first frame.
@@ -104,6 +112,9 @@ class Model {
   }
 
   int themeIndex = 0;
+
+  /// The models of the states page (page 4).
+  final states = StatesModel();
 
   /// The themes the viewer cycles through.
   static const List<Theme> themes = [
@@ -146,16 +157,17 @@ class Model {
     RenderPolicy.noColor => 'NO_COLOR',
   };
 
-  /// The page on screen, 1 to 3. The app starts on the gallery.
+  /// The page on screen, 1 to 4. The app starts on the gallery.
   int page = 2;
 
-  /// Moves to the next page, wrapping from 3 back to 1.
-  void nextPage() => page = page % 3 + 1;
+  /// Moves to the next page, wrapping from 4 back to 1.
+  void nextPage() => page = page % 4 + 1;
 
   /// The current page's title, as the header shows it.
   String get pageName => switch (page) {
     1 => 'Reference',
     2 => 'Gallery',
+    4 => 'States',
     _ => 'Contrast',
   };
 
@@ -436,7 +448,7 @@ Cmd? onEvent(Model model, WidgetEvent event) {
   }
 
   // Tab and the widget keys reach the router only on the gallery page; pages
-  // 1 and 3 are static. Every other message still routes on every page, so a
+  // 1, 3 and 4 are static. Every other message still routes on every page, so a
   // fetch already in flight when the user switches pages still installs.
   final isInteraction = msg is KeyMsg || msg is PasteMsg || msg is PointerMsg;
   if (model.page == 2 || !isInteraction) {
@@ -494,6 +506,7 @@ void view(Model model, Frame frame) {
         ),
       ],
     ),
+    4 => statesPage(model, resolver),
     _ => contrastPage(theme, resolver),
   };
 
@@ -536,7 +549,7 @@ View _header(Model model, StyleResolver resolver) => Container(
     children: [
       Expanded(
         child: Line(
-          ' Theme: ${model.theme.name} · ${model.tierName} · Page ${model.page}/3: ${model.pageName}',
+          ' Theme: ${model.theme.name} · ${model.tierName} · Page ${model.page}/4: ${model.pageName}',
           style: resolver.ink(resolver.tones.primary).copyWith(addModifier: Modifier.bold),
         ),
       ),

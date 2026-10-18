@@ -86,7 +86,7 @@ void main() {
     );
   });
 
-  test('F4 cycles the header through the three pages', () {
+  test('F4 cycles the header through the four pages', () {
     final model = viewer.Model();
     var frame = _testFrame(160, 50);
     viewer.view(model, frame);
@@ -95,17 +95,22 @@ void main() {
     viewer.update(model, const KeyMsg('f4'), ctx);
     frame = _testFrame(160, 50);
     viewer.view(model, frame);
-    expect(_screenText(frame.buffer), contains('Page 3/3: Contrast'));
+    expect(_screenText(frame.buffer), contains('Page 3/4: Contrast'));
 
     viewer.update(model, const KeyMsg('f4'), ctx);
     frame = _testFrame(160, 50);
     viewer.view(model, frame);
-    expect(_screenText(frame.buffer), contains('Page 1/3: Reference'));
+    expect(_screenText(frame.buffer), contains('Page 4/4: States'));
 
     viewer.update(model, const KeyMsg('f4'), ctx);
     frame = _testFrame(160, 50);
     viewer.view(model, frame);
-    expect(_screenText(frame.buffer), contains('Page 2/3: Gallery'));
+    expect(_screenText(frame.buffer), contains('Page 1/4: Reference'));
+
+    viewer.update(model, const KeyMsg('f4'), ctx);
+    frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    expect(_screenText(frame.buffer), contains('Page 2/4: Gallery'));
   });
 
   test('the state strip paints each chip as one resolve call over its ground', () {
@@ -167,13 +172,14 @@ void main() {
     viewer.view(model, frame);
     final ctx = UpdateContext(hits: frame.hits, area: frame.area);
 
-    // Two F4 presses land on page 1, following the same cycle the header
-    // test walks: gallery, contrast, reference.
+    // Three F4 presses land on page 1, following the same cycle the header
+    // test walks: gallery, contrast, states, reference.
+    viewer.update(model, const KeyMsg('f4'), ctx);
     viewer.update(model, const KeyMsg('f4'), ctx);
     viewer.update(model, const KeyMsg('f4'), ctx);
     frame = _testFrame(160, 50);
     viewer.view(model, frame);
-    expect(_screenText(frame.buffer), contains('Page 1/3: Reference'));
+    expect(_screenText(frame.buffer), contains('Page 1/4: Reference'));
     expect(
       frame.hits.rectOf('strip/bg/fill/rest'),
       isNotNull,
@@ -253,5 +259,43 @@ void main() {
       );
       expect(screen, contains('$borderRatio:1'), reason: '${theme.name}: background / border measures $borderRatio:1');
     }
+  });
+
+  test('the states page labels a row on the window half and on the surface half, under every tier', () {
+    for (final policy in RenderPolicy.values) {
+      final model = viewer.Model()
+        ..page = 4
+        ..policy = policy;
+      final frame = _testFrame(160, 50);
+      expect(() => viewer.view(model, frame), returnsNormally, reason: 'policy: $policy');
+      final lines = _screenText(frame.buffer).split('\n');
+
+      // The halves split the width, so a label left of the middle belongs to
+      // the window and one right of it to the dialog panel.
+      final split = frame.buffer.area.width ~/ 2;
+      final focusedColumns = [
+        for (final line in lines)
+          for (final match in 'focused'.allMatches(line))
+            if (!line.contains('Page')) match.start,
+      ];
+      expect(focusedColumns.any((x) => x < split), isTrue, reason: 'window half, $policy');
+      expect(focusedColumns.any((x) => x >= split), isTrue, reason: 'dialog half, $policy');
+
+      final screen = lines.join('\n');
+      expect(screen, contains('Page 4/4: States'), reason: '$policy');
+      expect(screen, contains('step ${Theme.step.toStringAsFixed(2)}'), reason: '$policy');
+      expect(screen, contains('de-emphasis ${model.theme.deEmphasis.toStringAsFixed(2)}'), reason: '$policy');
+    }
+  });
+
+  test('the states page grounds the right half on the surface and keeps the halves distinct', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final buffer = frame.buffer;
+
+    expect(buffer[(x: 2, y: 8)].bg, equals(Theme.dark.background.color));
+    expect(buffer[(x: 100, y: 8)].bg, equals(Theme.dark.surface.color));
+    expect(model.states.window.prefix, isNot(equals(model.states.dialog.prefix)));
   });
 }

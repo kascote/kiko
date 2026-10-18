@@ -69,8 +69,7 @@ import 'shared.dart';
 // F3 cycles the render tier (RGB → ANSI-16 → NO_COLOR). Every style in the
 // viewer routes through resolvers built on the toggled policy, so the whole
 // screen previews how the theme degrades. Under ANSI-16 the tone tables
-// switch to the theme's effective `tones16` set — its own hand-authored
-// table, or the derived one — and the header names which it is.
+// switch to the table derived from the theme (`Ansi16Tones.derive`).
 
 // ═══════════════════════════════════════════════════════════
 // MODEL
@@ -140,11 +139,10 @@ class Model {
     StyleResolver.defaultPolicy = policy;
   }
 
-  /// The tier label for the header. Under ANSI-16 it names whether the
-  /// theme brings its own `tones16` table or gets a derived one.
+  /// The tier label for the header.
   String get tierName => switch (policy) {
     RenderPolicy.color => 'RGB',
-    RenderPolicy.ansi16 => 'ANSI-16 (${theme.tones16 != null ? 'authored' : 'derived'})',
+    RenderPolicy.ansi16 => 'ANSI-16',
     RenderPolicy.noColor => 'NO_COLOR',
   };
 

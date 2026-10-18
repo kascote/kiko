@@ -44,11 +44,10 @@ import 'tone.dart';
 /// ## The ANSI-16 tier
 ///
 /// A theme is authored once, in RGB. On a plain 16-color terminal the
-/// resolver does not downsample that RGB — it re-expresses each tone through
-/// [tones16], a named ANSI-16 pair, so a theme keeps its meaning (error is
-/// still red, selection is still blue) instead of drifting toward whatever
-/// RGB happens to be nearest. [tones16] is optional: a theme without a
-/// hand-authored table gets one derived automatically ([Ansi16Tones.derive]).
+/// resolver does not downsample that RGB. It re-expresses each tone as a named
+/// ANSI-16 slot picked by hue family, so a theme keeps its meaning (error is
+/// still red, selection is still blue). No theme authors that table;
+/// [Ansi16Tones.derive] computes it from the tones.
 ///
 /// A theme always has a background color. The app paints the whole frame
 /// with it.
@@ -117,12 +116,6 @@ class Theme implements ToneSet {
   @override
   final SurfaceTone selection;
 
-  /// Hand-authored ANSI-16 re-expression of this theme's tones.
-  ///
-  /// Leave `null` to have the resolver derive one automatically
-  /// ([Ansi16Tones.derive]) and cache it — most themes need nothing here.
-  final Ansi16Tones? tones16;
-
   /// How far a de-emphasised part moves toward its ground, from 0 (not at
   /// all) to 1 (fully onto the ground).
   ///
@@ -145,7 +138,6 @@ class Theme implements ToneSet {
     required this.muted,
     required this.disabled,
     required this.selection,
-    this.tones16,
     this.deEmphasis = 0.45,
   });
 
@@ -181,42 +173,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x7b838e)),
     disabled: Tone(color: Color.rgb(0x5f6770)),
     selection: SurfaceTone(color: Color.rgb(0x264a5c), on: Color.rgb(0xc9d1d9)),
-    // This table is the reference for how every built-in theme picks its
-    // ANSI-16 pairs; new themes should copy this pattern rather than the
-    // exact colors below.
-    //
-    // - color: pick the ANSI-16 hue family that reads as this tone's
-    //   identity, not whichever of the sixteen happens to be numerically
-    //   closest to the RGB value.
-    // - on: black or white, chosen by whether the slot itself reads as a
-    //   dark tone or a light one — black, red, blue and their bright
-    //   variants read dark and take white; green, yellow, cyan, magenta,
-    //   gray and their bright variants read light and take black. Two
-    //   mid-tones never pair together.
-    // - bright variants are the spare headroom: spend them on accent once a
-    //   hue family is already used elsewhere, so the intents stay visually
-    //   distinct from one another.
-    // - background, surface, border, muted and disabled collapse into the
-    //   four grays (black, darkGray, gray, white); keep each theme's own
-    //   relative light-to-dark ordering when choosing among them, since
-    //   that ordering differs between a dark theme and a light one.
-    // - a tone with no readable `on` on the RGB side (border, muted,
-    //   disabled) gets no `on` here either; a tone with no RGB color at
-    //   all stays null.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.blue, on: Color.white),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Catppuccin Mocha - the darkest Catppuccin flavor: soft pastel accents on
@@ -241,23 +197,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0xa6adc8)),
     disabled: Tone(color: Color.rgb(0x6c7086)),
     selection: SurfaceTone(color: Color.rgb(0x585b70), on: Color.rgb(0xcdd6f4)),
-    // Follows the pattern documented on [dark]'s table. Blue primary and the
-    // gray selection both land on plain blue — an accepted collapse. Peach
-    // accent takes brightRed, the orange stand-in.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.blue, on: Color.white),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Rosé Pine - the main (darkest) variant: muted rose, gold, and teal on a
@@ -281,23 +220,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x908caa)),
     disabled: Tone(color: Color.rgb(0x6e6a86)),
     selection: SurfaceTone(color: Color.rgb(0x403d52), on: Color.rgb(0xe0def4)),
-    // Follows the pattern documented on [dark]'s table, with the palette's
-    // own terminal mapping: foam is cyan, iris is magenta, rose is
-    // brightMagenta, love is red, gold is yellow, pine is green.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightMagenta, on: Color.black),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Gruvbox dark - retro-groove pastels on a warm dark-gray base.
@@ -323,24 +245,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x9b8c7d)),
     disabled: Tone(color: Color.rgb(0x7c6f64)),
     selection: SurfaceTone(color: Color.rgb(0x665c54), on: Color.rgb(0xfbf1c7)),
-    // Follows the pattern documented on [dark]'s table. Orange primary takes
-    // brightRed, the orange stand-in, leaving plain red for error; blue
-    // secondary and the gray selection share plain blue — an accepted
-    // collapse.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.brightRed, on: Color.white),
-      secondary: SurfaceTone(color: Color.blue, on: Color.white),
-      accent: SurfaceTone(color: Color.magenta, on: Color.black),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Monokai Pro - the default (dark) filter: vivid accents on a muted
@@ -367,22 +271,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x939293)),
     disabled: Tone(color: Color.rgb(0x757375)),
     selection: SurfaceTone(color: Color.rgb(0x5b595c), on: Color.rgb(0xfcfcfa)),
-    // Follows the pattern documented on [dark]'s table. Orange accent takes
-    // brightRed, the orange stand-in.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Nord - arctic, bluish pastels on a dark blue-gray base.
@@ -409,22 +297,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0xa1afcb)),
     disabled: Tone(color: Color.rgb(0x828da3)),
     selection: SurfaceTone(color: Color.rgb(0x4c566a), on: Color.rgb(0xeceff4)),
-    // Follows the pattern documented on [dark]'s table. Frost primary is
-    // cyan; orange accent takes brightRed, the orange stand-in.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Tokyo Night - the night variant: neon-tinted pastels on a deep
@@ -451,23 +323,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x7a81aa)),
     disabled: Tone(color: Color.rgb(0x5c658f)),
     selection: SurfaceTone(color: Color.rgb(0x394b70), on: Color.rgb(0xc0caf5)),
-    // Follows the pattern documented on [dark]'s table. Blue primary and
-    // the blue-tinted selection share plain blue — an accepted collapse. Orange
-    // accent takes brightRed, the orange stand-in.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.blue, on: Color.white),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// One Dark - Atom's default: soft syntax hues on a cool charcoal base.
@@ -494,22 +349,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x8c94a2)),
     disabled: Tone(color: Color.rgb(0x6e7683)),
     selection: SurfaceTone(color: Color.rgb(0x3e4451), on: Color.rgb(0xabb2bf)),
-    // Follows the pattern documented on [dark]'s table. Blue primary and
-    // the gray selection share plain blue — an accepted collapse.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.blue, on: Color.white),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Dracula - vivid candy hues on a dark purple-gray base.
@@ -536,23 +375,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x7f90c4)),
     disabled: Tone(color: Color.rgb(0x6f7287)),
     selection: SurfaceTone(color: Color.rgb(0x44475a), on: Color.rgb(0xf8f8f2)),
-    // Follows the pattern documented on [dark]'s table. Purple primary is
-    // magenta and pink secondary is brightMagenta; orange accent takes
-    // brightRed, the orange stand-in.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.magenta, on: Color.black),
-      secondary: SurfaceTone(color: Color.brightMagenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightRed, on: Color.white),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// Solarized Dark - Ethan Schoonover's low-contrast palette on a deep
@@ -580,23 +402,6 @@ class Theme implements ToneSet {
     muted: Tone(color: Color.rgb(0x8a9c9e)),
     disabled: Tone(color: Color.rgb(0x687e86)),
     selection: SurfaceTone(color: Color.rgb(0x586e75), on: Color.rgb(0xfdf6e3)),
-    // Follows the pattern documented on [dark]'s table. Violet secondary is
-    // magenta and the magenta accent is brightMagenta; blue primary and the
-    // gray selection share plain blue — an accepted collapse.
-    tones16: Ansi16Tones(
-      primary: SurfaceTone(color: Color.blue, on: Color.white),
-      secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: SurfaceTone(color: Color.brightMagenta, on: Color.black),
-      error: SurfaceTone(color: Color.red, on: Color.white),
-      warning: SurfaceTone(color: Color.yellow, on: Color.black),
-      success: SurfaceTone(color: Color.green, on: Color.black),
-      background: SurfaceTone(color: Color.black, on: Color.white),
-      surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: Tone(color: Color.darkGray),
-      muted: Tone(color: Color.gray),
-      disabled: Tone(color: Color.darkGray),
-      selection: SurfaceTone(color: Color.blue, on: Color.white),
-    ),
   );
 
   /// A theme that sits on the terminal's own background.
@@ -611,19 +416,15 @@ class Theme implements ToneSet {
   ///
   /// A `null` [background], from a terminal that never answered, gives [dark].
   /// The report of the final derivation is dropped; call [deriveTheme] on the
-  /// result to read it. The theme carries no [tones16], so the ANSI-16 tier
-  /// derives one.
+  /// result to read it.
   static Theme system(Color? background) => deriveSystemTheme(background);
 
   /// Creates a copy of this theme with the given tones replaced.
   ///
   /// The copy keeps this theme's [name] unless [name] is passed.
   ///
-  /// The ANSI-16 table follows the tones. When a tone changes and no
-  /// [tones16] is passed, the copy carries no table, so the
-  /// resolver derives one from the new tones ([Ansi16Tones.derive]). Pass
-  /// [tones16] to keep a hand-authored table in control. A copy that changes
-  /// no tone keeps this theme's table.
+  /// The ANSI-16 table follows the tones: the resolver derives it from the
+  /// copy's tones ([Ansi16Tones.derive]).
   Theme copyWith({
     String? name,
     SurfaceTone? primary,
@@ -638,23 +439,8 @@ class Theme implements ToneSet {
     Tone? muted,
     Tone? disabled,
     SurfaceTone? selection,
-    Ansi16Tones? tones16,
     double? deEmphasis,
   }) {
-    final tonesChanged = [
-      primary,
-      secondary,
-      accent,
-      error,
-      warning,
-      success,
-      background,
-      surface,
-      border,
-      muted,
-      disabled,
-      selection,
-    ].any((tone) => tone != null);
     return Theme(
       name: name ?? this.name,
       primary: primary ?? this.primary,
@@ -669,7 +455,6 @@ class Theme implements ToneSet {
       muted: muted ?? this.muted,
       disabled: disabled ?? this.disabled,
       selection: selection ?? this.selection,
-      tones16: tones16 ?? (tonesChanged ? null : this.tones16),
       deEmphasis: deEmphasis ?? this.deEmphasis,
     );
   }
@@ -691,7 +476,6 @@ class Theme implements ToneSet {
         other.muted == muted &&
         other.disabled == disabled &&
         other.selection == selection &&
-        other.tones16 == tones16 &&
         other.deEmphasis == deEmphasis;
   }
 
@@ -710,7 +494,6 @@ class Theme implements ToneSet {
     muted,
     disabled,
     selection,
-    tones16,
     deEmphasis,
   );
 }

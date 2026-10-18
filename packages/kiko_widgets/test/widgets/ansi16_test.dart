@@ -5,14 +5,14 @@ import 'package:test/test.dart';
 /// End-to-end ANSI-16 wiring: prove that `StyleResolver.defaultPolicy` (the
 /// process-wide flag the Application sets from the terminal profile) actually
 /// reaches the resolvers each widget builds internally, so a state that would
-/// paint a full-RGB surface instead paints Theme.dark's hand-authored
-/// `tones16` pair, lifted to its bright variant. The per-projection matrix itself is proven in kiko_core's
-/// style_resolver_ansi16_test.
+/// paint a full-RGB surface instead paints the pair derived from Theme.dark
+/// (`Ansi16Tones.derive`), lifted to its bright variant. The per-projection
+/// matrix itself is proven in kiko_core's style_resolver_ansi16_test.
 void main() {
   setUp(() => StyleResolver.defaultPolicy = RenderPolicy.ansi16);
   tearDown(() => StyleResolver.defaultPolicy = RenderPolicy.color);
 
-  final tones = Theme.dark.tones16!;
+  final tones = Ansi16Tones.derive(Theme.dark);
 
   // A cursor row with a bare base lifts the ground one step: the bright
   // variant of the background slot. The row keeps the terminal's own text
@@ -21,7 +21,7 @@ void main() {
 
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
 
-  group('ANSI-16 degrades widget surfaces to the named tones16 pair, lifted to its bright variant', () {
+  group('ANSI-16 degrades widget surfaces to the derived named pair, lifted to its bright variant', () {
     test('ListView cursor row', () {
       final model = ListViewModel<String, String>(
         items: const <String>['Apple', 'Banana'],

@@ -15,17 +15,13 @@ void main() {
     'solarized': Theme.solarized,
   };
 
-  group('built-in themes: tones16 completeness', () {
+  group('built-in themes: derived ANSI-16 completeness', () {
     for (final entry in themes.entries) {
       final name = entry.key;
       final theme = entry.value;
 
-      test('$name hand-authors a tones16 table', () {
-        expect(theme.tones16, isNotNull);
-      });
-
       test('$name: every RGB surface tone with a color has a matching named pair', () {
-        final table = theme.tones16!;
+        final table = Ansi16Tones.derive(theme);
         final rgb = <String, SurfaceTone>{
           'primary': theme.primary,
           'secondary': theme.secondary,
@@ -63,7 +59,7 @@ void main() {
       });
 
       test('$name: every RGB chrome tone with a color has a matching named color', () {
-        final table = theme.tones16!;
+        final table = Ansi16Tones.derive(theme);
         final rgb = <String, Tone>{'border': theme.border, 'muted': theme.muted, 'disabled': theme.disabled};
         final named = <String, Tone>{'border': table.border, 'muted': table.muted, 'disabled': table.disabled};
 
@@ -80,7 +76,7 @@ void main() {
       });
 
       test('$name: every named color is an ANSI color in the 0-15 range', () {
-        final table = theme.tones16!;
+        final table = Ansi16Tones.derive(theme);
         final colors = <Color?>[
           table.primary.color, table.primary.on, //
           table.secondary.color, table.secondary.on,
@@ -107,7 +103,7 @@ void main() {
     }
   });
 
-  group('built-in themes: tones16 distinctness under RenderPolicy.ansi16', () {
+  group('built-in themes: derived ANSI-16 distinctness under RenderPolicy.ansi16', () {
     for (final entry in themes.entries) {
       final name = entry.key;
       final theme = entry.value;

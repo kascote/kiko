@@ -38,11 +38,10 @@ enum PaintClass {
 /// pressed toggles [Modifier.reversed] and de-emphasis adds [Modifier.dim].
 ///
 /// Under [ansi16] color survives, but only through sixteen named slots
-/// instead of free RGB: `ink`/`fill` paint through the theme's
-/// [Theme.tones16] table (hand-authored, or derived once via
-/// [Ansi16Tones.derive]) instead of its RGB tones, and a `wash` still drops
-/// entirely — the 16-name vocabulary has no subtle tints to spend on one. A
-/// state-layer lift becomes the bright variant of the color it lifts, and
+/// instead of free RGB: `ink`/`fill` paint through the [Ansi16Tones] table
+/// derived from the theme ([Ansi16Tones.derive]) instead of its RGB tones, and
+/// a `wash` still drops entirely — the 16-name vocabulary has no subtle tints
+/// to spend on one. A state-layer lift becomes the bright variant of the color it lifts, and
 /// de-emphasis adds [Modifier.dim].
 enum RenderPolicy {
   /// Colors render as themed, in full RGB.
@@ -109,7 +108,7 @@ class StyleResolver {
   const StyleResolver._(this.theme, this.policy, this.tones, this.groundTone, {required this.isDeEmphasised});
 
   static ToneSet _tonesFor(Theme theme, RenderPolicy policy) =>
-      policy == RenderPolicy.ansi16 ? (theme.tones16 ?? Ansi16Tones.derive(theme)) : theme;
+      policy == RenderPolicy.ansi16 ? Ansi16Tones.derive(theme) : theme;
 
   /// The theme used for built-in state defaults.
   final Theme theme;
@@ -121,9 +120,8 @@ class StyleResolver {
   /// The tone set every projection reads from.
   ///
   /// [theme] itself under [RenderPolicy.color] and [RenderPolicy.noColor];
-  /// under [RenderPolicy.ansi16] this is [Theme.tones16] if the theme
-  /// hand-authored one, otherwise an [Ansi16Tones] table derived once and
-  /// cached. Resolved a single time at construction. Read a tone to project
+  /// under [RenderPolicy.ansi16] this is the [Ansi16Tones] table derived once
+  /// and cached. Resolved a single time at construction. Read a tone to project
   /// or to pass to [on] from here, never from [theme].
   final ToneSet tones;
 

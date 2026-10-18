@@ -1,7 +1,6 @@
+import 'dart:math';
+
 import 'package:meta/meta.dart';
-import 'package:termansi/termansi.dart' as ansi;
-import 'package:termlib/color_util.dart' as tl;
-import 'package:termlib/termlib.dart' as tl;
 
 import 'colors.dart';
 import 'theme.dart';
@@ -9,23 +8,18 @@ import 'tone.dart';
 
 /// A theme's tones re-expressed as the fixed ANSI-16 palette.
 ///
-/// At full color, a theme is free RGB and every hue is available. A plain
-/// 16-color terminal has no free hues at all — only sixteen fixed slots the
-/// user has already picked colors for. Rather than downsample (which just
-/// finds a *nearby* slot and quietly loses the theme's intent), each tone is
-/// given a *named* slot: [error] is always red-family, [selection] is always
-/// blue-family, and so on, so the terminal's own palette customization still
-/// reads correctly.
+/// A plain 16-color terminal has sixteen fixed slots the user has already
+/// picked colors for. Each tone takes one named slot by its hue family, so
+/// [error] stays red-family and [selection] stays blue-family, and the
+/// terminal's own palette still reads correctly.
+///
+/// Get a table with [Ansi16Tones.derive]. No theme authors one.
 ///
 /// Every entry's [Tone.color] (when set) is an ANSI-kind [Color] in the 0-15
 /// range. Nine entries are [SurfaceTone]; each one's [SurfaceTone.on] is
-/// always black or white, chosen for contrast, never a named hue. The three
-/// chrome entries (`border`, `muted`, `disabled`) are a plain [Tone] and
-/// carry no `on`, same as on the theme they come from.
-///
-/// A theme may hand-author this table ([Theme.tones16]); one without a
-/// hand-authored table gets one via [Ansi16Tones.derive], computed once and
-/// cached.
+/// black or white, picked from the slot. The three chrome entries (`border`,
+/// `muted`, `disabled`) are a plain [Tone] and carry no `on`, same as on the
+/// theme they come from.
 @immutable
 class Ansi16Tones implements ToneSet {
   /// Main brand color for primary actions, as a named ANSI-16 pair.
@@ -127,79 +121,139 @@ class Ansi16Tones implements ToneSet {
     selection,
   );
 
-  // Auto-derived tables, keyed by value. Theme has value equality, so a
-  // theme variant built fresh each frame still hits the entry of any equal
-  // theme built before it; built-in themes are consts, so their entries
-  // stay stable for the life of the process.
+  // Derived tables, keyed by value. Theme has value equality, so a theme
+  // variant built fresh each frame still hits the entry of any equal theme
+  // built before it; built-in themes are consts, so their entries stay
+  // stable for the life of the process.
   static final Map<Theme, Ansi16Tones> _memo = {};
 
-  /// Derives an [Ansi16Tones] table from [theme]'s RGB tones.
+  /// The OKLab chroma below which a hued tone counts as gray.
+  @visibleForTesting
+  static const double grayChroma = 0.02;
+
+  /// The OKLab lightness above which a hued tone takes its bright variant.
+  @visibleForTesting
+  static const double brightLightness = 0.9;
+
+  /// The OKLab lightness below which a gray is black.
+  @visibleForTesting
+  static const double blackBelow = 0.22;
+
+  /// The OKLab lightness below which a gray, above black, is dark gray.
+  @visibleForTesting
+  static const double darkGrayBelow = 0.59;
+
+  /// The OKLab lightness below which a gray, above dark gray, is gray. Above
+  /// it, a gray is white.
+  @visibleForTesting
+  static const double grayBelow = 0.9;
+
+  /// The OKLab hue angle, in degrees, of each hue family's ANSI color.
   ///
-  /// Computed once per [theme] instance and cached, so every resolver built
-  /// from the same theme shares one table instead of re-deriving it.
+  /// Computed from the RGB value of the dark red, yellow, green, cyan, blue
+  /// and magenta slots. A tone joins the family whose angle is nearest.
+  @visibleForTesting
+  static List<(Color, double)> get hueCenters => _families;
+
+  static final List<(Color, double)> _families = [
+    for (final slot in [Color.red, Color.yellow, Color.green, Color.cyan, Color.blue, Color.magenta])
+      (slot, _hueOf(slot.toOklab())),
+  ];
+
+  // Slots whose own color reads dark, so their text is white.
+  static const _darkSlots = {0, 1, 4, 8, 9, 12};
+
+  /// Derives an [Ansi16Tones] table from [theme]'s tones.
   ///
-  /// Each tone's color converts through the terminal's own RGB→ANSI-16
-  /// nearest-color search (an ANSI color passes through unchanged). A
-  /// surface tone's paired `on` is picked fresh from the *mapped* color's
-  /// luminance — black on a light slot, white on a dark one — deliberately
-  /// ignoring the theme's original `on`: a white-or-black choice made from
-  /// the color that is actually going to be painted can never collide with
-  /// it, which picking from the original RGB `on` could not guarantee. A
-  /// chrome tone (`border`, `muted`, `disabled`) has no `on` to derive.
-  /// Identical theme tones that map to the same ANSI slot are left identical
-  /// here; this derivation makes no attempt to spread them apart.
+  /// Computed once per [theme] and cached, so every resolver built from the
+  /// same theme shares one table.
+  ///
+  /// The intent tones and [selection] pick a hue family. A color whose OKLab
+  /// chroma is under [grayChroma] is a gray, except [selection], which takes
+  /// blue: a gray selection would match the lifted ground a cursor row paints.
+  /// Otherwise the nearest family center by hue angle wins, and a color
+  /// lighter than [brightLightness] takes the family's bright variant. The neutral tones (`background`,
+  /// `surface`, `border`, `muted`, `disabled`) always take one of the four
+  /// grays by lightness, whatever their chroma. An ANSI color passes through
+  /// unchanged and an indexed color converts through its RGB value. A tone
+  /// with no color keeps none.
+  ///
+  /// A surface tone's `on` is black or white by the slot it lands on. Black,
+  /// red, blue, dark gray and the bright red and blue take white. The rest
+  /// take black.
+  ///
+  /// Tones that land on one slot stay on it; the derivation does not spread
+  /// them apart.
   factory Ansi16Tones.derive(Theme theme) {
     final cached = _memo[theme];
     if (cached != null) return cached;
 
     final derived = Ansi16Tones(
-      primary: _deriveSurfaceTone(theme.primary),
-      secondary: _deriveSurfaceTone(theme.secondary),
-      accent: _deriveSurfaceTone(theme.accent),
-      error: _deriveSurfaceTone(theme.error),
-      warning: _deriveSurfaceTone(theme.warning),
-      success: _deriveSurfaceTone(theme.success),
-      background: _deriveSurfaceTone(theme.background),
-      surface: _deriveSurfaceTone(theme.surface),
-      border: _deriveChromeTone(theme.border),
-      muted: _deriveChromeTone(theme.muted),
-      disabled: _deriveChromeTone(theme.disabled),
-      selection: _deriveSurfaceTone(theme.selection),
+      primary: _surface(theme.primary, _hued),
+      secondary: _surface(theme.secondary, _hued),
+      accent: _surface(theme.accent, _hued),
+      error: _surface(theme.error, _hued),
+      warning: _surface(theme.warning, _hued),
+      success: _surface(theme.success, _hued),
+      background: _surface(theme.background, _neutral),
+      surface: _surface(theme.surface, _neutral),
+      border: Tone(color: _neutral(theme.border.color)),
+      muted: Tone(color: _neutral(theme.muted.color)),
+      disabled: Tone(color: _neutral(theme.disabled.color)),
+      selection: _surface(theme.selection, (color) => _hued(color, achromatic: Color.blue)),
     );
     _memo[theme] = derived;
     return derived;
   }
 
-  // Derives a surface tone's named pair. When `color` maps to null (no
-  // shipped theme does this), there is no mapped color to pick a contrasting
-  // `on` from, so `on` re-expresses the tone's own `on` through the same
-  // ANSI-16 conversion instead.
-  static SurfaceTone _deriveSurfaceTone(SurfaceTone tone) {
-    final color16 = _toAnsi16(tone.color);
-    if (color16 == null) return SurfaceTone(on: _toAnsi16(tone.on)!);
+  // Derives a surface tone's named pair. A tone with no color has no slot to
+  // read `on` from, so its own `on` goes through the same mapping.
+  static SurfaceTone _surface(SurfaceTone tone, Color? Function(Color?) slotFor) {
+    final color16 = slotFor(tone.color);
+    if (color16 == null) return SurfaceTone(on: slotFor(tone.on)!);
     return SurfaceTone(color: color16, on: _onFor(color16));
   }
 
-  // Derives a chrome tone's named color. A chrome tone has no `on` to carry.
-  static Tone _deriveChromeTone(Tone tone) => Tone(color: _toAnsi16(tone.color));
-
-  // Maps a color of any kind onto one of the 16 ANSI colors. Null stays
-  // null (a tone with no identity color has nothing to map); an ANSI color
-  // is already a valid slot and passes through untouched.
-  static Color? _toAnsi16(Color? color) {
-    if (color == null) return null;
-    if (color.kind == ColorKind.ansi) return color;
-
-    final source = color.kind == ColorKind.indexed ? tl.Color.indexed(color.value) : tl.Color.fromRGB(color.value);
-    final mapped = source.convert(tl.ColorKind.ansi);
-    return Color.ansi(mapped.value);
+  // Maps a color of any kind to its hue-family slot. Null stays null and an
+  // ANSI color is already a slot.
+  // A color under [grayChroma] takes [achromatic], or its gray when there is
+  // none.
+  static Color? _hued(Color? color, {Color? achromatic}) {
+    if (color == null || color.kind == ColorKind.ansi) return color;
+    final lab = color.toOklab();
+    if (lab.chroma < grayChroma) return achromatic ?? _grayFor(lab.l);
+    var family = _families.first;
+    var distance = double.infinity;
+    for (final candidate in _families) {
+      final apart = _hueApart(candidate.$2, _hueOf(lab));
+      if (apart < distance) {
+        distance = apart;
+        family = candidate;
+      }
+    }
+    final slot = family.$1.value;
+    return Color.ansi(lab.l > brightLightness ? slot + 8 : slot);
   }
 
-  // Black or white, whichever reads better on the mapped ANSI slot — judged
-  // by that slot's own RGB hex, not the theme's original color.
-  static Color _onFor(Color color16) {
-    final hex = ansi.ansiHex[color16.value];
-    final luminance = tl.colorLuminance(tl.Color.fromRGB(hex));
-    return luminance < 0.5 ? Color.white : Color.black;
+  // Maps a color of any kind to one of the four grays by lightness.
+  static Color? _neutral(Color? color) {
+    if (color == null || color.kind == ColorKind.ansi) return color;
+    return _grayFor(color.toOklab().l);
   }
+
+  static Color _grayFor(double lightness) {
+    if (lightness < blackBelow) return Color.black;
+    if (lightness < darkGrayBelow) return Color.darkGray;
+    if (lightness < grayBelow) return Color.gray;
+    return Color.white;
+  }
+
+  static double _hueOf(Oklab lab) => (atan2(lab.b, lab.a) * 180 / pi + 360) % 360;
+
+  static double _hueApart(double a, double b) {
+    final apart = (a - b).abs();
+    return apart > 180 ? 360 - apart : apart;
+  }
+
+  static Color _onFor(Color color16) => _darkSlots.contains(color16.value) ? Color.white : Color.black;
 }

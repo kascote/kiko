@@ -3,28 +3,11 @@ import 'package:test/test.dart';
 
 void main() {
   group('StyleResolver RenderPolicy.ansi16 projection', () {
-    // Theme.dark's own tones, but with no hand-authored tones16 — Theme.dark
-    // itself now hand-authors one, so a fresh theme is needed here to
-    // exercise the derivation fallback this group is testing.
-    final theme = Theme(
-      name: 'bare dark',
-      primary: Theme.dark.primary,
-      secondary: Theme.dark.secondary,
-      accent: Theme.dark.accent,
-      error: Theme.dark.error,
-      warning: Theme.dark.warning,
-      success: Theme.dark.success,
-      background: Theme.dark.background,
-      surface: Theme.dark.surface,
-      border: Theme.dark.border,
-      muted: Theme.dark.muted,
-      disabled: Theme.dark.disabled,
-      selection: Theme.dark.selection,
-    );
+    const theme = Theme.dark;
     final derived = Ansi16Tones.derive(theme);
     final resolver = StyleResolver(theme, policy: RenderPolicy.ansi16);
 
-    test('the resolver resolves the derived table when the theme has none of its own', () {
+    test('the resolver resolves the table derived from the theme', () {
       expect(resolver.tones, same(derived));
     });
 
@@ -130,30 +113,13 @@ void main() {
       expect(resting.bg, isNull);
     });
 
-    test('a hand-authored tones16 wins over derivation', () {
-      const handAuthored = Ansi16Tones(
-        primary: SurfaceTone(color: Color.cyan, on: Color.black),
-        secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-        accent: SurfaceTone(color: Color.yellow, on: Color.black),
-        error: SurfaceTone(color: Color.red, on: Color.white),
-        warning: SurfaceTone(color: Color.yellow, on: Color.black),
-        success: SurfaceTone(color: Color.green, on: Color.black),
-        background: SurfaceTone(color: Color.black, on: Color.white),
-        surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-        border: Tone(color: Color.gray),
-        muted: Tone(color: Color.darkGray),
-        disabled: Tone(color: Color.darkGray),
-        selection: SurfaceTone(color: Color.brightMagenta, on: Color.black),
-      );
-      final withTable = theme.copyWith(tones16: handAuthored);
-      final resolverWithTable = StyleResolver(withTable, policy: RenderPolicy.ansi16);
+    test('an edited tone is re-derived', () {
+      final variant = theme.copyWith(selection: theme.error);
+      final variantResolver = StyleResolver(variant, policy: RenderPolicy.ansi16);
 
-      expect(resolverWithTable.tones, same(handAuthored));
-
-      final s = resolverWithTable.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
-      expect(s.fg, equals(Color.black));
-      expect(s.bg, equals(Color.brightMagenta));
-      // Distinct from what plain derivation would have produced.
+      expect(variantResolver.tones, same(Ansi16Tones.derive(variant)));
+      final s = variantResolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
+      expect(s.bg, equals(derived.error.color));
       expect(s.bg, isNot(equals(derived.selection.color)));
     });
 
@@ -209,33 +175,16 @@ void main() {
       expect(s.addModifier.has(Modifier.slowBlink), isTrue);
     });
 
-    test('a hand-authored table can still collapse two states onto the same named color — the '
-        'modifier is what tells them apart, same as NO_COLOR', () {
-      // A table that hand-authors muted and disabled as the SAME named color
-      // (darkGray) is an accepted collapse, since disabled still carries its
-      // dim modifier on top. This is the ansi16 analogue of NO_COLOR's
-      // modifier floor.
-      final collapsed = Theme.dark.copyWith(
-        tones16: Ansi16Tones(
-          primary: Theme.dark.tones16!.primary,
-          secondary: Theme.dark.tones16!.secondary,
-          accent: Theme.dark.tones16!.accent,
-          error: Theme.dark.tones16!.error,
-          warning: Theme.dark.tones16!.warning,
-          success: Theme.dark.tones16!.success,
-          background: Theme.dark.tones16!.background,
-          surface: Theme.dark.tones16!.surface,
-          border: Theme.dark.tones16!.border,
-          muted: const Tone(color: Color.darkGray),
-          disabled: const Tone(color: Color.darkGray),
-          selection: Theme.dark.tones16!.selection,
-        ),
-      );
+    test('two tones can land on one slot — the modifier is what tells them apart, same as NO_COLOR', () {
+      // Muted and disabled derived onto the same slot (gray) is an accepted
+      // collapse, since disabled still carries its dim modifier on top. This
+      // is the ansi16 analogue of NO_COLOR's modifier floor.
+      final collapsed = Theme.dark.copyWith(disabled: Theme.dark.muted);
       final collapsedResolver = StyleResolver(collapsed, policy: RenderPolicy.ansi16);
       final muted = collapsedResolver.ink(collapsedResolver.tones.muted);
       final disabled = collapsedResolver.resolve(null, {WidgetState.disabled}, cls: PaintClass.fill);
 
-      expect(muted.fg, equals(disabled.fg), reason: 'the table hand-authors both as darkGray');
+      expect(muted.fg, equals(disabled.fg), reason: 'the derivation maps both to the same slot');
       expect(muted.addModifier.has(Modifier.dim), isFalse);
       expect(disabled.addModifier.has(Modifier.dim), isTrue);
       expect(muted, isNot(equals(disabled)), reason: 'the dim modifier is the only thing telling them apart');
@@ -254,29 +203,9 @@ void main() {
   });
 
   group('Ansi16Tones.derive keeps every table readable', () {
-    // A derived `on` is always picked fresh from the mapped color's own
-    // luminance (see Ansi16Tones.derive), never the theme's original `on` —
-    // so it can only ever land on the two ends of the contrast range: pure
-    // black or bright white. Verified here across a couple of built-in
-    // themes' RGB tones, stripped of their hand-authored tones16 so
-    // derivation actually runs.
-    Theme bareRgb(Theme source) => Theme(
-      name: source.name,
-      primary: source.primary,
-      secondary: source.secondary,
-      accent: source.accent,
-      error: source.error,
-      warning: source.warning,
-      success: source.success,
-      background: source.background,
-      surface: source.surface,
-      border: source.border,
-      muted: source.muted,
-      disabled: source.disabled,
-      selection: source.selection,
-    );
-
-    final sources = <String, Theme>{'dark': bareRgb(Theme.dark), 'gruvbox': bareRgb(Theme.gruvbox)};
+    // A derived `on` is picked from the slot the color lands on, so it can
+    // only be black or bright white.
+    final sources = <String, Theme>{'dark': Theme.dark, 'gruvbox': Theme.gruvbox};
 
     for (final MapEntry(key: name, value: bare) in sources.entries) {
       test('$name: every derived `on` is black or bright white', () {

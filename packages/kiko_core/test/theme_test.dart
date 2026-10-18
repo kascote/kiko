@@ -109,28 +109,13 @@ void main() {
         expect(theme.background, equals(Theme.gruvbox.background));
       });
 
-      test('changing no tone keeps the hand-authored ANSI-16 table', () {
-        expect(Theme.dark.copyWith().tones16, same(Theme.dark.tones16));
-        expect(Theme.dark.copyWith(deEmphasis: 0.6).tones16, same(Theme.dark.tones16));
-      });
-
-      test('changing a tone drops the hand-authored ANSI-16 table', () {
-        expect(Theme.dark.copyWith(accent: Theme.dark.error).tones16, isNull);
-        expect(Theme.dark.copyWith(selection: Theme.dark.error).tones16, isNull);
-      });
-
-      test('a passed table stays in control when a tone changes', () {
-        final theme = Theme.dark.copyWith(accent: Theme.dark.error, tones16: Theme.gruvbox.tones16);
-        expect(theme.tones16, same(Theme.gruvbox.tones16));
-      });
-
       test('a variant paints its changed tone under ANSI-16', () {
         final variant = Theme.dark.copyWith(selection: Theme.dark.error);
         final resolver = StyleResolver(variant, policy: RenderPolicy.ansi16);
         final selected = resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
 
         expect(selected.bg, equals(resolver.tones.error.color));
-        expect(selected.bg, isNot(equals(Theme.dark.tones16!.selection.color)));
+        expect(selected.bg, isNot(equals(Ansi16Tones.derive(Theme.dark).selection.color)));
       });
 
       test('renaming to selection replaces the old highlight token', () {

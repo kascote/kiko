@@ -192,8 +192,9 @@ dialog draws its border on `surface`, a pane draws it on `background`. A
 border that only reads on one of them vanishes on the other.
 
 A monochrome theme has one hue, so brightness is the only separator. Author
-it the way the ANSI-16 tables do: collapse tones on purpose, and lean on
-the matrix modifiers (bold, dim, reversed) to keep the states distinct.
+it the way the derived ANSI-16 table does: collapse tones on purpose, and
+lean on the matrix modifiers (bold, dim, reversed) to keep the states
+distinct.
 
 A palette theme takes its role colors from the palette as they are. The
 palette's grays can still miss a rung target; `deriveTheme` fixes those.
@@ -251,7 +252,7 @@ background. Then `deriveTheme` fixes the three rungs. `Theme.system` drops
 that report; call `deriveTheme` on the result to read it.
 
 A system theme is not a chosen palette, so its intent colors may move far
-from `Theme.dark`'s. It carries no ANSI-16 table, so that tier derives one.
+from `Theme.dark`'s. Its ANSI-16 table derives from these colors like any other.
 A `null` background, from a terminal that never answered, gives `Theme.dark`.
 
 ## Projections
@@ -776,12 +777,29 @@ projection call, so a widget never branches on the terminal it runs in:
   out; the theme layer does nothing here.
 - **`RenderPolicy.ansi16`** — a plain 16-color terminal. The resolver does
   not downsample here. A nearest-color search over sixteen slots would
-  quietly lose the theme's intent, so each tone is re-expressed through a
-  named ANSI-16 pair from `Theme.tones16`: `error` stays red-family,
-  `selection` stays blue-family, and the terminal's own palette
-  customization still reads correctly. A theme may hand-author this table.
-  One that does not gets a table derived from its RGB tones
-  (`Ansi16Tones.derive`). A lift at this tier always steps to the bright
+  quietly lose the theme's intent, so each tone is re-expressed as a named
+  ANSI-16 slot: `error` stays red-family, `selection` stays blue-family, and
+  the terminal's own palette customization still reads correctly. No theme
+  authors this table. `Ansi16Tones.derive` computes it from the theme's
+  tones, once per theme, by hue family:
+  - The intent tones and `selection` take the family whose OKLab hue angle
+    is nearest. The families are red, yellow, green, cyan, blue and magenta.
+    Each family's angle is the hue of its dark ANSI color. A tone lighter
+    than `Ansi16Tones.brightLightness` takes the bright variant.
+  - A tone whose OKLab chroma is under `Ansi16Tones.grayChroma` has no hue.
+    It takes one of the four grays (black, dark gray, gray, white) by
+    lightness. `selection` takes blue instead, because a gray selection
+    would match the lifted ground that a cursor row paints.
+  - The neutral tones (`background`, `surface`, `border`, `muted`,
+    `disabled`) always take one of the four grays by lightness, whatever
+    their chroma.
+  - The `on` of a surface tone depends on its slot only. Black, red, blue,
+    dark gray, bright red and bright blue take white. The other slots take
+    black.
+  - An ANSI color passes through unchanged and an indexed color converts
+    through its RGB value.
+
+  Tones that land on one slot stay on it. A lift at this tier always steps to the bright
   variant of the slot, whatever the ground: darkening a named slot can
   leave it unchanged, which would hide the step. A slot already at its
   bright variant stays there, so a second lift — hover on top of a state

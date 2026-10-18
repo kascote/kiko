@@ -11,8 +11,8 @@ import 'shared.dart';
 /// The tone tables lay each theme out as its tones, grouped the way the
 /// theme itself groups them (Intent / Neutral / Interaction), with every
 /// tone's two halves and all three projections side by side. They read the
-/// resolver's effective set, so under ANSI-16 they show the theme's
-/// `tones16` table instead of its RGB tones. The state strip
+/// resolver's effective set, so under ANSI-16 they show the table derived
+/// from the theme instead of its RGB tones. The state strip
 /// ([stateStrip]) closes the page: the resolver's state × class matrix,
 /// painted over both the background and the surface ground.
 View referencePage(Theme theme, StyleResolver resolver) {
@@ -191,7 +191,7 @@ View _anatomyRow(StyleResolver resolver, String name, List<(String, Style)> slot
 
 // The doctrine's tone groups, in the doctrine's order. They read a ToneSet
 // — the resolver's effective set — so under ANSI-16 the rows show the
-// theme's tones16 table.
+// table derived from the theme.
 
 List<(String, Tone)> _intent(ToneSet t) => [
   ('primary', t.primary),

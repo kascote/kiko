@@ -205,3 +205,6 @@ A term of art added to a page gets its entry here in the same change.
 - **tier** — one of three levels of color fidelity a style degrades
   through: full RGB, the named ANSI-16 table, NO_COLOR modifiers
   (`docs/theming.md`). The word is reserved for this meaning.
+- **ANSI-16 table** — the `Ansi16Tones` a theme maps to for the ANSI-16
+  tier. `Ansi16Tones.derive` computes it from the theme by hue family. No
+  theme authors one (`docs/theming.md`).

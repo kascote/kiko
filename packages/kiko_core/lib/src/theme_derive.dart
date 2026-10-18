@@ -208,7 +208,6 @@ class DerivationReport {
     border: identical(border, source.border) ? null : border,
     muted: identical(muted, source.muted) ? null : muted,
     disabled: identical(disabled, source.disabled) ? null : disabled,
-    tones16: source.tones16,
   );
   return (theme, DerivationReport(changes: changes, leftAlone: _keptFailures(source)));
 }

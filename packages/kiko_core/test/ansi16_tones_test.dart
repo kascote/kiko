@@ -19,57 +19,55 @@ void main() {
       selection: SurfaceTone(color: Color.rgb(0x708090), on: Color.white),
     );
 
-    test('a dark tone color derives brightWhite as its on', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.primary.color, equals(Color.black));
-      expect(tones16.primary.on, equals(Color.white));
+    test('a dark tone color derives white as its on', () {
+      final table = Ansi16Tones.derive(theme);
+      expect(table.primary.color, equals(Color.black));
+      expect(table.primary.on, equals(Color.white));
     });
 
     test('a light tone color derives black as its on', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.secondary.color, equals(Color.white));
-      expect(tones16.secondary.on, equals(Color.black));
+      final table = Ansi16Tones.derive(theme);
+      expect(table.secondary.color, equals(Color.white));
+      expect(table.secondary.on, equals(Color.black));
     });
 
     test('an ANSI-kind tone passes through unchanged', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.accent.color, equals(Color.yellow));
+      final table = Ansi16Tones.derive(theme);
+      expect(table.accent.color, equals(Color.yellow));
     });
 
     test("on is picked from the mapped color, never from the theme's RGB on", () {
-      final tones16 = Ansi16Tones.derive(theme);
-      // Pure red maps to the ANSI brightRed slot; its on must come from that
-      // slot's own luminance, not from the 0x123456 the theme happened to
-      // pair it with.
-      expect(tones16.error.color, equals(Color.brightRed));
-      expect(tones16.error.on, isNot(equals(const Color.rgb(0x123456))));
-      expect(tones16.error.on, equals(Color.white));
+      final table = Ansi16Tones.derive(theme);
+      // Pure red maps to the ANSI red slot; its on must come from that slot,
+      // not from the 0x123456 the theme happened to pair it with.
+      expect(table.error.color, equals(Color.red));
+      expect(table.error.on, isNot(equals(const Color.rgb(0x123456))));
+      expect(table.error.on, equals(Color.white));
     });
 
     test('a surface tone with no color keeps its own on, re-expressed through the same conversion', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.warning.color, isNull);
-      // warning.on starts from 0x123456, a dark blue, which the RGB→ANSI-16
-      // search maps onto a dark slot.
-      expect(tones16.warning.on.kind, equals(ColorKind.ansi));
+      final table = Ansi16Tones.derive(theme);
+      expect(table.warning.color, isNull);
+      // warning.on starts from 0x123456, a dark blue, which maps to blue.
+      expect(table.warning.on, equals(Color.blue));
     });
 
     test('a derived surface tone carries an on; a derived chrome tone has none', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.primary, isA<SurfaceTone>());
-      expect(tones16.primary.on, isNotNull);
-      expect(tones16.border, isNot(isA<SurfaceTone>()));
+      final table = Ansi16Tones.derive(theme);
+      expect(table.primary, isA<SurfaceTone>());
+      expect(table.primary.on, isNotNull);
+      expect(table.border, isNot(isA<SurfaceTone>()));
     });
 
     test('every table entry is present', () {
-      final tones16 = Ansi16Tones.derive(theme);
-      expect(tones16.background.color, isNotNull);
-      expect(tones16.surface.color, isNotNull);
-      expect(tones16.border.color, isNotNull);
-      expect(tones16.muted.color, isNotNull);
-      expect(tones16.disabled.color, isNotNull);
-      expect(tones16.selection.color, isNotNull);
-      expect(tones16.success.color, isNotNull);
+      final table = Ansi16Tones.derive(theme);
+      expect(table.background.color, isNotNull);
+      expect(table.surface.color, isNotNull);
+      expect(table.border.color, isNotNull);
+      expect(table.muted.color, isNotNull);
+      expect(table.disabled.color, isNotNull);
+      expect(table.selection.color, isNotNull);
+      expect(table.success.color, isNotNull);
     });
 
     test('deriving twice from the same Theme returns the identical instance', () {

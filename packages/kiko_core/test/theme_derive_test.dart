@@ -93,7 +93,6 @@ void main() {
       border: const Tone(color: Color.rgb(0x1a1f26)),
       muted: const Tone(color: Color.rgb(0x3a4048)),
       disabled: const Tone(color: Color.rgb(0x2a3038)),
-      tones16: Theme.dark.tones16,
     );
 
     test('gives a failing muted a color that reads at 4.5 on both grounds', () {
@@ -124,13 +123,12 @@ void main() {
       expect(report.changes, isEmpty);
     });
 
-    test('keeps the name, the roles, the ANSI-16 table and the de-emphasis', () {
-      final (derived, _) = deriveTheme(failing.copyWith(deEmphasis: 0.3, tones16: Theme.dark.tones16));
+    test('keeps the name, the roles and the de-emphasis', () {
+      final (derived, _) = deriveTheme(failing.copyWith(deEmphasis: 0.3));
 
       expect(derived.name, 'Failing');
       expect(derived.primary, failing.primary);
       expect(derived.selection, failing.selection);
-      expect(derived.tones16, Theme.dark.tones16);
       expect(derived.deEmphasis, 0.3);
     });
 
@@ -190,7 +188,7 @@ void main() {
     });
 
     test('leaves a rung without a color alone', () {
-      final bare = Theme.dark.copyWith(border: const Tone(), tones16: Theme.dark.tones16);
+      final bare = Theme.dark.copyWith(border: const Tone());
 
       final (derived, report) = deriveTheme(bare);
 
@@ -266,7 +264,6 @@ void main() {
         expect(_worst(theme.background.on, theme), greaterThanOrEqualTo(4.5));
         expect(theme.background.color, probe);
         expect(theme.name, 'System');
-        expect(theme.tones16, isNull);
       });
 
       test('over $label probed background the rungs pass derivation unchanged', () {

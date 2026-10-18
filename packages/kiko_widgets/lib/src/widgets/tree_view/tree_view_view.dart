@@ -227,7 +227,10 @@ class _TreeViewport<T> extends Node {
   Style _rowStyle({required bool isCursor, required bool isHover}) {
     final rowStyle = _resolver.resolve(
       style.item ?? const Style(),
-      {if (isCursor) WidgetState.cursor},
+      {
+        if (isCursor) WidgetState.cursor,
+        if (isCursor && model.focused) WidgetState.focused,
+      },
       cls: model.focused ? PaintClass.fill : PaintClass.wash,
       slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
     );

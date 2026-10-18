@@ -167,8 +167,8 @@ test('focus tints the glyph, not the background', () {
 
   final cell = frame.buffer[(x: 0, y: 0)];
   expect(cell.symbol, 'h');
-  expect(cell.fg, Theme.dark.focus.color);
-  expect(cell.bg, isNot(Theme.dark.focus.color));
+  expect(cell.fg, Theme.dark.primary.color);
+  expect(cell.bg, isNot(Theme.dark.primary.color));
 });
 ```
 

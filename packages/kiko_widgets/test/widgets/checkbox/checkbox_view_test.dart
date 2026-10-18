@@ -163,10 +163,12 @@ void main() {
   });
 
   group('checkbox view styles', () {
-    test('the checked mark carries the selection ink', () {
+    test('the checked mark carries the primary ink, plain', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
       final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
-      expect(frame.buffer[(x: 1, y: 0)].fg, Theme.dark.selection.color);
+      final mark = frame.buffer[(x: 1, y: 0)];
+      expect(mark.fg, Theme.dark.primary.color);
+      expect(mark.modifier.has(Modifier.bold), isFalse);
     });
 
     test('brackets carry the border ink at rest', () {
@@ -176,11 +178,11 @@ void main() {
       expect(frame.buffer[(x: 2, y: 0)].fg, Theme.dark.border.color);
     });
 
-    test('brackets carry the focus ink and bold when focused', () {
+    test('brackets carry the primary ink and bold when focused', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), focused: true);
       final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
       final cell = frame.buffer[(x: 0, y: 0)];
-      expect(cell.fg, Theme.dark.focus.color);
+      expect(cell.fg, Theme.dark.primary.color);
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -203,34 +205,35 @@ void main() {
       }
     });
 
-    test('hover washes the whole row, spare cells included, and leaves fgs intact', () {
+    test('hover lifts the whole row half a step, spare cells included, and leaves fgs intact', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'))..hovered = true;
       final frame = _frame(12, 1)..render(Checkbox(model: model, theme: Theme.dark));
       final bracket = frame.buffer[(x: 0, y: 0)];
       final spare = frame.buffer[(x: 11, y: 0)]; // past "[ ] Option", still inside the row
-      expect(bracket.bg, Theme.dark.hover.color);
+      final washed = Theme.dark.background.color!.shiftLightness(Theme.step / 2);
+      expect(bracket.bg, washed);
       expect(bracket.fg, Theme.dark.border.color); // the wash never touches fg
-      expect(spare.bg, Theme.dark.hover.color);
+      expect(spare.bg, washed);
     });
 
-    test('a pressed checkbox inverts its box, not its label', () {
+    test('a pressed checkbox no longer inverts its box or its label', () {
       final restingModel = CheckboxModel(id: 'c', label: Line('Option'));
       final restingFrame = _frame(10, 1)..render(Checkbox(model: restingModel, theme: Theme.dark));
       final pressedModel = CheckboxModel(id: 'c', label: Line('Option'))..pressed = true;
       final pressedFrame = _frame(10, 1)..render(Checkbox(model: pressedModel, theme: Theme.dark));
 
-      final bracket = pressedFrame.buffer[(x: 0, y: 0)];
-      expect(bracket.bg, Theme.dark.border.color);
-
-      final restingLabel = restingFrame.buffer[(x: 4, y: 0)];
-      final pressedLabel = pressedFrame.buffer[(x: 4, y: 0)];
-      expect(pressedLabel.bg, restingLabel.bg);
+      for (final x in [0, 1, 2, 4]) {
+        final resting = restingFrame.buffer[(x: x, y: 0)];
+        final pressed = pressedFrame.buffer[(x: x, y: 0)];
+        expect(pressed.bg, resting.bg, reason: 'cell at x=$x');
+        expect(pressed.fg, resting.fg, reason: 'cell at x=$x');
+      }
     });
 
-    test('a theme variant paints the checked mark in that tone', () {
+    test('a theme variant paints the checked mark in its primary tone', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
       final theme = Theme.dark.copyWith(
-        selection: const SurfaceTone(color: Color.yellow, on: Color.black),
+        primary: const SurfaceTone(color: Color.yellow, on: Color.black),
       );
       final frame = _frame(10, 1)..render(Checkbox(model: model, theme: theme));
       expect(frame.buffer[(x: 1, y: 0)].fg, Color.yellow);

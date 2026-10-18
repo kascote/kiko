@@ -35,7 +35,6 @@ void main() {
           'success': theme.success,
           'background': theme.background,
           'surface': theme.surface,
-          'focus': theme.focus,
           'selection': theme.selection,
         };
         final named = <String, SurfaceTone>{
@@ -47,7 +46,6 @@ void main() {
           'success': table.success,
           'background': table.background,
           'surface': table.surface,
-          'focus': table.focus,
           'selection': table.selection,
         };
 
@@ -81,10 +79,6 @@ void main() {
         }
       });
 
-      test('$name: cursor has a named color (no RGB counterpart to mirror)', () {
-        expect(theme.tones16!.cursor.color, isNotNull);
-      });
-
       test('$name: every named color is an ANSI color in the 0-15 range', () {
         final table = theme.tones16!;
         final colors = <Color?>[
@@ -99,9 +93,7 @@ void main() {
           table.border.color,
           table.muted.color,
           table.disabled.color,
-          table.focus.color, table.focus.on,
           table.selection.color, table.selection.on,
-          table.cursor.color, table.cursor.on,
         ];
 
         for (final color in colors) {
@@ -120,14 +112,13 @@ void main() {
       final name = entry.key;
       final theme = entry.value;
 
-      test('$name: selection, cursor, focus and error resolve to distinct fills', () {
+      test('$name: selection, error and a lifted ground resolve to distinct fills', () {
         final resolver = StyleResolver(theme, policy: RenderPolicy.ansi16);
 
         final resolved = <String, Style>{
           'selection': resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill),
-          'cursor': resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill),
-          'focus': resolver.resolve(null, {WidgetState.focused}, cls: PaintClass.fill),
           'error': resolver.resolve(null, {WidgetState.error}, cls: PaintClass.fill),
+          'lift': resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill),
         };
 
         final keys = resolved.keys.toList();
@@ -142,12 +133,12 @@ void main() {
         }
       });
 
-      test('$name: cursor and focus fills still carry bold', () {
+      test('$name: a focused fill carries bold and a cursor fill does not', () {
         final resolver = StyleResolver(theme, policy: RenderPolicy.ansi16);
         final cursor = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
         final focus = resolver.resolve(null, {WidgetState.focused}, cls: PaintClass.fill);
 
-        expect(cursor.addModifier.has(Modifier.bold), isTrue);
+        expect(cursor.addModifier.has(Modifier.bold), isFalse);
         expect(focus.addModifier.has(Modifier.bold), isTrue);
       });
     }

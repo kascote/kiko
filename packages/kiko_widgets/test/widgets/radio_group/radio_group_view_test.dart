@@ -242,10 +242,10 @@ void main() {
       final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
 
       final cursorOpen = frame.buffer[(x: 0, y: 0)];
-      expect(cursorOpen.fg, Theme.dark.focus.color);
+      expect(cursorOpen.fg, Theme.dark.primary.color);
       expect(cursorOpen.modifier.has(Modifier.bold), isTrue);
       final cursorMark = frame.buffer[(x: 1, y: 0)];
-      expect(cursorMark.fg, Theme.dark.focus.color);
+      expect(cursorMark.fg, Theme.dark.primary.color);
       expect(cursorMark.modifier.has(Modifier.bold), isTrue);
 
       final otherOpen = frame.buffer[(x: 0, y: 1)];
@@ -275,12 +275,12 @@ void main() {
       final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
 
       final oldMark = frame.buffer[(x: 1, y: 0)];
-      expect(oldMark.fg, isNot(Theme.dark.focus.color));
+      expect(oldMark.fg, isNot(Theme.dark.primary.color));
       expect(oldMark.modifier.has(Modifier.bold), isFalse);
 
-      // The pressed row's box is inverted, so its focus ink shows as the fill.
+      // The pressed row's box carries the focus look: primary ink and bold.
       final pressedMark = frame.buffer[(x: 1, y: 1)];
-      expect(pressedMark.bg, Theme.dark.focus.color);
+      expect(pressedMark.fg, Theme.dark.primary.color);
       expect(pressedMark.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -346,7 +346,7 @@ void main() {
       }
     });
 
-    test('hoveredIndex washes that row, spare cells included, and no other row', () {
+    test('hoveredIndex lifts that row half a step, spare cells included, and no other row', () {
       final model = RadioGroupModel<int>(
         id: 'r',
         options: [
@@ -358,41 +358,31 @@ void main() {
 
       final bracket = frame.buffer[(x: 0, y: 0)];
       final spare = frame.buffer[(x: 11, y: 0)]; // past "( ) One", still inside the row
-      expect(bracket.bg, Theme.dark.hover.color);
-      expect(spare.bg, Theme.dark.hover.color);
+      final washed = Theme.dark.background.color!.shiftLightness(Theme.step / 2);
+      expect(bracket.bg, washed);
+      expect(spare.bg, washed);
 
       final otherBracket = frame.buffer[(x: 0, y: 1)];
-      expect(otherBracket.bg, isNot(Theme.dark.hover.color));
+      expect(otherBracket.bg, isNot(washed));
     });
 
-    test("pressedIndex inverts that row's box, not its label", () {
-      final restingModel = RadioGroupModel<int>(
+    test("pressedIndex no longer inverts that row's box or its label", () {
+      RadioGroupModel<int> build() => RadioGroupModel<int>(
         id: 'r',
         options: [
           RadioOption(value: 1, label: Line('One')),
           RadioOption(value: 2, label: Line('Two')),
         ],
       );
-      final restingFrame = _frame(10, 2)..render(RadioGroup(model: restingModel, theme: Theme.dark));
+      final restingFrame = _frame(10, 2)..render(RadioGroup(model: build(), theme: Theme.dark));
+      final pressedFrame = _frame(10, 2)..render(RadioGroup(model: build()..pressedIndex = 0, theme: Theme.dark));
 
-      final pressedModel = RadioGroupModel<int>(
-        id: 'r',
-        options: [
-          RadioOption(value: 1, label: Line('One')),
-          RadioOption(value: 2, label: Line('Two')),
-        ],
-      )..pressedIndex = 0;
-      final pressedFrame = _frame(10, 2)..render(RadioGroup(model: pressedModel, theme: Theme.dark));
-
-      final bracket = pressedFrame.buffer[(x: 0, y: 0)];
-      expect(bracket.bg, Theme.dark.border.color);
-
-      final restingLabel = restingFrame.buffer[(x: 4, y: 0)];
-      final pressedLabel = pressedFrame.buffer[(x: 4, y: 0)];
-      expect(pressedLabel.bg, restingLabel.bg);
-
-      final otherBracket = pressedFrame.buffer[(x: 0, y: 1)];
-      expect(otherBracket.bg, isNot(Theme.dark.border.color));
+      for (final x in [0, 1, 2, 4]) {
+        final resting = restingFrame.buffer[(x: x, y: 0)];
+        final pressed = pressedFrame.buffer[(x: x, y: 0)];
+        expect(pressed.bg, resting.bg, reason: 'cell at x=$x');
+        expect(pressed.fg, resting.fg, reason: 'cell at x=$x');
+      }
     });
 
     test('a style.open slot wins verbatim', () {

@@ -16,9 +16,7 @@ void main() {
       border: Tone(color: Color.rgb(0x303030)),
       muted: Tone(color: Color.rgb(0x404040)),
       disabled: Tone(color: Color.rgb(0x505050)),
-      focus: SurfaceTone(color: Color.rgb(0x606060), on: Color.white),
       selection: SurfaceTone(color: Color.rgb(0x708090), on: Color.white),
-      cursor: SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
     );
 
     test('a dark tone color derives brightWhite as its on', () {
@@ -51,9 +49,9 @@ void main() {
     test('a surface tone with no color keeps its own on, re-expressed through the same conversion', () {
       final tones16 = Ansi16Tones.derive(theme);
       expect(tones16.warning.color, isNull);
-      // warning.on and cursor.color both start from the same 0x123456, so
-      // they must map through the RGB→ANSI-16 search to the same slot.
-      expect(tones16.warning.on, equals(tones16.cursor.color));
+      // warning.on starts from 0x123456, a dark blue, which the RGB→ANSI-16
+      // search maps onto a dark slot.
+      expect(tones16.warning.on.kind, equals(ColorKind.ansi));
     });
 
     test('a derived surface tone carries an on; a derived chrome tone has none', () {
@@ -70,9 +68,7 @@ void main() {
       expect(tones16.border.color, isNotNull);
       expect(tones16.muted.color, isNotNull);
       expect(tones16.disabled.color, isNotNull);
-      expect(tones16.focus.color, isNotNull);
       expect(tones16.selection.color, isNotNull);
-      expect(tones16.cursor.color, isNotNull);
       expect(tones16.success.color, isNotNull);
     });
 
@@ -89,37 +85,12 @@ void main() {
       expect(first.error.color, isNotNull);
     });
 
-    test('a transparent background derives with reset passed through unchanged', () {
-      const transparent = Theme(
-        name: 'transparent',
-        primary: SurfaceTone(color: Color.rgb(0x000000), on: Color.white),
-        secondary: SurfaceTone(color: Color.rgb(0xffffff), on: Color.black),
-        accent: SurfaceTone(color: Color.yellow, on: Color.black),
-        error: SurfaceTone(color: Color.rgb(0xff0000), on: Color.rgb(0x123456)),
-        warning: SurfaceTone(on: Color.rgb(0x123456)),
-        success: SurfaceTone(color: Color.rgb(0x008000), on: Color.white),
-        background: SurfaceTone(on: Color.reset),
-        surface: SurfaceTone(color: Color.rgb(0x202020), on: Color.white),
-        border: Tone(color: Color.rgb(0x303030)),
-        muted: Tone(color: Color.rgb(0x404040)),
-        disabled: Tone(color: Color.rgb(0x505050)),
-        focus: SurfaceTone(color: Color.rgb(0x606060), on: Color.white),
-        selection: SurfaceTone(color: Color.rgb(0x708090), on: Color.white),
-        cursor: SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
-        hover: Tone(color: Color.rgb(0x123456)),
-      );
-
-      final tones16 = Ansi16Tones.derive(transparent);
-      expect(tones16.background.color, isNull);
-      expect(tones16.background.on, equals(Color.reset));
-    });
-
     test('two equal themes built separately share one derived table', () {
       // A theme variant built fresh each frame (e.g. Theme.dark.copyWith(...))
       // is a new instance every time, never identical to a prior one. The
       // memo must key by value so it still hits the cached entry.
-      final a = Theme.dark.copyWith(focus: Theme.dark.success);
-      final b = Theme.dark.copyWith(focus: Theme.dark.success);
+      final a = Theme.dark.copyWith(accent: Theme.dark.success);
+      final b = Theme.dark.copyWith(accent: Theme.dark.success);
       expect(identical(a, b), isFalse);
       expect(a, equals(b));
 
@@ -132,11 +103,7 @@ void main() {
   group('Ansi16Tones value semantics', () {
     // Not const: every call builds a fresh instance, so equality here can
     // only pass by comparing fields, never by canonicalization.
-    //
-    // This table's background (black on white) derives the same cursor
-    // (darkGray on white) it states explicitly by default, so `explicitCursor:
-    // false` gives a table that paints identically but is built differently.
-    Ansi16Tones buildTable({SurfaceTone? primary, bool explicitCursor = true}) => Ansi16Tones(
+    Ansi16Tones buildTable({SurfaceTone? primary}) => Ansi16Tones(
       primary: primary ?? const SurfaceTone(color: Color.cyan, on: Color.black),
       secondary: const SurfaceTone(color: Color.magenta, on: Color.black),
       accent: const SurfaceTone(color: Color.yellow, on: Color.black),
@@ -148,9 +115,7 @@ void main() {
       border: const Tone(color: Color.gray),
       muted: const Tone(color: Color.darkGray),
       disabled: const Tone(color: Color.darkGray),
-      focus: const SurfaceTone(color: Color.brightCyan, on: Color.black),
       selection: const SurfaceTone(color: Color.yellow, on: Color.black),
-      cursor: explicitCursor ? const SurfaceTone(color: Color.darkGray, on: Color.white) : null,
     );
 
     test('two separately constructed equal tables compare equal and hash equal', () {
@@ -167,52 +132,6 @@ void main() {
         primary: const SurfaceTone(color: Color.brightRed, on: Color.black),
       );
       expect(a, isNot(equals(b)));
-    });
-
-    test('a derived cursor and an explicit equal-looking one compare unequal', () {
-      final derived = buildTable(explicitCursor: false);
-      final explicit = buildTable();
-      expect(derived.cursor, equals(explicit.cursor));
-      expect(derived, isNot(equals(explicit)));
-    });
-  });
-
-  group('Ansi16Tones optional cursor', () {
-    Ansi16Tones buildTable({required SurfaceTone background, SurfaceTone? cursor}) => Ansi16Tones(
-      primary: const SurfaceTone(color: Color.cyan, on: Color.black),
-      secondary: const SurfaceTone(color: Color.magenta, on: Color.black),
-      accent: const SurfaceTone(color: Color.yellow, on: Color.black),
-      error: const SurfaceTone(color: Color.red, on: Color.white),
-      warning: const SurfaceTone(color: Color.yellow, on: Color.black),
-      success: const SurfaceTone(color: Color.green, on: Color.black),
-      background: background,
-      surface: const SurfaceTone(color: Color.darkGray, on: Color.white),
-      border: const Tone(color: Color.gray),
-      muted: const Tone(color: Color.darkGray),
-      disabled: const Tone(color: Color.darkGray),
-      focus: const SurfaceTone(color: Color.brightCyan, on: Color.black),
-      selection: const SurfaceTone(color: Color.yellow, on: Color.black),
-      cursor: cursor,
-    );
-
-    test('a table built without cursor over a black background derives darkGray on white', () {
-      final table = buildTable(
-        background: const SurfaceTone(color: Color.black, on: Color.white),
-      );
-      expect(table.cursor, equals(const SurfaceTone(color: Color.darkGray, on: Color.white)));
-    });
-
-    test('a table built with cursor keeps it', () {
-      final table = buildTable(
-        background: const SurfaceTone(color: Color.black, on: Color.white),
-        cursor: const SurfaceTone(color: Color.brightBlue, on: Color.white),
-      );
-      expect(table.cursor, equals(const SurfaceTone(color: Color.brightBlue, on: Color.white)));
-    });
-
-    test("a table over a colorless background derives a cursor with no color and the background's on", () {
-      final table = buildTable(background: const SurfaceTone(on: Color.reset));
-      expect(table.cursor, equals(const SurfaceTone(on: Color.reset)));
     });
   });
 }

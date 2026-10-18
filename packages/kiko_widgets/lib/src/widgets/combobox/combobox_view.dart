@@ -159,10 +159,8 @@ final class Combobox<T> implements View {
   /// [ComboboxStyle.list] styles neither `item` nor `cursorItem`.
   ///
   /// A row that starts from the ground it sits on lifts that ground under
-  /// the cursor and under hover. A bare row would patch the cursor fill the
-  /// theme derives from `background`, which barely reads on `surface`. A
-  /// caller's own `cursorItem` only lands on a bare row, so a list that sets
-  /// one keeps its bare base.
+  /// the cursor and under hover. A list that sets its own `item` or
+  /// `cursorItem` keeps its anatomy as given.
   ListViewStyle _rowStyle(Style fill) {
     final list = style.list;
     if (list.item != null || list.cursorItem != null) return list;

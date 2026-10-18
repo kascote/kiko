@@ -25,6 +25,12 @@ Buffer renderBuffer(
   return buffer;
 }
 
+/// [color] moved [amount] of OKLab lightness away from [Theme.dark]'s
+/// background: lighter on a dark ground.
+Color _lifted(Color color, double amount) => color.shiftLightness(amount);
+
+final Color _ground = Theme.dark.background.color!;
+
 /// Two 5-wide columns ("a", "b") separated by the default one-space
 /// separator: header at y=0, row N at y=N+1. Column "a" renders its value
 /// with an explicit red foreground so tests can check that a wash or fill
@@ -71,7 +77,7 @@ void main() {
         // custom red fg from the column's own render callback.
         final cell = buffer[(x: 0, y: 2)];
         expect(cell.fg, equals(Color.red), reason: 'custom fg must survive the wash');
-        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
       });
 
       test('non-cursor row is unaffected', () {
@@ -84,25 +90,25 @@ void main() {
         expect(cell.bg, equals(Color.reset));
       });
 
-      test('hover row wash preserves a custom render fg', () {
+      test('hover row lift preserves a custom render fg', () {
         // Hover data row 2 (screen y=3), away from the cursor at row 0.
         final model = _model()..hoverRow = 2;
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         final cell = buffer[(x: 0, y: 3)];
-        expect(cell.fg, equals(Color.red), reason: 'custom fg must survive the hover wash');
-        expect(cell.bg, equals(Theme.dark.hover.color));
+        expect(cell.fg, equals(Color.red), reason: 'custom fg must survive the hover lift');
+        expect(cell.bg, equals(_lifted(_ground, Theme.step / 2)));
       });
 
       test('hover lifts a cursor row', () {
         // Row 0 is both hovered and the cursor; hover applies last, over the
-        // patched cursor row wash, lifting it rather than hiding it.
+        // patched cursor row wash, half a step further.
         final model = _model()..hoverRow = 0;
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         // Column "b" (x=6) on the cursor row (y=1): the cursor row wash, lifted.
         final cell = buffer[(x: 6, y: 1)];
-        expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
+        expect(cell.bg, equals(_lifted(_lifted(_ground, Theme.step), Theme.step / 2)));
       });
 
       test('a hovered selected row lifts the selection fill', () {
@@ -116,7 +122,7 @@ void main() {
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         final cell = buffer[(x: 6, y: 2)];
-        expect(cell.bg, equals(Theme.dark.selection.color!.lift(Theme.hoverLift)));
+        expect(cell.bg, equals(_lifted(Theme.dark.selection.color!, Theme.step / 2)));
       });
 
       test('a hovered cursor cell lifts the cell fill and keeps bold', () {
@@ -126,7 +132,7 @@ void main() {
 
         // Column "a" (x=0) on the cursor row (y=1): the exact cursor cell.
         final cell = buffer[(x: 0, y: 1)];
-        expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
+        expect(cell.bg, equals(_lifted(_lifted(_ground, Theme.step), Theme.step / 2)));
         expect(cell.modifier.has(Modifier.bold), isTrue);
       });
 
@@ -145,7 +151,7 @@ void main() {
         // Row 0, column "b" (x=6, y=1): not the cursor row, but IS the
         // cursor column — crosshair wash should tint its bg.
         final crosshairCol = buffer[(x: 6, y: 1)];
-        expect(crosshairCol.bg, equals(Theme.dark.cursor.color));
+        expect(crosshairCol.bg, equals(_lifted(_ground, Theme.step)));
       });
     });
 
@@ -170,7 +176,7 @@ void main() {
 
         final buffer = renderBuffer(model, width: 11, height: 5, showCrosshair: true);
         final cell = buffer[(x: 6, y: 1)];
-        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
       });
     });
 
@@ -197,7 +203,7 @@ void main() {
         // fill instead of replacing it, and keeps its foreground.
         final rowStyled = buffer[(x: 6, y: 3)];
         expect(rowStyled.fg, equals(Theme.dark.selection.on));
-        expect(rowStyled.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+        expect(rowStyled.bg, equals(_lifted(Theme.dark.selection.color!, Theme.step)));
       });
 
       test('a cursor cell over a selected row lifts the selection and is bold', () {
@@ -215,19 +221,19 @@ void main() {
         // "a" has a custom red fg, which still survives over the fill.
         final cursorCell = buffer[(x: 0, y: 3)];
         expect(cursorCell.fg, equals(Color.red));
-        expect(cursorCell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+        expect(cursorCell.bg, equals(_lifted(Theme.dark.selection.color!, Theme.step)));
         expect(cursorCell.modifier.has(Modifier.bold), isTrue);
       });
 
-      test('a cursor cell over a plain row is the cursor pair, bold', () {
+      test('a cursor cell over a plain row lifts the ground and is bold', () {
         // Move the cursor to column "b", which has no custom render fg, so
-        // the resolved fill's own fg is visible directly.
+        // the cell keeps the ink it inherits.
         final model = _model()..update(const KeyMsg('right'));
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         final cell = buffer[(x: 6, y: 1)]; // column "b", the exact cursor cell
-        expect(cell.fg, equals(Theme.dark.cursor.on));
-        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.fg, equals(Color.reset));
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
         expect(cell.modifier.has(Modifier.bold), isTrue);
       });
 
@@ -249,7 +255,7 @@ void main() {
         // line's own red fg must survive the fill, which supplies only the bg.
         final cell = buffer[(x: 0, y: 1)];
         expect(cell.fg, equals(Color.red), reason: "the line's own color wins over the cursor cell fill");
-        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
       });
 
       test('an unfocused table washes the whole cursor row on a plain row, no bold', () {
@@ -257,7 +263,7 @@ void main() {
         final buffer = renderBuffer(model, width: 11, height: 5);
 
         final cell = buffer[(x: 6, y: 1)]; // column "b", on the cursor row
-        expect(cell.bg, equals(Theme.dark.cursor.color));
+        expect(cell.bg, equals(_lifted(_ground, Theme.step)));
         expect(cell.modifier.has(Modifier.bold), isFalse);
       });
 
@@ -270,7 +276,7 @@ void main() {
 
         final cell = buffer[(x: 6, y: 1)]; // column "b", selected and on the cursor row
         expect(cell.fg, equals(Theme.dark.selection.on));
-        expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+        expect(cell.bg, equals(_lifted(Theme.dark.selection.color!, Theme.step)));
         expect(cell.modifier.has(Modifier.bold), isFalse);
       });
     });

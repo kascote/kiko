@@ -364,7 +364,7 @@ class TableRenderer {
       cellStyle,
       {
         if (isSelected) WidgetState.selected,
-        if (isFocusedCursorCell) WidgetState.cursor,
+        if (isFocusedCursorCell) ...const {WidgetState.cursor, WidgetState.focused},
       },
       cls: PaintClass.fill,
       slots: {

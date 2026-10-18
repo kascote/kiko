@@ -91,10 +91,10 @@ void main() {
 
       expect(cell.symbol, 'h');
       // Focus tints the glyph foreground (ink)...
-      expect(cell.fg, equals(Theme.dark.focus.color));
-      // ...and does not paint a focus-colored background over the text, which
+      expect(cell.fg, equals(Theme.dark.primary.color));
+      // ...and does not paint a primary-colored background over the text, which
       // would hide the characters and the terminal cursor.
-      expect(cell.bg, isNot(equals(Theme.dark.focus.color)));
+      expect(cell.bg, isNot(equals(Theme.dark.primary.color)));
     });
 
     test('disabled text carries the disabled ink and dim, and no cursor is placed', () {

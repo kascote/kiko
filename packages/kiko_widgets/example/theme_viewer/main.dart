@@ -511,7 +511,7 @@ void view(Model model, Frame frame) {
     final modal? => modalDialog(
       id: modal.id,
       theme: theme,
-      topTitles: [Line(' Dialog ', style: resolver.ink(t.focus))],
+      topTitles: [Line(' Dialog ', style: resolver.ink(t.accent))],
       content: Column(
         mainAxis: MainAxisAlignment.center,
         children: [

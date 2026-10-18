@@ -18,7 +18,7 @@ import 'tone.dart';
 /// reads correctly.
 ///
 /// Every entry's [Tone.color] (when set) is an ANSI-kind [Color] in the 0-15
-/// range. Eleven entries are [SurfaceTone]; each one's [SurfaceTone.on] is
+/// range. Nine entries are [SurfaceTone]; each one's [SurfaceTone.on] is
 /// always black or white, chosen for contrast, never a named hue. The three
 /// chrome entries (`border`, `muted`, `disabled`) are a plain [Tone] and
 /// carry no `on`, same as on the theme they come from.
@@ -72,33 +72,11 @@ class Ansi16Tones implements ToneSet {
   @override
   final Tone disabled;
 
-  /// Keyboard focus indicator ("you are here").
-  @override
-  final SurfaceTone focus;
-
   /// Chosen items (selected rows, picked options).
   @override
   final SurfaceTone selection;
 
-  /// The current row/column tint.
-  ///
-  /// [cursor] paints as a fill in the resolver's state matrix, so it needs a
-  /// named slot here; `hover` never does (see [ToneSet]) and has none. When
-  /// not set explicitly it derives from [background] the same way
-  /// [Theme.cursor] does.
-  ///
-  /// Equality compares the field this table was built with, not the derived
-  /// value, so a table left to derive and one that states the same value by
-  /// hand compare unequal.
-  @override
-  SurfaceTone get cursor => _cursor ?? Theme.deriveCursor(background);
-
-  final SurfaceTone? _cursor;
-
   /// Creates a table from its named tones.
-  ///
-  /// [cursor] is optional: leave it out to derive it from [background]
-  /// (see [cursor]).
   const Ansi16Tones({
     required this.primary,
     required this.secondary,
@@ -111,10 +89,8 @@ class Ansi16Tones implements ToneSet {
     required this.border,
     required this.muted,
     required this.disabled,
-    required this.focus,
     required this.selection,
-    SurfaceTone? cursor,
-  }) : _cursor = cursor;
+  });
 
   @override
   bool operator ==(Object other) {
@@ -131,9 +107,7 @@ class Ansi16Tones implements ToneSet {
         other.border == border &&
         other.muted == muted &&
         other.disabled == disabled &&
-        other.focus == focus &&
-        other.selection == selection &&
-        other._cursor == _cursor;
+        other.selection == selection;
   }
 
   @override
@@ -150,9 +124,7 @@ class Ansi16Tones implements ToneSet {
     border,
     muted,
     disabled,
-    focus,
     selection,
-    _cursor,
   );
 
   // Auto-derived tables, keyed by value. Theme has value equality, so a
@@ -192,9 +164,7 @@ class Ansi16Tones implements ToneSet {
       border: _deriveChromeTone(theme.border),
       muted: _deriveChromeTone(theme.muted),
       disabled: _deriveChromeTone(theme.disabled),
-      focus: _deriveSurfaceTone(theme.focus),
       selection: _deriveSurfaceTone(theme.selection),
-      cursor: _deriveSurfaceTone(theme.cursor),
     );
     _memo[theme] = derived;
     return derived;

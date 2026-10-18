@@ -247,7 +247,7 @@ void main() {
       final frame = _frame(5, 3)..render(node);
       expect(_dump(frame.buffer), 'b\nc\n#3\n');
       final trailingCell = frame.buffer[(x: 4, y: 2)];
-      expect(trailingCell.bg, equals(Theme.dark.cursor.color));
+      expect(trailingCell.bg, equals(Theme.dark.background.color!.shiftLightness(Theme.step)));
     });
 
     test('missing rows with nothing coming paint the true position, not an older run', () {

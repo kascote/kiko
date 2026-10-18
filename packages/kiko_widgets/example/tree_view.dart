@@ -141,7 +141,7 @@ void appView(AppModel model, Frame frame) {
   final treeWidget = Container(
     border: BorderType.plain,
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
-    topTitles: [Line('File Browser', style: resolver.ink(t.focus))],
+    topTitles: [Line('File Browser', style: resolver.ink(t.accent))],
     child: TreeView(
       model: model.tree,
       theme: theme,

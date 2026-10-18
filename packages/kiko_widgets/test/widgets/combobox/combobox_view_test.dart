@@ -94,11 +94,12 @@ void main() {
       expect(_cellAt(open.buffer, 9, 0), '▴');
     });
 
-    test('the toggle glyph washes while hovered', () {
-      final combo = _fruitBox()..toggleHovered = true;
-      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+    test('the toggle glyph is an ink part, so hovering it paints no wash', () {
+      final resting = _frame(10, 1)..render(Combobox(model: _fruitBox(), theme: _theme));
+      final hovered = _frame(10, 1)..render(Combobox(model: _fruitBox()..toggleHovered = true, theme: _theme));
 
-      expect(frame.buffer[(x: 9, y: 0)].bg, equals(Theme.dark.hover.color));
+      expect(hovered.buffer[(x: 9, y: 0)].bg, equals(resting.buffer[(x: 9, y: 0)].bg));
+      expect(hovered.buffer[(x: 9, y: 0)].fg, equals(resting.buffer[(x: 9, y: 0)].fg));
     });
 
     test('the toggle glyph takes the error ink', () {
@@ -252,7 +253,7 @@ void main() {
 
       final surface = _theme.surface.color!;
       // Row 0 holds the cursor: one state step up from the popup ground.
-      expect(frame.buffer[(x: 8, y: 1)].bg, equals(surface.lighten(Theme.stateLift)));
+      expect(frame.buffer[(x: 8, y: 1)].bg, equals(surface.shiftLightness(Theme.step)));
       // Row 1 rests on the popup ground itself.
       expect(frame.buffer[(x: 8, y: 2)].bg, equals(surface));
     });

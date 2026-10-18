@@ -282,7 +282,7 @@ View _field(TextInputModel input, int index, StyleResolver resolver) => Tagged.s
     }),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: [
-      Line(' ${_labels[index]} ', style: resolver.ink(input.focused ? resolver.tones.focus : resolver.tones.muted)),
+      Line(' ${_labels[index]} ', style: resolver.ink(input.focused ? resolver.tones.accent : resolver.tones.muted)),
     ],
     // The TextInput tags its own content with its model id — no `Tagged`
     // wrapper needed. That self-tag nests inside the scope above, so a

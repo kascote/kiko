@@ -251,7 +251,7 @@ View stateStrip(StyleResolver resolver) {
       child: Column(
         children: [
           _stripGroup(resolver, 'bg', 'on background', resolver.ground(t.background), borderInk),
-          _stripGroup(resolver, 'sf', 'on surface', resolver.ground(t.surface), borderInk),
+          _stripGroup(resolver.on(t.surface), 'sf', 'on surface', resolver.ground(t.surface), borderInk),
           Line(
             'sel selected · cur cursor · dis disabled · load loading · cur wash: cursor in the wash class',
             style: resolver.ink(t.muted),

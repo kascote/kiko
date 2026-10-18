@@ -241,11 +241,19 @@ A `RowRegion` is a plain value class kiko_widgets shares across ListView,
 TableView and TreeView. A widget with parts of its own defines its own region
 types the same way: a value class implementing `Region`.
 
-This shape avoids two mistakes. Putting `WidgetState.focused` in every row's
-state set paints the focus fill across the whole widget — focus belongs on the
-chrome (a border, a title), never on rows. Resolving hover as a fill instead
-of a wash overwrites the row's own foreground. The full reasoning is
-`docs/theming.md`.
+A row paints through one `resolve` call per paint class, and `resolve`
+applies the states in a fixed order: roles, `focused`, `cursor`, `disabled`,
+`hover`, `pressed` (`docs/theming.md`). With a null base, `resolve` starts
+from the resolver's ground, so a cursor row lifts the ground one step. The
+cursor row of a widget that owns keyboard focus passes `{cursor, focused}`:
+one lift and bold. An unfocused widget passes `{cursor}`: one lift, no bold.
+This palette passes `{cursor}` and signals focus on its border.
+
+This shape avoids two mistakes. Putting `WidgetState.focused` in every
+row's state set lifts and bolds the whole widget — focus belongs on the
+chrome (a border, a title), and on the cursor row at most. Resolving hover
+as a fill instead of a wash overwrites the row's own foreground. The full
+reasoning is `docs/theming.md`.
 
 ## Wiring it into an app
 

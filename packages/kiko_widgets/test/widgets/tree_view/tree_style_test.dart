@@ -18,6 +18,12 @@ Buffer _render(
   return buffer;
 }
 
+/// [color] moved [amount] of OKLab lightness up, away from [Theme.dark]'s
+/// dark background.
+Color _lifted(Color color, double amount) => color.shiftLightness(amount);
+
+final Color _ground = Theme.dark.background.color!;
+
 TreeViewModel<String> _tree() => TreeViewModel<String>(focused: true)
   ..loadRoots()
   ..applyRoots(<TreeNode<String>>[
@@ -27,16 +33,12 @@ TreeViewModel<String> _tree() => TreeViewModel<String>(focused: true)
 
 void main() {
   group('TreeView anatomy styling', () {
-    test('the cursor node paints the cursor tone, not the focus tone (F2)', () {
-      // The regression guard: the current node is WidgetState.cursor, so it
-      // must derive from the cursor tone — never the focus tone the old code
-      // borrowed for "the current row".
+    test('the cursor node lifts the ground one state step and turns bold', () {
       final model = _tree();
       final buffer = _render(model);
 
       final cursorCell = buffer[(x: 9, y: 0)]; // trailing fill-only cell, cursor row
-      expect(cursorCell.bg, equals(Theme.dark.cursor.color));
-      expect(cursorCell.bg, isNot(equals(Theme.dark.focus.color)));
+      expect(cursorCell.bg, equals(_lifted(_ground, Theme.step)));
       expect(cursorCell.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -48,7 +50,7 @@ void main() {
       expect(plainCell.bg, equals(Color.reset));
     });
 
-    test('an explicit cursorItem style paints verbatim, plus the resolver bold', () {
+    test('an explicit cursorItem style paints verbatim, plus the focused bold', () {
       const override = Style(fg: Color.green, bg: Color.blue);
       final model = _tree();
       final buffer = _render(model, style: const TreeViewStyle(cursorItem: override));
@@ -56,37 +58,36 @@ void main() {
       final cell = buffer[(x: 9, y: 0)];
       expect(cell.bg, equals(Color.blue));
       expect(cell.fg, equals(Color.green));
-      // The slot replaces the theme's fallback on a bare row; the resolver
-      // still adds its own bold on top.
+      // The slot replaces the cursor step; the focused layer still adds bold.
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
-    test('an unfocused tree washes the cursor on a plain node, no bold', () {
+    test('an unfocused tree lifts the cursor on a plain node, no bold', () {
       final model = _tree()..focused = false;
       final buffer = _render(model);
 
       final cell = buffer[(x: 9, y: 0)];
-      expect(cell.bg, equals(Theme.dark.cursor.color));
+      expect(cell.bg, equals(_lifted(_ground, Theme.step)));
       expect(cell.modifier.has(Modifier.bold), isFalse);
     });
 
-    test('a hovered node derives the hover wash', () {
+    test('a hovered node lifts the ground half a state step', () {
       // Hover node 1, away from the cursor at node 0, so only the hover wash paints.
       final model = _tree()..hoverRow = 1;
       final buffer = _render(model);
 
       final hoverCell = buffer[(x: 9, y: 1)];
-      expect(hoverCell.bg, equals(Theme.dark.hover.color));
+      expect(hoverCell.bg, equals(_lifted(_ground, Theme.step / 2)));
     });
 
     test('hover lifts a cursor node', () {
       // Node 0 is both hovered and the cursor; hover applies last, over the
-      // patched cursor fill, lifting it rather than hiding it.
+      // cursor step, half a step further.
       final model = _tree()..hoverRow = 0;
       final buffer = _render(model);
 
       final cell = buffer[(x: 9, y: 0)];
-      expect(cell.bg, equals(Theme.dark.cursor.color!.lift(Theme.hoverLift)));
+      expect(cell.bg, equals(_lifted(_lifted(_ground, Theme.step), Theme.step / 2)));
     });
 
     test('a node whose children are loading blinks warning on the glyph, not the row', () {

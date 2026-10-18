@@ -45,7 +45,7 @@ void main() {
       final cell = buffer[(x: rect!.x, y: rect.y)];
 
       expect(cell.fg, equals(Theme.dark.selection.on));
-      expect(cell.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+      expect(cell.bg, equals(Theme.dark.selection.color!.shiftLightness(Theme.step)));
       // The list starts unfocused — the name field holds focus first — so
       // the cursor paints in the wash class and adds no bold. Bold marks a
       // collection that owns focus.
@@ -68,7 +68,7 @@ void main() {
     final chosenRow = model.delivery.options.indexWhere((option) => option.value == model.delivery.value);
     final chosenMark = buffer[(x: radio!.x + 1, y: radio.y + chosenRow)];
     expect(chosenMark.symbol, '*', reason: 'seeded chosen, so the chosen option shows its mark');
-    expect(chosenMark.fg, equals(Theme.dark.selection.color));
+    expect(chosenMark.fg, equals(Theme.dark.primary.color));
 
     expect(model.table.getSelectedKeys(), equals({'R001'}));
     final table = frame.hits.rectOf(model.table.id);
@@ -77,10 +77,13 @@ void main() {
     // cursor, so the crosshair's row wash lifts the selection fill.
     final selected = buffer[(x: table!.x + 1, y: table.y + 1)];
     expect(selected.fg, equals(Theme.dark.selection.on));
-    expect(selected.bg, equals(Theme.dark.selection.color!.lighten(Theme.stateLift)));
+    expect(selected.bg, equals(Theme.dark.selection.color!.shiftLightness(Theme.step)));
     // The cursor column runs down every row: a bare row below the cursor
     // carries the cursor wash in that column.
-    expect(buffer[(x: table.x + 1, y: table.y + 2)].bg, equals(Theme.dark.cursor.color));
+    expect(
+      buffer[(x: table.x + 1, y: table.y + 2)].bg,
+      equals(Theme.dark.background.color!.shiftLightness(Theme.step)),
+    );
   });
 
   test('F4 cycles the header through the three pages', () {
@@ -126,7 +129,7 @@ void main() {
     );
     expect(selCurCell.fg, equals(selCurStyle.fg));
     expect(selCurCell.bg, equals(selCurStyle.bg));
-    expect(selCurCell.modifier.has(Modifier.bold), isTrue, reason: 'the cursor adds bold in the fill class');
+    expect(selCurCell.modifier.has(Modifier.bold), isFalse, reason: 'the cursor lifts without bold unless focused');
 
     // "rest" resolves to an untouched, bare style, so its cell shows whatever
     // ground the group painted underneath it — the one chip where the two
@@ -141,12 +144,12 @@ void main() {
     expect(sfRestBg, equals(Theme.dark.surface.color));
     expect(bgRestBg, isNot(equals(sfRestBg)));
 
-    // "cur" on the surface row lifts nothing — its base is bare — so its bg
-    // is the cursor fill's own color, landing on the surface row.
+    // "cur" on the surface row lifts the surface one state step: the strip
+    // resolves the surface group through a resolver bound to the surface.
     final sfCurRect = frame.hits.rectOf('strip/sf/fill/cur');
     expect(sfCurRect, isNotNull, reason: "the surface group's cur chip paints under its own tag");
     final sfCurBg = buffer[(x: sfCurRect!.x + 1, y: sfCurRect.y)].bg;
-    expect(sfCurBg, equals(Theme.dark.cursor.color));
+    expect(sfCurBg, equals(Theme.dark.surface.color!.shiftLightness(Theme.step)));
 
     // A wash keeps the ground's own text: the "sel" wash chip sets only a
     // background, so its fg still reads back as the background row's own

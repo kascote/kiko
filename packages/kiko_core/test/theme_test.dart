@@ -20,7 +20,6 @@ void main() {
       expect(theme.border.color, isNotNull);
       expect(theme.muted.color, isNotNull);
       expect(theme.disabled.color, isNotNull);
-      expect(theme.focus.color, isNotNull);
       expect(theme.selection.color, isNotNull);
       expect(theme.selection.on, isNotNull);
     });
@@ -51,22 +50,10 @@ void main() {
         expect(theme.border.color, isNotNull);
         expect(theme.muted.color, isNotNull);
         expect(theme.disabled.color, isNotNull);
-        expect(theme.focus.color, isNotNull);
         expect(theme.selection.color, isNotNull);
         expect(theme.selection.on, isNotNull);
       });
     }
-
-    test('a transparent theme grounds fg-only and sets cursor and hover by hand', () {
-      const theme = _transparent;
-      final resolver = StyleResolver(theme, policy: RenderPolicy.color);
-      final ground = resolver.ground(theme.background);
-
-      expect(ground.bg, isNull);
-      expect(ground.fg, equals(Color.reset));
-      expect(theme.cursor, equals(const SurfaceTone(color: Color.darkGray, on: Color.white)));
-      expect(theme.hover, equals(const Tone(color: Color.darkGray)));
-    });
 
     test('background tone: color is the base bg, on is default text', () {
       // The surface-shaped tones invert the old Style(fg: text, bg: bg) layout:
@@ -85,69 +72,23 @@ void main() {
 
     test('no tone carries a modifier — modifiers ride on projections', () {
       // Tones are pure color; bold/dim/blink come from the resolver matrix.
-      expect(Theme.dark.focus.ink.addModifier, equals(Modifier.empty));
+      expect(Theme.dark.primary.ink.addModifier, equals(Modifier.empty));
       expect(Theme.dark.disabled.ink.addModifier, equals(Modifier.empty));
     });
 
-    group('derived cursor and hover', () {
-      test('dark theme derives washes by lifting the background', () {
-        const theme = Theme.dark;
-        final base = theme.background.color!;
-
-        expect(theme.cursor.color, equals(base.lift(Theme.stateLift)));
-        expect(theme.cursor.on, equals(theme.background.on));
-        expect(theme.hover.color, equals(base.lift(Theme.hoverLift)));
+    group('state step and de-emphasis', () {
+      test('one state step is 0.12 of OKLab lightness', () {
+        expect(Theme.step, equals(0.12));
       });
 
-      test('the derived cursor takes one state step and hover half of it', () {
-        expect(Theme.hoverLift * 2, equals(Theme.stateLift));
-        expect(Theme.dark.cursor.color, equals(Theme.dark.background.color!.lift(Theme.stateLift)));
+      test('every shipped theme de-emphasises by 0.45 unless told otherwise', () {
+        for (final theme in _shipped) {
+          expect(theme.deEmphasis, equals(0.45), reason: theme.name);
+        }
       });
 
-      test('a light theme derives washes by lifting (darkening) the background', () {
-        final theme = Theme.dark.copyWith(
-          background: const SurfaceTone(color: Color.rgb(0xf6f8fa), on: Color.rgb(0x1f2328)),
-        );
-        final base = theme.background.color!;
-
-        // On a light base, lift darkens.
-        expect(theme.cursor.color, equals(base.lift(Theme.stateLift)));
-        expect(theme.cursor.color, equals(base.darken(Theme.stateLift)));
-      });
-
-      test('explicit cursor/hover win over derivation', () {
-        const custom = SurfaceTone(color: Color.rgb(0x2a1d10), on: Color.rgb(0xffffff));
-        final theme = Theme.dark.copyWith(cursor: custom);
-
-        expect(theme.cursor, equals(custom));
-        // hover is still derived.
-        expect(theme.hover.color, equals(theme.background.color!.lift(Theme.hoverLift)));
-      });
-
-      test('deriveCursor matches the getter it backs', () {
-        expect(Theme.deriveCursor(Theme.dark.background), equals(Theme.dark.cursor));
-      });
-
-      test('terminal-default background derives an empty cursor that keeps its on', () {
-        const theme = Theme(
-          name: 'transparent',
-          primary: SurfaceTone(color: Color.cyan, on: Color.black),
-          secondary: SurfaceTone(color: Color.magenta, on: Color.black),
-          accent: SurfaceTone(color: Color.yellow, on: Color.black),
-          error: SurfaceTone(color: Color.red, on: Color.white),
-          warning: SurfaceTone(color: Color.yellow, on: Color.black),
-          success: SurfaceTone(color: Color.green, on: Color.black),
-          background: SurfaceTone(on: Color.white), // transparent: no color
-          surface: SurfaceTone(color: Color.darkGray, on: Color.white),
-          border: Tone(color: Color.gray),
-          muted: Tone(color: Color.darkGray),
-          disabled: Tone(color: Color.darkGray),
-          focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
-          selection: SurfaceTone(color: Color.yellow, on: Color.black),
-        );
-
-        expect(theme.cursor, equals(const SurfaceTone(on: Color.white)));
-        expect(theme.hover, equals(const Tone()));
+      test('a theme takes its own de-emphasis amount', () {
+        expect(Theme.dark.copyWith(deEmphasis: 0.6).deEmphasis, equals(0.6));
       });
     });
 
@@ -170,45 +111,32 @@ void main() {
 
       test('changing no tone keeps the hand-authored ANSI-16 table', () {
         expect(Theme.dark.copyWith().tones16, same(Theme.dark.tones16));
-        expect(Theme.dark.copyWith(hover: const Tone(color: Color.blue)).tones16, same(Theme.dark.tones16));
+        expect(Theme.dark.copyWith(deEmphasis: 0.6).tones16, same(Theme.dark.tones16));
       });
 
       test('changing a tone drops the hand-authored ANSI-16 table', () {
-        expect(Theme.dark.copyWith(focus: Theme.dark.error).tones16, isNull);
-        expect(
-          Theme.dark
-              .copyWith(
-                cursor: const SurfaceTone(color: Color.blue, on: Color.white),
-              )
-              .tones16,
-          isNull,
-        );
+        expect(Theme.dark.copyWith(accent: Theme.dark.error).tones16, isNull);
+        expect(Theme.dark.copyWith(selection: Theme.dark.error).tones16, isNull);
       });
 
       test('a passed table stays in control when a tone changes', () {
-        final theme = Theme.dark.copyWith(focus: Theme.dark.error, tones16: Theme.gruvbox.tones16);
+        final theme = Theme.dark.copyWith(accent: Theme.dark.error, tones16: Theme.gruvbox.tones16);
         expect(theme.tones16, same(Theme.gruvbox.tones16));
       });
 
       test('a variant paints its changed tone under ANSI-16', () {
-        final variant = Theme.dark.copyWith(focus: Theme.dark.error);
+        final variant = Theme.dark.copyWith(selection: Theme.dark.error);
         final resolver = StyleResolver(variant, policy: RenderPolicy.ansi16);
-        final focused = resolver.resolve(null, const {WidgetState.focused}, cls: PaintClass.fill);
+        final selected = resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.fill);
 
-        expect(focused.bg, equals(resolver.tones.error.color));
-        expect(focused.bg, isNot(equals(Theme.dark.tones16!.focus.color)));
+        expect(selected.bg, equals(resolver.tones.error.color));
+        expect(selected.bg, isNot(equals(Theme.dark.tones16!.selection.color)));
       });
 
       test('renaming to selection replaces the old highlight token', () {
         const custom = SurfaceTone(color: Color.blue, on: Color.white);
         final theme = Theme.dark.copyWith(selection: custom);
         expect(theme.selection, equals(custom));
-      });
-
-      test('cursor takes a SurfaceTone', () {
-        const customCursor = SurfaceTone(color: Color.rgb(0x123456), on: Color.white);
-        final theme = Theme.dark.copyWith(cursor: customCursor);
-        expect(theme.cursor, equals(customCursor));
       });
     });
 
@@ -229,24 +157,23 @@ void main() {
         expect(Theme.dark, isNot(equals(other)));
       });
 
-      test('explicit cursor differs from a derived one', () {
-        final withCursor = Theme.dark.copyWith(
-          cursor: const SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
-        );
-        expect(withCursor, isNot(equals(Theme.dark)));
+      test('differing in de-emphasis is unequal', () {
+        final other = Theme.dark.copyWith(deEmphasis: 0.6);
+        expect(other, isNot(equals(Theme.dark)));
+        expect(other.hashCode, isNot(equals(Theme.dark.hashCode)));
       });
     });
 
     group('projection usage patterns', () {
       test('primary.fill for buttons (fg: on, bg: color)', () {
-        final buttonStyle = _transparent.primary.fill;
+        final buttonStyle = _plain.primary.fill;
 
         expect(buttonStyle.fg, equals(Color.black));
         expect(buttonStyle.bg, equals(Color.cyan));
       });
 
       test('background.on for default text', () {
-        expect(_transparent.background.on, equals(Color.reset));
+        expect(_plain.background.on, equals(Color.white));
       });
 
       test('border.ink for chrome carries no background', () {
@@ -254,53 +181,35 @@ void main() {
         expect(Theme.dark.border.ink.bg, isNull);
       });
     });
-
-    group('derived cursor and hover', () {
-      test('a preset that omits cursor and hover reports both derived', () {
-        expect(Theme.dark.derivesCursor, isTrue);
-        expect(Theme.dark.derivesHover, isTrue);
-      });
-
-      test('an explicit tone flips only its own flag', () {
-        final custom = Theme.dark.copyWith(
-          cursor: const SurfaceTone(color: Color.rgb(0x123456), on: Color.white),
-        );
-        expect(custom.derivesCursor, isFalse);
-        expect(custom.derivesHover, isTrue);
-      });
-
-      test('a copy without an override stays derived', () {
-        expect(
-          Theme.dark
-              .copyWith(
-                primary: const SurfaceTone(color: Color.red, on: Color.white),
-              )
-              .derivesCursor,
-          isTrue,
-        );
-      });
-    });
   });
 }
 
-/// A theme on the terminal's own background: no base color, default text is
-/// the terminal's default foreground, cursor and hover set by hand because
-/// nothing can derive a wash from an unknown background.
-const _transparent = Theme(
-  name: 'transparent',
+const List<Theme> _shipped = [
+  Theme.dark,
+  Theme.catppuccin,
+  Theme.rosePine,
+  Theme.gruvbox,
+  Theme.monokai,
+  Theme.nord,
+  Theme.tokyoNight,
+  Theme.oneDark,
+  Theme.dracula,
+  Theme.solarized,
+];
+
+/// A theme on plain ANSI colors, for tests that read projections.
+const _plain = Theme(
+  name: 'plain',
   primary: SurfaceTone(color: Color.cyan, on: Color.black),
   secondary: SurfaceTone(color: Color.magenta, on: Color.black),
   accent: SurfaceTone(color: Color.yellow, on: Color.black),
   error: SurfaceTone(color: Color.red, on: Color.white),
   warning: SurfaceTone(color: Color.yellow, on: Color.black),
   success: SurfaceTone(color: Color.green, on: Color.black),
-  background: SurfaceTone(on: Color.reset),
+  background: SurfaceTone(color: Color.black, on: Color.white),
   surface: SurfaceTone(color: Color.darkGray, on: Color.white),
   border: Tone(color: Color.gray),
   muted: Tone(color: Color.darkGray),
   disabled: Tone(color: Color.darkGray),
-  focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
   selection: SurfaceTone(color: Color.yellow, on: Color.black),
-  cursor: SurfaceTone(color: Color.darkGray, on: Color.white),
-  hover: Tone(color: Color.darkGray),
 );

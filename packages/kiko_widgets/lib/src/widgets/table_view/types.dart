@@ -168,10 +168,8 @@ class TableScrollState {
 /// TableView's anatomy: one nullable style slot per part.
 ///
 /// A `null` slot is derived from the theme's tones by the rule below. A
-/// non-null slot is the caller's exact style. `selectedRow` patches over any
-/// base. The three cursor slots land on a bare base only: a base that
-/// already carries a background lifts by [Theme.stateLift] instead, and the
-/// slot is not read. See [StyleResolver.resolve].
+/// non-null slot is the caller's exact style: it replaces that state's
+/// built-in effect. See [StyleResolver.resolve].
 ///
 /// | slot           | derived default                          | matrix source     |
 /// | -------------- | ----------------------------------------- | ----------------- |
@@ -179,24 +177,23 @@ class TableScrollState {
 /// | `row`          | none (inherits the pane's ground)       | —                 |
 /// | `separator`    | `resolver.ink(border)`                    | resting chrome    |
 /// | `selectedRow`  | `resolver.fill(selection)`                | selected × fill   |
-/// | `cursorRow`    | `resolver.wash(cursor)`                   | cursor × wash     |
-/// | `cursorColumn` | `resolver.wash(cursor)`                   | cursor × wash     |
-/// | `cursorCell`   | `resolver.fill(cursor)` + bold            | cursor × fill     |
+/// | `cursorRow`    | the cell lifted one step                  | cursor × wash     |
+/// | `cursorColumn` | the cell lifted one step                  | cursor × wash     |
+/// | `cursorCell`   | the cell lifted one step, plus bold       | cursor × fill     |
 /// | `pending`      | `resolver.ink(muted)`                     | anatomy-specific  |
 /// | `placeholder`  | `resolver.ink(muted)`                     | anatomy-specific  |
 ///
 /// Per-cell paint order is: row base, then `selectedRow` (a fill), then one
 /// cursor step: `cursorCell` (a fill) on the focused cursor cell, else
 /// `cursorRow`/`cursorColumn` (washes — a bg-only patch that leaves each
-/// cell's own foreground untouched). A cell whose base already carries a
-/// background — from `row`, a column style, or `selectedRow` — lifts under
-/// the cursor instead of taking its slot. The crosshair (`cursorColumn`)
-/// only paints when `TableView.showCrosshair` is true; a slot's presence
-/// styles a part, it never turns on the behavior that paints it. Hover
-/// applies last, as a transform over that patched cell: a cell with a
-/// background lifts it, a bare cell takes the hover wash. The cell's content
-/// — the column's rendered [Line] and its spans — patches last of all, over
-/// every slot above, hover included.
+/// cell's own foreground untouched). A cursor step is one state step in
+/// OKLab lightness away from the cell's own background, or from the ground
+/// the resolver is bound to when the cell is bare. The crosshair
+/// (`cursorColumn`) only paints when `TableView.showCrosshair` is true; a
+/// slot's presence styles a part, it never turns on the behavior that paints
+/// it. Hover applies last: half a state step in the same direction. The
+/// cell's content — the column's rendered [Line] and its spans — patches last
+/// of all, over every slot above, hover included.
 class TableViewStyle {
   /// Sticky header text.
   final Style? header;

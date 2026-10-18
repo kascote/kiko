@@ -34,13 +34,16 @@ enum PaintClass {
 /// projection — the one place that still knows the intent — so widgets never
 /// know: a `fill` degrades to [Modifier.reversed], an `ink` keeps its modifiers
 /// but drops its foreground, and a `wash` (a tint that cannot exist without
-/// color) degrades to nothing.
+/// color) degrades to nothing. No state layer lifts a color; focus adds bold,
+/// pressed toggles [Modifier.reversed] and de-emphasis adds [Modifier.dim].
 ///
 /// Under [ansi16] color survives, but only through sixteen named slots
 /// instead of free RGB: `ink`/`fill` paint through the theme's
 /// [Theme.tones16] table (hand-authored, or derived once via
 /// [Ansi16Tones.derive]) instead of its RGB tones, and a `wash` still drops
-/// entirely — the 16-name vocabulary has no subtle tints to spend on one.
+/// entirely — the 16-name vocabulary has no subtle tints to spend on one. A
+/// state-layer lift becomes the bright variant of the color it lifts, and
+/// de-emphasis adds [Modifier.dim].
 enum RenderPolicy {
   /// Colors render as themed, in full RGB.
   color,
@@ -53,31 +56,33 @@ enum RenderPolicy {
   ansi16,
 }
 
-/// Resolves a [Style] from a [Theme], active [WidgetState]s, and a [PaintClass].
+/// Resolves a [Style] from a [Theme], active [WidgetState]s, and a [PaintClass],
+/// on one ground.
 ///
-/// This is the single place the built-in look lives. [WidgetState.selected],
-/// [WidgetState.loading] and [WidgetState.error] patch one matrix cell each,
-/// in priority order, onto a base style; the [PaintClass] decides how each
-/// tone lands, so the same state looks right on chrome, on a surface, or as a
-/// tint without any per-widget code. [WidgetState.cursor],
-/// [WidgetState.focused] and [WidgetState.disabled] are not in that matrix:
-/// they transform the patched result afterward, in that order, so a state
-/// that lands on a colored base lifts or blends it instead of replacing it.
-/// [WidgetState.hover] and [WidgetState.pressed] transform last, and do
-/// nothing once [WidgetState.disabled] is active. A theme picks the colors
-/// every step reads; the resolver itself picks every modifier, including
-/// [Theme.hoverLift].
+/// The resolver is bound to a ground: the [SurfaceTone] its parts sit on,
+/// [tones].background by default. Every lift, blend and tint it computes starts
+/// from that ground. Call [on] to bind another ground, such as
+/// [ToneSet.surface] for a dialog, and hand the result to the views the dialog
+/// holds. A widget then looks the same inside the dialog as outside it.
 ///
-/// A `slots` argument on [resolve] lets a widget hand in an authored style
-/// for one state — a widget's own cursor-row slot, say —
-/// which replaces the theme's own contribution for that state without
-/// touching any other.
+/// A widget calls [resolve] once per part with that part's base style, its
+/// states and a [PaintClass]. [resolve] applies the state layers in one fixed
+/// order, whatever the class: roles ([WidgetState.selected],
+/// [WidgetState.loading], [WidgetState.error]), then [WidgetState.focused],
+/// [WidgetState.cursor], [WidgetState.disabled], [WidgetState.hover],
+/// [WidgetState.pressed], and last de-emphasis. A lift moves a background by
+/// [Theme.step] in OKLab lightness, away from the ground. The ink class never
+/// lifts.
 ///
 /// ```dart
 /// final resolver = StyleResolver(theme);
-/// final rowStyle = resolver.resolve(base, {WidgetState.selected}, cls: PaintClass.fill);
+/// final rowStyle = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
 /// final borderStyle = resolver.border({if (m.focused) WidgetState.focused});
+/// final inDialog = resolver.on(resolver.tones.surface);
 /// ```
+///
+/// [deEmphasised] returns a resolver whose every projection is quieter, for a
+/// pane that is present but not the one being used.
 @immutable
 class StyleResolver {
   /// The process-wide policy new resolvers adopt when none is passed.
@@ -89,6 +94,23 @@ class StyleResolver {
   /// pass [policy] explicitly or set this directly.
   static RenderPolicy defaultPolicy = RenderPolicy.color;
 
+  /// Creates a resolver backed by [theme], bound to the theme's background.
+  ///
+  /// [policy] defaults to [defaultPolicy] (the process-wide value set by
+  /// `Application` from the terminal profile), so a widget never has to know or
+  /// pass it. The theme must carry a background color.
+  factory StyleResolver(Theme theme, {RenderPolicy? policy}) {
+    assert(theme.background.color != null, 'A theme must carry a background color.');
+    final resolved = policy ?? defaultPolicy;
+    final tones = _tonesFor(theme, resolved);
+    return StyleResolver._(theme, resolved, tones, tones.background, isDeEmphasised: false);
+  }
+
+  const StyleResolver._(this.theme, this.policy, this.tones, this.groundTone, {required this.isDeEmphasised});
+
+  static ToneSet _tonesFor(Theme theme, RenderPolicy policy) =>
+      policy == RenderPolicy.ansi16 ? (theme.tones16 ?? Ansi16Tones.derive(theme)) : theme;
+
   /// The theme used for built-in state defaults.
   final Theme theme;
 
@@ -96,233 +118,286 @@ class StyleResolver {
   /// modifier-only re-expression, or the [RenderPolicy.ansi16] named palette.
   final RenderPolicy policy;
 
-  /// The tone set the state matrix actually reads from.
+  /// The tone set every projection reads from.
   ///
   /// [theme] itself under [RenderPolicy.color] and [RenderPolicy.noColor];
   /// under [RenderPolicy.ansi16] this is [Theme.tones16] if the theme
   /// hand-authored one, otherwise an [Ansi16Tones] table derived once and
-  /// cached. Resolved a single time here, at construction, so the matrix
-  /// below reads one shape and never branches per state on which kind of
-  /// tone it is holding.
+  /// cached. Resolved a single time at construction. Read a tone to project
+  /// or to pass to [on] from here, never from [theme].
   final ToneSet tones;
 
-  /// Creates a resolver backed by [theme].
+  /// The ground this resolver's parts sit on.
   ///
-  /// [policy] defaults to [defaultPolicy] (the process-wide value set by
-  /// `Application` from the terminal profile), so a widget never has to know or
-  /// pass it.
-  StyleResolver(this.theme, {RenderPolicy? policy})
-    : policy = policy ?? defaultPolicy,
-      tones = _tonesFor(theme, policy ?? defaultPolicy);
+  /// Lifts move away from its color, a disabled fill and a de-emphasised part
+  /// blend toward it, and a part with no background of its own starts from it.
+  final SurfaceTone groundTone;
 
-  static ToneSet _tonesFor(Theme theme, RenderPolicy policy) =>
-      policy == RenderPolicy.ansi16 ? (theme.tones16 ?? Ansi16Tones.derive(theme)) : theme;
-
-  /// Resolves a [Style] by applying state styles on top of [base].
+  /// Whether this resolver quiets everything it hands out.
   ///
-  /// 1. Starts with [base] (or an empty style if null).
-  /// 2. Walks [WidgetState.selected], [WidgetState.loading] and
-  ///    [WidgetState.error] in declaration order. For each active one,
-  ///    patches [slots] for that state, or the built-in matrix cell for that
-  ///    state and [cls] when there is no slot. States whose cell is empty for
-  ///    [cls] contribute nothing.
-  /// 3. If [WidgetState.cursor] is active: lifts a colored result or patches
-  ///    [slots] for [WidgetState.cursor] (or the built-in cursor fallback) on
-  ///    a bare one — see [_liftOrFallback]. Adds bold in [PaintClass.fill].
-  /// 4. If [WidgetState.focused] is active: the same lift-or-fallback in
-  ///    [PaintClass.fill], with bold. In [PaintClass.ink] the focus ink plus
-  ///    bold patches in step 2 instead, at the state's declaration position,
-  ///    so an error ink still wins over it on chrome.
-  /// 5. If [WidgetState.disabled] is active: blends a filled result toward
-  ///    the ground and adds dim, or swaps in the disabled ink on a bare one.
-  ///    A background that marks a position — the cursor or focus lift, or a
-  ///    cursor wash — stays; only the ink blends. Ends the chain: steps 6
-  ///    and 7 are skipped.
-  /// 6. Otherwise, if [WidgetState.hover] is active: lifts a background by
-  ///    [Theme.hoverLift] or, on a result with none, patches the hover wash.
-  /// 7. Otherwise, if [WidgetState.pressed] is active: inverts the result, or,
-  ///    under [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
+  /// See [deEmphasised].
+  final bool isDeEmphasised;
+
+  /// This resolver rebound to [ground]; the de-emphasis flag carries over.
+  ///
+  /// Pass a tone read from [tones], such as `tones.surface`, so it matches the
+  /// render policy. [ground] must carry a color.
+  StyleResolver on(SurfaceTone ground) {
+    assert(ground.color != null, 'A ground must carry a color.');
+    return StyleResolver._(theme, policy, tones, ground, isDeEmphasised: isDeEmphasised);
+  }
+
+  /// This resolver with de-emphasis on; the ground carries over.
+  ///
+  /// Every projection ([ink], [fill], [wash], [ground]) and every [resolve]
+  /// result is quieter. Under [RenderPolicy.color] each color moves toward the
+  /// ground by [Theme.deEmphasis]; under [RenderPolicy.ansi16] and
+  /// [RenderPolicy.noColor] the style gains [Modifier.dim]. A pane hands this
+  /// resolver to the views it holds while it is not the active one.
+  ///
+  /// [resolve] does not touch its `base`, so build the base from this
+  /// resolver's own projections. A raw style passed as `base` stays as bright
+  /// as it is.
+  StyleResolver get deEmphasised => StyleResolver._(theme, policy, tones, groundTone, isDeEmphasised: true);
+
+  Color get _groundColor => groundTone.color!;
+
+  /// Resolves a [Style] by applying state layers on top of [base].
+  ///
+  /// [base] is the part's resting style. When it is null the start is
+  /// `ground(groundTone)` in [PaintClass.fill] and an empty style in the
+  /// other classes. With no [states] the start comes back unchanged.
+  ///
+  /// The layers apply in this order, for every class:
+  ///
+  /// 1. Roles, in the order [WidgetState.selected], [WidgetState.loading],
+  ///    [WidgetState.error]. Each patches a tone: ink uses the primary tone
+  ///    for selected and the error tone for error, fill and wash use the
+  ///    selection and error tones. Loading adds the warning ink and a slow
+  ///    blink in ink and fill, and nothing in wash.
+  /// 2. [WidgetState.focused]. Ink class: the primary ink, unless a role
+  ///    already set one, plus bold. Fill class: a lift of one [Theme.step]
+  ///    plus bold. Wash class: nothing.
+  /// 3. [WidgetState.cursor]. Fill and wash classes: a lift of one step.
+  ///    A fill that is also focused lifts once, not twice. Under
+  ///    [RenderPolicy.noColor] a cursor fill adds bold instead, since
+  ///    nothing lifts. Ink class: nothing.
+  /// 4. [WidgetState.disabled] ends the chain, so hover and pressed do not
+  ///    apply. Ink class and a bare fill: the disabled ink plus dim. A
+  ///    filled result under [RenderPolicy.color]: both halves blend toward
+  ///    the ground by [Theme.disabledMix] plus dim. A background that marks
+  ///    a position, from [WidgetState.cursor] or [WidgetState.focused] or a
+  ///    result with no `fg`, keeps its color and only the ink blends. Other
+  ///    policies add dim alone. Wash class: nothing.
+  /// 5. [WidgetState.hover]. Fill and wash classes: a lift of half a step.
+  ///    Nothing in ink class or under [RenderPolicy.noColor].
+  /// 6. [WidgetState.pressed]. Fill and wash classes: a lift of one step on
+  ///    top of hover. Under [RenderPolicy.noColor] it toggles
+  ///    [Modifier.reversed]. Nothing in ink class.
+  /// 7. De-emphasis, on a resolver from [deEmphasised]. See there.
+  ///
+  /// A lift moves the background of the result, or the ground color when the
+  /// result has none, by a [Theme.step] fraction in OKLab lightness: lighter
+  /// on a dark ground, darker on a light one. Under [RenderPolicy.ansi16] it
+  /// becomes the bright variant. Under [RenderPolicy.noColor] no color
+  /// moves.
   ///
   /// [cls] names the paint class the call site paints — the part picks the
   /// projection, so there is no default. [slots] carries per-state authored
-  /// styles: a widget's own row/item/cell style for a state, keyed by that
-  /// state. A slot for [WidgetState.selected], [WidgetState.loading] or
-  /// [WidgetState.error] replaces its matrix cell; a slot for
-  /// [WidgetState.cursor] or [WidgetState.focused] replaces the fallback used
-  /// on a bare base and is ignored on a colored one. Slots for any other
-  /// state are ignored.
+  /// styles. A slot for an active state replaces that state's layer: the slot
+  /// style is patched onto the result and the layer adds nothing else, no
+  /// bold, no lift, no dim. A slot for [WidgetState.disabled] still ends the
+  /// chain. A slot for a state that is not active is ignored. On a
+  /// de-emphasised resolver a slot style is blended first.
   Style resolve(
     Style? base,
     Set<WidgetState> states, {
     required PaintClass cls,
     Map<WidgetState, Style> slots = const {},
   }) {
-    var result = base ?? const Style();
-    if (states.isEmpty) return result;
+    final start = base ?? (cls == PaintClass.fill ? ground(groundTone) : const Style());
+    return _dimOutsideColor(_applyLayers(start, states, cls, slots));
+  }
 
-    result = _applyMatrix(result, states, cls, slots);
-    if (states.contains(WidgetState.cursor)) {
-      result = _applyCursor(result, cls, slots[WidgetState.cursor]);
+  Style _applyLayers(Style start, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    if (states.isEmpty) return start;
+
+    var result = _applyRoles(start, states, cls, slots);
+    if (states.contains(WidgetState.focused)) result = _applyFocused(result, states, cls, slots);
+    if (states.contains(WidgetState.cursor)) result = _applyCursor(result, states, cls, slots);
+    if (states.contains(WidgetState.disabled)) return _applyDisabled(result, states, cls, slots);
+    if (states.contains(WidgetState.hover)) {
+      result = _layer(result, slots[WidgetState.hover], () => _liftIn(result, cls, Theme.step / 2));
     }
-    if (states.contains(WidgetState.focused)) {
-      result = _applyFocus(result, cls, slots[WidgetState.focused]);
+    if (states.contains(WidgetState.pressed)) {
+      result = _layer(result, slots[WidgetState.pressed], () => _applyPressed(result, cls));
     }
-    if (states.contains(WidgetState.disabled)) return _applyDisabled(result, cls, states);
-    if (states.contains(WidgetState.hover)) result = _applyHover(result);
-    if (states.contains(WidgetState.pressed)) result = _applyPressed(result);
     return result;
   }
 
-  /// Walks the matrix cells of [states] in declaration order and patches each
-  /// contribution — a slot or the [_cell] — onto [base].
-  ///
-  /// In the ink class, focused stays a matrix cell at its declaration
-  /// position: chrome keeps error ink over focus ink, as an ink has no
-  /// background to lift.
-  Style _applyMatrix(Style base, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
-    var result = base;
-    for (final state in WidgetState.values) {
+  /// Patches the authored [slot] when there is one, else the built-in
+  /// [layer] result.
+  Style _layer(Style result, Style? slot, Style Function() layer) =>
+      slot == null ? layer() : result.patch(_quietSlot(slot));
+
+  Style _applyRoles(Style start, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    var result = start;
+    for (final state in _roleStates) {
       if (!states.contains(state)) continue;
-      if (state == WidgetState.focused && cls == PaintClass.ink) {
-        result = result.patch(slots[state] ?? ink(tones.focus)).incModifier(Modifier.bold);
-        continue;
-      }
-      if (!_matrixStates.contains(state)) continue;
-
-      final contribution = slots[state] ?? _cell(state, cls);
-      if (contribution != null) result = result.patch(contribution);
+      final contribution = slots[state];
+      result = result.patch(contribution == null ? _role(state, cls) : _quietSlot(contribution));
     }
     return result;
   }
 
-  /// The [WidgetState.cursor] transform for [cls]: a lift on a colored
-  /// [result], or [slot] (else the cursor tone) on a bare one.
-  ///
-  /// A fill also gains bold. An ink has no cursor contribution.
-  Style _applyCursor(Style result, PaintClass cls, Style? slot) => switch (cls) {
-    PaintClass.fill => _liftOrFallback(result, slot ?? fill(tones.cursor)).incModifier(Modifier.bold),
-    PaintClass.wash => _liftOrFallback(result, slot ?? wash(tones.cursor)),
-    PaintClass.ink => result,
+  /// The states that pick a role, in the order [resolve] applies them.
+  static const List<WidgetState> _roleStates = [WidgetState.selected, WidgetState.loading, WidgetState.error];
+
+  /// The style a role [state] contributes for [cls].
+  Style _role(WidgetState state, PaintClass cls) => switch (state) {
+    WidgetState.selected => _selectedRole(cls),
+    WidgetState.loading => _loadingRole(cls),
+    WidgetState.error => _errorRole(cls),
+    _ => const Style(),
   };
 
-  /// The [WidgetState.focused] transform for [cls]: a lift on a colored fill,
-  /// or [slot] (else the focus tone) plus bold on a bare one.
-  ///
-  /// An ink resolved focus as a matrix cell in [_applyMatrix]; a wash has no
-  /// focus contribution.
-  Style _applyFocus(Style result, PaintClass cls, Style? slot) => switch (cls) {
-    PaintClass.fill => _liftOrFallback(result, slot ?? fill(tones.focus)).incModifier(Modifier.bold),
-    PaintClass.ink || PaintClass.wash => result,
+  Style _selectedRole(PaintClass cls) => switch (cls) {
+    PaintClass.ink => ink(tones.primary),
+    PaintClass.fill => fill(tones.selection),
+    PaintClass.wash => wash(tones.selection),
   };
 
-  /// The [WidgetState.pressed] transform: inverts [result], or, under
-  /// [RenderPolicy.noColor], flips the [Modifier.reversed] modifier.
-  Style _applyPressed(Style result) => switch (policy) {
-    RenderPolicy.color || RenderPolicy.ansi16 => result.inverted,
-    RenderPolicy.noColor =>
-      result.addModifier.has(Modifier.reversed)
-          ? result.removeModifier(Modifier.reversed)
-          : result.incModifier(Modifier.reversed),
+  Style _loadingRole(PaintClass cls) => switch (cls) {
+    PaintClass.ink || PaintClass.fill => ink(tones.warning).incModifier(Modifier.slowBlink),
+    PaintClass.wash => const Style(),
   };
 
-  /// The states [resolve] still walks as matrix cells, in priority order.
-  static const Set<WidgetState> _matrixStates = {
-    WidgetState.selected,
-    WidgetState.loading,
-    WidgetState.error,
+  Style _errorRole(PaintClass cls) => switch (cls) {
+    PaintClass.ink => ink(tones.error),
+    PaintClass.fill => fill(tones.error),
+    PaintClass.wash => wash(tones.error),
   };
 
-  /// Lifts [color] toward the ground, or brightens it under [RenderPolicy.ansi16].
-  ///
-  /// Under [RenderPolicy.ansi16] a lift always brightens: darkening an ANSI
-  /// slot can leave it unchanged, which would hide the step. Under
-  /// [RenderPolicy.color] the ground decides direction — `tones.background`'s
-  /// color lightens when dark (or absent) and darkens when light — so a
-  /// second lift continues the first instead of reversing it. Never called
-  /// under [RenderPolicy.noColor].
-  Color _lift(Color color, double amount) {
-    if (policy == RenderPolicy.ansi16) return color.lighten(amount);
-    final ground = tones.background.color;
-    final dark = ground == null || ground.luminance < 0.5;
-    return dark ? color.lighten(amount) : color.darken(amount);
+  Style _applyFocused(Style result, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    final slot = slots[WidgetState.focused];
+    if (slot != null) return result.patch(_quietSlot(slot));
+    switch (cls) {
+      case PaintClass.ink:
+        final hasRole = _roleStates.any(states.contains);
+        return (hasRole ? result : result.patch(ink(tones.primary))).incModifier(Modifier.bold);
+      case PaintClass.fill:
+        return _liftBg(result, Theme.step).incModifier(Modifier.bold);
+      case PaintClass.wash:
+        return result;
+    }
   }
 
-  /// Lifts a colored [result] by [Theme.stateLift], or patches [fallback] onto a
-  /// bare one.
-  ///
-  /// [result] is bare when its `bg` is null or [Color.reset]. A bare result
-  /// patches [fallback] and keeps whatever modifiers [result] already
-  /// carries — including a [RenderPolicy.noColor] reversed fill. A result
-  /// with a background lifts it through [_lift] and keeps `fg`, except under
-  /// [RenderPolicy.noColor], where nothing can lift without color and
-  /// [result] is returned unchanged.
-  Style _liftOrFallback(Style result, Style fallback) {
-    final bg = result.bg;
-    if (bg == null || bg == Color.reset) return result.patch(fallback);
-    if (policy == RenderPolicy.noColor) return result;
-    return result.copyWith(bg: _lift(bg, Theme.stateLift));
+  Style _applyCursor(Style result, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    final slot = slots[WidgetState.cursor];
+    if (slot != null) return result.patch(_quietSlot(slot));
+    if (cls == PaintClass.ink) return result;
+    // A focused fill has already taken the cursor's step.
+    final lifted = cls == PaintClass.fill && states.contains(WidgetState.focused) && slots[WidgetState.focused] == null;
+    final moved = lifted ? result : _liftBg(result, Theme.step);
+    // With no color to lift, bold is the only mark a cursor fill can leave.
+    final mark = policy == RenderPolicy.noColor && cls == PaintClass.fill;
+    return mark ? moved.incModifier(Modifier.bold) : moved;
   }
 
-  /// The [WidgetState.disabled] transform for [cls].
-  ///
-  /// A wash is left as it is. An ink swaps to the disabled tone plus dim. A
-  /// fill on a bare [result] does the same. A fill on a colored [result]
-  /// blends toward the ground by [Theme.disabledMix] and adds dim, under
-  /// [RenderPolicy.color] with a ground color; elsewhere it adds dim alone.
-  ///
-  /// The blend moves both `fg` and `bg` when the background is the item's
-  /// own, and `fg` alone when it marks a position: [states] carries
-  /// [WidgetState.cursor] or [WidgetState.focused], or [result] has no `fg`
-  /// (the cursor wash an unfocused list already applied, which takes the
-  /// disabled ink). The row stays findable that way.
-  Style _applyDisabled(Style result, PaintClass cls, Set<WidgetState> states) {
+  Style _applyDisabled(Style result, Set<WidgetState> states, PaintClass cls, Map<WidgetState, Style> slots) {
+    final slot = slots[WidgetState.disabled];
+    if (slot != null) return result.patch(_quietSlot(slot));
     switch (cls) {
       case PaintClass.wash:
         return result;
-
       case PaintClass.ink:
         return result.patch(ink(tones.disabled)).incModifier(Modifier.dim);
-
       case PaintClass.fill:
-        final bg = result.bg;
-        if (bg == null || bg == Color.reset) {
-          return result.patch(ink(tones.disabled)).incModifier(Modifier.dim);
-        }
-
-        final ground = tones.background.color;
-        if (policy != RenderPolicy.color || ground == null) return result.incModifier(Modifier.dim);
-
-        final fg = result.fg;
-        final positional = fg == null || states.contains(WidgetState.cursor) || states.contains(WidgetState.focused);
-        return result
-            .copyWith(
-              fg: fg == null ? tones.disabled.color : fg.mix(ground, Theme.disabledMix),
-              bg: positional ? bg : bg.mix(ground, Theme.disabledMix),
-            )
-            .incModifier(Modifier.dim);
+        return _disabledFill(result, states);
     }
   }
 
-  /// The [WidgetState.hover] transform, shared across every [PaintClass].
-  ///
-  /// A colored [result] lifts its background by [Theme.hoverLift] through
-  /// [_lift] under [RenderPolicy.color] and [RenderPolicy.ansi16]; under
-  /// [RenderPolicy.noColor] it is left unchanged. A bare [result] patches the
-  /// hover wash, which already drops under [RenderPolicy.ansi16] and
-  /// [RenderPolicy.noColor].
-  Style _applyHover(Style result) {
+  Style _disabledFill(Style result, Set<WidgetState> states) {
     final bg = result.bg;
-    if (bg != null && bg != Color.reset) {
-      return policy == RenderPolicy.noColor ? result : result.copyWith(bg: _lift(bg, Theme.hoverLift));
-    }
-    return result.patch(wash(theme.hover));
+    if (_isBare(bg)) return result.patch(ink(tones.disabled)).incModifier(Modifier.dim);
+    if (policy != RenderPolicy.color) return result.incModifier(Modifier.dim);
+
+    final ground = _groundColor;
+    final fg = result.fg;
+    final positional = fg == null || states.contains(WidgetState.cursor) || states.contains(WidgetState.focused);
+    return result
+        .copyWith(
+          fg: fg == null ? ink(tones.disabled).fg : fg.mix(ground, Theme.disabledMix),
+          bg: positional ? bg : bg!.mix(ground, Theme.disabledMix),
+        )
+        .incModifier(Modifier.dim);
   }
 
-  /// Border style for a set of [states] — the fix for hand-rolled
-  /// `focused ? theme.focus : theme.border` at every call site.
+  Style _applyPressed(Style result, PaintClass cls) {
+    if (cls == PaintClass.ink) return result;
+    if (policy != RenderPolicy.noColor) return _liftBg(result, Theme.step);
+    return result.addModifier.has(Modifier.reversed)
+        ? result.removeModifier(Modifier.reversed)
+        : result.incModifier(Modifier.reversed);
+  }
+
+  Style _liftIn(Style result, PaintClass cls, double amount) =>
+      cls == PaintClass.ink ? result : _liftBg(result, amount);
+
+  static bool _isBare(Color? bg) => bg == null || bg == Color.reset;
+
+  /// Lifts the background of [result] by [amount], or the ground color when
+  /// [result] has none. Under [RenderPolicy.noColor] nothing can lift.
+  ///
+  /// A de-emphasised resolver under color lifts by the share of [amount] that
+  /// is left after [Theme.deEmphasis], so a lift is as quiet as the rest.
+  Style _liftBg(Style result, double amount) {
+    if (policy == RenderPolicy.noColor) return result;
+    final quiet = isDeEmphasised && policy == RenderPolicy.color;
+    final step = quiet ? amount * (1 - theme.deEmphasis) : amount;
+    final bg = result.bg;
+    return result.copyWith(bg: _lift(_isBare(bg) ? _groundColor : bg!, step));
+  }
+
+  /// Moves [color] [amount] of OKLab lightness away from the ground: lighter
+  /// on a dark ground, darker on a light one. Under [RenderPolicy.ansi16] a
+  /// lift is the bright variant.
+  Color _lift(Color color, double amount) {
+    if (policy == RenderPolicy.ansi16) return color.lighten(amount);
+    final dark = _groundColor.toOklab().l < 0.5;
+    return color.shiftLightness(dark ? amount : -amount);
+  }
+
+  /// [slot] blended toward the ground when this resolver is de-emphasised
+  /// under color; unchanged otherwise.
+  Style _quietSlot(Style slot) => isDeEmphasised && policy == RenderPolicy.color ? _blendToGround(slot) : slot;
+
+  /// Applies de-emphasis to a projection: a blend under color, dim elsewhere.
+  Style _quiet(Style projection) {
+    if (!isDeEmphasised) return projection;
+    return policy == RenderPolicy.color ? _blendToGround(projection) : projection.incModifier(Modifier.dim);
+  }
+
+  /// Adds dim to a [resolve] result when de-emphasised outside color. Colors
+  /// were blended where they were projected.
+  Style _dimOutsideColor(Style result) =>
+      isDeEmphasised && policy != RenderPolicy.color ? result.incModifier(Modifier.dim) : result;
+
+  /// Moves both halves of [style] toward the ground by [Theme.deEmphasis]. A
+  /// half that is null or [Color.reset] stays as it is.
+  Style _blendToGround(Style style) {
+    Color? blend(Color? color) =>
+        color == null || color == Color.reset ? color : color.mix(_groundColor, theme.deEmphasis);
+    return style.copyWith(fg: blend(style.fg), bg: blend(style.bg));
+  }
+
+  /// Border style for a set of [states], so no call site hand-rolls a
+  /// focused-or-resting choice.
   ///
   /// Resolves over the resting border tone as [PaintClass.ink], so a state can
   /// tint the border foreground but never flood a background onto its glyphs.
+  /// A focused border is the primary ink plus bold; a selected one is the
+  /// primary ink.
   Style border(Set<WidgetState> states) => resolve(ink(tones.border), states, cls: PaintClass.ink);
 
   /// Projects a tone as foreground-only ink, or drops the color under
@@ -333,7 +408,7 @@ class StyleResolver {
   /// active set paints as its named-ANSI value. The raw `tone.ink` bypasses
   /// the policy entirely — use these projections for content that must
   /// degrade with the rest of the screen.
-  Style ink(Tone tone) => policy == RenderPolicy.noColor ? const Style() : tone.ink;
+  Style ink(Tone tone) => _quiet(policy == RenderPolicy.noColor ? const Style() : tone.ink);
 
   /// Projects a tone as a filled surface, or degrades it to [Modifier.reversed]
   /// under [RenderPolicy.noColor] so the surface stays distinguishable once its
@@ -342,13 +417,14 @@ class StyleResolver {
   /// Read [tone] from [tones] — see [ink]. Only a [SurfaceTone] can fill: the
   /// compiler rejects a chrome tone here, since it has no `on` to paint.
   Style fill(SurfaceTone tone) =>
-      policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill;
+      _quiet(policy == RenderPolicy.noColor ? const Style(addModifier: Modifier.reversed) : tone.fill);
 
   /// Projects a tone as a background wash, or drops it entirely under
   /// [RenderPolicy.noColor] or [RenderPolicy.ansi16] — a wash cannot exist
   /// without color, and the 16-name vocabulary has no subtle tint to spend on
   /// one either.
-  Style wash(Tone tone) => policy == RenderPolicy.noColor || policy == RenderPolicy.ansi16 ? const Style() : tone.wash;
+  Style wash(Tone tone) =>
+      _quiet(policy == RenderPolicy.noColor || policy == RenderPolicy.ansi16 ? const Style() : tone.wash);
 
   /// Projects a tone as the ground of an area — the style its cells hold
   /// before content paints on them.
@@ -363,50 +439,9 @@ class StyleResolver {
   /// ways only in how they degrade: under [RenderPolicy.ansi16] a ground
   /// keeps only its foreground, leaving the terminal's own background to show
   /// through; under [RenderPolicy.noColor] it carries no color at all.
-  Style ground(SurfaceTone tone) => switch (policy) {
+  Style ground(SurfaceTone tone) => _quiet(switch (policy) {
     RenderPolicy.color => Style(fg: tone.on, bg: tone.color),
     RenderPolicy.ansi16 => Style(fg: tone.on),
     RenderPolicy.noColor => const Style(),
-  };
-
-  /// The built-in state × class matrix.
-  ///
-  /// Returns the style a single [state] contributes for [cls], or `null` when
-  /// that state does not affect that paint class. This table is the built-in
-  /// look of kiko; modifiers ride on top of the projection.
-  ///
-  /// [resolve] only calls this with [_matrixStates]: [WidgetState.cursor],
-  /// [WidgetState.focused], [WidgetState.disabled], [WidgetState.hover] and
-  /// [WidgetState.pressed] are transforms over the patched result instead,
-  /// not matrix cells, so they always return `null` here.
-  Style? _cell(WidgetState state, PaintClass cls) {
-    switch (state) {
-      case WidgetState.hover:
-      case WidgetState.cursor:
-      case WidgetState.focused:
-      case WidgetState.pressed:
-      case WidgetState.disabled:
-        return null;
-
-      case WidgetState.selected:
-        return switch (cls) {
-          PaintClass.ink => ink(tones.selection),
-          PaintClass.fill => fill(tones.selection),
-          PaintClass.wash => wash(tones.selection),
-        };
-
-      case WidgetState.loading:
-        return switch (cls) {
-          PaintClass.ink || PaintClass.fill => ink(tones.warning).incModifier(Modifier.slowBlink),
-          PaintClass.wash => null,
-        };
-
-      case WidgetState.error:
-        return switch (cls) {
-          PaintClass.ink => ink(tones.error),
-          PaintClass.fill => fill(tones.error),
-          PaintClass.wash => wash(tones.error),
-        };
-    }
-  }
+  });
 }

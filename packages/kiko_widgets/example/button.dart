@@ -27,7 +27,7 @@ class AppModel with ThemeSwitcher {
     focused: true,
   );
 
-  // Pane 2: Styled buttons (theme-variant demo)
+  // Pane 2: Styled buttons (face override demo)
   final styledGroup = ButtonGroupModel(
     buttons: [
       ButtonModel(id: 'save', label: Line('Save  ')),
@@ -215,7 +215,7 @@ void appView(AppModel model, Frame frame) {
                 _buildHorizontalButtons(model.basicGroup, gap: 2, theme: theme),
               ),
             ),
-            // Pane 2: Styled buttons (theme-variant demo)
+            // Pane 2: Styled buttons (face override demo)
             Expanded(
               child: _buildPane(
                 resolver,
@@ -224,7 +224,6 @@ void appView(AppModel model, Frame frame) {
                 _buildStyledButtons(model.styledGroup, theme: theme),
                 captions: const [
                   "Delete's face is danger at rest.",
-                  'Each button focuses in its own tone.',
                   'A theme switch (F1/F2) keeps the difference.',
                 ],
               ),
@@ -295,7 +294,7 @@ View _buildPane(
 }) {
   final t = resolver.tones;
   final borderStyle = resolver.border({if (focused) WidgetState.focused});
-  final titleStyle = resolver.ink(focused ? t.focus : t.muted);
+  final titleStyle = resolver.ink(focused ? t.accent : t.muted);
   return Container(
     border: BorderType.plain,
     borderStyle: borderStyle,
@@ -328,13 +327,10 @@ View _buildHorizontalButtons(
   return Row(children: children);
 }
 
-/// Build styled buttons, each focusing in its own tone.
+/// Build styled buttons.
 ///
-/// A per-instance state look is a theme variant passed to the button, not an
-/// override map: save focuses through [Theme.success], delete through
-/// [Theme.error], edit through [Theme.accent]. The delete button also gets a
-/// danger [ButtonStyle.face] at rest, so it reads as destructive before it is
-/// ever focused.
+/// The delete button gets a danger [ButtonStyle.face], so it reads as
+/// destructive before it is ever focused. The others keep the themed face.
 View _buildStyledButtons(
   ButtonGroupModel group, {
   required Theme theme,
@@ -346,16 +342,10 @@ View _buildStyledButtons(
       children.add(const SizedBox(width: 1, height: 1));
     }
     final btnModel = group.buttons[i];
-    final variant = switch (btnModel.id) {
-      'save' => theme.copyWith(focus: theme.success),
-      'delete' => theme.copyWith(focus: theme.error),
-      'edit' => theme.copyWith(focus: theme.accent),
-      _ => theme,
-    };
     final style = btnModel.id == 'delete'
         ? ButtonStyle(face: resolver.fill(resolver.tones.error))
         : const ButtonStyle();
-    children.add(Button(model: btnModel, theme: variant, style: style));
+    children.add(Button(model: btnModel, theme: theme, style: style));
   }
   return Row(children: children);
 }

@@ -26,6 +26,10 @@ void main() {
       expect(resolve(WidgetState.hover, PaintClass.wash), equals(const Style()));
     });
 
+    test('pressed on a wash toggles reversed, since no tint can lift', () {
+      expect(resolve(WidgetState.pressed, PaintClass.wash).addModifier.has(Modifier.reversed), isTrue);
+    });
+
     test('pressed removes reversed from an already-reversed fill', () {
       final restingFill = resolve(WidgetState.selected, PaintClass.fill);
       final result = resolver.resolve(restingFill, {WidgetState.pressed}, cls: PaintClass.fill);
@@ -49,8 +53,7 @@ void main() {
     // which is where each state paints a whole row/face.
     final byFillModifier = <WidgetState, Modifier>{
       WidgetState.selected: Modifier.reversed,
-      WidgetState.cursor: Modifier.reversed,
-      WidgetState.focused: Modifier.reversed,
+      WidgetState.focused: Modifier.bold,
       WidgetState.error: Modifier.reversed,
       WidgetState.disabled: Modifier.dim,
       WidgetState.loading: Modifier.slowBlink,
@@ -64,18 +67,42 @@ void main() {
       });
     }
 
-    test('the cursor keeps its bold over the reversed fill', () {
-      final s = resolve(WidgetState.cursor, PaintClass.fill);
+    test('a cursor fill under NO_COLOR is bold and moves no color', () {
+      expect(resolve(WidgetState.cursor, PaintClass.fill), equals(const Style(addModifier: Modifier.bold)));
+      const authored = Style(fg: Color.white, bg: Color.rgb(0x224466));
+      expect(
+        resolver.resolve(authored, {WidgetState.cursor}, cls: PaintClass.fill),
+        equals(authored.incModifier(Modifier.bold)),
+      );
+    });
+
+    test('a focused cursor row is bold over the reversed fill', () {
+      final s = resolver.resolve(
+        resolver.fill(resolver.tones.selection),
+        {WidgetState.focused, WidgetState.cursor},
+        cls: PaintClass.fill,
+      );
       expect(s.addModifier.has(Modifier.reversed), isTrue);
       expect(s.addModifier.has(Modifier.bold), isTrue);
     });
 
-    test('cursor over an authored base with a background stays unchanged, plus bold', () {
+    test('focus over an authored base with a background stays unchanged, plus bold', () {
       const authored = Style(fg: Color.white, bg: Color.rgb(0x224466));
-      final s = resolver.resolve(authored, {WidgetState.cursor}, cls: PaintClass.fill);
+      final s = resolver.resolve(authored, {WidgetState.focused}, cls: PaintClass.fill);
       expect(s.fg, authored.fg);
       expect(s.bg, authored.bg);
       expect(s.addModifier.has(Modifier.bold), isTrue);
+    });
+
+    test('a de-emphasised resolver adds dim to every projection and result', () {
+      final quiet = resolver.deEmphasised;
+      expect(quiet.ink(quiet.tones.primary), equals(const Style(addModifier: Modifier.dim)));
+      expect(quiet.fill(quiet.tones.primary).addModifier.has(Modifier.reversed), isTrue);
+      expect(quiet.fill(quiet.tones.primary).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.wash(quiet.tones.primary).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.ground(quiet.tones.surface).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.border(const {}).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.resolve(null, const {}, cls: PaintClass.fill).addModifier.has(Modifier.dim), isTrue);
     });
 
     test('disabled mixes nothing under NO_COLOR — a filled base keeps its pair and adds dim', () {

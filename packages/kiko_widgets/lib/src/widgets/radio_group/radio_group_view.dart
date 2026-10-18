@@ -22,8 +22,8 @@ import 'types.dart';
 /// [RadioGroupModel.cursor] shows focus, on its brackets and mark; error puts
 /// error ink on every option's brackets; disabled dims one option's row, or,
 /// while the group is disabled, every row; hover washes one row, spare cells
-/// included; pressed inverts one row's box. [RadioGroupModel.labelAlign] has
-/// no visible effect while [RadioGroupModel.direction] is [Axis.horizontal]:
+/// included; pressed leaves the box's ink as it is. [RadioGroupModel.labelAlign]
+/// has no visible effect while [RadioGroupModel.direction] is [Axis.horizontal]:
 /// a row inside an unbounded main axis hugs its own content and leaves no
 /// spare width to place a label in.
 final class RadioGroup<T> implements View {

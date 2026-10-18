@@ -97,9 +97,8 @@ class SurfaceTone extends Tone {
 /// set per instance and reads every state through this shape, so its state
 /// matrix never branches per call site on which kind of tone it is holding.
 ///
-/// `hover` is deliberately not part of this set: it only ever paints as a
-/// [Tone.wash], and washes drop entirely at the ANSI-16 tier, so there is
-/// nothing for an ANSI-16 table to carry for it.
+/// Focus, cursor and hover are not part of this set. They are state layers
+/// the resolver lifts from a ground, so they have no tone of their own.
 abstract class ToneSet {
   /// Main brand color for primary actions.
   SurfaceTone get primary;
@@ -134,12 +133,6 @@ abstract class ToneSet {
   /// Non-interactive elements.
   Tone get disabled;
 
-  /// Keyboard focus indicator ("you are here").
-  SurfaceTone get focus;
-
   /// Chosen items (selected rows, picked options).
   SurfaceTone get selection;
-
-  /// The current row/column tint.
-  SurfaceTone get cursor;
 }

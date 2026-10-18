@@ -48,9 +48,7 @@ class ComboboxStyle {
   ///
   /// With `item` and `cursorItem` both null the popup ground ([popupGround],
   /// or the theme's `surface`) is the row base, so the cursor and hover lift
-  /// that ground instead of patching a fill derived from `background`. A
-  /// `cursorItem` lands only on a bare row, so setting one keeps the rows
-  /// bare.
+  /// that ground. Setting either slot keeps the list's anatomy as given.
   final ListViewStyle list;
 
   /// Creates a ComboboxStyle.

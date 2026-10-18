@@ -79,7 +79,7 @@ void main() {
 
     expect(model.focusGroup.focused.id, 'form-terms');
     final bracket = backend.screen[(x: rect.x, y: rect.y)];
-    expect(bracket.fg, Theme.dark.focus.color);
+    expect(bracket.fg, Theme.dark.primary.color);
     expect(bracket.modifier.has(Modifier.bold), isTrue);
   });
 

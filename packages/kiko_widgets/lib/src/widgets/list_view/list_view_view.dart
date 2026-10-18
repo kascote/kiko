@@ -246,7 +246,7 @@ class _ListViewport<T, K> extends Node {
         base,
         {
           if (state.selected) WidgetState.selected,
-          if (state.cursor) WidgetState.cursor,
+          if (state.cursor) ...const {WidgetState.cursor, WidgetState.focused},
           if (state.disabled) WidgetState.disabled,
           if (state.hover) WidgetState.hover,
         },

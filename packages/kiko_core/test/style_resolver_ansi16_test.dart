@@ -19,7 +19,6 @@ void main() {
       border: Theme.dark.border,
       muted: Theme.dark.muted,
       disabled: Theme.dark.disabled,
-      focus: Theme.dark.focus,
       selection: Theme.dark.selection,
     );
     final derived = Ansi16Tones.derive(theme);
@@ -36,29 +35,45 @@ void main() {
     });
 
     test('an ink resolves to the named fg only, never a background', () {
-      final s = resolver.resolve(null, {WidgetState.focused}, cls: PaintClass.ink);
-      expect(s.fg, equals(derived.focus.color));
+      final s = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.ink);
+      expect(s.fg, equals(derived.primary.color));
       expect(s.bg, isNull);
     });
 
-    test('a wash resolves to nothing — the 16-name vocabulary has no tints', () {
+    test('a wash projects to nothing — the 16-name vocabulary has no tints', () {
       expect(resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.wash), equals(const Style()));
-      expect(resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.wash), equals(const Style()));
-      expect(resolver.resolve(null, {WidgetState.hover}, cls: PaintClass.wash), equals(const Style()));
+      expect(resolver.wash(resolver.tones.error), equals(const Style()));
     });
 
-    test('hover lifts a fill one step to the bright variant under ansi16', () {
+    test('a lifted wash is the bright variant of the ground', () {
+      final expected = resolver.tones.background.color!.lighten(Theme.step);
+      expect(resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.wash), equals(Style(bg: expected)));
+      expect(resolver.resolve(null, {WidgetState.hover}, cls: PaintClass.wash), equals(Style(bg: expected)));
+    });
+
+    test('hover lifts a fill to the bright variant under ansi16', () {
       final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       final result = resolver.resolve(fill, {WidgetState.hover}, cls: PaintClass.fill);
       expect(result.fg, fill.fg);
-      expect(result.bg, fill.bg!.lighten(Theme.hoverLift));
+      expect(result.bg, fill.bg!.lighten(Theme.step / 2));
     });
 
-    test('cursor over a selected fill maps to the bright variant under ansi16', () {
+    test('cursor over a selected fill maps to the bright variant under ansi16, without bold', () {
       final result = resolver.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
       expect(result.fg, derived.selection.on);
-      expect(result.bg, derived.selection.color!.lighten(Theme.stateLift));
-      expect(result.addModifier.has(Modifier.bold), isTrue);
+      expect(result.bg, derived.selection.color!.lighten(Theme.step));
+      expect(result.addModifier.has(Modifier.bold), isFalse);
+    });
+
+    test('a focused cursor row lifts once and carries bold', () {
+      final focusedOnly = resolver.resolve(null, {WidgetState.selected, WidgetState.focused}, cls: PaintClass.fill);
+      final both = resolver.resolve(
+        null,
+        {WidgetState.selected, WidgetState.focused, WidgetState.cursor},
+        cls: PaintClass.fill,
+      );
+      expect(both, equals(focusedOnly));
+      expect(both.addModifier.has(Modifier.bold), isTrue);
     });
 
     test('a second lift under ansi16 is idempotent — a bright slot stays bright', () {
@@ -75,17 +90,38 @@ void main() {
       expect(result.addModifier.has(Modifier.dim), isTrue);
     });
 
-    test('pressed inverts the named pair under ansi16', () {
+    test('pressed lifts the named pair to the bright variant instead of inverting it', () {
       final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       final result = resolver.resolve(fill, {WidgetState.pressed}, cls: PaintClass.fill);
-      expect(result, fill.inverted);
+      expect(result.fg, fill.fg);
+      expect(result.bg, fill.bg!.lighten(Theme.step));
     });
 
-    test('the cursor fill still carries its bold modifier', () {
+    test('a cursor fill with no base lifts the ground pair', () {
       final s = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
-      expect(s.fg, equals(derived.cursor.on));
-      expect(s.bg, equals(derived.cursor.color));
-      expect(s.addModifier.has(Modifier.bold), isTrue);
+      expect(s.fg, equals(derived.background.on));
+      expect(s.bg, equals(derived.background.color!.lighten(Theme.step)));
+    });
+
+    test('on() paints the sixteen-color surface', () {
+      final onSurface = resolver.on(resolver.tones.surface);
+      expect(onSurface.groundTone, same(derived.surface));
+      expect(onSurface.fill(onSurface.groundTone), equals(Style(fg: derived.surface.on, bg: derived.surface.color)));
+
+      final lifted = onSurface.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
+      expect(lifted.fg, equals(derived.surface.on));
+      expect(lifted.bg, equals(derived.surface.color!.lighten(Theme.step)));
+    });
+
+    test('a de-emphasised resolver adds dim to every projection and result', () {
+      final quiet = resolver.deEmphasised;
+      expect(quiet.ink(quiet.tones.primary), equals(resolver.ink(resolver.tones.primary).incModifier(Modifier.dim)));
+      expect(quiet.fill(quiet.tones.primary), equals(resolver.fill(resolver.tones.primary).incModifier(Modifier.dim)));
+      expect(quiet.wash(quiet.tones.primary).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.ground(quiet.tones.surface).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.border(const {}).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.resolve(null, const {}, cls: PaintClass.ink).addModifier.has(Modifier.dim), isTrue);
+      expect(quiet.resolve(null, {WidgetState.hover}, cls: PaintClass.fill).addModifier.has(Modifier.dim), isTrue);
     });
 
     test('the border helper reads the named border tone', () {
@@ -107,9 +143,7 @@ void main() {
         border: Tone(color: Color.gray),
         muted: Tone(color: Color.darkGray),
         disabled: Tone(color: Color.darkGray),
-        focus: SurfaceTone(color: Color.brightCyan, on: Color.black),
         selection: SurfaceTone(color: Color.brightMagenta, on: Color.black),
-        cursor: SurfaceTone(color: Color.brightYellow, on: Color.black),
       );
       final withTable = theme.copyWith(tones16: handAuthored);
       final resolverWithTable = StyleResolver(withTable, policy: RenderPolicy.ansi16);
@@ -194,9 +228,7 @@ void main() {
           border: Theme.dark.tones16!.border,
           muted: const Tone(color: Color.darkGray),
           disabled: const Tone(color: Color.darkGray),
-          focus: Theme.dark.tones16!.focus,
           selection: Theme.dark.tones16!.selection,
-          cursor: Theme.dark.tones16!.cursor,
         ),
       );
       final collapsedResolver = StyleResolver(collapsed, policy: RenderPolicy.ansi16);
@@ -215,7 +247,7 @@ void main() {
       expect(resting.addModifier.has(Modifier.bold), isFalse);
 
       final focused = resolver.border(const {WidgetState.focused});
-      expect(focused.fg, equals(derived.focus.color));
+      expect(focused.fg, equals(derived.primary.color));
       expect(focused.addModifier.has(Modifier.bold), isTrue);
       expect(focused, isNot(equals(resting)), reason: 'focus must read differently from resting chrome');
     });
@@ -241,7 +273,6 @@ void main() {
       border: source.border,
       muted: source.muted,
       disabled: source.disabled,
-      focus: source.focus,
       selection: source.selection,
     );
 
@@ -259,9 +290,7 @@ void main() {
           table.success,
           table.background,
           table.surface,
-          table.focus,
           table.selection,
-          table.cursor,
         ];
 
         for (final tone in tones) {

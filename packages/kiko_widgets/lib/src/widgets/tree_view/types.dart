@@ -131,15 +131,13 @@ typedef NodeState = ({
 /// TreeView's anatomy: one nullable style slot per part.
 ///
 /// A `null` slot is derived from the theme's tones by the rule below. A
-/// non-null slot is the caller's exact style. `cursorItem` lands on a bare
-/// base only: a base that already carries a background lifts by
-/// [Theme.stateLift] instead, and the slot is not read. See
-/// [StyleResolver.resolve].
+/// non-null slot is the caller's exact style: it replaces that state's
+/// built-in effect. See [StyleResolver.resolve].
 ///
 /// | slot          | derived default               | matrix source     |
 /// | ------------- | ------------------------------ | ----------------- |
 /// | `item`        | none (inherits the pane's ground) | —              |
-/// | `cursorItem`  | `resolver.fill(cursor)` + bold | cursor × fill     |
+/// | `cursorItem`  | the row lifted one step, plus bold | cursor × fill  |
 /// | `indicator`   | none (inherits the row)        | loading × ink     |
 /// | `placeholder` | `resolver.ink(muted)`          | anatomy-specific  |
 ///
@@ -147,13 +145,13 @@ typedef NodeState = ({
 /// base.
 ///
 /// Per-row paint order is: `item` base, then the cursor step if the keyboard
-/// cursor is on the node: a lift when `item` has a background, `cursorItem`
-/// (a fill) when the row is bare. The tree has no selection set, so no
-/// `selectedItem`. Hover applies last, as a transform over that patched row:
-/// a row with a background lifts it, a bare row takes the hover wash. A node
-/// whose children are being fetched carries the `loading` state on its
-/// `indicator` glyph alone — a warning ink with a slow blink — never on the
-/// row.
+/// cursor is on the node: one state step in OKLab lightness away from the
+/// row's own background, or from the ground the resolver is bound to when the
+/// row is bare. A focused tree adds bold. The tree has no selection set, so
+/// no `selectedItem`. Hover applies last: half a state step in the same
+/// direction. A node whose children are being fetched carries the `loading`
+/// state on its `indicator` glyph alone — a warning ink with a slow blink —
+/// never on the row.
 class TreeViewStyle {
   /// Base row style (usually left null to inherit the pane's own fill).
   final Style? item;

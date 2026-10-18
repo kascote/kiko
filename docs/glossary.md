@@ -166,21 +166,38 @@ A term of art added to a page gets its entry here in the same change.
 - **projection** — turning a tone into a paintable style: `.ink` (fg only),
   `.wash` (bg only), `.fill` (fg + bg), `.ground` (fg + bg, the base under
   content). Only a `SurfaceTone` can fill or ground.
-- **ground** — the style an area's cells hold before content paints on it;
-  a full `(fg, bg)` pair, set once per area (`docs/theming.md`).
+- **ground** — the surface tone an area sits on: `background` for the
+  window, `surface` for a dialog or a popup. A `StyleResolver` is bound to
+  one ground and computes every lift, blend and tint from it
+  (`docs/theming.md`).
+- **ground style** — the `(fg, bg)` pair the `ground` projection makes from a
+  ground. An area's cells hold it before content paints on them; set it once
+  per area.
 - **anatomy** — the named parts of a widget that can be styled (`XStyle`
   classes of nullable slots).
-- **matrix** — the built-in state × class table: the style each
-  `WidgetState` contributes to each paint class (`docs/theming.md`).
-- **lift** — moving a background one step lighter or darker by a fixed
-  amount, instead of replacing it. The ground decides the direction: a
-  dark ground lightens, a light ground darkens. The `cursor` and `focused`
-  transforms lift a base that already carries a background
-  (`docs/theming.md`).
+- **matrix** — the built-in state × class table: the style each state layer
+  contributes to each paint class (`docs/theming.md`).
+- **state layer** — one state's contribution to the result of
+  `StyleResolver.resolve`. `resolve` applies the layers in one fixed order:
+  roles (`selected`, `loading`, `error`), `focused`, `cursor`, `disabled`, `hover`, `pressed`, then
+  de-emphasis (`docs/theming.md`). Not a *layer*, which is a render pass.
+- **lift** — moving a background one lightness step away from the ground, in
+  OKLab, instead of replacing it. A ground with lightness below 0.5
+  lightens a background; a lighter ground darkens it. In the fill class
+  `focused`, `cursor`, `hover` and `pressed` lift; in the wash class all but
+  `focused` do (`docs/theming.md`).
+- **step** — the distance of one lift, `Theme.step`: 0.12 in OKLab
+  lightness. Hover lifts half a step; `pressed` lifts one more step after
+  hover.
 - **blend** — mixing both `fg` and `bg` of a filled base toward the ground
-  by a fixed amount. The `disabled` transform blends a base that already
+  by a fixed amount. The `disabled` state layer blends a base that already
   carries a background, instead of swapping its foreground alone
   (`docs/theming.md`).
+- **de-emphasised** — quieter than normal and still readable: every
+  projection of a resolver from `StyleResolver.deEmphasised` blends toward
+  the ground by `Theme.deEmphasis`, or adds dim under ANSI-16 and NO_COLOR.
+  A pane that is present but not in use is de-emphasised. It is never a
+  `WidgetState` (`docs/theming.md`).
 - **tier** — one of three levels of color fidelity a style degrades
   through: full RGB, the named ANSI-16 table, NO_COLOR modifiers
   (`docs/theming.md`). The word is reserved for this meaning.

@@ -40,7 +40,6 @@ final List<_Pair> _textPairs = [
   ('secondary / background', (rgb) => _over(rgb.tones.secondary, rgb.tones.background)),
   ('accent / background', (rgb) => _over(rgb.tones.accent, rgb.tones.background)),
   ('primary / background', (rgb) => _over(rgb.tones.primary, rgb.tones.background)),
-  ('focus / background', (rgb) => _over(rgb.tones.focus, rgb.tones.background)),
   ('error / background', (rgb) => _over(rgb.tones.error, rgb.tones.background)),
   ('warning / background', (rgb) => _over(rgb.tones.warning, rgb.tones.background)),
   ('success / background', (rgb) => _over(rgb.tones.success, rgb.tones.background)),
@@ -50,7 +49,6 @@ final List<_Pair> _textPairs = [
   ('secondary / surface', (rgb) => _over(rgb.tones.secondary, rgb.tones.surface)),
   ('accent / surface', (rgb) => _over(rgb.tones.accent, rgb.tones.surface)),
   ('primary / surface', (rgb) => _over(rgb.tones.primary, rgb.tones.surface)),
-  ('focus / surface', (rgb) => _over(rgb.tones.focus, rgb.tones.surface)),
   ('error / surface', (rgb) => _over(rgb.tones.error, rgb.tones.surface)),
   ('warning / surface', (rgb) => _over(rgb.tones.warning, rgb.tones.surface)),
   ('success / surface', (rgb) => _over(rgb.tones.success, rgb.tones.surface)),
@@ -67,9 +65,7 @@ final List<_Pair> _fillPairs = [
   ('success', (rgb) => rgb.fill(rgb.tones.success)),
   ('background', (rgb) => rgb.fill(rgb.tones.background)),
   ('surface', (rgb) => rgb.fill(rgb.tones.surface)),
-  ('focus', (rgb) => rgb.fill(rgb.tones.focus)),
   ('selection', (rgb) => rgb.fill(rgb.tones.selection)),
-  ('cursor', (rgb) => rgb.fill(rgb.tones.cursor)),
   (
     'selected + cursor',
     (rgb) => rgb.resolve(null, const {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill),
@@ -98,10 +94,7 @@ final List<_Pair> _fillPairs = [
 /// other, where the text thresholds do not apply.
 final List<_Pair> _separationPairs = [
   ('background / surface', (rgb) => Style(fg: rgb.tones.background.color, bg: rgb.tones.surface.color)),
-  ('background / cursor', (rgb) => Style(fg: rgb.tones.background.color, bg: rgb.tones.cursor.color)),
-  ('background / hover', (rgb) => Style(fg: rgb.tones.background.color, bg: rgb.theme.hover.color)),
   ('background / selection', (rgb) => Style(fg: rgb.tones.background.color, bg: rgb.tones.selection.color)),
-  ('cursor / hover', (rgb) => Style(fg: rgb.tones.cursor.color, bg: rgb.theme.hover.color)),
   (
     'selection / sel+cursor',
     (rgb) => Style(

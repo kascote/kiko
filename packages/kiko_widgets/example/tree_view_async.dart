@@ -324,7 +324,7 @@ void appView(AppModel model, Frame frame) {
     borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
     topTitles: [
       Line.fromTexts([
-        Text('Categories ', style: resolver.ink(t.focus)),
+        Text('Categories ', style: resolver.ink(t.accent)),
         Text('($loadingStatus)', style: resolver.ink(t.muted)),
       ]),
     ],

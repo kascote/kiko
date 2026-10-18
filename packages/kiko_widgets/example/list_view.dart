@@ -130,7 +130,7 @@ void appView(AppModel model, Frame frame) {
           child: Container(
             border: BorderType.plain,
             borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
-            topTitles: [Line('Fruits (${fruits.length})', style: resolver.ink(t.focus))],
+            topTitles: [Line('Fruits (${fruits.length})', style: resolver.ink(t.accent))],
             child: ListView(
               model: model.list,
               theme: theme,

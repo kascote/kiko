@@ -189,7 +189,7 @@ View _pane(String title, bool focused, StyleResolver resolver, View child) {
   return Container(
     border: BorderType.plain,
     borderStyle: resolver.border({if (focused) WidgetState.focused}),
-    topTitles: [Line(' $title ', style: resolver.ink(focused ? t.focus : t.muted))],
+    topTitles: [Line(' $title ', style: resolver.ink(focused ? t.accent : t.muted))],
     child: child,
   );
 }

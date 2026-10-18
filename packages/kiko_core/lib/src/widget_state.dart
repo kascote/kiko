@@ -1,9 +1,10 @@
 /// Visual states a widget can be in.
 ///
-/// Declaration order is the order `StyleResolver.resolve` walks the states,
-/// so a later state's transform runs after an earlier one's. [cursor] lifts
-/// the background of whatever it lands on — a [selected] row keeps its
-/// selection color, one step brighter or darker — instead of replacing it.
+/// `StyleResolver.resolve` applies the active states in its own fixed order,
+/// not in declaration order: roles ([selected], [loading], [error]), then
+/// [focused], [cursor], [disabled], [hover], [pressed]. [cursor] and [focused]
+/// lift the background of whatever they land on by one step, so a [selected]
+/// row keeps its selection color, one step lighter or darker.
 /// [disabled] blends a filled background toward the ground, or swaps the
 /// foreground on a bare one, and ends the chain: [hover] and [pressed] do
 /// nothing once [disabled] is active.

@@ -305,7 +305,7 @@ void appView(AppModel model, Frame frame) {
           topTitles: [
             Line(
               ' Country — custom rows ',
-              style: model.countryCombo.focused ? resolver.ink(t.focus) : resolver.ink(t.muted),
+              style: model.countryCombo.focused ? resolver.ink(t.accent) : resolver.ink(t.muted),
             ),
           ],
           child: _comboRow(countryView),

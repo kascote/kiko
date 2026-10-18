@@ -30,11 +30,7 @@ View referencePage(Theme theme, StyleResolver resolver) {
             Expanded(child: _toneSection(resolver, 'Intent', _intent(t))),
             Expanded(child: _toneSection(resolver, 'Neutral', _neutral(t))),
             Expanded(
-              child: _toneSection(
-                resolver,
-                'Interaction${theme.derivesCursor || theme.derivesHover ? '  * derived' : ''}',
-                _interaction(t, theme),
-              ),
+              child: _toneSection(resolver, 'Interaction', _interaction(t)),
             ),
           ],
         ),
@@ -214,14 +210,8 @@ List<(String, Tone)> _neutral(ToneSet t) => [
   ('disabled', t.disabled),
 ];
 
-/// `hover` is not part of [ToneSet] (a wash-only tone has no ANSI-16 slot),
-/// so its row always reads the theme. A `*` marks a tone the theme derives
-/// from its background instead of setting explicitly.
-List<(String, Tone)> _interaction(ToneSet t, Theme theme) => [
-  ('focus', t.focus),
+List<(String, Tone)> _interaction(ToneSet t) => [
   ('selection', t.selection),
-  ('cursor${theme.derivesCursor ? ' *' : ''}', t.cursor),
-  ('hover${theme.derivesHover ? ' *' : ''}', theme.hover),
 ];
 
 View _toneSection(StyleResolver resolver, String title, List<(String, Tone)> tones) {

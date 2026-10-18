@@ -5,8 +5,9 @@ import 'package:test/test.dart';
 /// End-to-end NO_COLOR wiring: prove that `StyleResolver.defaultPolicy`
 /// (the process-wide flag the Application sets from the terminal profile)
 /// actually reaches the resolvers each widget builds internally, so a state
-/// that painted a colored surface degrades to `Modifier.reversed` — visible
-/// once termkit strips the colors. The per-projection matrix itself is proven
+/// that painted a colored surface degrades to modifiers — `Modifier.reversed`
+/// for a fill, bold for a focused cursor, which lifts no color — visible once
+/// termkit strips the colors. The per-projection matrix itself is proven
 /// in kiko_core's style_resolver_nocolor_test.
 void main() {
   setUp(() => StyleResolver.defaultPolicy = RenderPolicy.noColor);
@@ -14,8 +15,8 @@ void main() {
 
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
 
-  group('NO_COLOR degrades widget surfaces to reversed', () {
-    test('ListView cursor row', () {
+  group('NO_COLOR degrades widget surfaces to modifiers', () {
+    test('ListView cursor row is bold, not reversed', () {
       final model = ListViewModel<String, String>(
         items: const <String>['Apple', 'Banana'],
         focused: true,
@@ -25,18 +26,20 @@ void main() {
         ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: (i, n, s) => [Line(i)]),
       );
       final cell = buffer[(x: 7, y: 0)]; // cursor row, trailing fill-only cell
-      expect(cell.modifier.has(Modifier.reversed), isTrue);
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+      expect(cell.modifier.has(Modifier.reversed), isFalse, reason: 'a cursor lifts no color, so nothing reverses');
       expect(cell.bg, equals(Color.reset), reason: 'no color under NO_COLOR');
     });
 
-    test('TreeView cursor node', () {
+    test('TreeView cursor node is bold, not reversed', () {
       final model = TreeViewModel<String>(focused: true)
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true)]);
       final buffer = canvas(10, 2);
       Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: Theme.dark));
       final cell = buffer[(x: 9, y: 0)];
-      expect(cell.modifier.has(Modifier.reversed), isTrue);
+      expect(cell.modifier.has(Modifier.bold), isTrue);
+      expect(cell.modifier.has(Modifier.reversed), isFalse);
       expect(cell.bg, equals(Color.reset));
     });
 
@@ -77,7 +80,7 @@ void main() {
       expect(pressedCell.modifier.has(Modifier.reversed), isFalse);
     });
 
-    test('TableView cursor cell', () {
+    test('TableView cursor cell is bold, not reversed', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i'});
       final model = TableViewModel(
         rows: rows,
@@ -88,8 +91,8 @@ void main() {
       final buffer = canvas(5, 3);
       TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
-      expect(cell.modifier.has(Modifier.reversed), isTrue);
       expect(cell.modifier.has(Modifier.bold), isTrue);
+      expect(cell.modifier.has(Modifier.reversed), isFalse);
       expect(cell.bg, equals(Color.reset));
     });
   });

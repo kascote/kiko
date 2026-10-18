@@ -124,26 +124,6 @@ void main() {
       expect(Color.white.kind, ColorKind.ansi);
     });
     group('lighten', () {
-      test('RGB color lightens toward white', () {
-        const color = Color.rgb(0x808080);
-        final lighter = color.lighten(0.5);
-        expect(lighter.kind, ColorKind.rgb);
-        // Each channel: 128 + (127 * 0.5) ≈ 192 = 0xC0
-        expect(lighter.value, 0xC0C0C0);
-      });
-
-      test('amount 0.0 returns same RGB values', () {
-        const color = Color.rgb(0x336699);
-        final result = color.lighten(0);
-        expect(result.value, 0x336699);
-      });
-
-      test('amount 1.0 returns white', () {
-        const color = Color.rgb(0x336699);
-        final result = color.lighten(1);
-        expect(result.value, 0xFFFFFF);
-      });
-
       test('ANSI dark maps to bright variant', () {
         expect(Color.red.lighten(0.5), Color.brightRed);
         expect(Color.blue.lighten(0.5), Color.brightBlue);
@@ -155,49 +135,12 @@ void main() {
         expect(Color.white.lighten(0.5), Color.white);
       });
 
-      test('indexed converts to RGB then lightens', () {
-        const color = Color.indexed(196); // red-ish
-        final result = color.lighten(0.5);
-        expect(result.kind, ColorKind.rgb);
-      });
-    });
-
-    group('darken', () {
-      test('RGB color darkens toward black', () {
-        const color = Color.rgb(0x808080);
-        final darker = color.darken(0.5);
-        expect(darker.kind, ColorKind.rgb);
-        // Each channel: 128 * 0.5 = 64 = 0x40
-        expect(darker.value, 0x404040);
-      });
-
-      test('amount 0.0 returns same RGB values', () {
-        const color = Color.rgb(0x336699);
-        final result = color.darken(0);
-        expect(result.value, 0x336699);
-      });
-
-      test('amount 1.0 returns black', () {
-        const color = Color.rgb(0x336699);
-        final result = color.darken(1);
-        expect(result.value, 0x000000);
-      });
-
-      test('ANSI bright maps to dark variant', () {
-        expect(Color.brightRed.darken(0.5), Color.red);
-        expect(Color.brightBlue.darken(0.5), Color.blue);
-        expect(Color.white.darken(0.5), Color.gray);
-      });
-
-      test('ANSI dark stays dark', () {
-        expect(Color.red.darken(0.5), Color.red);
-        expect(Color.black.darken(0.5), Color.black);
-      });
-
-      test('indexed converts to RGB then darkens', () {
-        const color = Color.indexed(196);
-        final result = color.darken(0.5);
-        expect(result.kind, ColorKind.rgb);
+      test('a color that is not ANSI-16 comes back unchanged', () {
+        const rgb = Color.rgb(0x808080);
+        const indexed = Color.indexed(196);
+        expect(rgb.lighten(0.5), rgb);
+        expect(indexed.lighten(0.5), indexed);
+        expect(Color.reset.lighten(0.5), Color.reset);
       });
     });
 
@@ -245,23 +188,6 @@ void main() {
         const background = Color.rgb(0x14100b);
         final rounded = double.parse(foreground.contrastRatio(background).toStringAsFixed(1));
         expect(rounded, equals(8.0));
-      });
-    });
-
-    group('lift', () {
-      test('lightens a dark base', () {
-        const dark = Color.rgb(0x0d1117);
-        expect(dark.lift(0.10), equals(dark.lighten(0.10)));
-      });
-
-      test('darkens a light base', () {
-        const light = Color.rgb(0xf6f8fa);
-        expect(light.lift(0.10), equals(light.darken(0.10)));
-      });
-
-      test('a dark result is brighter, a light result is dimmer', () {
-        expect(const Color.rgb(0x101010).lift(0.2).luminance, greaterThan(const Color.rgb(0x101010).luminance));
-        expect(const Color.rgb(0xf0f0f0).lift(0.2).luminance, lessThan(const Color.rgb(0xf0f0f0).luminance));
       });
     });
   });

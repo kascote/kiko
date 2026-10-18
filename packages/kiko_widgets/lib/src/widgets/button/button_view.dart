@@ -67,8 +67,9 @@ final class Button implements View {
 /// Resolves the button style from the theme, [style]'s face, and the model's
 /// active states: [ButtonStyle.face] is the resting face,
 /// `resolver.fill(primary)` when null, with the state contributions coming
-/// straight from the built-in matrix, so a focused button lights up in the
-/// focus tone and a loading one blinks over any face.
+/// straight from the built-in matrix: a focused button lifts its face one
+/// state step and turns bold, hover lifts half a step, pressed one more step,
+/// and a loading one blinks over any face.
 Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style) {
   final resolver = StyleResolver(theme);
   final states = <WidgetState>{

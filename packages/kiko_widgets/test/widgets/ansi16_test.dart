@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 /// process-wide flag the Application sets from the terminal profile) actually
 /// reaches the resolvers each widget builds internally, so a state that would
 /// paint a full-RGB surface instead paints Theme.dark's hand-authored
-/// `tones16` pair. The per-projection matrix itself is proven in kiko_core's
+/// `tones16` pair, lifted to its bright variant. The per-projection matrix itself is proven in kiko_core's
 /// style_resolver_ansi16_test.
 void main() {
   setUp(() => StyleResolver.defaultPolicy = RenderPolicy.ansi16);
@@ -14,9 +14,14 @@ void main() {
 
   final tones = Theme.dark.tones16!;
 
+  // A cursor row with a bare base lifts the ground one step: the bright
+  // variant of the background slot. The row keeps the terminal's own text
+  // color, because the ansi16 ground projection sets no background.
+  final cursorBg = tones.background.color!.lighten(Theme.step);
+
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
 
-  group('ANSI-16 degrades widget surfaces to the named tones16 pair', () {
+  group('ANSI-16 degrades widget surfaces to the named tones16 pair, lifted to its bright variant', () {
     test('ListView cursor row', () {
       final model = ListViewModel<String, String>(
         items: const <String>['Apple', 'Banana'],
@@ -27,8 +32,8 @@ void main() {
         ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: (i, n, s) => [Line(i)]),
       );
       final cell = buffer[(x: 7, y: 0)]; // cursor row, trailing fill-only cell
-      expect(cell.fg, equals(tones.cursor.on));
-      expect(cell.bg, equals(tones.cursor.color));
+      expect(cell.fg, equals(Color.reset));
+      expect(cell.bg, equals(cursorBg));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -39,8 +44,8 @@ void main() {
       final buffer = canvas(10, 2);
       Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: Theme.dark));
       final cell = buffer[(x: 9, y: 0)];
-      expect(cell.fg, equals(tones.cursor.on));
-      expect(cell.bg, equals(tones.cursor.color));
+      expect(cell.fg, equals(Color.reset));
+      expect(cell.bg, equals(cursorBg));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -53,11 +58,10 @@ void main() {
         ),
       );
       final cell = buffer[(x: 0, y: 0)]; // left padding, part of the button face
-      // Both the resting face and the focused state contribution come from
-      // the resolver, so the focused fill fully replaces the resting one and
-      // paints through the named tones16.focus pair.
-      expect(cell.fg, equals(tones.focus.on));
-      expect(cell.bg, equals(tones.focus.color));
+      // The resting face is the named primary pair; focus lifts it to the
+      // bright variant and adds bold.
+      expect(cell.fg, equals(tones.primary.on));
+      expect(cell.bg, equals(tones.primary.color!.lighten(Theme.step)));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
@@ -72,13 +76,12 @@ void main() {
       final buffer = canvas(5, 3);
       TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
-      expect(cell.fg, equals(tones.cursor.on));
-      expect(cell.bg, equals(tones.cursor.color));
+      expect(cell.fg, equals(Color.reset));
+      expect(cell.bg, equals(cursorBg));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 
-    test('TableView crosshair: row and column cells keep their own colors, only the cursor cell '
-        'paints the named pair', () {
+    test('TableView crosshair: row and column cells take the lifted ground, only the cursor cell is bold', () {
       final rows = List.generate(3, (i) => <String, Object?>{'id': 'r$i', 'a': 'v$i', 'b': 'w$i'});
       final model = TableViewModel(
         rows: rows,
@@ -94,16 +97,16 @@ void main() {
       TableRenderer(model, Theme.dark, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
 
       final cursorCell = buffer[(x: 0, y: 1)]; // row 0, col a — the exact cursor cell
-      expect(cursorCell.fg, equals(tones.cursor.on));
-      expect(cursorCell.bg, equals(tones.cursor.color));
+      expect(cursorCell.fg, equals(Color.reset));
+      expect(cursorCell.bg, equals(cursorBg));
       expect(cursorCell.modifier.has(Modifier.bold), isTrue);
 
       final crosshairRowOnly = buffer[(x: 4, y: 1)]; // row 0, col b — cursor row, not cursor column
-      expect(crosshairRowOnly.bg, equals(Color.reset), reason: 'the row wash drops under ansi16 — no bleed');
+      expect(crosshairRowOnly.bg, equals(cursorBg), reason: 'the row wash lifts the ground to its bright variant');
       expect(crosshairRowOnly.modifier.has(Modifier.bold), isFalse);
 
       final crosshairColumnOnly = buffer[(x: 0, y: 2)]; // row 1, col a — cursor column, not cursor row
-      expect(crosshairColumnOnly.bg, equals(Color.reset), reason: 'the column wash drops under ansi16 too');
+      expect(crosshairColumnOnly.bg, equals(cursorBg), reason: 'the column wash lifts the ground too');
       expect(crosshairColumnOnly.modifier.has(Modifier.bold), isFalse);
     });
   });

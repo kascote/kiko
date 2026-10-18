@@ -207,41 +207,19 @@ class Color {
     return Color.rgb((r.round() << 16) | (g.round() << 8) | b.round());
   }
 
-  /// Returns a lighter version of this color.
+  /// Returns the bright variant of an ANSI-16 color.
   ///
-  /// [amount] should be between 0.0 (no change) and 1.0 (white).
-  /// RGB/indexed colors are converted to RGB and each channel is lerped
-  /// toward 255. ANSI-16 dark colors map to their bright variant.
+  /// A dark ANSI color maps to its bright twin and a bright one stays as it
+  /// is. Any other color comes back unchanged, so a lift under the ANSI-16
+  /// tier never invents an RGB value.
+  ///
+  /// [amount] is accepted so a lift reads the same under every tier; it does
+  /// not change the result.
   Color lighten(double amount) {
     if (kind == ColorKind.ansi && value >= 0 && value <= 15) {
       return Color._(_ansiBrighten[value]);
     }
-    final rgb = toRgb();
-    final r = ((rgb.value >> 16) & 0xFF) + ((255 - ((rgb.value >> 16) & 0xFF)) * amount);
-    final g = ((rgb.value >> 8) & 0xFF) + ((255 - ((rgb.value >> 8) & 0xFF)) * amount);
-    final b = (rgb.value & 0xFF) + ((255 - (rgb.value & 0xFF)) * amount);
-    return Color.rgb(
-      (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
-    );
-  }
-
-  /// Returns a darker version of this color.
-  ///
-  /// [amount] should be between 0.0 (no change) and 1.0 (black).
-  /// RGB/indexed colors are converted to RGB and each channel is lerped
-  /// toward 0. ANSI-16 bright colors map to their dark variant.
-  Color darken(double amount) {
-    if (kind == ColorKind.ansi && value >= 0 && value <= 15) {
-      return Color._(_ansiDarken[value]);
-    }
-    final rgb = toRgb();
-    final factor = 1.0 - amount;
-    final r = ((rgb.value >> 16) & 0xFF) * factor;
-    final g = ((rgb.value >> 8) & 0xFF) * factor;
-    final b = (rgb.value & 0xFF) * factor;
-    return Color.rgb(
-      (r.round().clamp(0, 255) << 16) | (g.round().clamp(0, 255) << 8) | b.round().clamp(0, 255),
-    );
+    return this;
   }
 
   /// Perceived brightness of this color, in the range 0.0 (black) to 1.0 (white).
@@ -249,7 +227,7 @@ class Color {
   /// ANSI and indexed colors are resolved to RGB first, then weighted by how
   /// the eye responds to each channel (green counts most, blue least).
   ///
-  /// This is the perceptual weight [lift] reads, not a contrast measure. Use
+  /// This is a perceptual weight, not a contrast measure. Use
   /// [relativeLuminance] for contrast.
   double get luminance {
     final rgb = toRgb();
@@ -294,14 +272,6 @@ class Color {
     final darker = a > b ? b : a;
     return (lighter + 0.05) / (darker + 0.05);
   }
-
-  /// Shifts this color away from its own background by [amount].
-  ///
-  /// Dark colors are lightened and light ones are darkened, so a tint derived
-  /// with [lift] stays visible whether it sits on a dark or a light base. The
-  /// split point is mid-[luminance]; [amount] is passed straight to [lighten]
-  /// or [darken].
-  Color lift(double amount) => luminance < 0.5 ? lighten(amount) : darken(amount);
 
   /// This color in OKLab, the perceptual space [shiftLightness] works in.
   ///
@@ -381,26 +351,6 @@ const _ansiBrighten = [
   13, // brightMagenta stays
   14, // brightCyan stays
   15, // white stays
-];
-
-/// ANSI-16 darken lookup: bright → dark variant.
-const _ansiDarken = [
-  0, // black stays
-  1, // red stays
-  2, // green stays
-  3, // yellow stays
-  4, // blue stays
-  5, // magenta stays
-  6, // cyan stays
-  7, // gray stays
-  0, // darkGray → black
-  1, // brightRed → red
-  2, // brightGreen → green
-  3, // brightYellow → yellow
-  4, // brightBlue → blue
-  5, // brightMagenta → magenta
-  6, // brightCyan → cyan
-  7, // white → gray
 ];
 
 /// A color in OKLab: lightness [l] from 0 (black) to 1 (white), and the two

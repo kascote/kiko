@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:kiko/src/colors.dart';
+import 'package:kiko/src/theme.dart';
 import 'package:test/test.dart';
 
 void main() {
+  oklabTests();
   group('Color', () {
     test('ansi factory creates correct Color', () {
       const color = Color.magenta;
@@ -259,6 +263,79 @@ void main() {
         expect(const Color.rgb(0x101010).lift(0.2).luminance, greaterThan(const Color.rgb(0x101010).luminance));
         expect(const Color.rgb(0xf0f0f0).lift(0.2).luminance, lessThan(const Color.rgb(0xf0f0f0).luminance));
       });
+    });
+  });
+}
+
+void _expectClose(Color actual, Color expected) {
+  final a = actual.toRgb().value;
+  final e = expected.toRgb().value;
+  for (final shift in [16, 8, 0]) {
+    expect((((a >> shift) & 0xFF) - ((e >> shift) & 0xFF)).abs(), lessThanOrEqualTo(1), reason: '$actual vs $expected');
+  }
+}
+
+void oklabTests() {
+  group('Oklab', () {
+    test('black is lightness 0 and white is lightness 1', () {
+      expect(const Color.rgb(0x000000).toOklab().l, closeTo(0, 1e-6));
+      expect(const Color.rgb(0xffffff).toOklab().l, closeTo(1, 1e-4));
+      expect(const Color.rgb(0xffffff).toOklab().chroma, lessThan(1e-4));
+    });
+
+    test('round trips sRGB colors within one 8-bit step', () {
+      for (final value in [0x58a6b0, 0x0d1117, 0xc9d1d9, 0xeb6f92, 0x2e3440, 0xff0000, 0x00ff00, 0x0000ff, 0x808080]) {
+        _expectClose(Color.rgb(value).toOklab().toColor(), Color.rgb(value));
+      }
+    });
+
+    test('shiftLightness moves lightness by the delta and keeps hue', () {
+      const start = Color.rgb(0x264a5c);
+      final lifted = start.shiftLightness(0.1);
+      expect(lifted.toOklab().l, closeTo(start.toOklab().l + 0.1, 0.005));
+      final before = start.toOklab();
+      final after = lifted.toOklab();
+      expect(atan2(after.b, after.a), closeTo(atan2(before.b, before.a), 0.02));
+    });
+
+    test('shiftLightness clamps at the ends of the range', () {
+      expect(const Color.rgb(0xffffff).shiftLightness(0.5).toOklab().l, closeTo(1, 1e-3));
+      expect(const Color.rgb(0x000000).shiftLightness(-0.5).toOklab().l, closeTo(0, 1e-3));
+    });
+
+    test('round trips background and surface of every shipped theme', () {
+      const themes = [
+        Theme.dark,
+        Theme.catppuccin,
+        Theme.rosePine,
+        Theme.gruvbox,
+        Theme.monokai,
+        Theme.nord,
+        Theme.tokyoNight,
+        Theme.oneDark,
+        Theme.dracula,
+        Theme.solarized,
+      ];
+      for (final theme in themes) {
+        for (final color in [theme.background.color!, theme.surface.color!]) {
+          final lab = color.toOklab();
+          expect(lab.toColor().toOklab().l, closeTo(lab.l, 0.005), reason: '${theme.name} $color');
+          _expectClose(lab.toColor(), color);
+        }
+      }
+    });
+
+    test('non-RGB colors convert through their RGB value', () {
+      expect(Color.red.toOklab(), Color.red.toRgb().toOklab());
+      expect(const Color.indexed(21).toOklab(), const Color.indexed(21).toRgb().toOklab());
+      expect(Color.reset.toOklab(), const Color.rgb(0xc0c0c0).toOklab());
+    });
+
+    test('toColor fits an out-of-gamut triple by reducing chroma', () {
+      final vivid = const Color.rgb(0xff0000).toOklab();
+      final brighter = Oklab(0.9, vivid.a, vivid.b).toColor();
+      expect(brighter.toOklab().l, closeTo(0.9, 0.01));
+      expect(brighter.toOklab().chroma, lessThan(vivid.chroma));
     });
   });
 }

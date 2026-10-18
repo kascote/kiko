@@ -107,6 +107,15 @@ may set `cursor` and `hover` explicitly instead. An ANSI-16 table
 (`Ansi16Tones`) derives a missing `cursor` from its own `background` by
 the same rule.
 
+`Color.toOklab()` converts a color to `Oklab`, a perceptual space whose
+lightness `l` runs from 0 (black) to 1 (white). Equal steps in `l` look
+equal in size on every ground, which equal sRGB steps do not.
+`Color.shiftLightness(delta)` moves `l` by `delta` and keeps hue and chroma.
+It clamps `l` to 0..1. When the result leaves the sRGB gamut,
+`Oklab.toColor()` lowers the chroma until the color fits. ANSI, indexed and
+reset colors convert through their RGB value first, and the result is
+always RGB.
+
 `ToneSet` holds the tones that reach paint on every tier. `hover` only
 washes, and a wash is empty under ANSI-16 and NO_COLOR, so `hover` lives
 on `Theme` alone.

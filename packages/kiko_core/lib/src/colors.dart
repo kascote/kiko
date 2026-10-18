@@ -303,6 +303,43 @@ class Color {
   /// or [darken].
   Color lift(double amount) => luminance < 0.5 ? lighten(amount) : darken(amount);
 
+  /// This color in OKLab, the perceptual space [shiftLightness] works in.
+  ///
+  /// ANSI and indexed colors resolve to RGB first, through [toRgb]. The reset
+  /// color has no value of its own and converts as the default gray
+  /// `0xc0c0c0`.
+  Oklab toOklab() {
+    final rgb = toRgb();
+    double linear(int channel) {
+      final c = channel / 255.0;
+      return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4).toDouble();
+    }
+
+    final r = linear((rgb.value >> 16) & 0xFF);
+    final g = linear((rgb.value >> 8) & 0xFF);
+    final bl = linear(rgb.value & 0xFF);
+    final l = _cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * bl);
+    final m = _cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * bl);
+    final s = _cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * bl);
+    return Oklab(
+      0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+    );
+  }
+
+  /// Moves this color's OKLab lightness by [delta] and keeps its hue and
+  /// chroma.
+  ///
+  /// A positive [delta] lightens, a negative one darkens. The result is
+  /// clamped to lightness 0..1 and, when the moved color falls outside the
+  /// sRGB gamut, its chroma is reduced until it fits. The result is RGB, so a
+  /// non-RGB color comes back as RGB even when [delta] is zero.
+  Color shiftLightness(double delta) {
+    final lab = toOklab();
+    return Oklab((lab.l + delta).clamp(0.0, 1.0), lab.a, lab.b).toColor();
+  }
+
   /// Blends this color toward [other] by [amount].
   ///
   /// Both colors convert to RGB first, then each channel moves from this
@@ -365,3 +402,87 @@ const _ansiDarken = [
   6, // brightCyan → cyan
   7, // white → gray
 ];
+
+/// A color in OKLab: lightness [l] from 0 (black) to 1 (white), and the two
+/// opponent axes [a] (green to red) and [b] (blue to yellow).
+///
+/// Equal steps in [l] look equal in size, which sRGB steps do not. Get one
+/// from [Color.toOklab]; turn one back with [toColor].
+@immutable
+class Oklab {
+  /// Creates an OKLab triple.
+  const Oklab(this.l, this.a, this.b);
+
+  /// Perceptual lightness, 0 black to 1 white.
+  final double l;
+
+  /// The green (negative) to red (positive) axis.
+  final double a;
+
+  /// The blue (negative) to yellow (positive) axis.
+  final double b;
+
+  /// Distance from the neutral axis; 0 is a gray.
+  double get chroma => sqrt(a * a + b * b);
+
+  /// This triple as an RGB [Color].
+  ///
+  /// A triple outside the sRGB gamut keeps its lightness and hue and loses
+  /// chroma until it fits; the channels are then rounded to 8 bits.
+  Color toColor() {
+    var scale = 1.0;
+    var rgb = _linearRgb(l, a, b);
+    if (!_inGamut(rgb)) {
+      var lo = 0.0;
+      var hi = 1.0;
+      for (var i = 0; i < 16; i++) {
+        scale = (lo + hi) / 2;
+        rgb = _linearRgb(l, a * scale, b * scale);
+        if (_inGamut(rgb)) {
+          lo = scale;
+        } else {
+          hi = scale;
+        }
+      }
+      rgb = _linearRgb(l, a * lo, b * lo);
+    }
+    int channel(double c) {
+      final clamped = c.clamp(0.0, 1.0);
+      final srgb = clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * pow(clamped, 1 / 2.4) - 0.055;
+      return (srgb * 255).round().clamp(0, 255);
+    }
+
+    return Color.rgb((channel(rgb.$1) << 16) | (channel(rgb.$2) << 8) | channel(rgb.$3));
+  }
+
+  static bool _inGamut((double, double, double) rgb) {
+    const slack = 0.0005;
+    bool ok(double c) => c >= -slack && c <= 1 + slack;
+    return ok(rgb.$1) && ok(rgb.$2) && ok(rgb.$3);
+  }
+
+  static (double, double, double) _linearRgb(double l, double a, double b) {
+    final l1 = l + 0.3963377774 * a + 0.2158037573 * b;
+    final m1 = l - 0.1055613458 * a - 0.0638541728 * b;
+    final s1 = l - 0.0894841775 * a - 1.2914855480 * b;
+    final l3 = l1 * l1 * l1;
+    final m3 = m1 * m1 * m1;
+    final s3 = s1 * s1 * s1;
+    return (
+      4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+      -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+      -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) => other is Oklab && other.l == l && other.a == a && other.b == b;
+
+  @override
+  int get hashCode => Object.hash(Oklab, l, a, b);
+
+  @override
+  String toString() => 'Oklab(l: ${l.toStringAsFixed(3)}, a: ${a.toStringAsFixed(3)}, b: ${b.toStringAsFixed(3)})';
+}
+
+double _cbrt(double x) => x < 0 ? -pow(-x, 1 / 3).toDouble() : pow(x, 1 / 3).toDouble();

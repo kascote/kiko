@@ -362,7 +362,7 @@ class StyleResolver {
   /// on a dark ground, darker on a light one. Under [RenderPolicy.ansi16] a
   /// lift is the bright variant.
   Color _lift(Color color, double amount) {
-    if (policy == RenderPolicy.ansi16) return color.lighten(amount);
+    if (policy == RenderPolicy.ansi16) return color.brighten();
     final dark = _groundColor.toOklab().l < 0.5;
     return color.shiftLightness(dark ? amount : -amount);
   }

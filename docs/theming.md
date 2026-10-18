@@ -96,7 +96,7 @@ a tone.
 
 Focus, cursor, hover and pressed are not tones. Each is a state layer: the
 resolver moves a background away from the ground a part sits on (see
-"States"). `lighten` is a public `Color` method for ANSI-16 colors only: it
+"States"). `brighten` is a public `Color` method for ANSI-16 colors only: it
 returns the bright variant. `Color.shiftLightness` is the lightness step
 below. Themes, anatomy slots, and apps can use both for their own
 derivations.
@@ -199,8 +199,12 @@ distinct.
 A palette theme takes its role colors from the palette as they are. The
 palette's grays can still miss a rung target; `deriveTheme` fixes those.
 The contrast page of the theme viewer
-(`packages/kiko_widgets/example/theme_viewer`, F4) prints every rung's ratio
-and is the check for a new theme.
+(`packages/kiko_widgets/example/theme_viewer`, F4) is the check for a new
+theme. It measures the text color, `border`, `muted` and `disabled` on
+`background` and `surface`, and each intent ink on `background`, `surface`
+and `selection`. Every row shows its ratio and whether it reaches its
+`ContrastTargets` entry. The page also prints the `DerivationReport` that
+`deriveTheme` returns for the current theme.
 
 Page 4, "States", shows every migrated widget forced into each state, once on
 the window and once on a surface panel. It is the acceptance check for a

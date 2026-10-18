@@ -197,10 +197,7 @@ class Color {
   /// A dark ANSI color maps to its bright twin and a bright one stays as it
   /// is. Any other color comes back unchanged, so a lift under the ANSI-16
   /// tier never invents an RGB value.
-  ///
-  /// [amount] is accepted so a lift reads the same under every tier; it does
-  /// not change the result.
-  Color lighten(double amount) {
+  Color brighten() {
     if (kind == ColorKind.ansi && value >= 0 && value <= 15) {
       return Color._(_ansiBrighten[value]);
     }
@@ -318,7 +315,7 @@ class Color {
   }
 }
 
-/// ANSI-16 lighten lookup: dark → bright variant.
+/// ANSI-16 brighten lookup: dark → bright variant.
 const _ansiBrighten = [
   8, // black → darkGray
   9, // red → brightRed

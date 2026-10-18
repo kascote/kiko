@@ -29,7 +29,7 @@ void main() {
     });
 
     test('a lifted wash is the bright variant of the ground', () {
-      final expected = resolver.tones.background.color!.lighten(Theme.step);
+      final expected = resolver.tones.background.color!.brighten();
       expect(resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.wash), equals(Style(bg: expected)));
       expect(resolver.resolve(null, {WidgetState.hover}, cls: PaintClass.wash), equals(Style(bg: expected)));
     });
@@ -38,13 +38,13 @@ void main() {
       final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       final result = resolver.resolve(fill, {WidgetState.hover}, cls: PaintClass.fill);
       expect(result.fg, fill.fg);
-      expect(result.bg, fill.bg!.lighten(Theme.step / 2));
+      expect(result.bg, fill.bg!.brighten());
     });
 
     test('cursor over a selected fill maps to the bright variant under ansi16, without bold', () {
       final result = resolver.resolve(null, {WidgetState.selected, WidgetState.cursor}, cls: PaintClass.fill);
       expect(result.fg, derived.selection.on);
-      expect(result.bg, derived.selection.color!.lighten(Theme.step));
+      expect(result.bg, derived.selection.color!.brighten());
       expect(result.addModifier.has(Modifier.bold), isFalse);
     });
 
@@ -77,13 +77,13 @@ void main() {
       final fill = resolver.resolve(null, {WidgetState.selected}, cls: PaintClass.fill);
       final result = resolver.resolve(fill, {WidgetState.pressed}, cls: PaintClass.fill);
       expect(result.fg, fill.fg);
-      expect(result.bg, fill.bg!.lighten(Theme.step));
+      expect(result.bg, fill.bg!.brighten());
     });
 
     test('a cursor fill with no base lifts the ground color', () {
       final s = resolver.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
       expect(s.fg, isNull);
-      expect(s.bg, equals(derived.background.color!.lighten(Theme.step)));
+      expect(s.bg, equals(derived.background.color!.brighten()));
     });
 
     test('on() paints the sixteen-color surface', () {
@@ -93,7 +93,7 @@ void main() {
 
       final lifted = onSurface.resolve(null, {WidgetState.cursor}, cls: PaintClass.fill);
       expect(lifted.fg, isNull);
-      expect(lifted.bg, equals(derived.surface.color!.lighten(Theme.step)));
+      expect(lifted.bg, equals(derived.surface.color!.brighten()));
     });
 
     test('a de-emphasised resolver adds dim to every projection and result', () {

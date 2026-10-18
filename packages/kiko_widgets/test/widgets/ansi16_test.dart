@@ -20,7 +20,7 @@ void main() {
 
   // A cursor row with a bare base lifts the ground one step: the bright
   // variant of the background slot.
-  final cursorBg = tones.background.color!.lighten(Theme.step);
+  final cursorBg = tones.background.color!.brighten();
 
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
 
@@ -64,7 +64,7 @@ void main() {
       // The resting face is the named primary pair; focus lifts it to the
       // bright variant and adds bold.
       expect(cell.fg, equals(tones.primary.on));
-      expect(cell.bg, equals(tones.primary.color!.lighten(Theme.step)));
+      expect(cell.bg, equals(tones.primary.color!.brighten()));
       expect(cell.modifier.has(Modifier.bold), isTrue);
     });
 

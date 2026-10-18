@@ -55,15 +55,16 @@ import 'states_page.dart';
 // load through a deliberately slow fetch, so the loading tone stays on
 // screen long enough to see.
 //
-// Page 3, contrast (contrast_page.dart), audits contrast. Three tables —
-// text on a ground, fills and composed states, and separation between two
-// grounds — each row a pair painted as a swatch, its hex values, and its
-// WCAG 2 contrast ratio; the first two tables grade the ratio against the
-// text thresholds, the separation table does not. Every pair reads the
-// theme's RGB tones through its own resolver, locked to
-// `RenderPolicy.color`, since a ratio against a terminal's own ANSI-16 or
-// NO_COLOR palette cannot be measured; the page's own chrome (title,
-// borders) still follows F3 like the rest of the screen.
+// Page 3, contrast (contrast_page.dart), audits contrast. The ink table
+// puts the text color, the border, muted and disabled rungs and the six
+// intent inks over each ground they must read on, and checks each pair
+// against its `ContrastTargets` entry. A fills table grades every fill and
+// composed state against the WCAG 2 text thresholds, a separation table
+// compares two grounds, and the report prints what `deriveTheme` says about
+// the current theme. Every pair reads the theme's RGB tones through its own
+// resolver, locked to `RenderPolicy.color`, since a ratio against a
+// terminal's own ANSI-16 or NO_COLOR palette cannot be measured; the page's
+// own chrome (title, borders) still follows F3 like the rest of the screen.
 //
 // Page 4, states (states_page.dart), shows every migrated widget forced
 // into each state, once on the window and once on a surface panel that

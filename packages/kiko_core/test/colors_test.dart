@@ -123,24 +123,24 @@ void main() {
       expect(Color.white.value, 15);
       expect(Color.white.kind, ColorKind.ansi);
     });
-    group('lighten', () {
+    group('brighten', () {
       test('ANSI dark maps to bright variant', () {
-        expect(Color.red.lighten(0.5), Color.brightRed);
-        expect(Color.blue.lighten(0.5), Color.brightBlue);
-        expect(Color.black.lighten(0.5), Color.darkGray);
+        expect(Color.red.brighten(), Color.brightRed);
+        expect(Color.blue.brighten(), Color.brightBlue);
+        expect(Color.black.brighten(), Color.darkGray);
       });
 
       test('ANSI bright stays bright', () {
-        expect(Color.brightRed.lighten(0.5), Color.brightRed);
-        expect(Color.white.lighten(0.5), Color.white);
+        expect(Color.brightRed.brighten(), Color.brightRed);
+        expect(Color.white.brighten(), Color.white);
       });
 
       test('a color that is not ANSI-16 comes back unchanged', () {
         const rgb = Color.rgb(0x808080);
         const indexed = Color.indexed(196);
-        expect(rgb.lighten(0.5), rgb);
-        expect(indexed.lighten(0.5), indexed);
-        expect(Color.reset.lighten(0.5), Color.reset);
+        expect(rgb.brighten(), rgb);
+        expect(indexed.brighten(), indexed);
+        expect(Color.reset.brighten(), Color.reset);
       });
     });
 

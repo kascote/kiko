@@ -458,8 +458,8 @@ produces, and which part of it each state lands on.
 | widget    | produces                                            | lands on                                                                                                             |
 | --------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Button    | focused, hover, pressed, loading, disabled           | the face, every state                                                                                                                    |
-| Checkbox  | focused, hover, pressed, error, disabled, selected    | focused/pressed/disabled: brackets and mark; error: brackets; selected: checked mark; disabled: label too; hover: the row                |
-| RadioGroup | focused, hover, pressed, error, disabled, selected  | focused: the cursor option's brackets and mark; error: every option's brackets; disabled: the option's row, or every row; selected: the chosen mark; hover: one row; pressed: one row's box |
+| Checkbox  | focused, hover, pressed, error, disabled, selected    | focused/disabled: brackets and mark; error: brackets; selected: checked mark; disabled: label and row too; hover and pressed: the row ground |
+| RadioGroup | focused, hover, pressed, error, disabled, selected  | focused: the cursor option's brackets and mark; error: every option's brackets; disabled: the option's row, or every row; selected: the chosen mark; hover and pressed: one row's ground |
 | TextInput | focused, error, disabled                             | focused: the text (ink + bold), and the composed border; error: no part of its own, the composed border reads it; disabled: text, placeholder, fill, obscured |
 | TextArea  | focused, error, disabled                             | as TextInput; disabled also dims the gutter and the selection                                                                            |
 | Combobox  | focused, hover, error, disabled                      | focused/hover/error: the toggle; disabled: field and toggle                                                                              |
@@ -960,22 +960,22 @@ Notes the table cannot carry:
 - **Combobox** — the field styles through `ComboboxStyle.field` and the
   popup's match rows through `ComboboxStyle.list`; the popup border's ink
   styles through `ComboboxStyle.popupBorder` (`docs/combobox.md`).
-- **Checkbox** — hover washes the whole row: the box, the gap, the label,
-  and any spare cells, as the row's ground. Focused puts `primary` ink and bold
-  on `open`, `close`, and whichever mark is showing, `mark` or
-  `checkedMark`, so a checked box reads focused too. Error puts error ink on
-  `open` and `close` only. Disabled dims every part. A set `checkedMark`
-  slot keeps its own color while unfocused; the `selected` state fills in
-  only a null slot. A press passes
-  `pressed` for `open`, `close`, `mark`, and `checkedMark`; the ink class
-  paints nothing for it, and the label does not react.
+- **Checkbox** — the row ground is one fill call over the bound ground. Hover
+  lifts it half a step and pressed lifts it one more step. The lift covers
+  the box, the gap, the label, and any spare cells, and no ink changes.
+  Focused puts `primary` ink and bold on `open`, `close`, and whichever mark
+  is showing. The checked mark resolves in one call with `selected`, so it
+  is `primary` ink, plain. Focus adds bold to it. Error puts error ink on
+  `open` and `close` only. Disabled fades every part and the row. A set
+  `checkedMark` slot replaces the `selected` look, so it keeps its own color
+  while focused, and focus still adds bold.
 - **RadioGroup** — the group is one widget. Focus lands on one option, the
   option at the cursor. It never lands on a cursor bar. Error is a group
   fact. It paints on every option's brackets. On the cursor row, error ink
-  wins over `primary` ink. The focus bold stays. A disabled option dims its
-  own parts. A disabled group dims every option's parts. Hover washes one
-  option's row, spare cells included. Pressed passes `pressed` for one option's box; the ink class paints
-  nothing for it. A
+  wins over `primary` ink. The focus bold stays. A disabled option fades its
+  own parts and its row. A disabled group fades every option. Hover lifts
+  one option's row ground half a step, spare cells included, and pressed
+  lifts it one more step. The chosen mark is `primary` ink, plain, and a
   set `checkedMark` slot keeps its own color, like the checkbox's.
   `labelAlign` has no visible effect in a horizontal group.
 

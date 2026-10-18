@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:kiko_widgets/kiko_widgets.dart';
 
 import 'main.dart';
 import 'shared.dart';
@@ -17,13 +18,59 @@ import 'shared.dart';
 ///
 /// The window half and the dialog half each hold their own instance, with ids
 /// that start with [prefix] so the two never share a hit id. A widget's batch
-/// adds its models here.
+/// adds its models here. Each model map holds one forced model per name in
+/// [_stateRows].
 class StatesHalf {
   /// Creates the models of one half, with every id starting with [prefix].
-  StatesHalf(this.prefix);
+  StatesHalf(this.prefix)
+    : buttons = {
+        for (final state in _stateRows)
+          state: ButtonModel(id: '${prefix}button.$state', label: Line('Save'), focused: state == 'focused')
+            ..hovered = state == 'hover'
+            ..pressed = state == 'pressed'
+            ..disabled = state == 'disabled',
+      },
+      checkboxes = {
+        for (final state in _stateRows)
+          state:
+              CheckboxModel(
+                  id: '${prefix}checkbox.$state',
+                  label: Line('Notify me'),
+                  state: CheckState.checked,
+                  focused: state == 'focused',
+                )
+                ..hovered = state == 'hover'
+                ..pressed = state == 'pressed'
+                ..disabled = state == 'disabled',
+      },
+      radioGroups = {
+        for (final state in _stateRows)
+          state:
+              RadioGroupModel<int>(
+                  id: '${prefix}radio.$state',
+                  value: 0,
+                  options: [
+                    RadioOption(value: 0, label: Line('Daily')),
+                    RadioOption(value: 1, label: Line('Weekly')),
+                  ],
+                  focused: state == 'focused',
+                )
+                ..hoveredIndex = state == 'hover' ? 0 : null
+                ..pressedIndex = state == 'pressed' ? 0 : null
+                ..disabled = state == 'disabled',
+      };
 
   /// The id prefix of this half: `win.` for the window, `dlg.` for the dialog.
   final String prefix;
+
+  /// The buttons, one per state row.
+  final Map<String, ButtonModel> buttons;
+
+  /// The checked checkboxes, one per state row.
+  final Map<String, CheckboxModel> checkboxes;
+
+  /// The radio groups, option 0 chosen, one per state row.
+  final Map<String, RadioGroupModel<int>> radioGroups;
 }
 
 /// The two halves of the states page.
@@ -104,11 +151,21 @@ View _sections(StyleResolver r, StatesHalf half) => Column(
   ],
 );
 
-List<View> _buttonSection(StyleResolver r, StatesHalf half) => _section(r, 'Button', _placeholderRows(r));
+List<View> _buttonSection(StyleResolver r, StatesHalf half) => _section(r, 'Button', [
+  for (final state in _stateRows) _row(r, state, _hug(Button(model: half.buttons[state]!, resolver: r))),
+]);
 
-List<View> _checkboxSection(StyleResolver r, StatesHalf half) => _section(r, 'Checkbox', _placeholderRows(r));
+List<View> _checkboxSection(StyleResolver r, StatesHalf half) => _section(r, 'Checkbox', [
+  for (final state in _stateRows) _row(r, state, _hug(Checkbox(model: half.checkboxes[state]!, resolver: r))),
+]);
 
-List<View> _radioGroupSection(StyleResolver r, StatesHalf half) => _section(r, 'RadioGroup', _placeholderRows(r));
+List<View> _radioGroupSection(StyleResolver r, StatesHalf half) => _section(r, 'RadioGroup', [
+  for (final state in _stateRows) _row(r, state, _hug(RadioGroup(model: half.radioGroups[state]!, resolver: r))),
+]);
+
+/// Lets [widget] take its own width instead of the row's: a button then shows
+/// its face only, and a check row shows its ground only under the text.
+View _hug(View widget) => Row(children: [widget]);
 
 /// A section: its title, then its labelled rows.
 List<View> _section(StyleResolver r, String title, List<View> rows) => [
@@ -124,9 +181,3 @@ View _row(StyleResolver r, String label, View widget) => Row(
     Expanded(child: widget),
   ],
 );
-
-/// The rows of a widget whose batch has not landed: the state names and a
-/// muted line saying so.
-List<View> _placeholderRows(StyleResolver r) => [
-  for (final label in _stateRows) _row(r, label, Line('— added by its batch —', style: r.ink(r.tones.muted))),
-];

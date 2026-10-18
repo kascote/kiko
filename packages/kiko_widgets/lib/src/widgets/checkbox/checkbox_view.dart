@@ -37,14 +37,17 @@ final class Checkbox implements View {
       if (model.focused) WidgetState.focused,
       if (model.error) WidgetState.error,
       if (model.disabled) WidgetState.disabled,
-      if (model.pressed) WidgetState.pressed,
     };
     final markStates = <WidgetState>{
       if (model.focused) WidgetState.focused,
       if (model.disabled) WidgetState.disabled,
-      if (model.pressed) WidgetState.pressed,
     };
     final labelStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
+    final rowStates = <WidgetState>{
+      if (model.hovered) WidgetState.hover,
+      if (model.pressed) WidgetState.pressed,
+      if (model.disabled) WidgetState.disabled,
+    };
 
     final styles = resolveCheckRowStyles(
       resolver,
@@ -56,7 +59,7 @@ final class Checkbox implements View {
       bracketStates: bracketStates,
       markStates: markStates,
       labelStates: labelStates,
-      hovered: model.hovered,
+      rowStates: rowStates,
     );
 
     return buildCheckRow(

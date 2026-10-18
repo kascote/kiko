@@ -21,8 +21,9 @@ import 'types.dart';
 /// with [style] slots taken verbatim where set. Only the option at
 /// [RadioGroupModel.cursor] shows focus, on its brackets and mark; error puts
 /// error ink on every option's brackets; disabled dims one option's row, or,
-/// while the group is disabled, every row; hover washes one row, spare cells
-/// included; pressed leaves the box's ink as it is. [RadioGroupModel.labelAlign]
+/// while the group is disabled, every row; hover lifts one row's ground half
+/// a step, spare cells included, and pressed lifts it one more step. The
+/// chosen option's mark is primary ink. [RadioGroupModel.labelAlign]
 /// has no visible effect while [RadioGroupModel.direction] is [Axis.horizontal]:
 /// a row inside an unbounded main axis hugs its own content and leaves no
 /// spare width to place a label in.
@@ -63,14 +64,17 @@ final class RadioGroup<T> implements View {
       if (model.focused && atCursor) WidgetState.focused,
       if (model.error) WidgetState.error,
       if (off) WidgetState.disabled,
-      if (pressed) WidgetState.pressed,
     };
     final markStates = <WidgetState>{
       if (model.focused && atCursor) WidgetState.focused,
       if (off) WidgetState.disabled,
-      if (pressed) WidgetState.pressed,
     };
     final labelStates = <WidgetState>{if (off) WidgetState.disabled};
+    final rowStates = <WidgetState>{
+      if (hovered) WidgetState.hover,
+      if (pressed) WidgetState.pressed,
+      if (off) WidgetState.disabled,
+    };
 
     final styles = resolveCheckRowStyles(
       resolver,
@@ -82,7 +86,7 @@ final class RadioGroup<T> implements View {
       bracketStates: bracketStates,
       markStates: markStates,
       labelStates: labelStates,
-      hovered: hovered,
+      rowStates: rowStates,
     );
 
     final row = buildCheckRow(

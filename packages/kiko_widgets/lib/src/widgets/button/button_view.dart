@@ -23,8 +23,9 @@ import 'types.dart';
 /// The resting face is [ButtonStyle.face]. A null face derives
 /// `resolver.fill(primary)` — a button is a primary action by default. Its
 /// states then ride the built-in state × class matrix (via [StyleResolver]):
-/// focused → `resolver.fill(focus)` + bold, loading → warning ink + slow
-/// blink, disabled → dim. The face paints as the row's ground, so
+/// focused → one state step away from the ground + bold, hover → half a
+/// step, pressed → one more step, loading → warning ink + slow blink,
+/// disabled → faded and dim. The face paints as the row's ground, so
 /// [ButtonModel.label] and [ButtonModel.loadingText] paint over it: a label
 /// with its own foreground keeps it on the face, in any state.
 final class Button implements View {

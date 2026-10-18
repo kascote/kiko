@@ -11,17 +11,19 @@ typedef CheckRowStyles = ({Style open, Style close, Style mark, Style checkedMar
 /// [open], [close], [mark], [checkedMark] and [label] are the caller's style
 /// slots; a `null` slot falls back to the part's derived default before the
 /// states in [bracketStates], [markStates] and [labelStates] patch over it.
-/// [hovered] washes the row's ground.
+/// [rowStates] are the row's ground states: hover, pressed and disabled lift
+/// or fade the ground the row sits on.
 ///
-/// The brackets default to `resolver.ink(border)`. The checked mark's base
-/// folds in the `selected` state only when [checkedMark] is `null`, so an
-/// explicit slot keeps its own color while checked.
+/// The brackets default to `resolver.ink(border)`. The checked mark resolves
+/// in one call with `selected` among its states, so it reads as primary ink.
+/// An explicit [checkedMark] replaces that selected look and keeps its own
+/// color while checked.
 CheckRowStyles resolveCheckRowStyles(
   StyleResolver resolver, {
   required Set<WidgetState> bracketStates,
   required Set<WidgetState> markStates,
   required Set<WidgetState> labelStates,
-  required bool hovered,
+  required Set<WidgetState> rowStates,
   Style? open,
   Style? close,
   Style? mark,
@@ -40,12 +42,16 @@ CheckRowStyles resolveCheckRowStyles(
   );
   final resolvedMark = resolver.resolve(mark, markStates, cls: PaintClass.ink);
 
-  final checkedMarkBase = checkedMark ?? resolver.resolve(null, const {WidgetState.selected}, cls: PaintClass.ink);
-  final resolvedCheckedMark = resolver.resolve(checkedMarkBase, markStates, cls: PaintClass.ink);
+  final resolvedCheckedMark = resolver.resolve(
+    null,
+    {WidgetState.selected, ...markStates},
+    cls: PaintClass.ink,
+    slots: {WidgetState.selected: ?checkedMark},
+  );
 
   final resolvedLabel = resolver.resolve(label, labelStates, cls: PaintClass.ink);
 
-  final rowGround = hovered ? resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash) : const Style();
+  final rowGround = resolver.resolve(null, rowStates, cls: PaintClass.fill);
 
   return (
     open: resolvedOpen,

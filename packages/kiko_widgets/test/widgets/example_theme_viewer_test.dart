@@ -298,4 +298,46 @@ void main() {
     expect(buffer[(x: 100, y: 8)].bg, equals(Theme.dark.surface.color));
     expect(model.states.window.prefix, isNot(equals(model.states.dialog.prefix)));
   });
+
+  test('the states page shows a Button, a Checkbox and a RadioGroup per state on both halves', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final split = frame.buffer.area.width ~/ 2;
+
+    for (final (half, onRight) in [(model.states.window, false), (model.states.dialog, true)]) {
+      final ids = [
+        for (final m in half.buttons.values) m.id,
+        for (final m in half.checkboxes.values) m.id,
+        for (final m in half.radioGroups.values) m.id,
+      ];
+      expect(ids, hasLength(15));
+      for (final id in ids) {
+        final rect = frame.hits.rectOf(id);
+        expect(rect, isNotNull, reason: id);
+        expect(id, startsWith(half.prefix));
+        expect(rect!.x >= split, onRight, reason: id);
+      }
+    }
+    expect(_screenText(frame.buffer), isNot(contains('added by its batch')));
+  });
+
+  test('the states page paints the pressed checkbox row lifted, and the same row differently on the surface', () {
+    final model = viewer.Model()..page = 4;
+    final frame = _testFrame(160, 50);
+    viewer.view(model, frame);
+    final resolver = StyleResolver(model.theme);
+    final onWindow = frame.hits.rectOf(model.states.window.checkboxes['pressed']!.id)!;
+    final onSurface = frame.hits.rectOf(model.states.dialog.checkboxes['pressed']!.id)!;
+
+    expect(
+      frame.buffer[(x: onWindow.x, y: onWindow.y)].bg,
+      resolver.resolve(null, {WidgetState.pressed}, cls: PaintClass.fill).bg,
+    );
+    final surface = resolver.on(resolver.tones.surface);
+    expect(
+      frame.buffer[(x: onSurface.x, y: onSurface.y)].bg,
+      surface.resolve(null, {WidgetState.pressed}, cls: PaintClass.fill).bg,
+    );
+  });
 }

@@ -368,7 +368,7 @@ void main() {
       expect(otherBracket.bg, isNot(washed));
     });
 
-    test("pressedIndex no longer inverts that row's box or its label", () {
+    test("pressedIndex lifts that row's ground one step, and no other row", () {
       RadioGroupModel<int> build() => RadioGroupModel<int>(
         id: 'r',
         options: [
@@ -378,12 +378,54 @@ void main() {
       );
       final restingFrame = _frame(10, 2)..render(RadioGroup(model: build(), resolver: _resolver));
       final pressedFrame = _frame(10, 2)..render(RadioGroup(model: build()..pressedIndex = 0, resolver: _resolver));
+      final lifted = Theme.dark.background.color!.shiftLightness(Theme.step);
 
-      for (final x in [0, 1, 2, 4]) {
+      for (final x in [0, 1, 2, 4, 9]) {
         final resting = restingFrame.buffer[(x: x, y: 0)];
         final pressed = pressedFrame.buffer[(x: x, y: 0)];
-        expect(pressed.bg, resting.bg, reason: 'cell at x=$x');
+        expect(pressed.bg, lifted, reason: 'cell at x=$x');
         expect(pressed.fg, resting.fg, reason: 'cell at x=$x');
+      }
+      expect(pressedFrame.buffer[(x: 0, y: 1)].bg, restingFrame.buffer[(x: 0, y: 1)].bg);
+    });
+
+    test('hovered and pressed lift the row ground one and a half steps', () {
+      final model =
+          RadioGroupModel<int>(
+              id: 'r',
+              options: [RadioOption(value: 1, label: Line('One'))],
+            )
+            ..hoveredIndex = 0
+            ..pressedIndex = 0;
+      final frame = _frame(10, 1)..render(RadioGroup(model: model, resolver: _resolver));
+      expect(
+        frame.buffer[(x: 0, y: 0)].bg,
+        Theme.dark.background.color!.shiftLightness(Theme.step / 2).shiftLightness(Theme.step),
+      );
+    });
+
+    test('the chosen mark is primary ink, bold under focus, on both grounds', () {
+      for (final resolver in [_resolver, _resolver.on(_resolver.tones.surface)]) {
+        final model = RadioGroupModel<int>(
+          id: 'r',
+          value: 1,
+          options: [RadioOption(value: 1, label: Line('One'))],
+          focused: true,
+        );
+        final frame = _frame(10, 1)..render(RadioGroup(model: model, resolver: resolver));
+        final mark = frame.buffer[(x: 1, y: 0)];
+        expect(mark.fg, Theme.dark.primary.color);
+        expect(mark.modifier.has(Modifier.bold), isTrue);
+
+        final slotted = _frame(10, 1)
+          ..render(
+            RadioGroup(
+              model: model,
+              resolver: resolver,
+              style: const RadioStyle(checkedMark: Style(fg: Color.cyan)),
+            ),
+          );
+        expect(slotted.buffer[(x: 1, y: 0)].fg, Color.cyan);
       }
     });
 

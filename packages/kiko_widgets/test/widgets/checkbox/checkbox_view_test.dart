@@ -193,8 +193,9 @@ void main() {
       final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(frame.buffer[(x: 0, y: 0)].fg, Theme.dark.error.color);
       expect(frame.buffer[(x: 2, y: 0)].fg, Theme.dark.error.color);
-      expect(frame.buffer[(x: 1, y: 0)].fg, Color.reset); // the mark keeps its own style
-      expect(frame.buffer[(x: 4, y: 0)].fg, Color.reset); // the label keeps its own style
+      final text = _resolver.ground(_resolver.tones.background).fg;
+      expect(frame.buffer[(x: 1, y: 0)].fg, text); // the mark keeps its own style
+      expect(frame.buffer[(x: 4, y: 0)].fg, text); // the label keeps its own style
     });
 
     test('disabled dims every cell', () {
@@ -218,18 +219,82 @@ void main() {
       expect(spare.bg, washed);
     });
 
-    test('a pressed checkbox no longer inverts its box or its label', () {
-      final restingModel = CheckboxModel(id: 'c', label: Line('Option'));
-      final restingFrame = _frame(10, 1)..render(Checkbox(model: restingModel, resolver: _resolver));
+    test('a pressed checkbox lifts its row ground one step and leaves every fg alone', () {
+      final restingFrame = _frame(10, 1)
+        ..render(
+          Checkbox(
+            model: CheckboxModel(id: 'c', label: Line('Option')),
+            resolver: _resolver,
+          ),
+        );
       final pressedModel = CheckboxModel(id: 'c', label: Line('Option'))..pressed = true;
       final pressedFrame = _frame(10, 1)..render(Checkbox(model: pressedModel, resolver: _resolver));
+      final lifted = Theme.dark.background.color!.shiftLightness(Theme.step);
 
-      for (final x in [0, 1, 2, 4]) {
+      for (final x in [0, 1, 2, 4, 9]) {
         final resting = restingFrame.buffer[(x: x, y: 0)];
         final pressed = pressedFrame.buffer[(x: x, y: 0)];
-        expect(pressed.bg, resting.bg, reason: 'cell at x=$x');
+        expect(pressed.bg, lifted, reason: 'cell at x=$x');
         expect(pressed.fg, resting.fg, reason: 'cell at x=$x');
       }
+    });
+
+    test('hovered and pressed lift the row ground one and a half steps', () {
+      final model = CheckboxModel(id: 'c', label: Line('Option'))
+        ..hovered = true
+        ..pressed = true;
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
+      expect(
+        frame.buffer[(x: 0, y: 0)].bg,
+        Theme.dark.background.color!.shiftLightness(Theme.step / 2).shiftLightness(Theme.step),
+      );
+    });
+
+    test('a checked mark under focus is primary ink and bold', () {
+      final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked, focused: true);
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
+      final mark = frame.buffer[(x: 1, y: 0)];
+      expect(mark.fg, Theme.dark.primary.color);
+      expect(mark.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('an explicit checkedMark slot keeps its color under focus and gains bold', () {
+      final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked, focused: true);
+      final frame = _frame(10, 1)
+        ..render(
+          Checkbox(
+            model: model,
+            resolver: _resolver,
+            style: const CheckboxStyle(checkedMark: Style(fg: Color.cyan)),
+          ),
+        );
+      final mark = frame.buffer[(x: 1, y: 0)];
+      expect(mark.fg, Color.cyan);
+      expect(mark.modifier.has(Modifier.bold), isTrue);
+    });
+
+    test('on a surface-bound resolver the mark, the row lift and the explicit slot follow the same rules', () {
+      final surface = _resolver.on(_resolver.tones.surface);
+      final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked, focused: true)
+        ..hovered = true
+        ..pressed = true;
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: surface));
+      expect(frame.buffer[(x: 1, y: 0)].fg, Theme.dark.primary.color);
+      expect(frame.buffer[(x: 1, y: 0)].modifier.has(Modifier.bold), isTrue);
+      expect(
+        frame.buffer[(x: 9, y: 0)].bg,
+        Theme.dark.surface.color!.shiftLightness(Theme.step / 2).shiftLightness(Theme.step),
+      );
+
+      final slotted = _frame(10, 1)
+        ..render(
+          Checkbox(
+            model: model,
+            resolver: surface,
+            style: const CheckboxStyle(checkedMark: Style(fg: Color.cyan)),
+          ),
+        );
+      expect(slotted.buffer[(x: 1, y: 0)].fg, Color.cyan);
     });
 
     test('a theme variant paints the checked mark in its primary tone', () {

@@ -119,7 +119,7 @@ class CheckGlyphs {
 /// | `open`        | `resolver.ink(border)`       | resting chrome  |
 /// | `close`       | `resolver.ink(border)`       | resting chrome  |
 /// | `mark`        | none (inherits the ground)   | —               |
-/// | `checkedMark` | `resolver.ink(selection)`    | selected × ink  |
+/// | `checkedMark` | `resolver.ink(primary)`      | selected × ink  |
 /// | `label`       | none (inherits the ground)   | —               |
 @immutable
 class CheckboxStyle {

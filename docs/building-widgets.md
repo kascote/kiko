@@ -259,6 +259,35 @@ chrome (a border, a title), and on the cursor row at most. Resolving hover
 as a fill instead of a wash overwrites the row's own foreground. The full
 reasoning is `docs/theming.md`.
 
+### One call per part
+
+Resolve each part of a widget with one `resolve` call that carries the part's
+full state set. Do not resolve a part twice and patch the results together.
+The resolver applies the states in its fixed order, so one call gives the same
+paint on every ground and under every render policy.
+
+The checkbox mark is the sample. It resolves in one call: `selected` makes
+the mark `primary` ink, `focused` adds bold, and `disabled` fades it. An
+explicit `checkedMark` slot replaces the `selected` look and keeps its own
+color.
+
+```dart
+  final resolvedCheckedMark = resolver.resolve(
+    null,
+    {WidgetState.selected, ...markStates},
+    cls: PaintClass.ink,
+    slots: {WidgetState.selected: ?checkedMark},
+  );
+```
+
+The row ground is a second part with its own state set. It is one fill call
+over the null base, which starts from the bound ground. Hover lifts the
+ground half a step and pressed lifts it one more step:
+
+```dart
+  final rowGround = resolver.resolve(null, rowStates, cls: PaintClass.fill);
+```
+
 ## Wiring it into an app
 
 The app owns the model, routes messages to it, and translates its events.

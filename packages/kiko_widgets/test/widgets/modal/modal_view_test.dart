@@ -25,7 +25,7 @@ String _dump(Buffer buffer) {
 void main() {
   group('modalDialog', () {
     test('tags the dialog with the given id', () {
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
+      final dialog = modalDialog(id: 'confirm', content: (_) => Line('Sure?'), resolver: StyleResolver(Theme.dark));
       final frame = _frame(10, 3)..render(NodeView(dialog));
       expect(frame.hits.rectOf('confirm'), isNotNull);
     });
@@ -45,35 +45,113 @@ void main() {
 
   group('renderModalOverlay', () {
     test('paints only the base when there is no dialog', () {
-      final base = Line('base').build();
       final frame = _frame(10, 3);
-      renderModalOverlay(frame, base: base, width: 4, height: 1);
+      renderModalOverlay(
+        frame,
+        base: (_) => Line('base').build(),
+        resolver: StyleResolver(Theme.dark),
+        width: 4,
+        height: 1,
+      );
       expect(_dump(frame.buffer), contains('base'));
     });
 
-    test('dims the backdrop then paints the dialog on top', () {
-      final base = const Container(
-        ground: Style(bg: Color.rgb(0xC8C8C8)),
-        child: SizedBox(width: 10, height: 3),
-      ).build();
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
-      final frame = _frame(10, 3);
-      renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog, id: 'confirm');
+    test('hands the base the plain resolver when no dialog is open', () {
+      final resolver = StyleResolver(Theme.dark);
+      StyleResolver? seen;
+      renderModalOverlay(
+        _frame(10, 3),
+        base: (r) {
+          seen = r;
+          return Line('base').build();
+        },
+        resolver: resolver,
+        width: 4,
+        height: 1,
+      );
+      expect(seen, same(resolver));
+      expect(seen!.isDeEmphasised, isFalse);
+    });
 
-      expect(frame.hits.rectOf('confirm'), isNotNull);
-      // The backdrop's colour was dimmed before the dialog painted over it —
-      // a corner cell just outside the dialog should no longer be full-bright.
-      final corner = frame.buffer[(x: 0, y: 0)];
-      expect(corner.bg, isNot(equals(const Color.rgb(0xC8C8C8))));
+    test('hands the base the de-emphasised resolver while a dialog is open', () {
+      final resolver = StyleResolver(Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: (_) => Line('Sure?'), resolver: resolver);
+      StyleResolver? seen;
+      renderModalOverlay(
+        _frame(10, 3),
+        base: (r) {
+          seen = r;
+          return Line('base').build();
+        },
+        resolver: resolver,
+        width: 8,
+        height: 3,
+        dialog: dialog,
+        id: 'confirm',
+      );
+      expect(seen!.isDeEmphasised, isTrue);
+    });
+
+    test('de-emphasises the host chrome and widgets behind an open dialog', () {
+      final resolver = StyleResolver(Theme.dark);
+      final button = ButtonModel(id: 'ok', label: Line(' OK '));
+      Node host(StyleResolver r) => Container(
+        border: BorderType.plain,
+        borderStyle: r.border(const {}),
+        child: Row(
+          children: [Button(model: button, resolver: r)],
+        ),
+      ).build();
+
+      Frame render({required bool open}) {
+        final frame = _frame(20, 8);
+        renderModalOverlay(
+          frame,
+          base: host,
+          resolver: resolver,
+          width: 10,
+          height: 4,
+          dialog: open ? modalDialog(id: 'confirm', content: (_) => Line('Sure?'), resolver: resolver) : null,
+          id: open ? 'confirm' : null,
+        );
+        return frame;
+      }
+
+      final open = render(open: true);
+      final closed = render(open: false);
+      final quiet = resolver.deEmphasised;
+
+      // The border at the corner, outside the dialog rect.
+      expect(open.buffer[(x: 0, y: 0)].fg, quiet.border(const {}).fg);
+      expect(open.buffer[(x: 0, y: 0)].fg, isNot(closed.buffer[(x: 0, y: 0)].fg));
+
+      // The button face inside the border.
+      final face = open.buffer[(x: 2, y: 1)];
+      expect(face.bg, quiet.fill(resolver.tones.primary).bg);
+      expect(face.bg, isNot(closed.buffer[(x: 2, y: 1)].bg));
+
+      // The quiet colors sit between the plain ones and the ground.
+      final ground = resolver.ground(resolver.tones.background).bg!.toOklab().l;
+      final plain = closed.buffer[(x: 2, y: 1)].bg.toOklab().l;
+      expect((face.bg.toOklab().l - ground).abs(), lessThan((plain - ground).abs()));
     });
 
     test('a press outside the dialog resolves to the modal, never to the base tree under the backdrop', () {
       // A tagged widget in the top-left corner of the base, well outside
       // the centred dialog.
+      final resolver = StyleResolver(Theme.dark);
       final base = Column(children: [Tagged('ok', Line('OK'))]).build();
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
+      final dialog = modalDialog(id: 'confirm', content: (_) => Line('Sure?'), resolver: resolver);
       final frame = _frame(20, 8);
-      renderModalOverlay(frame, base: base, width: 10, height: 4, dialog: dialog, id: 'confirm');
+      renderModalOverlay(
+        frame,
+        base: (_) => base,
+        resolver: resolver,
+        width: 10,
+        height: 4,
+        dialog: dialog,
+        id: 'confirm',
+      );
 
       final outside = frame.hits.hitId(0, 0);
       expect(outside, isNotNull, reason: 'the modal claims the whole frame');
@@ -98,7 +176,7 @@ void main() {
     const dialogHeight = 4;
 
     Node buildDialog(StyleResolver resolver) =>
-        modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: resolver);
+        modalDialog(id: 'confirm', content: (_) => Line('Sure?'), resolver: resolver);
 
     for (final policy in RenderPolicy.values) {
       test('the dialog replaces the base rect cleanly, never blended with it ($policy)', () {
@@ -120,7 +198,8 @@ void main() {
         final frame = _frame(width, height);
         renderModalOverlay(
           frame,
-          base: buildBase(),
+          base: (_) => buildBase(),
+          resolver: resolver,
           width: dialogWidth,
           height: dialogHeight,
           dialog: buildDialog(resolver),
@@ -150,17 +229,18 @@ void main() {
       });
     }
 
-    test('the dim reaches only cells painted before the layer, never the dialog', () {
+    test('the quiet host look never reaches the dialog layer', () {
       final resolver = StyleResolver(Theme.dark);
-      final base = const Container(
-        ground: Style(bg: Color.rgb(0xC8C8C8)),
-        child: SizedBox(width: width, height: height),
-      ).build();
-
       final frame = _frame(width, height);
       renderModalOverlay(
         frame,
-        base: base,
+        base: (r) => Container(
+          width: width,
+          height: height,
+          ground: r.ground(r.tones.background),
+          child: const SizedBox(width: width, height: height),
+        ).build(),
+        resolver: resolver,
         width: dialogWidth,
         height: dialogHeight,
         dialog: buildDialog(resolver),
@@ -169,11 +249,8 @@ void main() {
 
       final rect = centeredRect(area: frame.area, width: dialogWidth, height: dialogHeight);
 
-      // Outside the rect, the base is dimmed.
-      expect(frame.buffer[(x: 0, y: 0)].bg, isNot(equals(const Color.rgb(0xC8C8C8))));
-
-      // Inside the rect, the dialog matches an undimmed, standalone render —
-      // if the dim had reached the layer, colors here would differ.
+      // Inside the rect, the dialog matches a standalone render built from the
+      // plain resolver.
       final isolated = Buffer.empty(rect);
       Frame(isolated.area, isolated, 0).render(NodeView(buildDialog(resolver)));
       for (var y = rect.top; y < rect.bottom; y++) {
@@ -181,7 +258,7 @@ void main() {
           expect(
             frame.buffer[(x: x, y: y)],
             isolated[(x: x, y: y)],
-            reason: 'dialog cell ($x,$y) must match an undimmed render — the dim never reaches the layer',
+            reason: 'dialog cell ($x,$y) must match a plain render — the host look never reaches the layer',
           );
         }
       }

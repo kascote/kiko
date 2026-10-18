@@ -322,8 +322,9 @@ on.
 Every shipped view takes a `StyleResolver`, not a `Theme`, and paints
 through it as given. The app builds one resolver per render function and
 passes it down. A pane that sits on another ground passes its own bound
-resolver to its views. The combobox popup and `modalDialog` do this
-themselves with `resolver.on(resolver.tones.surface)`.
+resolver to its views. The combobox popup does this itself with
+`resolver.on(resolver.tones.surface)`. `modalDialog` does it through its
+content builder (see "De-emphasis").
 
 The clean slate these rules assume is per **layer** — a render pass with
 its own buffer (`docs/glossary.md`). The base pass is simply the first
@@ -628,6 +629,46 @@ de-emphasised resolver's projections, so every color is blended once. A raw
 
 `deEmphasised` keeps the ground, and `on` keeps the de-emphasis, so the two
 compose in either order.
+
+The modal is the pane that does both. `modalDialog` takes the app's resolver
+and a content builder. It calls the builder with the resolver bound to
+`surface`, so the widgets in the dialog lift from the dialog's ground.
+`renderModalOverlay` takes a builder for the host. It calls that builder with
+`resolver.deEmphasised` while a dialog is open and with `resolver` otherwise:
+
+```dart
+final dialog = switch (model.modal) {
+  final modal? => modalDialog(
+    id: modal.id,
+    resolver: resolver,
+    content: (surface) => Column(
+      children: [
+        Line('Add 10 to the counter?'),
+        Line('Enter confirms', style: surface.ink(surface.tones.muted)),
+      ],
+    ),
+  ),
+  null => null,
+};
+
+renderModalOverlay(
+  frame,
+  base: (host) => Container(
+    border: BorderType.rounded,
+    borderStyle: host.border(const {}),
+    child: Button(model: model.okButton, resolver: host),
+  ).build(),
+  resolver: resolver,
+  width: 40,
+  height: 7,
+  dialog: dialog,
+  id: model.modal?.id,
+);
+```
+
+Build every widget and every chrome style of the host from the builder's
+resolver. A style built from the app's resolver stays at full strength behind
+the dialog.
 
 ### Where each tone lands
 

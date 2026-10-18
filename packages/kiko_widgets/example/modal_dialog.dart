@@ -63,54 +63,65 @@ Cmd? onModalEvent(AppModel model, WidgetEvent event) {
 // ═══════════════════════════════════════════════════════════
 
 void appView(AppModel model, Frame frame) {
-  final theme = model.theme;
-  final resolver = StyleResolver(theme);
-  final t = resolver.tones;
+  final resolver = StyleResolver(model.theme);
   frame.ground(resolver.ground(resolver.tones.background));
 
-  final base = Container(
-    border: BorderType.rounded,
-    borderStyle: resolver.border(const {}),
-    padding: const EdgeInsets.all(1),
-    topTitles: [Line(' Modal Dialog Demo — dims what is behind it ', style: resolver.ink(t.muted))],
-    child: Column(
-      crossAxis: CrossAxisAlignment.stretch,
-      children: [
-        Line('Count: ${model.count}', style: resolver.ink(t.accent)),
-        const SizedBox(height: 1),
-        Line('Some colourful background content:'),
-        Line('  Red', style: const Style(fg: Color.red)),
-        Line('  Green', style: const Style(fg: Color.green)),
-        Line('  Blue', style: const Style(fg: Color.blue)),
-        const Expanded(child: SizedBox()),
-        Line(
-          model.lastAction.isEmpty
-              ? '[m] open dialog   click outside or [Esc] to cancel   [q] quit'
-              : 'Last: ${model.lastAction}   [m] again   [q] quit',
-          style: resolver.ink(t.muted),
-        ),
-      ],
-    ),
-  );
+  // The host builds through whatever resolver the overlay hands it: the plain
+  // one while the dialog is closed, the de-emphasised one while it is open.
+  Node base(StyleResolver r) {
+    final t = r.tones;
+    return Container(
+      border: BorderType.rounded,
+      borderStyle: r.border(const {}),
+      padding: const EdgeInsets.all(1),
+      topTitles: [Line(' Modal Dialog Demo — quiets what is behind it ', style: r.ink(t.muted))],
+      child: Column(
+        crossAxis: CrossAxisAlignment.stretch,
+        children: [
+          Line('Count: ${model.count}', style: r.ink(t.accent)),
+          const SizedBox(height: 1),
+          Line('Some colourful background content:'),
+          Line('  Error', style: r.ink(t.error)),
+          Line('  Success', style: r.ink(t.success)),
+          Line('  Primary', style: r.ink(t.primary)),
+          const Expanded(child: SizedBox()),
+          Line(
+            model.lastAction.isEmpty
+                ? '[m] open dialog   click outside or [Esc] to cancel   [q] quit'
+                : 'Last: ${model.lastAction}   [m] again   [q] quit',
+            style: r.ink(t.muted),
+          ),
+        ],
+      ),
+    ).build();
+  }
 
   final dialog = switch (model.modal) {
     final modal? => modalDialog(
       id: modal.id,
       resolver: resolver,
-      topTitles: [Line(' Confirm ', style: resolver.ink(t.warning))],
-      content: Column(
+      topTitles: [Line(' Confirm ', style: resolver.ink(resolver.tones.warning))],
+      content: (surface) => Column(
         mainAxis: MainAxisAlignment.center,
         children: [
           Center(child: Line('Add 10 to the counter?')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] OK   [Esc]/click outside Cancel', style: resolver.ink(t.muted))),
+          Center(child: Line('[Enter] OK   [Esc]/click outside Cancel', style: surface.ink(surface.tones.muted))),
         ],
-      ).build(),
+      ),
     ),
     null => null,
   };
 
-  renderModalOverlay(frame, base: base.build(), width: 40, height: 7, dialog: dialog, id: model.modal?.id);
+  renderModalOverlay(
+    frame,
+    base: base,
+    resolver: resolver,
+    width: 40,
+    height: 7,
+    dialog: dialog,
+    id: model.modal?.id,
+  );
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -49,7 +49,9 @@ import 'states_page.dart';
 // and error-under-focus looks all show on the first frame. The radio groups
 // show the same idea: a chosen mark, a disabled option, and a group with
 // its error fact set. The table also shows its crosshair from the first
-// frame. The tree, and every table page after the first,
+// frame. The Dialog… button opens a modal: the dialog builds from the
+// surface-bound resolver and the page behind it from the de-emphasised one.
+// The tree, and every table page after the first,
 // load through a deliberately slow fetch, so the loading tone stays on
 // screen long enough to see.
 //
@@ -67,8 +69,10 @@ import 'states_page.dart';
 // into each state, once on the window and once on a surface panel that
 // stands for a dialog. Each row is labelled with its state. The page is the
 // acceptance check for a widget's look; a widget joins it when its batch
-// lands. Its footer names the theme, the tier, the page, the state step and
-// the de-emphasis amount in use.
+// lands. The `d` key draws the window half as the host of an open dialog,
+// through `resolver.deEmphasised`, next to the unchanged surface half. Its
+// footer names the theme, the tier, the page, the state step and the
+// de-emphasis amount in use.
 //
 // Theme keys are alt+[ / alt+] with F1/F2 as a fallback: a legacy terminal
 // sends alt+[ as a bare `ESC [` — the CSI introducer — so only the kitty
@@ -447,6 +451,13 @@ Cmd? onEvent(Model model, WidgetEvent event) {
     }
   }
 
+  // `d` on the states page toggles the host-of-an-open-dialog look. It runs
+  // after the dialog gate, so a dialog that is open keeps the key.
+  if (model.page == 4 && msg is KeyMsg && msg.key == 'd') {
+    model.states.dialogOpen = !model.states.dialogOpen;
+    return (model, null);
+  }
+
   // Tab and the widget keys reach the router only on the gallery page; pages
   // 1, 3 and 4 are static. Every other message still routes on every page, so a
   // fetch already in flight when the user switches pages still installs.
@@ -486,56 +497,70 @@ void view(Model model, Frame frame) {
   // own background — what a real terminal at that tier shows.
   frame.ground(resolver.ground(t.background));
 
-  final comboView = Combobox<String>(model: model.combo, resolver: resolver, popupBorder: BorderType.rounded);
+  Combobox<String> comboFor(StyleResolver r) =>
+      Combobox<String>(model: model.combo, resolver: r, popupBorder: BorderType.rounded);
+  final comboView = comboFor(resolver);
 
-  final pageBody = switch (model.page) {
-    1 => referencePage(theme, resolver),
-    2 => Column(
+  // The host builds through whatever resolver the overlay hands it: the plain
+  // one while no dialog is open, the de-emphasised one while it is.
+  Node host(StyleResolver r) {
+    final tones = r.tones;
+    final pageBody = switch (model.page) {
+      1 => referencePage(theme, r),
+      2 => Column(
+        crossAxis: CrossAxisAlignment.stretch,
+        children: [
+          stateStrip(r),
+          Expanded(child: galleryPage(model, r, comboFor(r))),
+          Line(
+            model.status.isEmpty ? 'Interact with any widget — its last command shows here' : model.status,
+            style: r.ink(tones.accent),
+          ),
+          Line(
+            'F4 page · tab/shift+tab focus · alt+[ / alt+] (or F1/F2) theme · F3 render tier · '
+            'space toggles a list row · enter activates · esc quits',
+            style: r.ink(tones.muted),
+          ),
+        ],
+      ),
+      4 => statesPage(model, r),
+      _ => contrastPage(theme, r),
+    };
+    return Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        stateStrip(resolver),
-        Expanded(child: galleryPage(model, resolver, comboView)),
-        Line(
-          model.status.isEmpty ? 'Interact with any widget — its last command shows here' : model.status,
-          style: resolver.ink(t.accent),
-        ),
-        Line(
-          'F4 page · tab/shift+tab focus · alt+[ / alt+] (or F1/F2) theme · F3 render tier · '
-          'space toggles a list row · enter activates · esc quits',
-          style: resolver.ink(t.muted),
-        ),
+        _header(model, r),
+        Expanded(child: pageBody),
       ],
-    ),
-    4 => statesPage(model, resolver),
-    _ => contrastPage(theme, resolver),
-  };
-
-  final ui = Column(
-    crossAxis: CrossAxisAlignment.stretch,
-    children: [
-      _header(model, resolver),
-      Expanded(child: pageBody),
-    ],
-  );
+    ).build();
+  }
 
   final dialog = switch (model.modal) {
     final modal? => modalDialog(
       id: modal.id,
       resolver: resolver,
       topTitles: [Line(' Dialog ', style: resolver.ink(t.accent))],
-      content: Column(
+      content: (surface) => Column(
         mainAxis: MainAxisAlignment.center,
         children: [
           Center(child: Line('This dialog sits on the surface tone.')),
           const SizedBox(height: 1),
-          Center(child: Line('[Enter] confirm   [Esc]/outside cancel', style: resolver.ink(t.muted))),
+          Center(child: Line('[Enter] confirm   [Esc]/outside cancel', style: surface.ink(surface.tones.muted))),
         ],
-      ).build(),
+      ),
     ),
     null => null,
   };
 
-  renderModalOverlay(frame, base: ui.build(), width: 46, height: 8, dialog: dialog, id: model.modal?.id);
+  renderModalOverlay(
+    frame,
+    base: host,
+    resolver: resolver,
+    width: 46,
+    height: 8,
+    dialog: dialog,
+    id: model.modal?.id,
+  );
 
   // Second pass: the popup paints over the tree that just rendered. A no-op
   // while the combobox is closed.

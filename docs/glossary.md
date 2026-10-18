@@ -196,8 +196,9 @@ A term of art added to a page gets its entry here in the same change.
 - **de-emphasised** — quieter than normal and still readable: every
   projection of a resolver from `StyleResolver.deEmphasised` blends toward
   the ground by `Theme.deEmphasis`, or adds dim under ANSI-16 and NO_COLOR.
-  A pane that is present but not in use is de-emphasised. It is never a
-  `WidgetState` (`docs/theming.md`).
+  A pane that is present but not in use is de-emphasised. The host behind an
+  open modal is one: `renderModalOverlay` builds it from the de-emphasised
+  resolver. It is never a `WidgetState` (`docs/theming.md`).
 - **derived theme** — a theme whose `border`, `muted` and `disabled` rungs
   were checked against `background` and `surface` and, where one missed its
   target, replaced by `deriveTheme`. A role color is never replaced; a

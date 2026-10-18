@@ -5,11 +5,12 @@ import 'package:kiko/kiko.dart';
 // ═══════════════════════════════════════════════════════════
 // Modal overlay.
 //
-// One frame, three passes: paint the base UI, dim everything already on the
-// buffer with `Frame.dimBackdrop`, then paint a centered modal on top. Because
-// a render pass only writes the cells it covers, the dimmed base survives
+// One frame, two passes: paint the base UI, then paint a centered modal on
+// top. While the modal is open the base is built through
+// `StyleResolver.deEmphasised`, so its chrome and text read one step quieter.
+// A render pass only writes the cells it covers, so the quiet base survives
 // everywhere the modal does not, and the modal — given a solid background —
-// reads as bright and in front. `Stack`/`Positioned` order does the layering.
+// reads as bright and in front.
 // ═══════════════════════════════════════════════════════════
 
 class OverlayModel {
@@ -34,20 +35,21 @@ class OverlayModel {
 };
 
 void view(OverlayModel model, Frame frame) {
-  // Pass 1: the base UI.
-  frame.render(_base(model));
+  final resolver = StyleResolver(Theme.dark);
+  // Pass 1: the base UI, quieted while the modal is open.
+  frame
+    ..ground(resolver.ground(resolver.tones.background))
+    ..render(_base(model, model.modalOpen ? resolver.deEmphasised : resolver));
 
+  // Pass 2: the modal, centered, on top of the quiet base.
   if (model.modalOpen) {
-    frame
-      // Pass 2: dim what was just painted.
-      ..dimBackdrop()
-      // Pass 3: the modal, centered, on top of the dimmed base.
-      ..render(_modal());
+    frame.render(_modal(resolver));
   }
 }
 
-View _base(OverlayModel model) => Container(
+View _base(OverlayModel model, StyleResolver r) => Container(
   border: BorderType.plain,
+  borderStyle: r.border(const {}),
   topTitles: [Line('Overlay demo')],
   child: Column(
     crossAxis: CrossAxisAlignment.stretch,
@@ -55,7 +57,7 @@ View _base(OverlayModel model) => Container(
       Center(
         child: Line(
           'm = open modal · ↑/↓ = change count · q = quit',
-          style: const Style(fg: Color.darkGray),
+          style: r.ink(r.tones.muted),
         ),
       ),
       const SizedBox(height: 1),
@@ -63,9 +65,9 @@ View _base(OverlayModel model) => Container(
         child: Row(
           crossAxis: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _tile('Count', '${model.count}', Color.green)),
-            Expanded(child: _tile('Status', model.modalOpen ? 'MODAL' : 'ready', Color.cyan)),
-            Expanded(child: _tile('Colors', 'live', Color.magenta)),
+            Expanded(child: _tile(r, 'Count', '${model.count}', r.tones.success)),
+            Expanded(child: _tile(r, 'Status', model.modalOpen ? 'MODAL' : 'ready', r.tones.accent)),
+            Expanded(child: _tile(r, 'Colors', 'live', r.tones.secondary)),
           ],
         ),
       ),
@@ -73,42 +75,38 @@ View _base(OverlayModel model) => Container(
   ),
 );
 
-View _tile(String title, String value, Color color) => Container(
+View _tile(StyleResolver r, String title, String value, Tone tone) => Container(
   border: BorderType.rounded,
-  borderStyle: Style(fg: color),
-  topTitles: [Line(title, style: Style(fg: color))],
+  borderStyle: r.ink(tone),
+  topTitles: [Line(title, style: r.ink(tone))],
   child: Center(
     child: Line(value, style: const Style(addModifier: Modifier.bold)),
   ),
 );
 
-View _modal() => Center(
-  child: Container(
-    width: 40,
-    height: 7,
-    // A solid fill makes the modal opaque over the dimmed backdrop.
-    ground: const Style(bg: Color.black),
-    border: BorderType.double,
-    borderStyle: const Style(fg: Color.yellow),
-    topTitles: [
-      Line(
-        ' Confirm ',
-        style: const Style(fg: Color.yellow, addModifier: Modifier.bold),
+View _modal(StyleResolver resolver) {
+  final r = resolver.on(resolver.tones.surface);
+  return Center(
+    child: Container(
+      width: 40,
+      height: 7,
+      // A solid ground makes the modal opaque over the quiet base.
+      ground: r.ground(r.tones.surface),
+      border: BorderType.double,
+      borderStyle: r.ink(r.tones.warning),
+      topTitles: [Line(' Confirm ', style: r.ink(r.tones.warning).incModifier(Modifier.bold))],
+      child: Column(
+        crossAxis: CrossAxisAlignment.stretch,
+        children: [
+          const Expanded(child: SizedBox()),
+          Center(child: Line('This modal sits above a quiet base.')),
+          const Expanded(child: SizedBox()),
+          Center(child: Line('Esc / m to close', style: r.ink(r.tones.muted))),
+        ],
       ),
-    ],
-    child: Column(
-      crossAxis: CrossAxisAlignment.stretch,
-      children: [
-        const Expanded(child: SizedBox()),
-        Center(child: Line('This modal sits above a dimmed base.')),
-        const Expanded(child: SizedBox()),
-        Center(
-          child: Line('Esc / m to close', style: const Style(fg: Color.darkGray)),
-        ),
-      ],
     ),
-  ),
-);
+  );
+}
 
 Future<void> main() async {
   exit(

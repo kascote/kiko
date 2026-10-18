@@ -196,25 +196,6 @@ class Frame {
     );
     return surface;
   }
-
-  /// Dims all cell colors in the buffer toward black.
-  ///
-  /// Used to create a backdrop effect for modals.
-  ///
-  /// Note: This always performs the dim operation regardless of terminal
-  /// profile. For noColor terminals, the dimmed RGB values are computed but
-  /// ignored at render time. If this becomes a perf issue, could check
-  /// `Platform.environment['NO_COLOR']` directly, but prefer letting termlib
-  /// handle profile detection consistently.
-  void dimBackdrop({double factor = 0.3}) {
-    for (var i = 0; i < buffer.buf.length; i++) {
-      final cell = buffer.buf[i];
-      buffer.buf[i] = cell.copyWith(
-        fg: cell.fg.dim(factor: factor),
-        bg: cell.bg.dim(factor: factor, isBackground: true),
-      );
-    }
-  }
 }
 
 /// [CompletedFrame] represents the state of the terminal after all changes

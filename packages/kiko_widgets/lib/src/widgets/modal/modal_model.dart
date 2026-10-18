@@ -7,7 +7,7 @@ import 'types.dart';
 /// Covers the old `Modal.simple` case: no inner MVU of its own, just Enter →
 /// [ModalConfirmEvent] / Escape → [ModalCancelEvent]. A dialog with its own state
 /// (a form, a picker) needs no wrapper at all — render that widget's own model
-/// as the `content` passed to `modalDialog` and route messages to it directly;
+/// from the `content` builder of `modalDialog` and route messages to it directly;
 /// this model exists only for the plain "are you sure?" shape.
 ///
 /// The app owns whether a modal is open at all (typically a nullable field
@@ -56,7 +56,7 @@ class ModalModel implements Component {
   /// emits [ModalCancelEvent] when [dismissOnBarrierPress] is set. Otherwise
   /// it is absorbed with no event. Every other pointer message addressed to
   /// the modal is absorbed too, including a press on the dialog's own cells.
-  /// Nothing therefore falls through to the dimmed backdrop. These pointer
+  /// Nothing therefore falls through to the de-emphasised host. These pointer
   /// cases apply whether or not the modal is focused.
   ///
   /// Past the pointer cases, an unfocused modal declines. A focused modal

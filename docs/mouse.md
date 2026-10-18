@@ -121,7 +121,7 @@ Size the scope to the content it owns.
 **A modal is the one deliberate exception: its content is the whole screen.**
 A modal renders a full-area barrier scope beneath its dialog layer, carrying
 the modal's own id, so a press anywhere on screen addresses the modal. The
-base tree under the dimmed backdrop is never reached.
+base tree under the barrier is never reached.
 
 Delivery is the routers' half: a path resolves to the component registered
 under its longest prefix and arrives as-is, and the owner reads the segment

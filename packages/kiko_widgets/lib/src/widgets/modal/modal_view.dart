@@ -3,22 +3,22 @@ import 'package:kiko/kiko.dart';
 import 'modal_model.dart';
 import 'types.dart';
 
-/// Frames [content] as a dialog: a bordered box with a painted ground,
-/// tagged with [id] so a click inside it resolves back through
+/// Frames the view [content] builds as a dialog: a bordered box with a
+/// painted ground, tagged with [id] so a click inside it resolves back through
 /// [HitMap.hitId].
 ///
-/// This is the plume-native replacement for the old `Modal`'s chrome — it
-/// carries no behaviour of its own. Pass [ModalModel]'s id for the static
+/// The dialog is a pane that re-grounds. It calls [content] with
+/// `resolver.on(resolver.tones.surface)`, so every widget [content] returns
+/// lifts its states from the dialog's ground. Build the widgets with that
+/// resolver, not with [resolver]. Pass [ModalModel]'s id for the static
 /// confirm/cancel case, or any other widget model's id to frame a fully
 /// custom inner MVU the same way.
 ///
-/// The frame and the ground paint through `resolver.on(resolver.tones.surface)`.
-/// Build [content] with that same surface-bound resolver so its parts lift
-/// from the dialog's ground.
+/// The frame and the ground paint through the same surface-bound resolver.
 Node modalDialog({
   required String id,
-  required Node content,
   required StyleResolver resolver,
+  required View Function(StyleResolver surface) content,
   BorderType border = BorderType.rounded,
   Style? borderStyle,
   Style? ground,
@@ -31,7 +31,7 @@ Node modalDialog({
     ground: ground ?? surface.ground(surface.tones.surface),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
-    child: NodeView(content),
+    child: content(surface),
   ).build()..tag = IdTag(id);
 }
 
@@ -47,21 +47,24 @@ Rect centeredRect({required Rect area, required int width, required int height})
   return Rect.create(x: area.x + left, y: area.y + top, width: width, height: height);
 }
 
-/// Renders [base], then — when [dialog] is non-null — dims the painted
-/// backdrop, renders a full-frame barrier under [id], and layers [dialog]
-/// centred over it at [width]x[height].
+/// Renders the node [base] builds, then, when [dialog] is non-null, renders a
+/// full-frame barrier under [id] and layers [dialog] centred over it at
+/// [width]x[height].
+///
+/// While a dialog is open, [base] receives `resolver.deEmphasised`, so the
+/// host's chrome and widgets read one step quieter. With no dialog, [base]
+/// receives [resolver] unchanged. Build the dialog from the un-quieted
+/// [resolver] with [modalDialog].
 ///
 /// [dialog] renders through [Frame.renderLayer]: a clean slate composited
 /// opaquely at the centred rect, so nothing painted underneath shows through
-/// it. [Frame.dimBackdrop] runs on the buffer between the base render and the
-/// layer, so it dims only what came before — never the dialog itself. Pass
-/// `dim: false` to skip the backdrop dim entirely.
+/// it.
 ///
 /// The barrier is a [Tagged.scope] under [id] wrapping an empty
-/// [RegionMark], rendered through [Frame.render] between the dim and the
+/// [RegionMark], rendered through [Frame.render] between the base and the
 /// dialog layer. A root lays out tight to the frame. A container with no
 /// ground paints no cell, so the barrier covers the frame without altering
-/// the dimmed backdrop.
+/// the base.
 ///
 /// `HitMap` answers [id] for both nodes: the dialog layer inside its own
 /// rect, the barrier everywhere else. A press anywhere on screen therefore
@@ -72,13 +75,12 @@ Rect centeredRect({required Rect area, required int width, required int height})
 /// as its [IdTag] — and non-null exactly when [dialog] is non-null.
 void renderModalOverlay(
   Frame frame, {
-  required Node base,
+  required Node Function(StyleResolver host) base,
+  required StyleResolver resolver,
   required int width,
   required int height,
   Node? dialog,
   String? id,
-  bool dim = true,
-  double dimFactor = 0.3,
 }) {
   assert(
     (id == null) == (dialog == null),
@@ -90,9 +92,8 @@ void renderModalOverlay(
     "renderModalOverlay: dialog's root must carry IdTag(id) — build it with "
     'modalDialog(id: id, ...) or tag it yourself.',
   );
-  frame.render(NodeView(base));
+  frame.render(NodeView(base(dialog == null ? resolver : resolver.deEmphasised)));
   if (dialog == null) return;
-  if (dim) frame.dimBackdrop(factor: dimFactor);
   frame.render(Tagged.scope(id!, const RegionMark(ModalBarrierRegion(), Container(child: SizedBox()))));
   frame.renderLayer(NodeView(dialog), centeredRect(area: frame.area, width: width, height: height));
 }

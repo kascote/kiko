@@ -58,7 +58,18 @@ class StatesHalf {
                 ..hoveredIndex = state == 'hover' ? 0 : null
                 ..pressedIndex = state == 'pressed' ? 0 : null
                 ..disabled = state == 'disabled',
-      };
+      },
+      textInputs = {
+        for (final state in _inputRows)
+          state: TextInputModel(
+            id: '${prefix}input.$state',
+            initial: state == 'placeholder' ? '' : 'ada@example.com',
+            placeholder: 'name@example.com',
+            focused: state == 'focused',
+            disabled: state == 'disabled',
+          ),
+      },
+      errorInput = TextInputModel(id: '${prefix}input.error', initial: 'ada@example', error: true);
 
   /// The id prefix of this half: `win.` for the window, `dlg.` for the dialog.
   final String prefix;
@@ -71,6 +82,13 @@ class StatesHalf {
 
   /// The radio groups, option 0 chosen, one per state row.
   final Map<String, RadioGroupModel<int>> radioGroups;
+
+  /// The text inputs, one per name in [_inputRows].
+  final Map<String, TextInputModel> textInputs;
+
+  /// An input with the error fact set. The field paints nothing for it, so
+  /// the row composes a border that reads it.
+  final TextInputModel errorInput;
 }
 
 /// The two halves of the states page.
@@ -80,6 +98,11 @@ class StatesModel {
 
   /// The models drawn on the surface panel.
   final StatesHalf dialog = StatesHalf('dlg.');
+
+  /// Whether the window half is drawn as the host of an open dialog: through
+  /// `resolver.deEmphasised`, next to the unchanged surface half. The `d` key
+  /// toggles it.
+  bool dialogOpen = false;
 }
 
 /// The width of the row-label column.
@@ -87,6 +110,13 @@ const int _labelWidth = 12;
 
 /// The states every widget row shows, in order.
 const List<String> _stateRows = ['rest', 'focused', 'hover', 'pressed', 'disabled'];
+
+/// The rows of a text input. It has no hover or pressed look, and `placeholder`
+/// shows the empty field.
+const List<String> _inputRows = ['rest', 'focused', 'placeholder', 'disabled'];
+
+/// The width of a text input row's field.
+const int _inputWidth = 24;
 
 /// Page 4 of the theme viewer: the states.
 ///
@@ -102,14 +132,21 @@ View statesPage(Model model, StyleResolver resolver) {
         child: Row(
           crossAxis: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _window(resolver, model.states.window)),
+            Expanded(
+              child: _window(
+                model.states.dialogOpen ? resolver.deEmphasised : resolver,
+                model.states.window,
+                dialogOpen: model.states.dialogOpen,
+              ),
+            ),
             const SizedBox(width: 1),
             Expanded(child: _dialog(surface, model.states.dialog)),
           ],
         ),
       ),
       Line(
-        'Each row forces one state. Compare a row on the window with the same row on the surface panel.',
+        'Each row forces one state; compare a row on the window with the same row on the surface. '
+        'd: window as dialog host',
         style: resolver.ink(resolver.tones.accent),
       ),
       Line(
@@ -121,13 +158,20 @@ View statesPage(Model model, StyleResolver resolver) {
   );
 }
 
-/// The window half: a plain border on the frame's own ground.
-View _window(StyleResolver r, StatesHalf half) => Container(
+/// The window half: a plain border on the frame's own ground. [r] is the
+/// de-emphasised resolver while [dialogOpen], and the half then says so.
+View _window(StyleResolver r, StatesHalf half, {required bool dialogOpen}) => Container(
   border: BorderType.plain,
   borderStyle: r.border(const {}),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(' Window, on background ', style: r.ink(r.tones.muted))],
-  child: _sections(r, half),
+  child: Column(
+    crossAxis: CrossAxisAlignment.stretch,
+    children: [
+      if (dialogOpen) Line('window de-emphasised: a dialog is open', style: r.ink(r.tones.warning)),
+      _sections(r, half),
+    ],
+  ),
 );
 
 /// The dialog half: a rounded border on the surface ground. [r] is bound to
@@ -148,6 +192,7 @@ View _sections(StyleResolver r, StatesHalf half) => Column(
     ..._buttonSection(r, half),
     ..._checkboxSection(r, half),
     ..._radioGroupSection(r, half),
+    ..._textInputSection(r, half),
   ],
 );
 
@@ -162,6 +207,38 @@ List<View> _checkboxSection(StyleResolver r, StatesHalf half) => _section(r, 'Ch
 List<View> _radioGroupSection(StyleResolver r, StatesHalf half) => _section(r, 'RadioGroup', [
   for (final state in _stateRows) _row(r, state, _hug(RadioGroup(model: half.radioGroups[state]!, resolver: r))),
 ]);
+
+List<View> _textInputSection(StyleResolver r, StatesHalf half) => _section(r, 'TextInput', [
+  for (final state in _inputRows) _row(r, state, _field(TextInput(model: half.textInputs[state]!, resolver: r))),
+  _row(
+    r,
+    'error',
+    _hug(
+      ConstrainedBox(
+        additionalConstraints: const BoxConstraints(minW: _inputWidth + 2, maxW: _inputWidth + 2),
+        child: Container(
+          border: BorderType.plain,
+          borderStyle: r.border(const {WidgetState.error}),
+          child: ConstrainedBox(
+            additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
+            child: TextInput(model: half.errorInput, resolver: r),
+          ),
+        ),
+      ),
+    ),
+  ),
+]);
+
+/// Gives a text input a fixed width and one row of height, since it fills the
+/// space it is given.
+View _field(View input) => Row(
+  children: [
+    ConstrainedBox(
+      additionalConstraints: const BoxConstraints(minW: _inputWidth, maxW: _inputWidth, minH: 1, maxH: 1),
+      child: input,
+    ),
+  ],
+);
 
 /// Lets [widget] take its own width instead of the row's: a button then shows
 /// its face only, and a check row shows its ground only under the text.

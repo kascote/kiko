@@ -1,4 +1,5 @@
 import 'package:kiko/kiko.dart';
+import 'package:kiko_widgets/kiko_widgets.dart';
 import 'package:test/test.dart';
 
 import '../../example/theme_viewer/main.dart' as viewer;
@@ -299,7 +300,7 @@ void main() {
     expect(model.states.window.prefix, isNot(equals(model.states.dialog.prefix)));
   });
 
-  test('the states page shows a Button, a Checkbox and a RadioGroup per state on both halves', () {
+  test('the states page shows a Button, a Checkbox, a RadioGroup and a TextInput per state on both halves', () {
     final model = viewer.Model()..page = 4;
     final frame = _testFrame(160, 50);
     viewer.view(model, frame);
@@ -310,8 +311,10 @@ void main() {
         for (final m in half.buttons.values) m.id,
         for (final m in half.checkboxes.values) m.id,
         for (final m in half.radioGroups.values) m.id,
+        for (final m in half.textInputs.values) m.id,
+        half.errorInput.id,
       ];
-      expect(ids, hasLength(15));
+      expect(ids, hasLength(20));
       for (final id in ids) {
         final rect = frame.hits.rectOf(id);
         expect(rect, isNotNull, reason: id);
@@ -339,5 +342,53 @@ void main() {
       frame.buffer[(x: onSurface.x, y: onSurface.y)].bg,
       surface.resolve(null, {WidgetState.pressed}, cls: PaintClass.fill).bg,
     );
+  });
+
+  test('the d key on the states page de-emphasises the window half only, and d elsewhere does nothing', () {
+    const ctx = UpdateContext(hits: HitMap.empty(), area: Rect.zero);
+    final model = viewer.Model()..page = 2;
+    viewer.update(model, const KeyMsg('d'), ctx);
+    expect(model.states.dialogOpen, isFalse, reason: 'page 2 leaves the key to the widgets');
+
+    model.page = 4;
+    final plain = _testFrame(160, 50);
+    viewer.view(model, plain);
+    expect(_screenText(plain.buffer), isNot(contains('window de-emphasised: a dialog is open')));
+
+    viewer.update(model, const KeyMsg('d'), ctx);
+    expect(model.states.dialogOpen, isTrue);
+    final open = _testFrame(160, 50);
+    viewer.view(model, open);
+    expect(_screenText(open.buffer), contains('window de-emphasised: a dialog is open'));
+
+    final resolver = StyleResolver(model.theme);
+    // Window border (top-left corner of the page body) goes quiet; the surface
+    // half's border (its top-left corner) does not change.
+    final rect = open.hits.rectOf(model.states.window.buttons['rest']!.id)!;
+    final openFace = open.buffer[(x: rect.x, y: rect.y)].bg;
+    final plainFace = plain.buffer[(x: rect.x, y: rect.y)].bg;
+    expect(openFace, resolver.deEmphasised.fill(resolver.tones.primary).bg);
+    expect(openFace, isNot(plainFace));
+
+    final dlg = open.hits.rectOf(model.states.dialog.buttons['rest']!.id)!;
+    expect(open.buffer[(x: dlg.x, y: dlg.y)], plain.buffer[(x: dlg.x, y: dlg.y)]);
+
+    viewer.update(model, const KeyMsg('d'), ctx);
+    expect(model.states.dialogOpen, isFalse);
+  });
+
+  test('an open dialog on the gallery page builds the host through the de-emphasised resolver', () {
+    final model = viewer.Model();
+    final plain = _testFrame(160, 50);
+    viewer.view(model, plain);
+    model.modal = ModalModel(id: 'demo-dialog');
+    final open = _testFrame(160, 50);
+    viewer.view(model, open);
+
+    final resolver = StyleResolver(model.theme);
+    // The header's border corner sits at the frame's top-left.
+    expect(plain.buffer[(x: 0, y: 0)].fg, resolver.border(const {}).fg);
+    expect(open.buffer[(x: 0, y: 0)].fg, resolver.deEmphasised.border(const {}).fg);
+    expect(open.hits.rectOf('demo-dialog'), isNotNull);
   });
 }

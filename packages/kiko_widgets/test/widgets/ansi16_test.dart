@@ -9,7 +9,11 @@ import 'package:test/test.dart';
 /// (`Ansi16Tones.derive`), lifted to its bright variant. The per-projection
 /// matrix itself is proven in kiko_core's style_resolver_ansi16_test.
 void main() {
-  setUp(() => StyleResolver.defaultPolicy = RenderPolicy.ansi16);
+  late StyleResolver resolver;
+  setUp(() {
+    StyleResolver.defaultPolicy = RenderPolicy.ansi16;
+    resolver = StyleResolver(Theme.dark);
+  });
   tearDown(() => StyleResolver.defaultPolicy = RenderPolicy.color);
 
   final tones = Ansi16Tones.derive(Theme.dark);
@@ -29,7 +33,7 @@ void main() {
       );
       final buffer = canvas(8, 2);
       Frame(buffer.area, buffer, 0).render(
-        ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: (i, n, s) => [Line(i)]),
+        ListView<String, String>(model: model, resolver: resolver, itemBuilder: (i, n, s) => [Line(i)]),
       );
       final cell = buffer[(x: 7, y: 0)]; // cursor row, trailing fill-only cell
       expect(cell.fg, equals(Color.reset));
@@ -42,7 +46,7 @@ void main() {
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true)]);
       final buffer = canvas(10, 2);
-      Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: Theme.dark));
+      Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, resolver: resolver));
       final cell = buffer[(x: 9, y: 0)];
       expect(cell.fg, equals(Color.reset));
       expect(cell.bg, equals(cursorBg));
@@ -54,7 +58,7 @@ void main() {
       Frame(buffer.area, buffer, 0).render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK'), focused: true),
-          theme: Theme.dark,
+          resolver: resolver,
         ),
       );
       final cell = buffer[(x: 0, y: 0)]; // left padding, part of the button face
@@ -74,7 +78,7 @@ void main() {
         focused: true,
       );
       final buffer = canvas(5, 3);
-      TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, resolver).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
       expect(cell.fg, equals(Color.reset));
       expect(cell.bg, equals(cursorBg));
@@ -94,7 +98,7 @@ void main() {
       );
       // cursorRow == 0, cursorCol == 0 on a fresh model.
       final buffer = canvas(7, 4); // header + 3 rows; col a (0-2), sep (3), col b (4-6)
-      TableRenderer(model, Theme.dark, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, resolver, showCrosshair: true).paint(buffer.area, BufferSurface(buffer));
 
       final cursorCell = buffer[(x: 0, y: 1)]; // row 0, col a — the exact cursor cell
       expect(cursorCell.fg, equals(Color.reset));

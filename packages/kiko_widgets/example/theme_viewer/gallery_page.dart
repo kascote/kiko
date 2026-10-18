@@ -14,13 +14,13 @@ import 'shared.dart';
 /// rest of the row, each in its own bordered pane. [comboView] is built
 /// once by the caller and passed in, since a fresh [Combobox] every frame
 /// would lose the popup's own paint state.
-View galleryPage(Model model, Theme theme, StyleResolver resolver, View comboView) => Row(
+View galleryPage(Model model, StyleResolver resolver, View comboView) => Row(
   crossAxis: CrossAxisAlignment.stretch,
   children: [
-    _formColumn(model, theme, resolver, comboView),
-    Expanded(child: _pane(resolver, 'ListView', model.list.focused, _listView(model, theme))),
+    _formColumn(model, resolver, comboView),
+    Expanded(child: _pane(resolver, 'ListView', model.list.focused, _listView(model, resolver))),
     Expanded(
-      child: _pane(resolver, 'TreeView', model.tree.focused, TreeView(model: model.tree, theme: theme)),
+      child: _pane(resolver, 'TreeView', model.tree.focused, TreeView(model: model.tree, resolver: resolver)),
     ),
     Expanded(
       child: _pane(
@@ -33,7 +33,7 @@ View galleryPage(Model model, Theme theme, StyleResolver resolver, View comboVie
             Expanded(
               child: TableView(
                 model: model.table,
-                theme: theme,
+                resolver: resolver,
                 pendingBuilder: (_) => Line('Loading…'),
                 emptyPlaceholder: Line('No rows'),
                 showCrosshair: true,
@@ -53,7 +53,7 @@ View galleryPage(Model model, Theme theme, StyleResolver resolver, View comboVie
 /// The form column: text inputs in three states, the combobox, the button
 /// row, the checkbox group, the radio group box, and the editor taking the
 /// rest of the height.
-View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboView) {
+View _formColumn(Model model, StyleResolver resolver, View comboView) {
   final requiredStates = {
     if (model.requiredInput.focused) WidgetState.focused,
     if (model.requiredInput.error) WidgetState.error,
@@ -77,30 +77,30 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           resolver,
           'TextInput',
           {if (model.name.focused) WidgetState.focused},
-          TextInput(model: model.name, theme: theme),
+          TextInput(model: model.name, resolver: resolver),
         ),
         _field(
           resolver,
           'TextInput — required',
           requiredStates,
-          TextInput(model: model.requiredInput, theme: theme),
+          TextInput(model: model.requiredInput, resolver: resolver),
         ),
         _field(
           resolver,
           'TextInput — disabled',
           const {WidgetState.disabled},
-          TextInput(model: model.disabledInput, theme: theme),
+          TextInput(model: model.disabledInput, resolver: resolver),
         ),
         _field(resolver, 'Combobox', {if (model.combo.focused) WidgetState.focused}, comboView),
         Row(
           children: [
-            Button(model: model.okButton, theme: theme),
+            Button(model: model.okButton, resolver: resolver),
             const SizedBox(width: 1),
-            Button(model: model.offButton, theme: theme),
+            Button(model: model.offButton, resolver: resolver),
             const SizedBox(width: 1),
             Button(
               model: model.dialogButton,
-              theme: theme,
+              resolver: resolver,
               style: ButtonStyle(face: resolver.fill(resolver.tones.error)),
             ),
           ],
@@ -115,7 +115,7 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           topTitles: [Line(' Checkbox ', style: titleInk(resolver, checkboxStates))],
           child: Column(
             crossAxis: CrossAxisAlignment.stretch,
-            children: [for (final box in checkboxes) Checkbox(model: box, theme: theme)],
+            children: [for (final box in checkboxes) Checkbox(model: box, resolver: resolver)],
           ),
         ),
         // Two groups: delivery shows a chosen mark beside a disabled option;
@@ -130,8 +130,8 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
           child: Column(
             crossAxis: CrossAxisAlignment.stretch,
             children: [
-              RadioGroup(model: model.delivery, theme: theme),
-              RadioGroup(model: model.priority, theme: theme),
+              RadioGroup(model: model.delivery, resolver: resolver),
+              RadioGroup(model: model.priority, resolver: resolver),
             ],
           ),
         ),
@@ -143,7 +143,7 @@ View _formColumn(Model model, Theme theme, StyleResolver resolver, View comboVie
             topTitles: [
               Line(' TextArea ', style: titleInk(resolver, {if (model.editor.focused) WidgetState.focused})),
             ],
-            child: TextArea(model: model.editor, theme: theme),
+            child: TextArea(model: model.editor, resolver: resolver),
           ),
         ),
       ],
@@ -174,9 +174,9 @@ View _pane(StyleResolver resolver, String title, bool focused, View child) => Co
   child: child,
 );
 
-View _listView(Model model, Theme theme) => ListView(
+View _listView(Model model, StyleResolver resolver) => ListView(
   model: model.list,
-  theme: theme,
+  resolver: resolver,
   itemBuilder: (chore, index, state) => [
     Line(' ${state.selected ? '●' : '○'} $chore'),
   ],

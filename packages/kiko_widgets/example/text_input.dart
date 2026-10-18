@@ -76,8 +76,8 @@ void appView(AppModel model, Frame frame) {
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _field(model.username, 'Username', theme),
-        _field(model.password, 'Password', theme),
+        _field(model.username, 'Username', resolver),
+        _field(model.password, 'Password', resolver),
         // Debug info
         Expanded(
           child: Column(
@@ -115,14 +115,14 @@ void appView(AppModel model, Frame frame) {
 }
 
 /// A bordered, titled field wrapping a fixed-height [TextInput].
-View _field(TextInputModel input, String label, Theme theme) => Container(
+View _field(TextInputModel input, String label, StyleResolver resolver) => Container(
   border: BorderType.plain,
-  borderStyle: StyleResolver(theme).border({if (input.focused) WidgetState.focused}),
+  borderStyle: resolver.border({if (input.focused) WidgetState.focused}),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: TextInput(model: input, theme: theme),
+    child: TextInput(model: input, resolver: resolver),
   ),
 );
 

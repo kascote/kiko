@@ -263,17 +263,17 @@ void appView(AppModel model, Frame frame) {
   final t = resolver.tones;
   frame.ground(resolver.ground(resolver.tones.background));
 
-  final roleView = Combobox<String>(model: model.roleCombo, theme: theme);
+  final roleView = Combobox<String>(model: model.roleCombo, resolver: resolver);
   final userView = Combobox<String>(
     model: model.userCombo,
-    theme: theme,
+    resolver: resolver,
     loadingLabel: Line('Searching…'),
     errorLabel: Line('Search failed'),
     stalledLabel: Line('Search paused'),
   );
   final countryView = Combobox<Country>(
     model: model.countryCombo,
-    theme: theme,
+    resolver: resolver,
     itemBuilder: _countryRow,
     popupBorder: BorderType.rounded,
   );

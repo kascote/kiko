@@ -80,8 +80,8 @@ void appView(AppModel model, Frame frame) {
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _field(model.title, 'Title', theme),
-        _field(model.author, 'Author', theme),
+        _field(model.title, 'Title', resolver),
+        _field(model.author, 'Author', resolver),
         // Editor panel
         Expanded(
           child: Container(
@@ -89,7 +89,7 @@ void appView(AppModel model, Frame frame) {
             borderStyle: resolver.border({if (model.editor.focused) WidgetState.focused}),
             padding: const EdgeInsets.symmetric(horizontal: 1),
             topTitles: [Line('Content')],
-            child: TextArea(model: model.editor, theme: theme),
+            child: TextArea(model: model.editor, resolver: resolver),
           ),
         ),
         // Status bar
@@ -128,14 +128,14 @@ void appView(AppModel model, Frame frame) {
 }
 
 /// A bordered, titled field wrapping a fixed-height [TextInput].
-View _field(TextInputModel input, String label, Theme theme) => Container(
+View _field(TextInputModel input, String label, StyleResolver resolver) => Container(
   border: BorderType.plain,
-  borderStyle: StyleResolver(theme).border({if (input.focused) WidgetState.focused}),
+  borderStyle: resolver.border({if (input.focused) WidgetState.focused}),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: TextInput(model: input, theme: theme),
+    child: TextInput(model: input, resolver: resolver),
   ),
 );
 

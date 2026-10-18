@@ -38,7 +38,7 @@ class ButtonPressEvent extends WidgetEvent {
 
 /// Button's anatomy: one nullable style slot.
 ///
-/// A `null` slot is derived from the theme's tones by the rule below; a
+/// A `null` slot is derived from the resolver's tones by the rule below; a
 /// non-null slot is the caller's exact resting face and wins verbatim. The
 /// active states still patch over it.
 ///

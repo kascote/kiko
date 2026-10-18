@@ -36,7 +36,7 @@ String render(
   final surface = BufferSurface(buffer);
   TableRenderer(
     model,
-    Theme.dark,
+    StyleResolver(Theme.dark),
     measurer: measurer,
     emptyPlaceholder: emptyPlaceholder,
     pendingBuilder: pendingBuilder,
@@ -106,12 +106,12 @@ r2   Name 2    20''',
         );
         final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 23, height: 4));
         final first = BufferSurface(buffer);
-        TableRenderer(model, Theme.dark).paint(buffer.area, first);
+        TableRenderer(model, StyleResolver(Theme.dark)).paint(buffer.area, first);
         first.reports.forEach(model.update);
         expect(model.visibleRows, equals(3));
 
         final second = BufferSurface(buffer);
-        TableRenderer(model, Theme.dark).paint(buffer.area, second);
+        TableRenderer(model, StyleResolver(Theme.dark)).paint(buffer.area, second);
 
         expect(second.reports, isEmpty, reason: 'the model holds the viewport, so the frame a report causes settles');
       });
@@ -126,7 +126,7 @@ r2   Name 2    20''',
         final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 23, height: 4));
         final surface = BufferSurface(buffer);
 
-        TableRenderer(model, Theme.dark).paint(buffer.area, surface);
+        TableRenderer(model, StyleResolver(Theme.dark)).paint(buffer.area, surface);
 
         // 4 total - 1 header = 3 visible rows
         final report = surface.reports.single as ViewportChanged;

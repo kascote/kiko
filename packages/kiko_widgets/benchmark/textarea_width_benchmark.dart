@@ -146,7 +146,7 @@ class SteadyStateFrameBenchmark extends BenchmarkBase {
   void exercise() => run(); // one frame per measured op
 
   @override
-  void run() => Frame(area, buffer, 0).render(TextArea(model: model, theme: Theme.dark));
+  void run() => Frame(area, buffer, 0).render(TextArea(model: model, resolver: _resolver));
 }
 
 // ── (c): typing — one edit per frame, forcing a wrap recompute ───────────────
@@ -184,7 +184,7 @@ class TypingFrameBenchmark extends BenchmarkBase {
       ta.deleteCharBackward();
     }
     _grow = !_grow;
-    Frame(area, buffer, 0).render(TextArea(model: model, theme: Theme.dark));
+    Frame(area, buffer, 0).render(TextArea(model: model, resolver: _resolver));
   }
 }
 
@@ -235,3 +235,6 @@ void main() {
 ════════════════════════════════════════════════════════════════════════
 ''');
 }
+
+/// The one resolver every benchmark run paints through.
+final _resolver = StyleResolver(Theme.dark);

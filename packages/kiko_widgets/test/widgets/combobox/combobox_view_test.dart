@@ -7,6 +7,7 @@ import '../../support/load.dart';
 import '../../support/reports.dart';
 
 const Theme _theme = Theme.dark;
+final _resolver = StyleResolver(_theme);
 
 Frame _frame(int width, int height) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
@@ -77,7 +78,7 @@ void main() {
   group('Combobox.build (base row)', () {
     test('the field and toggle each tag their own path under the scope', () {
       final combo = _fruitBox(value: 'Banana');
-      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final frame = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
 
       expect(frame.hits.rectOf('combo/field'), Rect.create(x: 0, y: 0, width: 9, height: 1));
       expect(frame.hits.rectOf('combo/toggle'), Rect.create(x: 9, y: 0, width: 1, height: 1));
@@ -85,18 +86,18 @@ void main() {
 
     test('shows the closed glyph, then the open one', () {
       final combo = _fruitBox();
-      final closed = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final closed = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
       expect(_cellAt(closed.buffer, 9, 0), '▾');
 
       combo.update(_pressOn('combo/toggle'));
 
-      final open = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final open = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
       expect(_cellAt(open.buffer, 9, 0), '▴');
     });
 
     test('the toggle glyph is an ink part, so hovering it paints no wash', () {
-      final resting = _frame(10, 1)..render(Combobox(model: _fruitBox(), theme: _theme));
-      final hovered = _frame(10, 1)..render(Combobox(model: _fruitBox()..toggleHovered = true, theme: _theme));
+      final resting = _frame(10, 1)..render(Combobox(model: _fruitBox(), resolver: _resolver));
+      final hovered = _frame(10, 1)..render(Combobox(model: _fruitBox()..toggleHovered = true, resolver: _resolver));
 
       expect(hovered.buffer[(x: 9, y: 0)].bg, equals(resting.buffer[(x: 9, y: 0)].bg));
       expect(hovered.buffer[(x: 9, y: 0)].fg, equals(resting.buffer[(x: 9, y: 0)].fg));
@@ -104,21 +105,21 @@ void main() {
 
     test('the toggle glyph takes the error ink', () {
       final combo = _fruitBox()..error = true;
-      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final frame = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
 
       expect(frame.buffer[(x: 9, y: 0)].fg, equals(Theme.dark.error.color));
     });
 
     test('the toggle glyph takes the disabled ink', () {
       final combo = _fruitBox()..disabled = true;
-      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final frame = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
 
       expect(frame.buffer[(x: 9, y: 0)].fg, equals(Theme.dark.disabled.color));
     });
 
     test('the field shows the committed label', () {
       final combo = _fruitBox(value: 'Banana');
-      final frame = _frame(10, 1)..render(Combobox(model: combo, theme: _theme));
+      final frame = _frame(10, 1)..render(Combobox(model: combo, resolver: _resolver));
 
       expect(_rowText(frame.buffer, 0, 0, 6), 'Banana');
     });
@@ -137,7 +138,7 @@ void main() {
         ..render(
           Combobox(
             model: combo,
-            theme: _theme,
+            resolver: _resolver,
             style: const ComboboxStyle(field: TextInputStyle(placeholder: placeholderStyle)),
           ),
         );
@@ -150,9 +151,9 @@ void main() {
     test('paints nothing while closed', () {
       final combo = _fruitBox();
       final frame = _frame(10, 6);
-      _renderRow(frame, Combobox(model: combo, theme: _theme));
+      _renderRow(frame, Combobox(model: combo, resolver: _resolver));
 
-      Combobox(model: combo, theme: _theme).renderPopup(frame);
+      Combobox(model: combo, resolver: _resolver).renderPopup(frame);
 
       expect(frame.reports, isEmpty, reason: 'a closed popup places nothing, so it reports nothing');
       expect(combo.placement, isNull);
@@ -165,7 +166,7 @@ void main() {
 
     test('paint reports a PopupPlaced addressed to the model, and writes nothing into it', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -180,7 +181,7 @@ void main() {
 
     test('anchors below the field, at the union width of field and toggle', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -198,7 +199,7 @@ void main() {
 
     test('the popup list reports its viewport under the combobox scope', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -215,7 +216,7 @@ void main() {
 
     test('shows a row per match, painted through the default item builder', () {
       final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -230,7 +231,7 @@ void main() {
       final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         style: const ComboboxStyle(list: ListViewStyle(cursorItem: cursorStyle)),
       );
       final frame = _frame(10, 6);
@@ -245,7 +246,7 @@ void main() {
 
     test('popup rows start from the popup ground, so the cursor lifts the surface', () {
       final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -263,7 +264,7 @@ void main() {
       final combo = _fruitBox(options: const ['Apple', 'Banana'])..update(_pressOn('combo/toggle'));
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         style: const ComboboxStyle(list: ListViewStyle(item: item)),
       );
       final frame = _frame(10, 6);
@@ -278,7 +279,7 @@ void main() {
       final combo = _fruitBox(options: const ['Apple'])..update(_pressOn('combo/toggle'));
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         itemBuilder: (item, index, state) => [Line('* $item')],
       );
       final frame = _frame(10, 6);
@@ -291,7 +292,7 @@ void main() {
 
     test('rows below the matches are styled fill, not transparent, and resolve to the bare scope', () {
       final combo = _fruitBox(options: const ['Apple'])..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(10, 6);
       _renderRow(frame, view);
 
@@ -309,7 +310,7 @@ void main() {
         ..update(_pressOn('combo/toggle'))
         ..update(const KeyMsg('z', text: 'z')); // matches nothing
 
-      final view = Combobox(model: combo, theme: _theme, emptyPlaceholder: Line('No matches'));
+      final view = Combobox(model: combo, resolver: _resolver, emptyPlaceholder: Line('No matches'));
       final frame = _frame(12, 6);
       _renderRow(frame, view);
 
@@ -320,7 +321,7 @@ void main() {
 
     test('the placement is held across paints while open, and cleared on close', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
 
       final first = _frame(10, 6);
       _renderRow(first, view);
@@ -346,7 +347,7 @@ void main() {
 
     test('closing and reopening before a frame reports the placement again', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final first = _frame(10, 6);
       _renderRow(first, view);
       view.renderPopup(first);
@@ -378,7 +379,7 @@ void main() {
       // frame of the same area keeps it even when the anchor moves down and
       // below no longer fits.
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       Frame paintWithFieldAt(int row) {
         final frame = _frame(10, 6)
           ..render(
@@ -413,7 +414,7 @@ void main() {
   group('Combobox.renderPopup (popupBorder)', () {
     test('the border frames the popup without costing any match rows', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme, popupBorder: BorderType.rounded);
+      final view = Combobox(model: combo, resolver: _resolver, popupBorder: BorderType.rounded);
       final frame = _frame(10, 8);
       _renderRow(frame, view);
 
@@ -432,7 +433,7 @@ void main() {
 
     test('border cells resolve to the bare scope path, rows to the list', () {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme, popupBorder: BorderType.rounded);
+      final view = Combobox(model: combo, resolver: _resolver, popupBorder: BorderType.rounded);
       final frame = _frame(10, 8);
       _renderRow(frame, view);
 
@@ -447,7 +448,7 @@ void main() {
       final combo = _fruitBox()..update(_pressOn('combo/toggle'));
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         popupBorder: BorderType.rounded,
         style: const ComboboxStyle(popupBorder: borderStyle),
       );
@@ -467,7 +468,7 @@ void main() {
         ..update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const ['Apple', 'Banana']))
         ..update(const KeyMsg('c', text: 'c')); // asks QueryKey('c'), clearing the matches
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -485,7 +486,7 @@ void main() {
 
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         style: const ComboboxStyle(placeholder: stalledStyle),
       );
       final frame = _frame(12, 6);
@@ -504,7 +505,7 @@ void main() {
       final combo = _remoteBox();
       combo.update(LoadResult<List<String>>.cancelled(_ask(combo, _pressOn('combo/toggle'))));
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -521,7 +522,7 @@ void main() {
 
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         style: const ComboboxStyle(placeholder: errorStyle),
       );
       final frame = _frame(16, 6);
@@ -542,7 +543,7 @@ void main() {
       combo.update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const ['Apple']));
       combo.update(LoadResult<List<String>>.failed(_ask(combo, const KeyMsg('z', text: 'z')), 'boom'));
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(16, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -554,7 +555,7 @@ void main() {
       final combo = _remoteBox();
       combo.update(LoadResult<List<String>>.ok(_ask(combo, _pressOn('combo/toggle')), const []));
 
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -568,7 +569,7 @@ void main() {
 
       final view = Combobox(
         model: combo,
-        theme: _theme,
+        resolver: _resolver,
         loadingLabel: Line('Searching…', style: labelStyle),
       );
       final frame = _frame(12, 6);
@@ -582,7 +583,7 @@ void main() {
     test('the loading row disappears once the newest query installs', () {
       final combo = _remoteBox();
       final opened = _ask(combo, _pressOn('combo/toggle')); // asks QueryKey(''), no answer yet
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
 
       final loading = _frame(12, 6);
       _renderRow(loading, view);
@@ -604,7 +605,7 @@ void main() {
 
     test('the status row is painted chrome, not a list row: it resolves to the bare scope path', () {
       final combo = _remoteBox()..update(_pressOn('combo/toggle')); // asks QueryKey(''), still loading
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);
@@ -615,7 +616,7 @@ void main() {
 
     test('a local (non-remote) combobox never shows a status row', () {
       final combo = _fruitBox(options: const ['Apple'])..update(_pressOn('combo/toggle'));
-      final view = Combobox(model: combo, theme: _theme);
+      final view = Combobox(model: combo, resolver: _resolver);
       final frame = _frame(12, 6);
       _renderRow(frame, view);
       view.renderPopup(frame);

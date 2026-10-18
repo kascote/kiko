@@ -19,13 +19,13 @@ typedef RegionMarker = void Function(Region region, Rect rect);
 /// truncation, alignment, and state styling — lives here so both the plume
 /// `tableView` viewport and any other caller draw a table the same way.
 class TableRenderer {
-  /// Creates a renderer for [model], styled by [theme].
+  /// Creates a renderer for [model], styled by [resolver].
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes cells like it draws them.
   TableRenderer(
     this.model,
-    this.theme, {
+    this.resolver, {
     this.measurer = const TermUnicodeMeasurer(),
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
@@ -36,8 +36,8 @@ class TableRenderer {
   /// The model containing table state.
   final TableViewModel model;
 
-  /// Theme for deriving styles.
-  final Theme theme;
+  /// Resolves the anatomy slots that derive from tones + state.
+  final StyleResolver resolver;
 
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
@@ -58,9 +58,6 @@ class TableRenderer {
   /// Builds the line for a row at a given index whose page has not landed, or
   /// `null` to paint the column-shaped skeleton instead.
   final Line Function(int index)? pendingBuilder;
-
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  late final _resolver = StyleResolver(theme);
 
   /// Paints the table into [area] of [surface].
   ///
@@ -357,10 +354,10 @@ class TableRenderer {
     required bool isHover,
   }) {
     var cellStyle = style.row ?? const Style();
-    if (col.style != null) cellStyle = cellStyle.patch(col.style!(_resolver));
+    if (col.style != null) cellStyle = cellStyle.patch(col.style!(resolver));
 
     final isFocusedCursorCell = isCursorRow && isCursorColumn && model.focused;
-    cellStyle = _resolver.resolve(
+    cellStyle = resolver.resolve(
       cellStyle,
       {
         if (isSelected) WidgetState.selected,
@@ -379,7 +376,7 @@ class TableRenderer {
     final onCrosshairColumn = showCrosshair && isCursorColumn;
     if ((isCursorRow || onCrosshairColumn) && !isFocusedCursorCell) {
       final washSlot = isCursorRow ? style.cursorRow : style.cursorColumn;
-      cellStyle = _resolver.resolve(
+      cellStyle = resolver.resolve(
         cellStyle,
         const {WidgetState.cursor},
         cls: PaintClass.wash,
@@ -387,7 +384,7 @@ class TableRenderer {
       );
     }
 
-    return _resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
+    return resolver.resolve(cellStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
   }
 
   // ─────────────────────────────────────────────
@@ -398,13 +395,13 @@ class TableRenderer {
   Style _headerStyle() => style.header ?? const Style(addModifier: Modifier.bold);
 
   /// Column separator glyph style.
-  Style _separatorStyle() => style.separator ?? _resolver.ink(_resolver.tones.border);
+  Style _separatorStyle() => style.separator ?? resolver.ink(resolver.tones.border);
 
   /// Rows for data windowed out of the cache.
-  Style _pendingStyle() => style.pending ?? _resolver.ink(_resolver.tones.muted);
+  Style _pendingStyle() => style.pending ?? resolver.ink(resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? resolver.ink(resolver.tones.muted);
 
   /// Default cell rendering: converts value to string.
   Line _defaultRender(Object? value, TableColumn col) {

@@ -289,7 +289,7 @@ View _field(TextInputModel input, int index, StyleResolver resolver) => Tagged.s
     // click on the input reports the path `field-N/field-N`.
     child: ConstrainedBox(
       additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-      child: TextInput(model: input, theme: _theme),
+      child: TextInput(model: input, resolver: resolver),
     ),
   ),
 );

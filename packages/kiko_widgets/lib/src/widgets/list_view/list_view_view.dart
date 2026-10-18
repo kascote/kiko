@@ -16,17 +16,17 @@ import 'types.dart';
 /// there are no items. An item whose page has not arrived paints as a dim run,
 /// or through [pendingBuilder] when given. Row backgrounds come from the item's honest state
 /// (selected / cursor / disabled) painted through [style]'s [ListViewStyle]
-/// anatomy, each `null` slot deriving from the theme's tones. A per-instance
-/// state look is a theme variant passed to [theme]. Wrap it in a [Container]
+/// anatomy, each `null` slot deriving from the resolver's tones. A per-instance
+/// state look is a resolver bound to another ground. Wrap it in a [Container]
 /// for a border or edge titles. The node is stamped with the model id so a
 /// click routes back through [HitMap.hitId], and its viewport report carries
 /// that same hit path.
 final class ListView<T, K> implements View {
-  /// Creates a list view over [model], styled by [theme] and built row by row
+  /// Creates a list view over [model], styled by [resolver] and built row by row
   /// through [itemBuilder].
   const ListView({
     required this.model,
-    required this.theme,
+    required this.resolver,
     required this.itemBuilder,
     this.style = const ListViewStyle(),
     this.separatorBuilder,
@@ -37,8 +37,8 @@ final class ListView<T, K> implements View {
   /// The model whose rows, cursor, and selection this view renders.
   final ListViewModel<T, K> model;
 
-  /// The theme that resolves row styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Builds the lines of the row for [model]'s item at a given index and state.
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
@@ -59,7 +59,7 @@ final class ListView<T, K> implements View {
   @override
   Node build() => _ListViewport<T, K>(
     model: model,
-    theme: theme,
+    resolver: resolver,
     itemBuilder: itemBuilder,
     style: style,
     separatorBuilder: separatorBuilder,
@@ -73,7 +73,7 @@ final class ListView<T, K> implements View {
 class _ListViewport<T, K> extends Node {
   _ListViewport({
     required this.model,
-    required this.theme,
+    required this.resolver,
     required this.itemBuilder,
     required this.style,
     this.separatorBuilder,
@@ -82,7 +82,7 @@ class _ListViewport<T, K> extends Node {
   });
 
   final ListViewModel<T, K> model;
-  final Theme theme;
+  final StyleResolver resolver;
   final List<Line> Function(T item, int index, ItemState state) itemBuilder;
   final ListViewStyle style;
   final Line Function()? separatorBuilder;
@@ -92,9 +92,6 @@ class _ListViewport<T, K> extends Node {
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the rows, not just the box chrome.
   TextMeasurer _measurer = const TermUnicodeMeasurer();
-
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  late final _resolver = StyleResolver(theme);
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -242,7 +239,7 @@ class _ListViewport<T, K> extends Node {
       if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!,
     };
     if (model.focused) {
-      return _resolver.resolve(
+      return resolver.resolve(
         base,
         {
           if (state.selected) WidgetState.selected,
@@ -254,19 +251,19 @@ class _ListViewport<T, K> extends Node {
         slots: slots,
       );
     }
-    var rowStyle = _resolver.resolve(
+    var rowStyle = resolver.resolve(
       base,
       {if (state.selected) WidgetState.selected},
       cls: PaintClass.fill,
       slots: slots,
     );
-    rowStyle = _resolver.resolve(
+    rowStyle = resolver.resolve(
       rowStyle,
       {if (state.cursor) WidgetState.cursor},
       cls: PaintClass.wash,
       slots: slots,
     );
-    return _resolver.resolve(
+    return resolver.resolve(
       rowStyle,
       {
         if (state.disabled) WidgetState.disabled,
@@ -309,8 +306,8 @@ class _ListViewport<T, K> extends Node {
   // ─────────────────────────────────────────────
 
   /// The built-in dim run for items whose page isn't held.
-  Style _pendingStyle() => style.pending ?? _resolver.ink(_resolver.tones.muted);
+  Style _pendingStyle() => style.pending ?? resolver.ink(resolver.tones.muted);
 
   /// The empty-state line.
-  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? resolver.ink(resolver.tones.muted);
 }

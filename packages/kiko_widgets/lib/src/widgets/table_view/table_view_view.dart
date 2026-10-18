@@ -17,10 +17,10 @@ import 'types.dart';
 /// titles. The node is stamped with the model id so a click routes back
 /// through [HitMap.hitId].
 final class TableView implements View {
-  /// Creates a table view over [model], styled by [theme].
+  /// Creates a table view over [model], styled by [resolver].
   const TableView({
     required this.model,
-    required this.theme,
+    required this.resolver,
     this.style = const TableViewStyle(),
     this.showCrosshair = false,
     this.emptyPlaceholder,
@@ -30,8 +30,8 @@ final class TableView implements View {
   /// The model whose columns, rows, cursor, and scroll this view renders.
   final TableViewModel model;
 
-  /// The theme that resolves cell, header, and row styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Row and chrome anatomy overrides. See [TableViewStyle].
   final TableViewStyle style;
@@ -53,7 +53,7 @@ final class TableView implements View {
   @override
   Node build() => _TableViewport(
     model: model,
-    theme: theme,
+    resolver: resolver,
     style: style,
     showCrosshair: showCrosshair,
     emptyPlaceholder: emptyPlaceholder,
@@ -66,7 +66,7 @@ final class TableView implements View {
 class _TableViewport extends Node {
   _TableViewport({
     required this.model,
-    required this.theme,
+    required this.resolver,
     required this.style,
     required this.showCrosshair,
     this.emptyPlaceholder,
@@ -74,7 +74,7 @@ class _TableViewport extends Node {
   });
 
   final TableViewModel model;
-  final Theme theme;
+  final StyleResolver resolver;
   final TableViewStyle style;
   final bool showCrosshair;
   final Line? emptyPlaceholder;
@@ -101,7 +101,7 @@ class _TableViewport extends Node {
     final area = Rect.create(x: rect.x, y: rect.y, width: rect.width, height: rect.height);
     TableRenderer(
       model,
-      theme,
+      resolver,
       measurer: _measurer,
       style: style,
       showCrosshair: showCrosshair,

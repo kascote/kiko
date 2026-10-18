@@ -12,6 +12,8 @@ String read(Buffer buffer, int x, int y, int length) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   test('a widget renders through Terminal onto a TestBackend screen', () async {
     final backend = TestBackend(size: const TermSize(4, 1));
@@ -21,7 +23,7 @@ void main() {
       (frame) => frame.render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK')),
-          theme: Theme.dark,
+          resolver: _resolver,
         ),
       ),
     );

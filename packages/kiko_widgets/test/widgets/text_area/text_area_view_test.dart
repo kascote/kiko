@@ -28,22 +28,24 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('text area render', () {
     test('draws the buffer lines', () {
       final model = TextAreaModel(id: 'ta', initial: 'ab\ncd', focused: true);
-      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), 'ab\ncd\n');
     });
 
     test('carries the cursor to the frame when focused', () {
       final focused = TextAreaModel(id: 'ta', initial: 'ab', focused: true);
-      final frame = _frame(4, 2)..render(TextArea(model: focused, theme: Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: focused, resolver: _resolver));
       expect(frame.cursorPosition, isNotNull);
       expect(frame.cursorPosition!.y, inInclusiveRange(0, 1));
 
       final blurred = TextAreaModel(id: 'ta', initial: 'ab');
-      final frame2 = _frame(4, 2)..render(TextArea(model: blurred, theme: Theme.dark));
+      final frame2 = _frame(4, 2)..render(TextArea(model: blurred, resolver: _resolver));
       expect(frame2.cursorPosition, isNull);
     });
 
@@ -54,7 +56,7 @@ void main() {
       // directly; only cursor reporting stays BufferSurface-only (plume has
       // no cursor concept of its own), so a RecordingSurface simply gets none.
       final model = TextAreaModel(id: 'ta', initial: 'ab', focused: true);
-      final node = TextArea(model: model, theme: Theme.dark).build()
+      final node = TextArea(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(4, 1)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -69,7 +71,7 @@ void main() {
   group('text area disabled and error', () {
     test('disabled text carries the disabled ink and dim, and no cursor is placed', () {
       final model = TextAreaModel(id: 'ta', initial: 'ab', focused: true, disabled: true);
-      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, resolver: _resolver));
       final cell = frame.buffer[(x: 0, y: 0)];
 
       expect(cell.fg, equals(Theme.dark.disabled.color));
@@ -79,7 +81,7 @@ void main() {
 
     test('error paints the text unchanged — the editor owns no chrome for it', () {
       final model = TextAreaModel(id: 'ta', initial: 'ab', error: true);
-      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, resolver: _resolver));
       final cell = frame.buffer[(x: 0, y: 0)];
 
       expect(cell.fg, equals(Color.reset));
@@ -94,7 +96,7 @@ void main() {
       // put it), not re-anchored at the clip's origin — that would pin line0
       // to the top of the visible window instead of scrolling it off.
       final model = TextAreaModel(id: 'ta', initial: 'line0\nline1\nline2\nline3\nline4');
-      final node = TextArea(model: model, theme: Theme.dark).build()
+      final node = TextArea(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(6, 5)), _ctx)
         ..place(plume.Offset.zero);
 
@@ -111,7 +113,7 @@ void main() {
   group('text area click routing', () {
     test('a click in the editor resolves to its id', () {
       final model = TextAreaModel(id: 'notes', initial: 'ab\ncd', focused: true);
-      final frame = _frame(4, 2)..render(TextArea(model: model, theme: Theme.dark));
+      final frame = _frame(4, 2)..render(TextArea(model: model, resolver: _resolver));
       expect(frame.hits.hitId(0, 0), 'notes');
       expect(frame.hits.hitId(1, 1), 'notes');
     });
@@ -126,14 +128,14 @@ void main() {
     test('word-wrap break points shift with the measurer, and re-layout invalidates the stale wrap', () {
       final model = TextAreaModel(id: 'ta', initial: 'ab°cd');
 
-      final defaultFrame = _frame(4, 3)..render(TextArea(model: model, theme: Theme.dark));
+      final defaultFrame = _frame(4, 3)..render(TextArea(model: model, resolver: _resolver));
       expect(_dump(defaultFrame.buffer), 'ab°c\nd\n\n', reason: 'a=1, b=1, °=1, c=1: "ab°c" fills the first row');
 
       // Re-render the SAME model under a session with a different measurer,
       // as a resize into a cjk-configured frame would. The wrap cache built
       // above must not survive this.
       final cjkFrame = _frame(4, 3, measurer: const TermUnicodeMeasurer(cjk: true))
-        ..render(TextArea(model: model, theme: Theme.dark));
+        ..render(TextArea(model: model, resolver: _resolver));
       expect(_dump(cjkFrame.buffer), 'ab°\ncd\n\n', reason: '° now costs two cells, so it no longer fits on row 0');
     });
 
@@ -142,13 +144,13 @@ void main() {
         final model = TextAreaModel(id: 'ta', initial: 'ab°cd', focused: true)
           ..textArea.row = 0
           ..textArea.column = 0;
-        _frame(4, 3, measurer: measurer).render(TextArea(model: model, theme: Theme.dark));
+        _frame(4, 3, measurer: measurer).render(TextArea(model: model, resolver: _resolver));
         return model;
       }
 
       final defaultModel = primed(const TermUnicodeMeasurer())..update(const KeyMsg('down'));
       expect(defaultModel.cursorCol, 4, reason: 'row 0 wraps to "ab°c" (width 4), so row 1 starts at column 4');
-      final defaultFrame = _frame(4, 3)..render(TextArea(model: defaultModel, theme: Theme.dark));
+      final defaultFrame = _frame(4, 3)..render(TextArea(model: defaultModel, resolver: _resolver));
       expect(defaultFrame.cursorPosition, const Position(0, 1));
 
       defaultModel.update(const KeyMsg('up'));
@@ -161,7 +163,7 @@ void main() {
         3,
         reason: 'row 0 wraps to "ab°" (width 3 chars, 4 cells), so row 1 starts at column 3',
       );
-      final cjkFrame = _frame(4, 3, measurer: cjkMeasurer)..render(TextArea(model: cjkModel, theme: Theme.dark));
+      final cjkFrame = _frame(4, 3, measurer: cjkMeasurer)..render(TextArea(model: cjkModel, resolver: _resolver));
       expect(cjkFrame.cursorPosition, const Position(0, 1));
 
       cjkModel.update(const KeyMsg('up'));
@@ -176,7 +178,7 @@ void main() {
         final model = TextAreaModel(id: 'ta', initial: 'ab°cd', focused: true)
           ..textArea.row = 0
           ..textArea.column = 0;
-        _frame(10, 1, measurer: measurer).render(TextArea(model: model, theme: Theme.dark));
+        _frame(10, 1, measurer: measurer).render(TextArea(model: model, resolver: _resolver));
         for (var i = 0; i < 3; i++) {
           model.update(const KeyMsg('shift+right'));
         }
@@ -184,7 +186,7 @@ void main() {
       }
 
       Iterable<String> paintIntents(TextAreaModel model, TextMeasurer measurer) {
-        final node = TextArea(model: model, theme: Theme.dark).build()
+        final node = TextArea(model: model, resolver: _resolver).build()
           ..layout(plume.BoxConstraints.tight(const plume.Size(10, 1)), plume.LayoutContext(measurer: measurer))
           ..place(plume.Offset.zero);
         final surface = plume.RecordingSurface<PaintToken>();
@@ -218,7 +220,7 @@ void main() {
         ..render(
           TextArea(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const TextAreaStyle(lineNumber: lineNumberStyle),
           ),
         );

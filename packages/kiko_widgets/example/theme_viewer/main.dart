@@ -134,8 +134,8 @@ class Model {
       RenderPolicy.ansi16 => RenderPolicy.noColor,
       RenderPolicy.noColor => RenderPolicy.color,
     };
-    // The gallery widgets build their own resolvers, which adopt the
-    // process-wide default — keep it in step with the toggle.
+    // Keep the process-wide default in step with the toggle, for any code
+    // that builds a resolver without a policy.
     StyleResolver.defaultPolicy = policy;
   }
 
@@ -474,7 +474,7 @@ void view(Model model, Frame frame) {
   // own background — what a real terminal at that tier shows.
   frame.ground(resolver.ground(t.background));
 
-  final comboView = Combobox<String>(model: model.combo, theme: theme, popupBorder: BorderType.rounded);
+  final comboView = Combobox<String>(model: model.combo, resolver: resolver, popupBorder: BorderType.rounded);
 
   final pageBody = switch (model.page) {
     1 => referencePage(theme, resolver),
@@ -482,7 +482,7 @@ void view(Model model, Frame frame) {
       crossAxis: CrossAxisAlignment.stretch,
       children: [
         stateStrip(resolver),
-        Expanded(child: galleryPage(model, theme, resolver, comboView)),
+        Expanded(child: galleryPage(model, resolver, comboView)),
         Line(
           model.status.isEmpty ? 'Interact with any widget — its last command shows here' : model.status,
           style: resolver.ink(t.accent),
@@ -508,7 +508,7 @@ void view(Model model, Frame frame) {
   final dialog = switch (model.modal) {
     final modal? => modalDialog(
       id: modal.id,
-      theme: theme,
+      resolver: resolver,
       topTitles: [Line(' Dialog ', style: resolver.ink(t.accent))],
       content: Column(
         mainAxis: MainAxisAlignment.center,

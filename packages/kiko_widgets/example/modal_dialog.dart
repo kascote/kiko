@@ -96,7 +96,7 @@ void appView(AppModel model, Frame frame) {
   final dialog = switch (model.modal) {
     final modal? => modalDialog(
       id: modal.id,
-      theme: theme,
+      resolver: resolver,
       topTitles: [Line(' Confirm ', style: resolver.ink(t.warning))],
       content: Column(
         mainAxis: MainAxisAlignment.center,

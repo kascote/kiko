@@ -39,7 +39,7 @@ class Case {
 
   /// Renders this case's box. Reads [members] itself to know whether one of
   /// them holds keyboard focus.
-  final View Function(Theme theme, StyleResolver resolver) box;
+  final View Function(StyleResolver resolver) box;
 }
 
 /// Wraps [content] in a bordered box titled [title], with [watch] appended
@@ -124,13 +124,13 @@ Case _presetsCase(AppModel model) {
   return Case(
     proves: 'A glyph preset is a plain field on the model; every group still moves, chooses and paints the same way.',
     members: members,
-    box: (theme, resolver) {
+    box: (resolver) {
       final muted = resolver.ink(resolver.tones.muted);
       View column(String name, RadioGroupModel<String> group) => Column(
         crossAxis: CrossAxisAlignment.stretch,
         children: [
           Line(name, style: muted),
-          RadioGroup(model: group, theme: theme),
+          RadioGroup(model: group, resolver: resolver),
         ],
       );
       return _caseBox(
@@ -172,16 +172,16 @@ Case _directionCase(AppModel model) {
     proves:
         '`direction` picks a Column or a Row; the choosing, the wrap and the disabled rule stay the same either way.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
       resolver: resolver,
       content: Row(
         children: [
-          RadioGroup(model: model.sortVertical, theme: theme),
+          RadioGroup(model: model.sortVertical, resolver: resolver),
           const SizedBox(width: 4),
-          RadioGroup(model: model.sortHorizontal, theme: theme),
+          RadioGroup(model: model.sortHorizontal, resolver: resolver),
         ],
       ),
     ),
@@ -203,14 +203,14 @@ Case _alignmentCase(AppModel model) {
   return Case(
     proves: 'A stretched column hands every row the same width, so labelFirst and labelAlign line the rows up.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
       resolver: resolver,
       content: Column(
         crossAxis: CrossAxisAlignment.stretch,
-        children: [for (final m in members) RadioGroup(model: m, theme: theme)],
+        children: [for (final m in members) RadioGroup(model: m, resolver: resolver)],
       ),
     ),
   );
@@ -232,7 +232,7 @@ Case _formCase(AppModel model) {
   return Case(
     proves: 'One FocusRouter carries Tab across a checkbox, a radio group and a button; the group answers as one stop.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -240,11 +240,11 @@ Case _formCase(AppModel model) {
       content: Column(
         crossAxis: CrossAxisAlignment.stretch,
         children: [
-          Checkbox(model: model.formTerms, theme: theme),
+          Checkbox(model: model.formTerms, resolver: resolver),
           const SizedBox(height: 1),
-          RadioGroup(model: model.formDelivery, theme: theme),
+          RadioGroup(model: model.formDelivery, resolver: resolver),
           const SizedBox(height: 1),
-          Button(model: model.formSubmit, theme: theme),
+          Button(model: model.formSubmit, resolver: resolver),
           Line('result: ${model.formResult}', style: resolver.ink(resolver.tones.muted)),
         ],
       ),
@@ -267,12 +267,12 @@ Case _skipCase(AppModel model) {
   return Case(
     proves: 'The cursor and the pointer skip a disabled option; it still paints in place, dimmed.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
       resolver: resolver,
-      content: RadioGroup(model: model.skipGroup, theme: theme),
+      content: RadioGroup(model: model.skipGroup, resolver: resolver),
     ),
   );
 }
@@ -302,7 +302,7 @@ Case _controlCase(AppModel model) {
         'The app drives value, options, error and button labels by writing the fields; '
         'the group never edits its own list.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -312,20 +312,20 @@ Case _controlCase(AppModel model) {
         children: [
           Row(
             children: [
-              Button(model: model.controlChoose, theme: theme),
+              Button(model: model.controlChoose, resolver: resolver),
               const SizedBox(width: 1),
-              Button(model: model.controlClear, theme: theme),
+              Button(model: model.controlClear, resolver: resolver),
             ],
           ),
           Row(
             children: [
-              Button(model: model.controlDisable, theme: theme),
+              Button(model: model.controlDisable, resolver: resolver),
               const SizedBox(width: 1),
-              Button(model: model.controlError, theme: theme),
+              Button(model: model.controlError, resolver: resolver),
             ],
           ),
           const SizedBox(height: 1),
-          RadioGroup(model: model.controlTarget, theme: theme),
+          RadioGroup(model: model.controlTarget, resolver: resolver),
           const SizedBox(height: 1),
           Line(
             'value: ${model.controlTarget.value} · cursor: ${model.controlTarget.cursor}',
@@ -551,7 +551,7 @@ void view(AppModel model, Frame frame) {
   final t = resolver.tones;
   frame.ground(resolver.ground(t.background));
 
-  final boxes = [for (final c in model.cases) c.box(theme, resolver)];
+  final boxes = [for (final c in model.cases) c.box(resolver)];
 
   final grid = Column(
     crossAxis: CrossAxisAlignment.stretch,

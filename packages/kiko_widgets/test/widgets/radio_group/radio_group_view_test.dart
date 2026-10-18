@@ -22,6 +22,8 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('radio group view', () {
     test('a three-option vertical group dumps three rows; the chosen row shows (*)', () {
@@ -34,7 +36,7 @@ void main() {
         ],
         value: 2,
       );
-      final frame = _frame(12, 3)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(12, 3)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '( ) One\n(*) Two\n( ) Three\n');
       expect(frame.hits.rectOf('r'), Rect.create(x: 0, y: 0, width: 12, height: 3));
     });
@@ -54,7 +56,7 @@ void main() {
       final frame = _frame(12, 5)
         ..render(
           Column(
-            children: [RadioGroup(model: model, theme: Theme.dark)],
+            children: [RadioGroup(model: model, resolver: _resolver)],
           ),
         );
       expect(frame.hits.regionAt('r', 0, 0), const RowRegion(0)); // box cell
@@ -75,7 +77,7 @@ void main() {
         ],
         direction: Axis.horizontal,
       );
-      final frame = _frame(19, 1)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(19, 1)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '( ) A  ( ) B  ( ) C\n');
       expect(frame.hits.regionAt('r', 5, 0), isNull); // the gap between rows
     });
@@ -95,7 +97,7 @@ void main() {
       final frame = _frame(12, 5)
         ..render(
           Column(
-            children: [RadioGroup(model: model, theme: Theme.dark)],
+            children: [RadioGroup(model: model, resolver: _resolver)],
           ),
         );
       expect(frame.hits.rectOf('r'), Rect.create(x: 0, y: 0, width: 12, height: 3));
@@ -116,7 +118,7 @@ void main() {
       final frame = _frame(30, 1)
         ..render(
           Row(
-            children: [RadioGroup(model: model, theme: Theme.dark)],
+            children: [RadioGroup(model: model, resolver: _resolver)],
           ),
         );
       expect(frame.hits.rectOf('r'), Rect.create(x: 0, y: 0, width: 19, height: 1));
@@ -132,7 +134,7 @@ void main() {
         labelFirst: labelFirst,
         labelAlign: labelAlign,
       ),
-      theme: Theme.dark,
+      resolver: _resolver,
     );
 
     test('box first, label start: spare width trails the label', () {
@@ -163,7 +165,7 @@ void main() {
           direction: Axis.horizontal,
           labelAlign: labelAlign,
         ),
-        theme: Theme.dark,
+        resolver: _resolver,
       );
       final start = _frame(26, 1)..render(horiz(TextAlign.start));
       final end = _frame(26, 1)..render(horiz(TextAlign.end));
@@ -182,7 +184,7 @@ void main() {
         value: 2,
         glyphs: CheckGlyphs.dot,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '( ) One\n(•) Two\n');
     });
 
@@ -196,7 +198,7 @@ void main() {
         value: 2,
         glyphs: CheckGlyphs.circle,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '◌ One\n◉ Two\n');
     });
 
@@ -206,7 +208,7 @@ void main() {
         options: [RadioOption(value: 1, label: Line('One'))],
         glyphs: CheckGlyphs.orb,
       );
-      final frame = _frame(10, 1)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '⚪ One\n');
       expect(frame.buffer[(x: 0, y: 0)].symbol, '⚪');
       expect(frame.buffer[(x: 1, y: 0)].skip, isTrue); // the orb's second cell
@@ -223,7 +225,7 @@ void main() {
         ],
         value: 99,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '( ) One\n( ) Two\n');
     });
   });
@@ -239,7 +241,7 @@ void main() {
         value: 1,
         focused: true,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       final cursorOpen = frame.buffer[(x: 0, y: 0)];
       expect(cursorOpen.fg, Theme.dark.primary.color);
@@ -272,7 +274,7 @@ void main() {
               region: const RowRegion(1),
             ),
           );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       final oldMark = frame.buffer[(x: 1, y: 0)];
       expect(oldMark.fg, isNot(Theme.dark.primary.color));
@@ -295,7 +297,7 @@ void main() {
         focused: true,
         error: true,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       final cursorOpen = frame.buffer[(x: 0, y: 0)];
       expect(cursorOpen.fg, Theme.dark.error.color);
@@ -314,7 +316,7 @@ void main() {
           RadioOption(value: 2, label: Line('Two')),
         ],
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       for (final x in [0, 1, 2, 4]) {
         final cell = frame.buffer[(x: x, y: 0)];
@@ -336,7 +338,7 @@ void main() {
         ],
         disabled: true,
       );
-      final frame = _frame(10, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       for (final y in [0, 1]) {
         for (final x in [0, 1, 2, 4]) {
@@ -354,7 +356,7 @@ void main() {
           RadioOption(value: 2, label: Line('Two')),
         ],
       )..hoveredIndex = 0;
-      final frame = _frame(12, 2)..render(RadioGroup(model: model, theme: Theme.dark));
+      final frame = _frame(12, 2)..render(RadioGroup(model: model, resolver: _resolver));
 
       final bracket = frame.buffer[(x: 0, y: 0)];
       final spare = frame.buffer[(x: 11, y: 0)]; // past "( ) One", still inside the row
@@ -374,8 +376,8 @@ void main() {
           RadioOption(value: 2, label: Line('Two')),
         ],
       );
-      final restingFrame = _frame(10, 2)..render(RadioGroup(model: build(), theme: Theme.dark));
-      final pressedFrame = _frame(10, 2)..render(RadioGroup(model: build()..pressedIndex = 0, theme: Theme.dark));
+      final restingFrame = _frame(10, 2)..render(RadioGroup(model: build(), resolver: _resolver));
+      final pressedFrame = _frame(10, 2)..render(RadioGroup(model: build()..pressedIndex = 0, resolver: _resolver));
 
       for (final x in [0, 1, 2, 4]) {
         final resting = restingFrame.buffer[(x: x, y: 0)];
@@ -394,7 +396,7 @@ void main() {
         ..render(
           RadioGroup(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const RadioStyle(open: Style(fg: Color.magenta)),
           ),
         );
@@ -411,7 +413,7 @@ void main() {
         ..render(
           RadioGroup(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const RadioStyle(checkedMark: Style(fg: Color.cyan)),
           ),
         );

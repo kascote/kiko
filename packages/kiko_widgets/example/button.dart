@@ -212,7 +212,7 @@ void appView(AppModel model, Frame frame) {
                 resolver,
                 '1. Basic (themed)',
                 model.focusedPane == 0,
-                _buildHorizontalButtons(model.basicGroup, gap: 2, theme: theme),
+                _buildHorizontalButtons(model.basicGroup, gap: 2, resolver: resolver),
               ),
             ),
             // Pane 2: Styled buttons (face override demo)
@@ -221,7 +221,7 @@ void appView(AppModel model, Frame frame) {
                 resolver,
                 '2. Styled',
                 model.focusedPane == 1,
-                _buildStyledButtons(model.styledGroup, theme: theme),
+                _buildStyledButtons(model.styledGroup, resolver: resolver),
                 captions: const [
                   "Delete's face is danger at rest.",
                   'A theme switch (F1/F2) keeps the difference.',
@@ -242,7 +242,7 @@ void appView(AppModel model, Frame frame) {
                 resolver,
                 '3. Vertical (wrap)',
                 model.focusedPane == 2,
-                _buildVerticalButtons(model.verticalGroup, theme: theme),
+                _buildVerticalButtons(model.verticalGroup, resolver: resolver),
               ),
             ),
             // Pane 4: States (theme-derived)
@@ -251,7 +251,7 @@ void appView(AppModel model, Frame frame) {
                 resolver,
                 '4. States',
                 model.focusedPane == 3,
-                _buildHorizontalButtons(model.statesGroup, gap: 2, theme: theme),
+                _buildHorizontalButtons(model.statesGroup, gap: 2, resolver: resolver),
               ),
             ),
           ],
@@ -314,7 +314,7 @@ View _buildPane(
 /// Build horizontal button layout with custom gap.
 View _buildHorizontalButtons(
   ButtonGroupModel group, {
-  required Theme theme,
+  required StyleResolver resolver,
   int gap = 1,
 }) {
   final children = <View>[];
@@ -322,7 +322,7 @@ View _buildHorizontalButtons(
     if (i > 0 && gap > 0) {
       children.add(SizedBox(width: gap, height: 1));
     }
-    children.add(Button(model: group.buttons[i], theme: theme));
+    children.add(Button(model: group.buttons[i], resolver: resolver));
   }
   return Row(children: children);
 }
@@ -333,9 +333,8 @@ View _buildHorizontalButtons(
 /// destructive before it is ever focused. The others keep the themed face.
 View _buildStyledButtons(
   ButtonGroupModel group, {
-  required Theme theme,
+  required StyleResolver resolver,
 }) {
-  final resolver = StyleResolver(theme);
   final children = <View>[];
   for (var i = 0; i < group.buttons.length; i++) {
     if (i > 0) {
@@ -345,7 +344,7 @@ View _buildStyledButtons(
     final style = btnModel.id == 'delete'
         ? ButtonStyle(face: resolver.fill(resolver.tones.error))
         : const ButtonStyle();
-    children.add(Button(model: btnModel, theme: theme, style: style));
+    children.add(Button(model: btnModel, resolver: resolver, style: style));
   }
   return Row(children: children);
 }
@@ -353,7 +352,7 @@ View _buildStyledButtons(
 /// Build vertical button layout with gap.
 View _buildVerticalButtons(
   ButtonGroupModel group, {
-  required Theme theme,
+  required StyleResolver resolver,
   int gap = 1,
 }) {
   final children = <View>[];
@@ -361,7 +360,7 @@ View _buildVerticalButtons(
     if (i > 0 && gap > 0) {
       children.add(SizedBox(height: gap));
     }
-    children.add(Button(model: group.buttons[i], theme: theme));
+    children.add(Button(model: group.buttons[i], resolver: resolver));
   }
   return Column(children: children);
 }

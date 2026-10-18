@@ -38,6 +38,8 @@ class _UnknownMsg extends Msg {
   const _UnknownMsg();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('TextInputModel', () {
     test('default empty state', () {
@@ -495,7 +497,7 @@ void main() {
       // press below runs update() directly, exactly as the router does,
       // relying on that assignment to already have happened.
       final defaultModel = TextInputModel(id: 'in', initial: 'a°bc', focused: true);
-      _frame(10, 1).render(TextInput(model: defaultModel, theme: Theme.dark));
+      _frame(10, 1).render(TextInput(model: defaultModel, resolver: _resolver));
       defaultModel.update(pointerAt(PointerAction.down, x: 2));
       expect(defaultModel.cursor, equals(2), reason: 'a=1, °=1, b=1: column 2 is "b"');
 
@@ -504,7 +506,7 @@ void main() {
         10,
         1,
         measurer: const TermUnicodeMeasurer(cjk: true),
-      ).render(TextInput(model: cjkModel, theme: Theme.dark));
+      ).render(TextInput(model: cjkModel, resolver: _resolver));
       cjkModel.update(pointerAt(PointerAction.down, x: 2));
       expect(cjkModel.cursor, equals(1), reason: 'a=1, °=2: column 2 is the right-hand cell of °, not "b"');
     });

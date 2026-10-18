@@ -17,7 +17,7 @@ Buffer _render(
   Frame(buffer.area, buffer, 0).render(
     ListView<String, String>(
       model: model,
-      theme: theme,
+      resolver: StyleResolver(theme),
       style: style,
       itemBuilder: (item, index, state) => [Line(item)],
     ),
@@ -234,7 +234,7 @@ void main() {
       Frame(buffer.area, buffer, 0).render(
         ListView<String, String>(
           model: model,
-          theme: Theme.dark,
+          resolver: StyleResolver(Theme.dark),
           itemBuilder: (item, index, state) => [Line(item)],
           emptyPlaceholder: Line('none'),
         ),

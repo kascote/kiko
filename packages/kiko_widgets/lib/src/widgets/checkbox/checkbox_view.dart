@@ -14,27 +14,25 @@ import 'types.dart';
 /// stamped with the model's id, so a press anywhere on the row resolves back
 /// to it through [HitMap.hitId].
 ///
-/// Styles come from [theme] and the model's state (focused / error / disabled
+/// Styles come from [resolver] and the model's state (focused / error / disabled
 /// / hovered / pressed) through [StyleResolver], with [style] slots taken
-/// verbatim where set. A per-instance state look is a theme variant passed to
-/// [theme].
+/// verbatim where set. A per-instance state look is a resolver bound to another
+/// ground.
 final class Checkbox implements View {
-  /// Creates a checkbox over [model], styled by [theme].
-  const Checkbox({required this.model, required this.theme, this.style = const CheckboxStyle()});
+  /// Creates a checkbox over [model], styled by [resolver].
+  const Checkbox({required this.model, required this.resolver, this.style = const CheckboxStyle()});
 
   /// The model whose value, glyphs, and layout this view renders.
   final CheckboxModel model;
 
-  /// The theme that resolves the checkbox's styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Per-part style overrides. See [CheckboxStyle].
   final CheckboxStyle style;
 
   @override
   Node build() {
-    final resolver = StyleResolver(theme);
-
     final bracketStates = <WidgetState>{
       if (model.focused) WidgetState.focused,
       if (model.error) WidgetState.error,

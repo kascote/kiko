@@ -19,15 +19,15 @@ import 'types.dart';
 /// to [nodeBuilder]. Row
 /// backgrounds come from the node's honest state (cursor / loading) painted
 /// through [style]'s [TreeViewStyle] anatomy, each `null` slot deriving from
-/// the theme's tones. A per-instance state look is a theme variant passed to
-/// [theme]. Wrap it in a [Container] for a border or edge titles. The node is
+/// the resolver's tones. A per-instance state look is a resolver bound to
+/// another ground. Wrap it in a [Container] for a border or edge titles. The node is
 /// stamped with the model id so a click routes back through [HitMap.hitId].
 final class TreeView<T> implements View {
-  /// Creates a tree view over [model], styled by [theme] and built row by row
+  /// Creates a tree view over [model], styled by [resolver] and built row by row
   /// through [nodeBuilder].
   const TreeView({
     required this.model,
-    required this.theme,
+    required this.resolver,
     this.nodeBuilder,
     this.style = const TreeViewStyle(),
     this.emptyPlaceholder,
@@ -39,8 +39,8 @@ final class TreeView<T> implements View {
   /// The model whose visible nodes, cursor, and expansion this view renders.
   final TreeViewModel<T> model;
 
-  /// The theme that resolves row styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Builds the line for a node at a given depth and state, or `null` to use the
   /// default row (expand indicator, icon, and label).
@@ -55,7 +55,7 @@ final class TreeView<T> implements View {
   /// The placeholder row shown beneath a node while its children load.
   ///
   /// Null shows 'Loading…'. A given line's own styling wins over the themed
-  /// base ([TreeViewStyle.placeholder], or the theme's muted ink).
+  /// base ([TreeViewStyle.placeholder], or the resolver's muted ink).
   final Line? loadingLabel;
 
   /// The placeholder row shown beneath a node whose child load failed.
@@ -73,7 +73,7 @@ final class TreeView<T> implements View {
   @override
   Node build() => _TreeViewport<T>(
     model: model,
-    theme: theme,
+    resolver: resolver,
     nodeBuilder: nodeBuilder,
     style: style,
     emptyPlaceholder: emptyPlaceholder,
@@ -88,7 +88,7 @@ final class TreeView<T> implements View {
 class _TreeViewport<T> extends Node {
   _TreeViewport({
     required this.model,
-    required this.theme,
+    required this.resolver,
     required this.style,
     this.nodeBuilder,
     this.emptyPlaceholder,
@@ -98,7 +98,7 @@ class _TreeViewport<T> extends Node {
   });
 
   final TreeViewModel<T> model;
-  final Theme theme;
+  final StyleResolver resolver;
   final Line Function(TreeNode<T> node, int depth, NodeState state)? nodeBuilder;
   final TreeViewStyle style;
   final Line? emptyPlaceholder;
@@ -109,9 +109,6 @@ class _TreeViewport<T> extends Node {
   // Captured from the layout context so paint measures text the way the frame
   // does — a cjk frame reaches the rows, not just the box chrome.
   TextMeasurer _measurer = const TermUnicodeMeasurer();
-
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  late final _resolver = StyleResolver(theme);
 
   @override
   Size performLayout(BoxConstraints constraints, LayoutContext context) {
@@ -225,7 +222,7 @@ class _TreeViewport<T> extends Node {
   /// another's. Hover applies last, inside the resolver, in its own call. The
   /// loading state paints the indicator glyph alone, never the row.
   Style _rowStyle({required bool isCursor, required bool isHover}) {
-    final rowStyle = _resolver.resolve(
+    final rowStyle = resolver.resolve(
       style.item ?? const Style(),
       {
         if (isCursor) WidgetState.cursor,
@@ -234,7 +231,7 @@ class _TreeViewport<T> extends Node {
       cls: model.focused ? PaintClass.fill : PaintClass.wash,
       slots: {if (style.cursorItem != null) WidgetState.cursor: style.cursorItem!},
     );
-    return _resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
+    return resolver.resolve(rowStyle, {if (isHover) WidgetState.hover}, cls: PaintClass.fill);
   }
 
   /// The line for [node]: a placeholder row's label, the caller's builder, or
@@ -272,7 +269,7 @@ class _TreeViewport<T> extends Node {
   Line _placeholderLine(SliceStatus status) {
     var base = _placeholderStyle();
     if (status == SliceStatus.failed) {
-      base = base.patch(_resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
+      base = base.patch(resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
     }
     final label = switch (status) {
       SliceStatus.filling => loadingLabel ?? Line('Loading…'),
@@ -290,9 +287,9 @@ class _TreeViewport<T> extends Node {
   /// The expand, collapse, and loading glyph — `indicator`, patched with the
   /// `loading` state (warning ink + slow blink) while [loading] is true.
   Style _indicatorStyle(bool loading) =>
-      _resolver.resolve(style.indicator, {if (loading) WidgetState.loading}, cls: PaintClass.ink);
+      resolver.resolve(style.indicator, {if (loading) WidgetState.loading}, cls: PaintClass.ink);
 
   /// The empty-state line shown until the roots load, and the base a
   /// placeholder row patches its label over.
-  Style _placeholderStyle() => style.placeholder ?? _resolver.ink(_resolver.tones.muted);
+  Style _placeholderStyle() => style.placeholder ?? resolver.ink(resolver.tones.muted);
 }

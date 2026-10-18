@@ -163,7 +163,7 @@ void view(AppModel model, Frame frame) {
                 'Employees (click)',
                 model.focus.focused.id == model.table.id,
                 resolver,
-                TableView(model: model.table, theme: _theme),
+                TableView(model: model.table, resolver: resolver),
               ),
             ),
             Expanded(
@@ -171,7 +171,7 @@ void view(AppModel model, Frame frame) {
                 'Departments (double-click)',
                 model.focus.focused.id == model.list.id,
                 resolver,
-                ListView(model: model.list, theme: _theme, itemBuilder: (item, i, _) => [Line(' $item')]),
+                ListView(model: model.list, resolver: resolver, itemBuilder: (item, i, _) => [Line(' $item')]),
               ),
             ),
           ],

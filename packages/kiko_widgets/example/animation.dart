@@ -368,18 +368,17 @@ class ProgressModel extends AnimatedModel {
 /// The render half of any [AnimatedModel]: one line of [AnimatedModel.text],
 /// self-tagged with the model's id.
 final class AnimatedView implements View {
-  /// Creates a view over [model], styled by [theme].
-  const AnimatedView({required this.model, required this.theme});
+  /// Creates a view over [model], painted through [resolver].
+  const AnimatedView({required this.model, required this.resolver});
 
   /// The model whose text and running state this view paints.
   final AnimatedModel model;
 
-  /// The theme that resolves the part's ink.
-  final Theme theme;
+  /// The resolver that styles the part's ink.
+  final StyleResolver resolver;
 
   @override
   Node build() {
-    final resolver = StyleResolver(theme);
     final t = resolver.tones;
     final style = model.running ? resolver.ink(t.accent) : resolver.ink(t.muted);
     return Line(model.text, style: style).build()..tag = IdTag(model.id);
@@ -640,14 +639,14 @@ class PanelModel implements Animated {
 /// nested calls leave it null and show the model's bare id instead. [caption]
 /// appends one muted line below the parts, for a case's `watch` text.
 final class PanelView implements View {
-  /// Creates a panel view over [model], styled by [theme].
-  const PanelView({required this.model, required this.theme, this.title, this.caption});
+  /// Creates a panel view over [model], painted through [resolver].
+  const PanelView({required this.model, required this.resolver, this.title, this.caption});
 
   /// The model whose parts and blink state this view paints.
   final PanelModel model;
 
-  /// The theme that resolves the panel's chrome.
-  final Theme theme;
+  /// The resolver that styles the panel's chrome.
+  final StyleResolver resolver;
 
   /// The border's title, or null to show the model's bare id.
   final String? title;
@@ -657,7 +656,6 @@ final class PanelView implements View {
 
   @override
   Node build() {
-    final resolver = StyleResolver(theme);
     final t = resolver.tones;
     var borderStyle = resolver.border({if (model.focused) WidgetState.focused});
     if (model.blinkInterval != null && model.blinkOn) {
@@ -673,7 +671,7 @@ final class PanelView implements View {
         child: Column(
           crossAxis: CrossAxisAlignment.stretch,
           children: [
-            for (final part in model.parts) _partView(part, theme),
+            for (final part in model.parts) _partView(part, resolver),
             if (caption case final caption?) Line(caption, style: resolver.ink(t.muted)),
           ],
         ),
@@ -685,9 +683,9 @@ final class PanelView implements View {
 /// Renders one part inside a [PanelView]. The one place in this example
 /// allowed to switch on a part's type: everywhere else, [Animated] is
 /// enough.
-View _partView(Animated part, Theme theme) => switch (part) {
-  final PanelModel p => PanelView(model: p, theme: theme),
-  final AnimatedModel a => AnimatedView(model: a, theme: theme),
+View _partView(Animated part, StyleResolver resolver) => switch (part) {
+  final PanelModel p => PanelView(model: p, resolver: resolver),
+  final AnimatedModel a => AnimatedView(model: a, resolver: resolver),
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -748,7 +746,7 @@ class Case {
   final List<String> Function() liveChains;
 
   /// Renders this case's box.
-  final View Function(Theme theme, StyleResolver resolver) box;
+  final View Function(StyleResolver resolver) box;
 
   /// The focus members this case contributes, if any.
   final List<Component> members;
@@ -773,7 +771,7 @@ UpdateResult _combine(List<UpdateResult> results) {
 
 /// Builds a bordered box for a case with exactly one flat, non-panel part —
 /// the shape the member and extra cases share.
-View _flatBox(String title, String watch, AnimatedModel model, Theme theme, StyleResolver resolver) {
+View _flatBox(String title, String watch, AnimatedModel model, StyleResolver resolver) {
   final t = resolver.tones;
   return Container(
     border: BorderType.plain,
@@ -783,7 +781,7 @@ View _flatBox(String title, String watch, AnimatedModel model, Theme theme, Styl
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        AnimatedView(model: model, theme: theme),
+        AnimatedView(model: model, resolver: resolver),
         Line(watch, style: resolver.ink(t.muted)),
       ],
     ),
@@ -793,8 +791,8 @@ View _flatBox(String title, String watch, AnimatedModel model, Theme theme, Styl
 /// Builds a box for a case with exactly one panel — the shape the panel,
 /// nested, echo, duo and loader cases share. [PanelView] already draws its
 /// own border and caption; this only fixes the title it shows.
-View _panelBox(String title, String watch, PanelModel model, Theme theme) =>
-    PanelView(model: model, theme: theme, title: title, caption: watch);
+View _panelBox(String title, String watch, PanelModel model, StyleResolver resolver) =>
+    PanelView(model: model, resolver: resolver, title: title, caption: watch);
 
 // ═══════════════════════════════════════════════════════════
 // CASE: MEMBER (m)
@@ -819,7 +817,7 @@ Case _memberCase(Duration step) {
     start: () => Handled(cmd: model.start()),
     stop: () => Handled(cmd: model.stop()),
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _flatBox(title, watch, model, theme, resolver),
+    box: (resolver) => _flatBox(title, watch, model, resolver),
   );
 }
 
@@ -846,7 +844,7 @@ Case _extraCase(Duration step) {
     start: () => Handled(cmd: model.start()),
     stop: () => Handled(cmd: model.stop()),
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _flatBox(title, watch, model, theme, resolver),
+    box: (resolver) => _flatBox(title, watch, model, resolver),
   );
 }
 
@@ -878,7 +876,7 @@ Case _panelCase(Duration step) {
     start: model.startAll,
     stop: model.stopAll,
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _panelBox(title, watch, model, theme),
+    box: (resolver) => _panelBox(title, watch, model, resolver),
   );
 }
 
@@ -910,7 +908,7 @@ Case _nestedCase(Duration step) {
     start: outer.startAll,
     stop: outer.stopAll,
     liveChains: () => outer.liveChains,
-    box: (theme, resolver) => _panelBox(title, watch, outer, theme),
+    box: (resolver) => _panelBox(title, watch, outer, resolver),
   );
 }
 
@@ -947,7 +945,7 @@ Case _twinsCase(Duration step) {
     start: () => _combine([a.startAll(), b.startAll()]),
     stop: () => _combine([a.stopAll(), b.stopAll()]),
     liveChains: () => [...a.liveChains, ...b.liveChains],
-    box: (theme, resolver) {
+    box: (resolver) {
       final t = resolver.tones;
       return Container(
         border: BorderType.plain,
@@ -961,10 +959,10 @@ Case _twinsCase(Duration step) {
               crossAxis: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: PanelView(model: a, theme: theme),
+                  child: PanelView(model: a, resolver: resolver),
                 ),
                 Expanded(
-                  child: PanelView(model: b, theme: theme),
+                  child: PanelView(model: b, resolver: resolver),
                 ),
               ],
             ),
@@ -1003,7 +1001,7 @@ Case _echoCase(Duration step) {
     start: model.startAll,
     stop: model.stopAll,
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _panelBox(title, watch, model, theme),
+    box: (resolver) => _panelBox(title, watch, model, resolver),
   );
 }
 
@@ -1036,7 +1034,7 @@ Case _duoCase(Duration step) {
     start: model.startAll,
     stop: model.stopAll,
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _panelBox(title, watch, model, theme),
+    box: (resolver) => _panelBox(title, watch, model, resolver),
   );
 }
 
@@ -1068,7 +1066,7 @@ Case _loaderCase(Duration step) {
     start: model.startAll,
     stop: model.stopAll,
     liveChains: () => model.liveChains,
-    box: (theme, resolver) => _panelBox(title, watch, model, theme),
+    box: (resolver) => _panelBox(title, watch, model, resolver),
   );
 }
 
@@ -1346,7 +1344,7 @@ void view(AppModel model, Frame frame) {
   final t = resolver.tones;
   frame.ground(resolver.ground(t.background));
 
-  final boxes = {for (final c in model.cases) c.key: c.box(theme, resolver)};
+  final boxes = {for (final c in model.cases) c.key: c.box(resolver)};
 
   final grid = Column(
     crossAxis: CrossAxisAlignment.stretch,

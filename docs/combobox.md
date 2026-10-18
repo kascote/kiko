@@ -122,7 +122,7 @@ painted:
 
 ```dart
 void appView(AppModel model, Frame frame) {
-  final combo = Combobox(model: model.combo, theme: theme);
+  final combo = Combobox(model: model.combo, resolver: resolver);
   frame.render(Column(children: [combo]));
   combo.renderPopup(frame); // no-op while closed
 }
@@ -130,6 +130,12 @@ void appView(AppModel model, Frame frame) {
 
 An app with several comboboxes calls `renderPopup` on each after the base
 tree; only the open one paints.
+
+The combobox takes the app's `StyleResolver`. The field paints through it
+unchanged. The popup paints through `resolver.on(resolver.tones.surface)`:
+its ground, border, status row and list rows all lift from the surface tone.
+The popup reads `tones.surface`, not the `Theme`'s RGB surface, so under
+ANSI-16 it paints the sixteen-color table's surface.
 
 ## Outside-press dismissal
 

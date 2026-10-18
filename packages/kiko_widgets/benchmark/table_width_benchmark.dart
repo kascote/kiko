@@ -142,7 +142,7 @@ class FrameBenchmark extends BenchmarkBase {
   void exercise() => run(); // one frame per measured op
 
   @override
-  void run() => Frame(area, buffer, 0).render(TableView(model: model, theme: Theme.dark));
+  void run() => Frame(area, buffer, 0).render(TableView(model: model, resolver: _resolver));
 }
 
 // ── Isolated width-measuring benchmarks ──────────────────────────────────────
@@ -241,3 +241,6 @@ void main() {
 ════════════════════════════════════════════════════════════════════════
 ''');
 }
+
+/// The one resolver every benchmark run paints through.
+final _resolver = StyleResolver(Theme.dark);

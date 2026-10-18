@@ -10,7 +10,11 @@ import 'package:test/test.dart';
 /// termkit strips the colors. The per-projection matrix itself is proven
 /// in kiko_core's style_resolver_nocolor_test.
 void main() {
-  setUp(() => StyleResolver.defaultPolicy = RenderPolicy.noColor);
+  late StyleResolver resolver;
+  setUp(() {
+    StyleResolver.defaultPolicy = RenderPolicy.noColor;
+    resolver = StyleResolver(Theme.dark);
+  });
   tearDown(() => StyleResolver.defaultPolicy = RenderPolicy.color);
 
   Buffer canvas(int w, int h) => Buffer.empty(Rect.create(x: 0, y: 0, width: w, height: h));
@@ -23,7 +27,7 @@ void main() {
       );
       final buffer = canvas(8, 2);
       Frame(buffer.area, buffer, 0).render(
-        ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: (i, n, s) => [Line(i)]),
+        ListView<String, String>(model: model, resolver: resolver, itemBuilder: (i, n, s) => [Line(i)]),
       );
       final cell = buffer[(x: 7, y: 0)]; // cursor row, trailing fill-only cell
       expect(cell.modifier.has(Modifier.bold), isTrue);
@@ -36,7 +40,7 @@ void main() {
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Alpha'), isLeaf: true)]);
       final buffer = canvas(10, 2);
-      Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: Theme.dark));
+      Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, resolver: resolver));
       final cell = buffer[(x: 9, y: 0)];
       expect(cell.modifier.has(Modifier.bold), isTrue);
       expect(cell.modifier.has(Modifier.reversed), isFalse);
@@ -48,7 +52,7 @@ void main() {
       Frame(buffer.area, buffer, 0).render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK'), focused: true),
-          theme: Theme.dark,
+          resolver: resolver,
         ),
       );
       final cell = buffer[(x: 0, y: 0)]; // left padding, part of the button face
@@ -64,14 +68,14 @@ void main() {
       Frame(restingBuffer.area, restingBuffer, 0).render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK')),
-          theme: Theme.dark,
+          resolver: resolver,
         ),
       );
       final pressedBuffer = canvas(4, 1);
       Frame(pressedBuffer.area, pressedBuffer, 0).render(
         Button(
           model: ButtonModel(id: 'ok', label: Line('OK'))..pressed = true,
-          theme: Theme.dark,
+          resolver: resolver,
         ),
       );
       final restingCell = restingBuffer[(x: 0, y: 0)];
@@ -89,7 +93,7 @@ void main() {
         focused: true,
       );
       final buffer = canvas(5, 3);
-      TableRenderer(model, Theme.dark).paint(buffer.area, BufferSurface(buffer));
+      TableRenderer(model, resolver).paint(buffer.area, BufferSurface(buffer));
       final cell = buffer[(x: 0, y: 1)]; // cursor cell (row 0 under the sticky header)
       expect(cell.modifier.has(Modifier.bold), isTrue);
       expect(cell.modifier.has(Modifier.reversed), isFalse);

@@ -25,6 +25,8 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('button view', () {
     test('renders the label inside horizontal padding', () {
@@ -32,7 +34,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       // one pad cell, "OK", one pad cell (the trailing pad trims away).
@@ -42,7 +44,7 @@ void main() {
 
     test('keeps the label width while loading, indicator at the start', () {
       final model = ButtonModel(id: 'go', label: Line('HELLO'), loadingText: Line('.'), loading: true);
-      final frame = _frame(7, 1)..render(Button(model: model, theme: Theme.dark));
+      final frame = _frame(7, 1)..render(Button(model: model, resolver: _resolver));
       // width stays label+padding (7); "." sits at the start of the 5-cell content band.
       expect(_dump(frame.buffer), ' .\n');
       expect(frame.hits.rectOf('go'), Rect.create(x: 0, y: 0, width: 7, height: 1));
@@ -53,7 +55,7 @@ void main() {
       final before = _frame(12, 1)
         ..render(
           Row(
-            children: [Button(model: model, theme: Theme.dark)],
+            children: [Button(model: model, resolver: _resolver)],
           ),
         );
       expect(_dump(before.buffer), ' Disable\n');
@@ -63,7 +65,7 @@ void main() {
       final after = _frame(12, 1)
         ..render(
           Row(
-            children: [Button(model: model, theme: Theme.dark)],
+            children: [Button(model: model, resolver: _resolver)],
           ),
         );
       expect(_dump(after.buffer), ' Enable\n');
@@ -77,14 +79,14 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       final pressed = _frame(4, 1)
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK'))..pressed = true,
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
 
@@ -102,7 +104,7 @@ void main() {
             model: ButtonModel(id: 'ok', label: Line('OK'))
               ..hovered = true
               ..pressed = true,
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
 
@@ -119,14 +121,14 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       final hovered = _frame(4, 1)
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK'))..hovered = true,
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
 
@@ -144,7 +146,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const ButtonStyle(face: face),
           ),
         );
@@ -160,7 +162,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK'), focused: true),
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const ButtonStyle(face: face),
           ),
         );
@@ -182,7 +184,7 @@ void main() {
               label: Line('OK', style: const Style(fg: Color.red)),
               focused: true,
             ),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
 
@@ -198,7 +200,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK'), disabled: true),
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const ButtonStyle(face: face),
           ),
         );
@@ -206,7 +208,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK'), disabled: true)..hovered = true,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const ButtonStyle(face: face),
           ),
         );
@@ -227,14 +229,14 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       final gruvboxFrame = _frame(4, 1)
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.gruvbox,
+            resolver: StyleResolver(Theme.gruvbox),
           ),
         );
 
@@ -252,7 +254,7 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'ok', label: Line('OK')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       expect(frame.hits.hitId(0, 0), 'ok'); // left padding cell
@@ -264,11 +266,11 @@ void main() {
     test('a click resolves to the right button among several', () {
       final a = Button(
         model: ButtonModel(id: 'a', label: Line('A')),
-        theme: Theme.dark,
+        resolver: _resolver,
       );
       final b = Button(
         model: ButtonModel(id: 'b', label: Line('B')),
-        theme: Theme.dark,
+        resolver: _resolver,
       );
       // Each button's content area is the max of its label and its (default)
       // loading text — the hourglass is 2 cells wide, so a 1-cell label still
@@ -285,7 +287,7 @@ void main() {
       final model = ButtonModel(id: 'go', label: Line('Go'), loadingText: Line('Loading...'), loading: true);
       const measurer = TermUnicodeMeasurer();
       final width = model.width(measurer);
-      final frame = _frame(width, 1)..render(Button(model: model, theme: Theme.dark));
+      final frame = _frame(width, 1)..render(Button(model: model, resolver: _resolver));
 
       expect(frame.hits.hitId(0, 0), 'go'); // left padding cell
       expect(frame.hits.hitId(width - 1, 0), 'go'); // right padding cell
@@ -299,13 +301,13 @@ void main() {
     // by exactly the one extra cell ° costs, and the label is never truncated.
     test('a label with an ambiguous-width character renders untruncated under both measurers', () {
       final defaultModel = ButtonModel(id: 'b', label: Line('a°b'), loadingText: Line('.'));
-      final defaultFrame = _frame(5, 1)..render(Button(model: defaultModel, theme: Theme.dark));
+      final defaultFrame = _frame(5, 1)..render(Button(model: defaultModel, resolver: _resolver));
       expect(_dump(defaultFrame.buffer), ' a°b\n');
       expect(defaultFrame.hits.rectOf('b'), Rect.create(x: 0, y: 0, width: 5, height: 1));
 
       final cjkModel = ButtonModel(id: 'b', label: Line('a°b'), loadingText: Line('.'));
       final cjkFrame = _frame(6, 1, measurer: const TermUnicodeMeasurer(cjk: true))
-        ..render(Button(model: cjkModel, theme: Theme.dark));
+        ..render(Button(model: cjkModel, resolver: _resolver));
       expect(_dump(cjkFrame.buffer), ' a°b\n');
       expect(cjkFrame.hits.rectOf('b'), Rect.create(x: 0, y: 0, width: 6, height: 1));
     });
@@ -326,14 +328,14 @@ void main() {
         ..render(
           Button(
             model: ButtonModel(id: 'x', label: label, loadingText: loadingText),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       final busy = _frame(width, 1)
         ..render(
           Button(
             model: ButtonModel(id: 'x', label: label, loadingText: loadingText, loading: true),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
 
@@ -345,7 +347,7 @@ void main() {
       final model = ButtonModel(id: 'x', label: Line('Go'), loadingText: Line('Loading...'), loading: true);
       const measurer = TermUnicodeMeasurer();
       final width = model.width(measurer);
-      final frame = _frame(width, 1)..render(Button(model: model, theme: Theme.dark));
+      final frame = _frame(width, 1)..render(Button(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), ' Loading...\n');
     });
   });

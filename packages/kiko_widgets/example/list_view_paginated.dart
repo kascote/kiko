@@ -198,7 +198,7 @@ void appView(AppModel model, Frame frame) {
             topTitles: [Line('Users', style: resolver.ink(t.accent))],
             child: ListView(
               model: model.list,
-              theme: theme,
+              resolver: resolver,
               itemBuilder: (user, index, state) {
                 final roleStyle = switch (user.role) {
                   'Admin' => resolver.ink(t.error).incModifier(Modifier.italic),

@@ -321,7 +321,7 @@ void appView(AppModel model, Frame frame) {
 
   final treeWidget = Container(
     border: BorderType.plain,
-    borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
+    borderStyle: resolver.border(const {WidgetState.focused}),
     topTitles: [
       Line.fromTexts([
         Text('Categories ', style: resolver.ink(t.accent)),
@@ -330,7 +330,7 @@ void appView(AppModel model, Frame frame) {
     ],
     child: TreeView(
       model: model.tree,
-      theme: theme,
+      resolver: resolver,
       style: const TreeViewStyle(indicator: Style(fg: Color.red)),
       emptyPlaceholder: Line('Loading categories...', style: resolver.ink(t.muted)),
       loadingLabel: Line.fromTexts(const [

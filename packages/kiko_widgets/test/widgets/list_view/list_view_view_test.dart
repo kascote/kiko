@@ -37,6 +37,8 @@ ListViewModel<String, String> _list(List<String> items) => ListViewModel<String,
 
 List<Line> _row(String item, int index, ItemState state) => [Line(item)];
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('list view render', () {
     test('draws the visible items inside a bordered box', () {
@@ -44,7 +46,7 @@ void main() {
         border: BorderType.plain,
         child: ListView<String, String>(
           model: _list(<String>['Apple', 'Banana', 'Cherry']),
-          theme: Theme.dark,
+          resolver: _resolver,
           itemBuilder: _row,
         ),
       );
@@ -61,7 +63,8 @@ void main() {
 
     test('reports the rows it painted, addressed to the model id', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
-      final frame = _frame(5, 3)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
+      final frame = _frame(5, 3)
+        ..render(ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row));
 
       final report = frame.reports.single as ViewportChanged;
       expect(report.id, model.id);
@@ -77,7 +80,7 @@ void main() {
           Tagged.scope(
             'combo',
             Container(
-              child: ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row),
+              child: ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row),
             ),
           ),
         );
@@ -88,7 +91,7 @@ void main() {
 
     test('a paint whose count the model already holds reports nothing', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
-      final view = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final view = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
       _commit(5, 3, view, model);
       expect(model.visibleCount, 3);
 
@@ -101,7 +104,7 @@ void main() {
 
     test('windows the rows to the scroll offset', () {
       final model = _list(<String>['a', 'b', 'c', 'd', 'e']);
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
 
       // The first frame reports the visible count (3 rows) the model scrolls against.
       expect(_dump(_commit(5, 3, node, model).buffer), 'a\nb\nc\n');
@@ -116,7 +119,7 @@ void main() {
     test('shows the empty placeholder when there are no items', () {
       final node = ListView<String, String>(
         model: _list(<String>[]),
-        theme: Theme.dark,
+        resolver: _resolver,
         itemBuilder: _row,
         emptyPlaceholder: Line('(empty)'),
       );
@@ -126,7 +129,7 @@ void main() {
     test('an emptyPlaceholder with its own foreground keeps it over the placeholder slot', () {
       final node = ListView<String, String>(
         model: _list(<String>[]),
-        theme: Theme.dark,
+        resolver: _resolver,
         itemBuilder: _row,
         style: const ListViewStyle(placeholder: Style(bg: Color.blue)),
         emptyPlaceholder: Line('(empty)', style: const Style(fg: Color.red)),
@@ -143,7 +146,7 @@ void main() {
       // else. Rows now paint through the plume Surface protocol directly, so
       // the focused row's fill and its text both land here too.
       final node =
-          ListView<String, String>(model: _list(<String>['Apple']), theme: Theme.dark, itemBuilder: _row).build()
+          ListView<String, String>(model: _list(<String>['Apple']), resolver: _resolver, itemBuilder: _row).build()
             ..layout(plume.BoxConstraints.tight(const plume.Size(5, 1)), _ctx)
             ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -168,14 +171,14 @@ void main() {
 
     test('an item whose page is not held paints as a dim run', () {
       final model = ListViewModel<String, String>(totalCount: 4, focused: true);
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
 
       expect(_dump((_frame(5, 4)..render(node)).buffer), '░░░\n░░░\n░░░\n░░░\n');
     });
 
     test('a wheel scroll into a page on its way paints the nearest held run', () {
       final model = paged();
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
 
       // The first frame reports the visible count (3 rows) the model scrolls
       // against, and its demand pass puts page 1 in flight.
@@ -193,7 +196,7 @@ void main() {
 
     test('cursor navigation into a page on its way paints the true position', () {
       final model = paged();
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
 
       _commit(5, 3, node, model);
       for (var i = 0; i < 3; i++) {
@@ -214,7 +217,7 @@ void main() {
       final model = ListViewModel<String, String>(id: 'list', totalCount: 4, focused: true);
       final node = ListView<String, String>(
         model: model,
-        theme: Theme.dark,
+        resolver: _resolver,
         itemBuilder: _row,
         pendingBuilder: (index) => [Line('#$index')],
       );
@@ -230,7 +233,7 @@ void main() {
       final model = paged();
       final node = ListView<String, String>(
         model: model,
-        theme: Theme.dark,
+        resolver: _resolver,
         itemBuilder: _row,
         pendingBuilder: (index) => [Line('#$index')],
       );
@@ -252,7 +255,7 @@ void main() {
 
     test('missing rows with nothing coming paint the true position, not an older run', () {
       final model = paged();
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row);
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row);
 
       _frame(5, 3).render(node);
       // Move the viewport without running a demand pass: page 1 is missing and
@@ -272,7 +275,7 @@ void main() {
       // not re-anchored at the clip's origin — that would pin item0 to the top
       // of the visible window instead of scrolling it off.
       final model = _list(<String>['item0', 'item1', 'item2', 'item3', 'item4']);
-      final node = ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row).build()
+      final node = ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(5, 5)), _ctx)
         ..place(plume.Offset.zero);
 
@@ -293,7 +296,8 @@ void main() {
         items: const ['a', 'b'],
         focused: true,
       );
-      final frame = _frame(5, 2)..render(ListView<String, String>(model: model, theme: Theme.dark, itemBuilder: _row));
+      final frame = _frame(5, 2)
+        ..render(ListView<String, String>(model: model, resolver: _resolver, itemBuilder: _row));
 
       expect(frame.hits.hitId(0, 0), 'menu');
       expect(frame.hits.hitId(2, 1), 'menu');
@@ -307,7 +311,7 @@ void main() {
       _frame(12, 5).render(
         ListView<String, String>(
           model: model,
-          theme: Theme.dark,
+          resolver: _resolver,
           itemBuilder: (item, index, state) {
             states[index] = state;
             return [Line(item)];
@@ -336,7 +340,7 @@ void main() {
       );
       final node = ListView<String, String>(
         model: model,
-        theme: Theme.dark,
+        resolver: _resolver,
         itemBuilder: (item, index, state) => [Line(item), Line('$item.2')],
         separatorBuilder: () => Line('---'),
       );

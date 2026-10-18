@@ -38,7 +38,7 @@ class Case {
 
   /// Renders this case's box. Reads [members] itself to know whether one of
   /// them holds keyboard focus.
-  final View Function(Theme theme, StyleResolver resolver) box;
+  final View Function(StyleResolver resolver) box;
 }
 
 /// Wraps [content] in a bordered box titled [title], with [watch] appended
@@ -81,14 +81,14 @@ Case _presetsCase(AppModel model) {
   return Case(
     proves: 'A glyph preset is a plain string swap; layout and toggling stay identical.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
       resolver: resolver,
       content: Column(
         crossAxis: CrossAxisAlignment.stretch,
-        children: [for (final c in members) Checkbox(model: c, theme: theme)],
+        children: [for (final c in members) Checkbox(model: c, resolver: resolver)],
       ),
     ),
   );
@@ -112,7 +112,7 @@ Case _colorsCase(AppModel model) {
   return Case(
     proves: 'Every glyph part has its own style slot; a fill on the bracket tone reads as a filled button.',
     members: members,
-    box: (theme, resolver) {
+    box: (resolver) {
       final t = resolver.tones;
       final partsStyle = CheckboxStyle(
         open: resolver.ink(t.primary),
@@ -135,8 +135,8 @@ Case _colorsCase(AppModel model) {
         content: Column(
           crossAxis: CrossAxisAlignment.stretch,
           children: [
-            Checkbox(model: model.colorsParts, theme: theme, style: partsStyle),
-            Checkbox(model: model.colorsBlock, theme: theme, style: blockStyle),
+            Checkbox(model: model.colorsParts, resolver: resolver, style: partsStyle),
+            Checkbox(model: model.colorsBlock, resolver: resolver, style: blockStyle),
           ],
         ),
       );
@@ -159,7 +159,7 @@ Case _formCase(AppModel model) {
   return Case(
     proves: 'One FocusRouter carries Tab and Space across checkboxes and a button alike.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -167,11 +167,11 @@ Case _formCase(AppModel model) {
       content: Column(
         crossAxis: CrossAxisAlignment.stretch,
         children: [
-          Checkbox(model: model.formTerms, theme: theme),
-          Checkbox(model: model.formNewsletter, theme: theme),
-          Checkbox(model: model.formUpdates, theme: theme),
+          Checkbox(model: model.formTerms, resolver: resolver),
+          Checkbox(model: model.formNewsletter, resolver: resolver),
+          Checkbox(model: model.formUpdates, resolver: resolver),
           const SizedBox(height: 1),
-          Button(model: model.formSubmit, theme: theme),
+          Button(model: model.formSubmit, resolver: resolver),
           Line('result: ${model.formResult}', style: resolver.ink(resolver.tones.muted)),
         ],
       ),
@@ -196,7 +196,7 @@ Case _alignmentCase(AppModel model) {
   return Case(
     proves: 'A stretched column fills a bound width; a ConstrainedBox sized from width(measurer) hugs the widest row.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -206,7 +206,7 @@ Case _alignmentCase(AppModel model) {
           Expanded(
             child: Column(
               crossAxis: CrossAxisAlignment.stretch,
-              children: [for (final m in model.alignColumnA) Checkbox(model: m, theme: theme)],
+              children: [for (final m in model.alignColumnA) Checkbox(model: m, resolver: resolver)],
             ),
           ),
           const SizedBox(width: 3),
@@ -214,7 +214,7 @@ Case _alignmentCase(AppModel model) {
             additionalConstraints: BoxConstraints(minW: model.alignColumnBWidth, maxW: model.alignColumnBWidth),
             child: Column(
               crossAxis: CrossAxisAlignment.stretch,
-              children: [for (final m in model.alignColumnB) Checkbox(model: m, theme: theme)],
+              children: [for (final m in model.alignColumnB) Checkbox(model: m, resolver: resolver)],
             ),
           ),
         ],
@@ -240,7 +240,7 @@ Case _selectAllCase(AppModel model) {
   return Case(
     proves: 'The app writes state = mixed from the children; toggling the parent from mixed checks every child.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -248,9 +248,9 @@ Case _selectAllCase(AppModel model) {
       content: Column(
         crossAxis: CrossAxisAlignment.stretch,
         children: [
-          Checkbox(model: model.selectAllParent, theme: theme),
+          Checkbox(model: model.selectAllParent, resolver: resolver),
           const SizedBox(height: 1),
-          for (final child in model.selectAllChildren) Checkbox(model: child, theme: theme),
+          for (final child in model.selectAllChildren) Checkbox(model: child, resolver: resolver),
         ],
       ),
     ),
@@ -283,7 +283,7 @@ Case _controlCase(AppModel model) {
         'The app drives checked, disabled, error and a button label by writing the field; '
         'disabled keeps the value, dimmed.',
     members: members,
-    box: (theme, resolver) => _caseBox(
+    box: (resolver) => _caseBox(
       title: title,
       watch: watch,
       focused: members.contains(model.focusGroup.focused),
@@ -293,17 +293,17 @@ Case _controlCase(AppModel model) {
         children: [
           Row(
             children: [
-              Button(model: model.controlCheck, theme: theme),
+              Button(model: model.controlCheck, resolver: resolver),
               const SizedBox(width: 1),
-              Button(model: model.controlUncheck, theme: theme),
+              Button(model: model.controlUncheck, resolver: resolver),
               const SizedBox(width: 1),
-              Button(model: model.controlToggleDisable, theme: theme),
+              Button(model: model.controlToggleDisable, resolver: resolver),
             ],
           ),
           const SizedBox(height: 1),
-          Checkbox(model: model.controlTarget, theme: theme),
+          Checkbox(model: model.controlTarget, resolver: resolver),
           const SizedBox(height: 1),
-          Checkbox(model: model.controlConfirm, theme: theme),
+          Checkbox(model: model.controlConfirm, resolver: resolver),
         ],
       ),
     ),
@@ -526,7 +526,7 @@ void view(AppModel model, Frame frame) {
   final t = resolver.tones;
   frame.ground(resolver.ground(t.background));
 
-  final boxes = [for (final c in model.cases) c.box(theme, resolver)];
+  final boxes = [for (final c in model.cases) c.box(resolver)];
 
   final grid = Column(
     crossAxis: CrossAxisAlignment.stretch,

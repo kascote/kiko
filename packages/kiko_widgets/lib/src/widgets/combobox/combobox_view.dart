@@ -19,10 +19,10 @@ import 'types.dart';
 /// on top of the frame, in its own clean slate. Like a bare [TextInput], the
 /// row fills whatever height its caller gives it; bound it to one row.
 final class Combobox<T> implements View {
-  /// Creates a combobox view over [model], styled by [theme].
+  /// Creates a combobox view over [model], styled by [resolver].
   const Combobox({
     required this.model,
-    required this.theme,
+    required this.resolver,
     this.itemBuilder,
     this.emptyPlaceholder,
     this.closedGlyph = '▾',
@@ -37,8 +37,11 @@ final class Combobox<T> implements View {
   /// The model whose field, toggle, and popup this view renders.
   final ComboboxModel<T> model;
 
-  /// The theme that resolves the field, toggle and popup styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  ///
+  /// The field and the toggle paint through it as given. The popup paints
+  /// through [StyleResolver.on] of the surface tone.
+  final StyleResolver resolver;
 
   /// Builds the lines of a popup row for an item at a given index and state.
   ///
@@ -60,7 +63,7 @@ final class Combobox<T> implements View {
   /// The popup's status row while the newest remote query is in flight.
   ///
   /// Null shows 'Loading…'. A given line's own styling wins over the themed
-  /// base ([ComboboxStyle.placeholder], or the theme's muted ink).
+  /// base ([ComboboxStyle.placeholder], or the resolver's muted ink).
   final Line? loadingLabel;
 
   /// The popup's status row after the newest remote query's answer failed.
@@ -85,8 +88,8 @@ final class Combobox<T> implements View {
   /// rows. See [ComboboxStyle].
   final ComboboxStyle style;
 
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  StyleResolver get _resolver => StyleResolver(theme);
+  /// Resolves the popup's anatomy slots; its ground is the surface tone.
+  StyleResolver get _popupResolver => resolver.on(resolver.tones.surface);
 
   @override
   Node build() => Tagged.scope(
@@ -94,7 +97,7 @@ final class Combobox<T> implements View {
     Row(
       children: [
         Expanded(
-          child: TextInput(model: model.field, theme: theme, style: style.field),
+          child: TextInput(model: model.field, resolver: resolver, style: style.field),
         ),
         _toggle(),
       ],
@@ -107,7 +110,7 @@ final class Combobox<T> implements View {
     final glyph = model.isOpen ? openGlyph : closedGlyph;
     final toggleStyle =
         style.toggle ??
-        _resolver.resolve(null, {
+        resolver.resolve(null, {
           if (model.focused) WidgetState.focused,
           if (model.toggleHovered) WidgetState.hover,
           if (model.error) WidgetState.error,
@@ -137,8 +140,8 @@ final class Combobox<T> implements View {
     final width = toggleRect == null ? fieldRect.width : fieldRect.union(toggleRect).width;
 
     final list = model.internalList;
-    final resolver = _resolver;
-    final fill = style.popupGround ?? resolver.ground(resolver.tones.surface);
+    final popupResolver = _popupResolver;
+    final fill = style.popupGround ?? popupResolver.ground(popupResolver.tones.surface);
     final rowBuilder = itemBuilder ?? _defaultItemBuilder;
 
     renderAnchoredPopup(
@@ -210,14 +213,14 @@ final class Combobox<T> implements View {
       Container(
         ground: fill,
         border: popupBorder,
-        borderStyle: style.popupBorder ?? _resolver.border(const {}),
+        borderStyle: style.popupBorder ?? _popupResolver.border(const {}),
         child: Column(
           children: [
             ConstrainedBox(
               additionalConstraints: BoxConstraints(maxH: contentHeight),
               child: ListView<T, T>(
                 model: list,
-                theme: theme,
+                resolver: _popupResolver,
                 itemBuilder: rowBuilder,
                 style: _rowStyle(fill),
                 emptyPlaceholder: emptyPlaceholder ?? Line('No matches'),
@@ -246,9 +249,9 @@ final class Combobox<T> implements View {
   /// the error tone over the base first, since the popup knows the query
   /// failed.
   Line _statusRow(Line? label, String fallback, {bool failed = false}) {
-    var base = style.placeholder ?? _resolver.ink(_resolver.tones.muted);
+    var base = style.placeholder ?? _popupResolver.ink(_popupResolver.tones.muted);
     if (failed) {
-      base = base.patch(_resolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
+      base = base.patch(_popupResolver.resolve(null, const {WidgetState.error}, cls: PaintClass.ink));
     }
     if (label == null) return Line(fallback, style: base);
     return label.over(base);

@@ -17,7 +17,7 @@ Buffer renderBuffer(
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
   TableRenderer(
     model,
-    theme,
+    StyleResolver(theme),
     style: style,
     showCrosshair: showCrosshair,
     emptyPlaceholder: emptyPlaceholder,

@@ -10,7 +10,7 @@ import '../text_input/types.dart';
 
 /// Combobox's anatomy: one nullable style slot per part.
 ///
-/// A `null` slot is derived from the theme's tones by the rule below; a
+/// A `null` slot is derived from the resolver's tones by the rule below; a
 /// non-null slot is the caller's exact style and wins verbatim.
 ///
 /// | slot             | derived default                 | matrix source    |
@@ -47,7 +47,7 @@ class ComboboxStyle {
   /// The popup list's anatomy.
   ///
   /// With `item` and `cursorItem` both null the popup ground ([popupGround],
-  /// or the theme's `surface`) is the row base, so the cursor and hover lift
+  /// or the resolver's `surface`) is the row base, so the cursor and hover lift
   /// that ground. Setting either slot keeps the list's anatomy as given.
   final ListViewStyle list;
 

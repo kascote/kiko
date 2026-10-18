@@ -200,11 +200,11 @@ void appView(AppModel model, Frame frame) {
 
   final tableWidget = Container(
     border: BorderType.plain,
-    borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
+    borderStyle: resolver.border(const {WidgetState.focused}),
     topTitles: [Line('Employees (${employees.length})', style: resolver.ink(t.accent))],
     child: TableView(
       model: model.table,
-      theme: theme,
+      resolver: resolver,
       style: model.customStyleOn ? _emberTableStyle : const TableViewStyle(),
       showCrosshair: model.crosshairOn,
     ),

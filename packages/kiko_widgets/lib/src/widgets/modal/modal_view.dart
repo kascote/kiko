@@ -11,20 +11,24 @@ import 'types.dart';
 /// carries no behaviour of its own. Pass [ModalModel]'s id for the static
 /// confirm/cancel case, or any other widget model's id to frame a fully
 /// custom inner MVU the same way.
+///
+/// The frame and the ground paint through `resolver.on(resolver.tones.surface)`.
+/// Build [content] with that same surface-bound resolver so its parts lift
+/// from the dialog's ground.
 Node modalDialog({
   required String id,
   required Node content,
-  required Theme theme,
+  required StyleResolver resolver,
   BorderType border = BorderType.rounded,
   Style? borderStyle,
   Style? ground,
   List<Line> topTitles = const <Line>[],
 }) {
-  final resolver = StyleResolver(theme);
+  final surface = resolver.on(resolver.tones.surface);
   return Container(
     border: border,
-    borderStyle: borderStyle ?? resolver.border(const {}),
-    ground: ground ?? resolver.ground(resolver.tones.surface),
+    borderStyle: borderStyle ?? surface.border(const {}),
+    ground: ground ?? surface.ground(surface.tones.surface),
     padding: const EdgeInsets.symmetric(horizontal: 1),
     topTitles: topTitles,
     child: NodeView(content),

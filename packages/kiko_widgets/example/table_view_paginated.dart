@@ -290,7 +290,7 @@ void appView(AppModel model, Frame frame) {
 
   // The pane rests on `focused`; a load in flight tints it with `loading`
   // layered on top, rather than replacing the focus look outright.
-  final paneBorder = StyleResolver(theme).border({WidgetState.focused, if (loading) WidgetState.loading});
+  final paneBorder = resolver.border({WidgetState.focused, if (loading) WidgetState.loading});
 
   final tableWidget = Container(
     border: BorderType.plain,
@@ -298,7 +298,7 @@ void appView(AppModel model, Frame frame) {
     topTitles: [Line(titleText, style: paneBorder)],
     child: TableView(
       model: table,
-      theme: theme,
+      resolver: resolver,
       pendingBuilder: (_) => Line.fromTexts(const [Text('Loading...', style: Style(fg: Color.yellow))]),
       emptyPlaceholder: Line('No products found', style: const Style(fg: Color.darkGray)),
     ),

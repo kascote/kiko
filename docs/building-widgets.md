@@ -165,19 +165,23 @@ stamped with the model's id:
 
 ```dart
 final class Palette implements View {
-  /// Creates a palette view over [model], styled by [theme].
-  const Palette({required this.model, required this.theme});
+  /// Creates a palette view over [model], painted through [resolver].
+  const Palette({required this.model, required this.resolver});
 
   /// The model whose options, cursor, and hover this view renders.
   final PaletteModel model;
 
-  /// The theme that resolves row styles.
-  final Theme theme;
+  /// The resolver that styles the rows; bind it to the ground the palette sits on.
+  final StyleResolver resolver;
 
   @override
-  Node build() => _PaletteViewport(model: model, theme: theme)..tag = IdTag(model.id);
+  Node build() => _PaletteViewport(model: model, resolver: resolver)..tag = IdTag(model.id);
 }
 ```
+
+A view takes a `StyleResolver`, not a `Theme`. The app builds one resolver
+per render function and passes it down. A pane that sits on another ground
+passes `resolver.on(ground)` instead (`docs/theming.md`).
 
 That `..tag = IdTag(model.id)` is the whole mouse wiring on the view side. The tag is
 the only requirement for pointer routing: **a tagged widget receives pointer
@@ -212,10 +216,10 @@ paints one, it marks that row as a `RowRegion`:
       // widget owns input" and belongs to the chrome around the widget.
       var style = const Style();
       if (i == m.hoverRow) {
-        style = style.patch(_resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
+        style = style.patch(resolver.resolve(null, const {WidgetState.hover}, cls: PaintClass.wash));
       }
       if (i == m.cursor) {
-        style = style.patch(_resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill));
+        style = style.patch(resolver.resolve(null, const {WidgetState.cursor}, cls: PaintClass.fill));
       }
 
       fillRow(surface, x: rowRect.x, y: rowRect.y, width: rowRect.width, style: style);
@@ -307,8 +311,8 @@ palette's own subtree, so the app's border does not shift the palette's
           // Focus lives on the chrome: the border lights up when the palette
           // owns the keyboard; the rows inside only ever show cursor + hover.
           borderStyle: resolver.border({if (model.palette.focused) WidgetState.focused}),
-          topTitles: [Line(' pick a color ', style: resolver.ink(resolver.tones.muted))],
-          child: Palette(model: model.palette, theme: _theme),
+          topTitles: [Line(' pick a color ', style: resolver.ink(t.muted))],
+          child: Palette(model: model.palette, resolver: resolver),
         ),
 ```
 

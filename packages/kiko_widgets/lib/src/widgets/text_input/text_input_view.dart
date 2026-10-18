@@ -13,27 +13,27 @@ import 'types.dart';
 /// [TextInputModel.adjustScroll] (a plain box-plus-run form can't do this —
 /// scrolling needs the actual on-screen width, known only at paint time), then
 /// [TextInputModel.fillChar] repeated across whatever width is left. Styles
-/// come from the [theme] and the model's focus state, with region styles
-/// (placeholder, fill, obscured) derived through a [StyleResolver] and merged
+/// come from the [resolver] and the model's focus state, with region styles
+/// (placeholder, fill, obscured) derived through it and merged
 /// with [style]'s own, per [TextInputStyle]. The built node is stamped with
 /// the model id so a click routes back through [HitMap.hitId]; the terminal
 /// cursor is reported through the surface, the same way the `TextArea`
 /// viewport does.
 final class TextInput implements View {
-  /// Creates a text input over [model], styled by [theme].
-  const TextInput({required this.model, required this.theme, this.style = const TextInputStyle()});
+  /// Creates a text input over [model], styled by [resolver].
+  const TextInput({required this.model, required this.resolver, this.style = const TextInputStyle()});
 
   /// The model whose text, cursor, and scroll this view renders.
   final TextInputModel model;
 
-  /// The theme that resolves the field's styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Region anatomy overrides. See [TextInputStyle].
   final TextInputStyle style;
 
   @override
-  Node build() => _TextInputViewport(model: model, theme: theme, style: style)..tag = IdTag(model.id);
+  Node build() => _TextInputViewport(model: model, resolver: resolver, style: style)..tag = IdTag(model.id);
 }
 
 /// What painting the field's content left behind: the columns it used, and
@@ -43,20 +43,17 @@ typedef _Painted = ({int usedWidth, Position? cursor});
 /// The self-painting body of a [TextInput]: fills the space it is given,
 /// paints the field through the plume `Surface`, and reports the cursor.
 class _TextInputViewport extends Node {
-  _TextInputViewport({required this.model, required this.theme, required this.style});
+  _TextInputViewport({required this.model, required this.resolver, required this.style});
 
   final TextInputModel model;
-  final Theme theme;
+  final StyleResolver resolver;
   final TextInputStyle style;
 
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  late final _resolver = StyleResolver(theme);
-
-  /// Region styles: the theme's derived defaults, with [style]'s own
+  /// Region styles: the resolver's derived defaults, with [style]'s own
   /// non-null slots patched on top.
   late final TextInputStyle _regionStyle = TextInputStyle(
-    placeholder: _resolver.ink(_resolver.tones.muted),
-    fill: _resolver.ink(_resolver.tones.muted),
+    placeholder: resolver.ink(resolver.tones.muted),
+    fill: resolver.ink(resolver.tones.muted),
   ).merge(style);
 
   // Captured from the layout context so paint measures text the way the frame
@@ -113,7 +110,7 @@ class _TextInputViewport extends Node {
     final m = model;
     paintLine(
       surface,
-      Line(m.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
+      Line(m.placeholder, style: resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
       x: area.x,
       y: area.y,
       width: area.width,
@@ -132,7 +129,7 @@ class _TextInputViewport extends Node {
     final (:displayText, :cursorDisplayPos, :scrollOffset) = m.adjustScroll(area.width);
 
     final textStyle = m.obscureText && _regionStyle.obscured != null
-        ? _resolver.resolve(_regionStyle.obscured, disabledStates, cls: PaintClass.ink)
+        ? resolver.resolve(_regionStyle.obscured, disabledStates, cls: PaintClass.ink)
         : _resolveStyle();
     paintLine(
       surface,
@@ -170,7 +167,7 @@ class _TextInputViewport extends Node {
     if (fillCount <= 0) return;
     paintLine(
       surface,
-      Line(fillChar * fillCount, style: _resolver.resolve(_regionStyle.fill, disabledStates, cls: PaintClass.ink)),
+      Line(fillChar * fillCount, style: resolver.resolve(_regionStyle.fill, disabledStates, cls: PaintClass.ink)),
       x: area.x + usedWidth,
       y: area.y,
       width: remainingWidth,
@@ -178,7 +175,7 @@ class _TextInputViewport extends Node {
     );
   }
 
-  /// Resolves the input text style from the theme and the model's focus and
+  /// Resolves the input text style from the resolver and the model's focus and
   /// disabled state.
   ///
   /// The text has no base color of its own; it inherits the ground it is
@@ -191,6 +188,6 @@ class _TextInputViewport extends Node {
       if (model.focused) WidgetState.focused,
       if (model.disabled) WidgetState.disabled,
     };
-    return _resolver.resolve(null, states, cls: PaintClass.ink);
+    return resolver.resolve(null, states, cls: PaintClass.ink);
   }
 }

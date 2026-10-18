@@ -25,7 +25,7 @@ String _dump(Buffer buffer) {
 void main() {
   group('modalDialog', () {
     test('tags the dialog with the given id', () {
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
       final frame = _frame(10, 3)..render(NodeView(dialog));
       expect(frame.hits.rectOf('confirm'), isNotNull);
     });
@@ -56,7 +56,7 @@ void main() {
         ground: Style(bg: Color.rgb(0xC8C8C8)),
         child: SizedBox(width: 10, height: 3),
       ).build();
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
       final frame = _frame(10, 3);
       renderModalOverlay(frame, base: base, width: 8, height: 3, dialog: dialog, id: 'confirm');
 
@@ -71,7 +71,7 @@ void main() {
       // A tagged widget in the top-left corner of the base, well outside
       // the centred dialog.
       final base = Column(children: [Tagged('ok', Line('OK'))]).build();
-      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+      final dialog = modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: StyleResolver(Theme.dark));
       final frame = _frame(20, 8);
       renderModalOverlay(frame, base: base, width: 10, height: 4, dialog: dialog, id: 'confirm');
 
@@ -97,7 +97,8 @@ void main() {
     const dialogWidth = 10;
     const dialogHeight = 4;
 
-    Node buildDialog() => modalDialog(id: 'confirm', content: Line('Sure?').build(), theme: Theme.dark);
+    Node buildDialog(StyleResolver resolver) =>
+        modalDialog(id: 'confirm', content: Line('Sure?').build(), resolver: resolver);
 
     for (final policy in RenderPolicy.values) {
       test('the dialog replaces the base rect cleanly, never blended with it ($policy)', () {
@@ -122,7 +123,7 @@ void main() {
           base: buildBase(),
           width: dialogWidth,
           height: dialogHeight,
-          dialog: buildDialog(),
+          dialog: buildDialog(resolver),
           id: 'confirm',
         );
 
@@ -131,7 +132,7 @@ void main() {
         // Render the same dialog alone into a buffer matching just the rect,
         // so we know exactly what a clean composite looks like.
         final isolated = Buffer.empty(rect);
-        Frame(isolated.area, isolated, 0).render(NodeView(buildDialog()));
+        Frame(isolated.area, isolated, 0).render(NodeView(buildDialog(resolver)));
 
         for (var y = rect.top; y < rect.bottom; y++) {
           for (var x = rect.left; x < rect.right; x++) {
@@ -150,6 +151,7 @@ void main() {
     }
 
     test('the dim reaches only cells painted before the layer, never the dialog', () {
+      final resolver = StyleResolver(Theme.dark);
       final base = const Container(
         ground: Style(bg: Color.rgb(0xC8C8C8)),
         child: SizedBox(width: width, height: height),
@@ -161,7 +163,7 @@ void main() {
         base: base,
         width: dialogWidth,
         height: dialogHeight,
-        dialog: buildDialog(),
+        dialog: buildDialog(resolver),
         id: 'confirm',
       );
 
@@ -173,7 +175,7 @@ void main() {
       // Inside the rect, the dialog matches an undimmed, standalone render —
       // if the dim had reached the layer, colors here would differ.
       final isolated = Buffer.empty(rect);
-      Frame(isolated.area, isolated, 0).render(NodeView(buildDialog()));
+      Frame(isolated.area, isolated, 0).render(NodeView(buildDialog(resolver)));
       for (var y = rect.top; y < rect.bottom; y++) {
         for (var x = rect.left; x < rect.right; x++) {
           expect(

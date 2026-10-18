@@ -8,10 +8,10 @@ import 'types.dart';
 /// A button is a single filled row: the resolved style paints the whole width,
 /// the label sits inside a symmetric horizontal [ButtonModel.padding], and the
 /// built subtree is stamped with the model's id so a click resolves back to it
-/// through [HitMap.hitId]. Styles come from the [theme], [style], and the
+/// through [HitMap.hitId]. Styles come from the [resolver], [style], and the
 /// model's state (hover / focused / disabled / loading / pressed) through the
-/// built-in matrix. A per-instance state look is a theme variant passed to
-/// [theme].
+/// built-in matrix. A per-instance state look is a resolver bound to another
+/// ground.
 ///
 /// The content area is sized to the larger of [ButtonModel.label] and
 /// [ButtonModel.loadingText]: both are laid out every frame, but only the
@@ -28,21 +28,21 @@ import 'types.dart';
 /// [ButtonModel.label] and [ButtonModel.loadingText] paint over it: a label
 /// with its own foreground keeps it on the face, in any state.
 final class Button implements View {
-  /// Creates a button over [model], styled by [theme].
-  const Button({required this.model, required this.theme, this.style = const ButtonStyle()});
+  /// Creates a button over [model], styled by [resolver].
+  const Button({required this.model, required this.resolver, this.style = const ButtonStyle()});
 
   /// The model whose label, state, and padding this view renders.
   final ButtonModel model;
 
-  /// The theme that resolves the button's styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Per-part style overrides. See [ButtonStyle].
   final ButtonStyle style;
 
   @override
   Node build() {
-    final resolvedStyle = _resolveStyle(model, theme, style);
+    final resolvedStyle = _resolveStyle(model, resolver, style);
     final label = model.label;
     final loadingText = model.loadingText;
     // Both are laid out every frame, so the stack always sizes to the larger
@@ -64,14 +64,13 @@ final class Button implements View {
   }
 }
 
-/// Resolves the button style from the theme, [style]'s face, and the model's
+/// Resolves the button style from the [resolver], [style]'s face, and the model's
 /// active states: [ButtonStyle.face] is the resting face,
 /// `resolver.fill(primary)` when null, with the state contributions coming
 /// straight from the built-in matrix: a focused button lifts its face one
 /// state step and turns bold, hover lifts half a step, pressed one more step,
 /// and a loading one blinks over any face.
-Style _resolveStyle(ButtonModel model, Theme theme, ButtonStyle style) {
-  final resolver = StyleResolver(theme);
+Style _resolveStyle(ButtonModel model, StyleResolver resolver, ButtonStyle style) {
   final states = <WidgetState>{
     if (model.hovered) WidgetState.hover,
     if (model.focused) WidgetState.focused,

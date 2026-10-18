@@ -315,6 +315,12 @@ tone from `resolver.tones`, so it matches the render policy. The ground
 must carry a color. `on` keeps the de-emphasis of the resolver it is called
 on.
 
+Every shipped view takes a `StyleResolver`, not a `Theme`, and paints
+through it as given. The app builds one resolver per render function and
+passes it down. A pane that sits on another ground passes its own bound
+resolver to its views. The combobox popup and `modalDialog` do this
+themselves with `resolver.on(resolver.tones.surface)`.
+
 The clean slate these rules assume is per **layer** — a render pass with
 its own buffer (`docs/glossary.md`). The base pass is simply the first
 layer: `Terminal.swapBuffers` resets its buffer before every frame. An
@@ -595,7 +601,7 @@ Reading examples:
 
 A pane that is present but not the one in use — the host behind a dialog,
 an inactive tab — looks one step quieter and stays readable. Such a pane
-builds its styles from `resolver.deEmphasised`:
+builds its styles from `resolver.deEmphasised` and passes it to its views:
 
 ```dart
 final quiet = resolver.deEmphasised;
@@ -688,7 +694,7 @@ class FooViewStyle {
 A model never holds a resolved `Style`. Take `style` as a view parameter
 (default `const FooViewStyle()`), the way `ListView` and `TableView` do. The
 view is rebuilt every frame, so the app builds the look there from the
-theme it holds at that moment; a slot can never go stale after a theme
+resolver it holds at that moment; a slot can never go stale after a theme
 switch. A fixed definition a model holds — one set once, at construction,
 like `TableColumn` — carries a function of the resolver instead, resolved
 at paint; see `TableColumn.style`.
@@ -707,11 +713,11 @@ is why a selected row keeps its pair under the cursor. A part with no style
 of its own passes `null`: the fill class then starts from the ground style
 of the bound ground, and the ink and wash classes start empty.
 
-```dart
-late final _resolver = StyleResolver(theme);
+The view paints through the `resolver` its caller passed in.
 
+```dart
 var itemStyle = style.item ?? const Style();
-itemStyle = _resolver.resolve(
+itemStyle = resolver.resolve(
   itemStyle,
   {
     if (isSelected) WidgetState.selected,
@@ -757,7 +763,7 @@ progress bar that reads as success, is a tone through a projection:
 ```dart
 Button(
   model: model.delete,
-  theme: theme,
+  resolver: resolver,
   style: ButtonStyle(face: resolver.fill(resolver.tones.error)),
 )
 ```
@@ -829,7 +835,7 @@ fill projection.
 
 `Application` maps the terminal's color profile to a policy before the
 first frame and sets it on `StyleResolver.defaultPolicy`. Every
-`StyleResolver(theme)` a widget builds adopts it automatically. Route every
+`StyleResolver(theme)` an app builds adopts it automatically. Route every
 style through the resolver and a selected row stays visible however far its
 color is stripped.
 
@@ -858,8 +864,8 @@ wants a fixed light theme authors one (see "Authoring a theme" above).
 | "this column is green"                | `TableColumn.style`                                                      |
 | "one row blinks on my signal"         | an item builder                                                          |
 | "this button is red at rest"          | a `ButtonStyle(face: …)` slot on that view                               |
-| "this pane is inactive"               | `resolver.deEmphasised`, used to build its styles                        |
-| "this dialog holds a form"            | `resolver.on(resolver.tones.surface)`, used to build its styles         |
+| "this pane is inactive"               | the pane passes `resolver.deEmphasised` to its views                     |
+| "this dialog holds a form"            | the dialog passes `resolver.on(resolver.tones.surface)` to its views     |
 
 A widget that serves all nine rows without the author fighting the
 framework is themed correctly by construction.

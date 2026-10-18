@@ -245,7 +245,7 @@ void appView(AppModel model, Frame frame) {
             topTitles: [Line('Search (${items.length}/${allItems.length})')],
             child: ConstrainedBox(
               additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-              child: TextInput(model: model.search, theme: theme),
+              child: TextInput(model: model.search, resolver: resolver),
             ),
           ),
         ),
@@ -257,7 +257,7 @@ void appView(AppModel model, Frame frame) {
             topTitles: [Line('Results')],
             child: ListView(
               model: model.list,
-              theme: theme,
+              resolver: resolver,
               itemBuilder: (item, index, _) {
                 final style = model.selected == item ? resolver.ink(t.success) : const Style();
                 return [Line(' $item', style: style)];

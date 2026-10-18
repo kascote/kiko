@@ -129,11 +129,11 @@ void appView(AppModel model, Frame frame) {
         Expanded(
           child: Container(
             border: BorderType.plain,
-            borderStyle: StyleResolver(theme).border(const {WidgetState.focused}),
+            borderStyle: resolver.border(const {WidgetState.focused}),
             topTitles: [Line('Fruits (${fruits.length})', style: resolver.ink(t.accent))],
             child: ListView(
               model: model.list,
-              theme: theme,
+              resolver: resolver,
               itemBuilder: (item, index, _) => [Line(' $item')],
             ),
           ),

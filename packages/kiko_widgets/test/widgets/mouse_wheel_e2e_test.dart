@@ -38,6 +38,8 @@ Future<List<LoadRequest>> _driveWheel(
   return requests;
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   test('a wheel to the bottom edge loads the next page (list, end-to-end)', () async {
     final backend = TestBackend(size: const TermSize(12, 6));
@@ -56,7 +58,7 @@ void main() {
       (step, frame) => frame.render(
         ListView<String, String>(
           model: list,
-          theme: Theme.dark,
+          resolver: _resolver,
           itemBuilder: (item, index, state) => [Line(item)],
         ),
       ),
@@ -85,7 +87,7 @@ void main() {
       backend,
       List.filled(6, (b) => b.emitWheel(3, 3, deltaY: 1)),
       table.update,
-      (step, frame) => frame.render(TableView(model: table, theme: Theme.dark)),
+      (step, frame) => frame.render(TableView(model: table, resolver: _resolver)),
     );
 
     expect(requests, isNotEmpty, reason: 'wheel alone should page the next batch in');

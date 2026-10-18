@@ -14,13 +14,13 @@ import 'types.dart';
 /// focused, or `null` — plume's `Surface` has no cursor concept of its own (no
 /// terminal to blink one in), so reporting it back is the caller's job.
 class TextAreaRenderer {
-  /// Creates a renderer for [model], styled by [theme].
+  /// Creates a renderer for [model], styled by [resolver].
   ///
   /// [measurer] measures text the way the frame paints it; pass the frame's own
   /// measurer so a cjk-configured frame sizes content like it draws it.
   TextAreaRenderer(
     this.model,
-    this.theme, {
+    this.resolver, {
     this.measurer = const TermUnicodeMeasurer(),
     this.style = const TextAreaStyle(),
   });
@@ -28,8 +28,8 @@ class TextAreaRenderer {
   /// The model containing state and config.
   final TextAreaModel model;
 
-  /// Theme for deriving styles.
-  final Theme theme;
+  /// Resolves the anatomy slots that derive from tones + state.
+  final StyleResolver resolver;
 
   /// Measures text for painting, carried from the frame.
   final TextMeasurer measurer;
@@ -37,18 +37,15 @@ class TextAreaRenderer {
   /// Region anatomy overrides. See [TextAreaStyle].
   final TextAreaStyle style;
 
-  /// Resolves the anatomy slots that derive from theme tones + state.
-  late final _resolver = StyleResolver(theme);
-
-  /// Region styles: the theme's derived defaults, with [style]'s own
+  /// Region styles: the resolver's derived defaults, with [style]'s own
   /// non-null slots patched on top.
   late final TextAreaStyle _regionStyle = TextAreaStyle(
-    placeholder: _resolver.ink(_resolver.tones.muted),
-    selection: _resolver.fill(_resolver.tones.selection),
-    lineNumber: _resolver.ink(_resolver.tones.muted),
+    placeholder: resolver.ink(resolver.tones.muted),
+    selection: resolver.fill(resolver.tones.selection),
+    lineNumber: resolver.ink(resolver.tones.muted),
   ).merge(style);
 
-  /// Resolves the base text style from theme + model state.
+  /// Resolves the base text style from the resolver + model state.
   ///
   /// The text has no base color of its own; it inherits the ground it is
   /// painted on. A focused editor tints its text foreground on top of that,
@@ -60,7 +57,7 @@ class TextAreaRenderer {
       if (model.focused) WidgetState.focused,
       if (model.disabled) WidgetState.disabled,
     };
-    return _resolver.resolve(null, states, cls: PaintClass.ink);
+    return resolver.resolve(null, states, cls: PaintClass.ink);
   }
 
   /// Paints the editor into [area] of [surface], returning where the
@@ -100,7 +97,7 @@ class TextAreaRenderer {
     final disabledStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
     paintLine(
       surface,
-      Line(model.placeholder, style: _resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
+      Line(model.placeholder, style: resolver.resolve(_regionStyle.placeholder, disabledStates, cls: PaintClass.ink)),
       x: textArea.x,
       y: textArea.y,
       width: textArea.width,
@@ -194,7 +191,7 @@ class TextAreaRenderer {
     final disabledStates = <WidgetState>{if (model.disabled) WidgetState.disabled};
     paintLine(
       surface,
-      Line('$text ', style: _resolver.resolve(_regionStyle.lineNumber, disabledStates, cls: PaintClass.ink)),
+      Line('$text ', style: resolver.resolve(_regionStyle.lineNumber, disabledStates, cls: PaintClass.ink)),
       x: x,
       y: y,
       width: gutterWidth,
@@ -234,7 +231,7 @@ class TextAreaRenderer {
       if (part.part.isEmpty) continue;
 
       final partStyle = part.kind == PartKind.selection
-          ? _resolver.resolve(_regionStyle.selection ?? const Style(), disabledStates, cls: PaintClass.ink)
+          ? resolver.resolve(_regionStyle.selection ?? const Style(), disabledStates, cls: PaintClass.ink)
           : textStyle;
       final partWidth = measurer.widthOf(part.part.string);
 

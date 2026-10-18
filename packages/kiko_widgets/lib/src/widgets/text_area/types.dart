@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 /// Region-based styles for TextArea widget: one nullable style slot per
 /// region.
 ///
-/// A `null` slot is derived from the theme's tones by the widget, through a
+/// A `null` slot is derived from the resolver's tones by the widget, through a
 /// [StyleResolver]; a non-null slot is the caller's exact style and wins
 /// verbatim. State-based styling (focused, disabled) is handled by
 /// [StyleResolver] separately, in the widget.

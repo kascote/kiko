@@ -17,7 +17,7 @@ import 'types.dart';
 /// with the model's id, so it resolves back to the model through
 /// [HitMap.hitId].
 ///
-/// Styles come from [theme] and each option's state through [StyleResolver],
+/// Styles come from [resolver] and each option's state through [StyleResolver],
 /// with [style] slots taken verbatim where set. Only the option at
 /// [RadioGroupModel.cursor] shows focus, on its brackets and mark; error puts
 /// error ink on every option's brackets; disabled dims one option's row, or,
@@ -27,21 +27,20 @@ import 'types.dart';
 /// a row inside an unbounded main axis hugs its own content and leaves no
 /// spare width to place a label in.
 final class RadioGroup<T> implements View {
-  /// Creates a radio group over [model], styled by [theme].
-  const RadioGroup({required this.model, required this.theme, this.style = const RadioStyle()});
+  /// Creates a radio group over [model], styled by [resolver].
+  const RadioGroup({required this.model, required this.resolver, this.style = const RadioStyle()});
 
   /// The model whose options, value, and layout this view renders.
   final RadioGroupModel<T> model;
 
-  /// The theme that resolves the radio group's styles.
-  final Theme theme;
+  /// The resolver this view paints through; bind it to the ground the view sits on.
+  final StyleResolver resolver;
 
   /// Per-part style overrides. See [RadioStyle].
   final RadioStyle style;
 
   @override
   Node build() {
-    final resolver = StyleResolver(theme);
     final options = model.options;
     final rows = <View>[for (var i = 0; i < options.length; i++) _buildRow(resolver, i, options[i])];
 

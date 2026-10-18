@@ -265,7 +265,7 @@ View _fieldWithValidation(
           topTitles: [Line(label)],
           child: ConstrainedBox(
             additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-            child: TextInput(model: input, theme: resolver.theme),
+            child: TextInput(model: input, resolver: resolver),
           ),
         ),
       ),

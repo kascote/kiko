@@ -19,6 +19,8 @@ View _taggedRows(int w) => Column(
   ],
 );
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('ScrollView view', () {
     test('the content is tagged with the model id', () {
@@ -289,7 +291,11 @@ void main() {
           const Tagged('header', SizedBox(width: 10, height: 2)),
           ConstrainedBox(
             additionalConstraints: const BoxConstraints(minH: 3, maxH: 3),
-            child: ListView<String, String>(model: list, theme: Theme.dark, itemBuilder: (item, i, s) => [Line(item)]),
+            child: ListView<String, String>(
+              model: list,
+              resolver: _resolver,
+              itemBuilder: (item, i, s) => [Line(item)],
+            ),
           ),
           const Tagged('footer', SizedBox(width: 10, height: 2)),
         ],

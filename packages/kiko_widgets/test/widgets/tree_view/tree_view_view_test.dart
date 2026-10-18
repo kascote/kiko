@@ -28,6 +28,8 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('tree view render', () {
     test('draws an expanded tree with depth indentation', () {
@@ -41,14 +43,14 @@ void main() {
           TreeNode(path: '/a/c2', label: Line('Child2'), isLeaf: true),
         ]);
 
-      final frame = _frame(12, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(12, 3)..render(TreeView<String>(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '▼ Parent\n    Child1\n    Child2\n');
     });
 
     test('shows the empty placeholder before roots load', () {
       final model = TreeViewModel<String>();
       final frame = _frame(9, 1)
-        ..render(TreeView<String>(model: model, theme: Theme.dark, emptyPlaceholder: Line('(empty)')));
+        ..render(TreeView<String>(model: model, resolver: _resolver, emptyPlaceholder: Line('(empty)')));
       expect(_dump(frame.buffer), '(empty)\n');
     });
 
@@ -64,7 +66,7 @@ void main() {
           TreeNode(path: '/a/b/c', label: Line('Level2'), isLeaf: true),
         ]);
 
-      final frame = _frame(14, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(14, 3)..render(TreeView<String>(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '▼ Root\n  ▼ Level1\n      Level2\n');
     });
 
@@ -78,7 +80,7 @@ void main() {
           TreeNode(path: '/a/f', label: Line('File'), icon: '📄', isLeaf: true),
         ]);
 
-      final frame = _frame(20, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(20, 2)..render(TreeView<String>(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '▼ 📁 Folder\n     📄 File\n');
     });
 
@@ -93,7 +95,7 @@ void main() {
           TreeNode(path: '/a/leaf', label: Line('Leaf'), isLeaf: true),
         ]);
 
-      final frame = _frame(12, 3)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(12, 3)..render(TreeView<String>(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '▼ Parent\n  ▶ Branch\n    Leaf\n');
     });
 
@@ -106,7 +108,7 @@ void main() {
         ..viewport(rows: 10)
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'), isLeaf: true)]);
-      final node = TreeView<String>(model: model, theme: Theme.dark).build()
+      final node = TreeView<String>(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(6, 1)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -137,7 +139,7 @@ void main() {
     test("the loading row shows the view's label over the muted base", () {
       final model = branchNoChildren();
       final frame = _frame(20, 2)
-        ..render(TreeView<String>(model: model, theme: Theme.dark, loadingLabel: Line('Fetching')));
+        ..render(TreeView<String>(model: model, resolver: _resolver, loadingLabel: Line('Fetching')));
 
       // The branch's own row still carries the loading state, on its glyph.
       expect(_dump(frame.buffer), '◌ Branch\n    Fetching\n');
@@ -148,7 +150,8 @@ void main() {
       final model = branchNoChildren();
       model.update(LoadResult<List<TreeNode<String>>>.failed(branchRequest(model), 'boom'));
 
-      final frame = _frame(20, 2)..render(TreeView<String>(model: model, theme: Theme.dark, errorLabel: Line('Broke')));
+      final frame = _frame(20, 2)
+        ..render(TreeView<String>(model: model, resolver: _resolver, errorLabel: Line('Broke')));
 
       expect(_dump(frame.buffer), '▼ Branch\n    Broke\n');
       expect(frame.buffer[(x: 4, y: 1)].fg, equals(Theme.dark.error.color));
@@ -159,7 +162,7 @@ void main() {
       model.update(LoadResult<List<TreeNode<String>>>.cancelled(branchRequest(model)));
 
       final frame = _frame(20, 2)
-        ..render(TreeView<String>(model: model, theme: Theme.dark, stalledLabel: Line('Skip')));
+        ..render(TreeView<String>(model: model, resolver: _resolver, stalledLabel: Line('Skip')));
 
       expect(_dump(frame.buffer), '▼ Branch\n    Skip\n');
       expect(frame.buffer[(x: 4, y: 1)].fg, equals(Theme.dark.muted.color));
@@ -172,7 +175,7 @@ void main() {
         ..render(
           TreeView<String>(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             nodeBuilder: (node, depth, state) {
               calls++;
               return node.label;
@@ -198,7 +201,7 @@ void main() {
         ..applyRoots(<TreeNode<String>>[
           for (var i = 0; i < 5; i++) TreeNode(path: '/n$i', label: Line('n$i'), isLeaf: true),
         ]);
-      final node = TreeView<String>(model: model, theme: Theme.dark).build()
+      final node = TreeView<String>(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(4, 5)), _ctx)
         ..place(plume.Offset.zero);
 
@@ -217,7 +220,7 @@ void main() {
       final model = TreeViewModel<String>(id: 'nav')
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
-      final frame = _frame(8, 4)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(8, 4)..render(TreeView<String>(model: model, resolver: _resolver));
 
       final report = frame.reports.single as ViewportChanged;
       expect(report.id, 'nav');
@@ -229,7 +232,7 @@ void main() {
       final model = TreeViewModel<String>(id: 'nav')
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('A'), isLeaf: true)]);
-      final view = TreeView<String>(model: model, theme: Theme.dark);
+      final view = TreeView<String>(model: model, resolver: _resolver);
       (_frame(8, 4)..render(view)).reports.forEach(model.update);
       expect(model.visibleCount, 4);
 
@@ -246,7 +249,7 @@ void main() {
           Tagged.scope(
             'sidebar',
             Container(
-              child: TreeView<String>(model: model, theme: Theme.dark),
+              child: TreeView<String>(model: model, resolver: _resolver),
             ),
           ),
         );
@@ -262,7 +265,7 @@ void main() {
         ..viewport(rows: 10)
         ..loadRoots()
         ..applyRoots(<TreeNode<String>>[TreeNode(path: '/a', label: Line('Root'))]);
-      final frame = _frame(10, 2)..render(TreeView<String>(model: model, theme: Theme.dark));
+      final frame = _frame(10, 2)..render(TreeView<String>(model: model, resolver: _resolver));
 
       expect(frame.hits.hitId(0, 0), 'files');
       expect(frame.hits.hitId(3, 0), 'files');
@@ -284,7 +287,7 @@ void main() {
       _frame(10, 2).render(
         TreeView<String>(
           model: model,
-          theme: Theme.dark,
+          resolver: _resolver,
           nodeBuilder: (node, depth, state) {
             states[model.flatNodes.indexOf(node)] = state;
             return node.label;
@@ -309,7 +312,7 @@ void main() {
       ]);
 
     test('the default builder marks the expand indicator over the row', () {
-      final hits = (_frame(10, 2)..render(TreeView<String>(model: branchTree(), theme: Theme.dark))).hits;
+      final hits = (_frame(10, 2)..render(TreeView<String>(model: branchTree(), resolver: _resolver))).hits;
 
       // Branch row 0: the indicator wins columns 0-1, the row body owns the rest.
       expect(hits.regionAt('nav', 0, 0), const TreeIndicatorRegion(0), reason: 'the expand arrow');
@@ -326,7 +329,7 @@ void main() {
       // marked, that press now resolves to the plain row and activates instead.
       final node = TreeView<String>(
         model: branchTree(),
-        theme: Theme.dark,
+        resolver: _resolver,
         nodeBuilder: (n, depth, state) => n.label,
       );
       final hits = (_frame(10, 2)..render(node)).hits;

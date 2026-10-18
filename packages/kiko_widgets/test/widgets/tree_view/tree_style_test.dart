@@ -14,7 +14,7 @@ Buffer _render(
   TreeViewStyle style = const TreeViewStyle(),
 }) {
   final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: width, height: height));
-  Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, theme: theme, style: style));
+  Frame(buffer.area, buffer, 0).render(TreeView<String>(model: model, resolver: StyleResolver(theme), style: style));
   return buffer;
 }
 
@@ -114,7 +114,7 @@ void main() {
       final model = TreeViewModel<String>(focused: true); // roots not loaded yet
       final buffer = Buffer.empty(Rect.create(x: 0, y: 0, width: 10, height: 3));
       Frame(buffer.area, buffer, 0).render(
-        TreeView<String>(model: model, theme: Theme.dark, emptyPlaceholder: Line('none')),
+        TreeView<String>(model: model, resolver: StyleResolver(Theme.dark), emptyPlaceholder: Line('none')),
       );
 
       expect(buffer[(x: 0, y: 0)].fg, equals(Theme.dark.muted.color));

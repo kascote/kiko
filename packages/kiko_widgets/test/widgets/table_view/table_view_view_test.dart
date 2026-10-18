@@ -53,11 +53,13 @@ Future<TableViewModel> _seededTable({String? id}) async {
   return TableViewModel(id: id, rows: rows, keyField: 'id', columns: _columns());
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('table view render', () {
     test('draws the sticky header and the visible rows', () async {
       final model = await _seededTable();
-      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
+      final frame = _frame(7, 3)..render(TableView(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), 'ID Name\n1  Al\n2  Bo\n');
     });
 
@@ -67,7 +69,7 @@ void main() {
       // measurer passed to Frame.render therefore saw zero requests for cells.
       final model = await _seededTable();
       final measurer = _CountingMeasurer(const TermUnicodeMeasurer());
-      _frame(7, 3, measurer: measurer).render(TableView(model: model, theme: Theme.dark));
+      _frame(7, 3, measurer: measurer).render(TableView(model: model, resolver: _resolver));
       expect(measurer.calls, greaterThan(0));
     });
 
@@ -76,7 +78,7 @@ void main() {
       // taken through plume's own RecordingSurface saw a border and nothing
       // else. Rows now paint through the plume Surface protocol directly.
       final model = await _seededTable();
-      final node = TableView(model: model, theme: Theme.dark).build()
+      final node = TableView(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(7, 3)), _ctx)
         ..place(plume.Offset.zero);
       final surface = plume.RecordingSurface<PaintToken>();
@@ -105,7 +107,7 @@ void main() {
       final rows = List.generate(5, (i) => <String, Object?>{'id': '$i', 'name': 'r$i'});
       final model = TableViewModel(rows: rows, keyField: 'id', columns: _columns(), stickyHeader: false);
 
-      final node = TableView(model: model, theme: Theme.dark).build()
+      final node = TableView(model: model, resolver: _resolver).build()
         ..layout(plume.BoxConstraints.tight(const plume.Size(7, 5)), _ctx)
         ..place(plume.Offset.zero);
 
@@ -124,7 +126,7 @@ void main() {
   group('table view viewport report', () {
     test('reports the rows and columns it painted, addressed to the model id', () async {
       final model = await _seededTable(id: 'grid');
-      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
+      final frame = _frame(7, 3)..render(TableView(model: model, resolver: _resolver));
 
       final report = frame.reports.single as ViewportChanged;
       expect(report.id, 'grid');
@@ -140,7 +142,7 @@ void main() {
           Tagged.scope(
             'form',
             Container(
-              child: TableView(model: model, theme: Theme.dark),
+              child: TableView(model: model, resolver: _resolver),
             ),
           ),
         );
@@ -153,7 +155,7 @@ void main() {
   group('table view click routing', () {
     test('a click in the table resolves to its id', () async {
       final model = await _seededTable(id: 'grid');
-      final frame = _frame(7, 3)..render(TableView(model: model, theme: Theme.dark));
+      final frame = _frame(7, 3)..render(TableView(model: model, resolver: _resolver));
       expect(frame.hits.hitId(0, 0), 'grid');
       expect(frame.hits.hitId(3, 1), 'grid');
     });
@@ -163,7 +165,7 @@ void main() {
     test('the sticky header and each data row resolve to their own region', () async {
       // 7×3 frame: header at y0, data row 0 at y1, data row 1 at y2.
       final model = await _seededTable(id: 'grid');
-      final hits = (_frame(7, 3)..render(TableView(model: model, theme: Theme.dark))).hits;
+      final hits = (_frame(7, 3)..render(TableView(model: model, resolver: _resolver))).hits;
 
       expect(hits.regionAt('grid', 0, 0), const TableHeaderRegion(), reason: 'the sticky header sits on row 0');
       expect(hits.regionAt('grid', 3, 1), const RowRegion(0), reason: 'anywhere across a row is that row');
@@ -182,7 +184,7 @@ void main() {
         columns: _columns(),
         stickyHeader: false,
       );
-      final hits = (_frame(7, 3)..render(TableView(model: model, theme: Theme.dark))).hits;
+      final hits = (_frame(7, 3)..render(TableView(model: model, resolver: _resolver))).hits;
 
       expect(hits.regionAt('grid', 0, 0), const RowRegion(0), reason: 'no header to push rows down');
       expect(hits.regionAt('grid', 0, 1), const RowRegion(1));

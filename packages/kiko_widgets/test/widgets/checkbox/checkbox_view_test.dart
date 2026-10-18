@@ -22,6 +22,8 @@ String _dump(Buffer buffer) {
   return out.toString();
 }
 
+final _resolver = StyleResolver(Theme.dark);
+
 void main() {
   group('checkbox view', () {
     test('unchecked dumps the box, the gap, and the label', () {
@@ -29,7 +31,7 @@ void main() {
         ..render(
           Checkbox(
             model: CheckboxModel(id: 'c', label: Line('Option')),
-            theme: Theme.dark,
+            resolver: _resolver,
           ),
         );
       expect(_dump(frame.buffer), '[ ] Option\n');
@@ -40,7 +42,7 @@ void main() {
 
     test('checked dumps the checked glyph', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
-      final frame = _frame(12, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(12, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '[x] Option\n');
       expect(frame.hits.rectOf('c'), Rect.create(x: 0, y: 0, width: 12, height: 1));
     });
@@ -56,7 +58,7 @@ void main() {
             children: [
               Checkbox(
                 model: CheckboxModel(id: 'c', label: Line('Option')),
-                theme: Theme.dark,
+                resolver: _resolver,
               ),
             ],
           ),
@@ -68,7 +70,7 @@ void main() {
   group('checkbox view layout', () {
     Checkbox combo({required bool labelFirst, required TextAlign labelAlign}) => Checkbox(
       model: CheckboxModel(id: 'c', label: Line('Option 1'), labelFirst: labelFirst, labelAlign: labelAlign),
-      theme: Theme.dark,
+      resolver: _resolver,
     );
 
     // Row width 26, box+gap 4 cells, label "Option 1" 8 cells: 14 spare
@@ -105,7 +107,7 @@ void main() {
         ..render(
           Column(
             crossAxis: CrossAxisAlignment.stretch,
-            children: [for (final m in rows) Checkbox(model: m, theme: Theme.dark)],
+            children: [for (final m in rows) Checkbox(model: m, resolver: _resolver)],
           ),
         );
       expect(frame.hits.rectOf('a'), Rect.create(x: 0, y: 0, width: 30, height: 1));
@@ -117,19 +119,19 @@ void main() {
   group('checkbox view glyphs', () {
     test('mixed paints glyphs.mixed', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.mixed);
-      final frame = _frame(12, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(12, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '[-] Option\n');
     });
 
     test('ballot paints one cell with no brackets', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), glyphs: CheckGlyphs.ballot);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '☐ Option\n');
     });
 
     test('emoji paints a two-cell mark and the label starts after it', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), glyphs: CheckGlyphs.emoji, state: CheckState.checked);
-      final frame = _frame(12, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(12, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '✅ Option\n');
       expect(frame.buffer[(x: 0, y: 0)].symbol, '✅');
       expect(frame.buffer[(x: 1, y: 0)].skip, isTrue); // the emoji's second cell
@@ -141,8 +143,8 @@ void main() {
       const glyphs = CheckGlyphs(checked: '✅');
       final unchecked = CheckboxModel(id: 'c', label: Line('Option'), glyphs: glyphs);
       final checked = CheckboxModel(id: 'c', label: Line('Option'), glyphs: glyphs, state: CheckState.checked);
-      final f1 = _frame(12, 1)..render(Checkbox(model: unchecked, theme: Theme.dark));
-      final f2 = _frame(12, 1)..render(Checkbox(model: checked, theme: Theme.dark));
+      final f1 = _frame(12, 1)..render(Checkbox(model: unchecked, resolver: _resolver));
+      final f2 = _frame(12, 1)..render(Checkbox(model: checked, resolver: _resolver));
       expect(f1.buffer[(x: 5, y: 0)].symbol, 'O');
       expect(f2.buffer[(x: 5, y: 0)].symbol, 'O');
     });
@@ -151,13 +153,13 @@ void main() {
   group('checkbox view clipping', () {
     test('box first: the row clips the label at the right edge', () {
       final model = CheckboxModel(id: 'c', label: Line('Option 1'));
-      final frame = _frame(6, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(6, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), '[ ] Op\n'); // the box paints whole, the label is cut
     });
 
     test('label first: the row clips the box at the right edge', () {
       final model = CheckboxModel(id: 'c', label: Line('Option 1'), labelFirst: true);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(_dump(frame.buffer), 'Option 1 [\n'); // the label paints whole, the box is cut
     });
   });
@@ -165,7 +167,7 @@ void main() {
   group('checkbox view styles', () {
     test('the checked mark carries the primary ink, plain', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), state: CheckState.checked);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       final mark = frame.buffer[(x: 1, y: 0)];
       expect(mark.fg, Theme.dark.primary.color);
       expect(mark.modifier.has(Modifier.bold), isFalse);
@@ -173,14 +175,14 @@ void main() {
 
     test('brackets carry the border ink at rest', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'));
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(frame.buffer[(x: 0, y: 0)].fg, Theme.dark.border.color);
       expect(frame.buffer[(x: 2, y: 0)].fg, Theme.dark.border.color);
     });
 
     test('brackets carry the primary ink and bold when focused', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), focused: true);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       final cell = frame.buffer[(x: 0, y: 0)];
       expect(cell.fg, Theme.dark.primary.color);
       expect(cell.modifier.has(Modifier.bold), isTrue);
@@ -188,7 +190,7 @@ void main() {
 
     test('error puts the error ink on the brackets only', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), error: true);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       expect(frame.buffer[(x: 0, y: 0)].fg, Theme.dark.error.color);
       expect(frame.buffer[(x: 2, y: 0)].fg, Theme.dark.error.color);
       expect(frame.buffer[(x: 1, y: 0)].fg, Color.reset); // the mark keeps its own style
@@ -197,7 +199,7 @@ void main() {
 
     test('disabled dims every cell', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'), disabled: true);
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: _resolver));
       for (final x in [0, 1, 2, 4]) {
         final cell = frame.buffer[(x: x, y: 0)];
         expect(cell.fg, Theme.dark.disabled.color, reason: 'cell at x=$x');
@@ -207,7 +209,7 @@ void main() {
 
     test('hover lifts the whole row half a step, spare cells included, and leaves fgs intact', () {
       final model = CheckboxModel(id: 'c', label: Line('Option'))..hovered = true;
-      final frame = _frame(12, 1)..render(Checkbox(model: model, theme: Theme.dark));
+      final frame = _frame(12, 1)..render(Checkbox(model: model, resolver: _resolver));
       final bracket = frame.buffer[(x: 0, y: 0)];
       final spare = frame.buffer[(x: 11, y: 0)]; // past "[ ] Option", still inside the row
       final washed = Theme.dark.background.color!.shiftLightness(Theme.step / 2);
@@ -218,9 +220,9 @@ void main() {
 
     test('a pressed checkbox no longer inverts its box or its label', () {
       final restingModel = CheckboxModel(id: 'c', label: Line('Option'));
-      final restingFrame = _frame(10, 1)..render(Checkbox(model: restingModel, theme: Theme.dark));
+      final restingFrame = _frame(10, 1)..render(Checkbox(model: restingModel, resolver: _resolver));
       final pressedModel = CheckboxModel(id: 'c', label: Line('Option'))..pressed = true;
-      final pressedFrame = _frame(10, 1)..render(Checkbox(model: pressedModel, theme: Theme.dark));
+      final pressedFrame = _frame(10, 1)..render(Checkbox(model: pressedModel, resolver: _resolver));
 
       for (final x in [0, 1, 2, 4]) {
         final resting = restingFrame.buffer[(x: x, y: 0)];
@@ -235,7 +237,7 @@ void main() {
       final theme = Theme.dark.copyWith(
         primary: const SurfaceTone(color: Color.yellow, on: Color.black),
       );
-      final frame = _frame(10, 1)..render(Checkbox(model: model, theme: theme));
+      final frame = _frame(10, 1)..render(Checkbox(model: model, resolver: StyleResolver(theme)));
       expect(frame.buffer[(x: 1, y: 0)].fg, Color.yellow);
     });
 
@@ -245,7 +247,7 @@ void main() {
         ..render(
           Checkbox(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const CheckboxStyle(open: Style(fg: Color.magenta)),
           ),
         );
@@ -258,7 +260,7 @@ void main() {
         ..render(
           Checkbox(
             model: model,
-            theme: Theme.dark,
+            resolver: _resolver,
             style: const CheckboxStyle(checkedMark: Style(fg: Color.cyan)),
           ),
         );

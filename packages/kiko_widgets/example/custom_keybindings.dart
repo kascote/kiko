@@ -177,8 +177,8 @@ void appView(AppModel model, Frame frame) {
     child: Column(
       crossAxis: CrossAxisAlignment.stretch,
       children: [
-        _field(model.normal, 'Default bindings', theme),
-        _field(model.emacs, 'Emacs bindings', theme),
+        _field(model.normal, 'Default bindings', resolver),
+        _field(model.emacs, 'Emacs bindings', resolver),
         Expanded(
           child: Container(
             border: BorderType.plain,
@@ -186,7 +186,7 @@ void appView(AppModel model, Frame frame) {
             topTitles: [Line('Vim-flavored list')],
             child: ListView(
               model: model.list,
-              theme: theme,
+              resolver: resolver,
               itemBuilder: (item, index, _) => [Line(' $item')],
             ),
           ),
@@ -220,14 +220,14 @@ void appView(AppModel model, Frame frame) {
 }
 
 /// A bordered, titled field wrapping a fixed-height [TextInput].
-View _field(TextInputModel input, String label, Theme theme) => Container(
+View _field(TextInputModel input, String label, StyleResolver resolver) => Container(
   border: BorderType.plain,
-  borderStyle: StyleResolver(theme).border({if (input.focused) WidgetState.focused}),
+  borderStyle: resolver.border({if (input.focused) WidgetState.focused}),
   padding: const EdgeInsets.symmetric(horizontal: 1),
   topTitles: [Line(label)],
   child: ConstrainedBox(
     additionalConstraints: const BoxConstraints(minH: 1, maxH: 1),
-    child: TextInput(model: input, theme: theme),
+    child: TextInput(model: input, resolver: resolver),
   ),
 );
 

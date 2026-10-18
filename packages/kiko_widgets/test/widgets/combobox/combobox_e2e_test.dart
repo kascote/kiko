@@ -55,10 +55,10 @@ Cmd? _onEvent(_App model, WidgetEvent event) {
   return (model, null);
 }
 
-const Theme _theme = Theme.dark;
+final _resolver = StyleResolver(Theme.dark);
 
 void _view(_App model, Frame frame) {
-  final comboView = Combobox(model: model.combo, theme: _theme);
+  final comboView = Combobox(model: model.combo, resolver: _resolver);
   frame.render(
     Column(
       children: [

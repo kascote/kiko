@@ -149,7 +149,8 @@ in `frame.hits`:
 ```dart
 test('renders the text and places the cursor at its end', () {
   final model = TextInputModel(id: 'name', initial: 'hi', focused: true);
-  final frame = testFrame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
+  final resolver = StyleResolver(Theme.dark);
+  final frame = testFrame(6, 1)..render(TextInput(model: model, resolver: resolver));
 
   expect(screenText(frame.buffer), 'hi\n');
   expect(frame.cursorPosition, const Position(2, 0));
@@ -157,13 +158,17 @@ test('renders the text and places the cursor at its end', () {
 });
 ```
 
+A view takes a `StyleResolver`, not a `Theme`. The tests bind one to
+`Theme.dark`.
+
 For styling, index the buffer and assert on the cell — `symbol`, `fg`, `bg`,
 `modifier`. Coordinates are 0-based buffer cells everywhere:
 
 ```dart
 test('focus tints the glyph, not the background', () {
   final model = TextInputModel(id: 'name', initial: 'hi', focused: true);
-  final frame = testFrame(6, 1)..render(TextInput(model: model, theme: Theme.dark));
+  final resolver = StyleResolver(Theme.dark);
+  final frame = testFrame(6, 1)..render(TextInput(model: model, resolver: resolver));
 
   final cell = frame.buffer[(x: 0, y: 0)];
   expect(cell.symbol, 'h');
@@ -197,10 +202,11 @@ call but `draw` is recorded rather than simulated.
 test('a widget renders through the terminal onto the backend screen', () async {
   final backend = TestBackend(size: const TermSize(4, 1));
   final terminal = await Terminal.create(backend: backend);
+  final resolver = StyleResolver(Theme.dark);
 
   await terminal.draw(
     (frame) => frame.render(
-      Button(model: ButtonModel(id: 'ok', label: Line('OK')), theme: Theme.dark),
+      Button(model: ButtonModel(id: 'ok', label: Line('OK')), resolver: resolver),
     ),
   );
 
@@ -292,6 +298,7 @@ burst, and the frame that paints them is the second.
 test('a widget model wired into the loop sees the keystrokes and paints them', () async {
   final backend = TestBackend(size: const TermSize(20, 1));
   final input = TextInputModel(id: 'name', focused: true);
+  final resolver = StyleResolver(Theme.dark);
 
   await Application(
     backend: backend,
@@ -317,7 +324,7 @@ test('a widget model wired into the loop sees the keystrokes and paints them', (
           };
       }
     },
-    view: (model, frame) => frame.render(TextInput(model: model, theme: Theme.dark)),
+    view: (model, frame) => frame.render(TextInput(model: model, resolver: resolver)),
   );
 
   expect(input.value, 'hi');
@@ -342,6 +349,7 @@ built from the first frame in which that hit path is live:
 test('a click places the caret where the field is painted, and a key inserts there', () async {
   final backend = TestBackend(size: const TermSize(20, 1));
   final input = TextInputModel(id: 'name', initial: 'hi', focused: true);
+  final resolver = StyleResolver(Theme.dark);
   final script = FrameScript(
     backend,
     readyId: 'name',
@@ -362,7 +370,7 @@ test('a click places the caret where the field is painted, and a key inserts the
         Declined() => (model, null),
       },
     ),
-    view: (model, frame) => frame.render(TextInput(model: model, theme: Theme.dark)),
+    view: (model, frame) => frame.render(TextInput(model: model, resolver: resolver)),
   );
 
   expect(script.completed, isTrue);

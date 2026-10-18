@@ -121,7 +121,7 @@ void appView(AppModel model, Frame frame) {
             topTitles: [Line('Contacts', style: resolver.ink(t.accent))],
             child: ListView(
               model: model.list,
-              theme: theme,
+              resolver: resolver,
               itemBuilder: (contact, index, state) {
                 final checkbox = state.selected ? '●' : '○';
                 final archivedTag = state.disabled ? ' (archived)' : '';
